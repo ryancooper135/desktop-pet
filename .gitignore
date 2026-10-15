@@ -10,3 +10,4 @@ probe/App/Info.plist
 probe/Widgets/Info.plist
 probe/App/App.entitlements
 probe/Widgets/Widgets.entitlements
+*.log

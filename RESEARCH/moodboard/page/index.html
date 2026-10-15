@@ -1,0 +1,629 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Питомец: выбор стиля</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Одна колонка как буклет из коробки с игрой: сверху живой «телевизор» со щенком, ниже три стиля, персонажи и бланк ответов. */
+:root {
+  --bg: #eef1ea;          /* бумага с зелёным отливом */
+  --surface: #f9faf6;
+  --ink: #1d2419;
+  --muted: #5b6655;
+  --line: #cfd6c8;
+  --accent: #2f8a3c;      /* кепка Луиджи */
+  --accent-ink: #ffffff;
+  --cap: #e2efd9;
+  --tv: #24271f;
+  --check-a: #e4e9de;
+  --warn: #b5651d;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141811; --surface: #1c2118; --ink: #e6ebe0; --muted: #9aa691; --line: #303829;
+    --accent: #5cc46b; --accent-ink: #0d140b; --cap: #22311f; --tv: #0b0d09; --check-a: #191d16; --warn: #e3a05c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141811; --surface: #1c2118; --ink: #e6ebe0; --muted: #9aa691; --line: #303829;
+  --accent: #5cc46b; --accent-ink: #0d140b; --cap: #22311f; --tv: #0b0d09; --check-a: #191d16; --warn: #e3a05c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  background-image:
+    linear-gradient(45deg, var(--check-a) 25%, transparent 25%, transparent 75%, var(--check-a) 75%),
+    linear-gradient(45deg, var(--check-a) 25%, transparent 25%, transparent 75%, var(--check-a) 75%);
+  background-size: 48px 48px; background-position: 0 0, 24px 24px;
+  color: var(--ink); font: 400 16px/1.55 var(--body);
+}
+.wrap {
+  max-width: 980px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+  display: grid; gap: 40px;
+}
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(26px, 6vw, 44px); line-height: 1.08; font-weight: 700; }
+h2 { font-size: clamp(20px, 3.6vw, 28px); font-weight: 700; }
+h3 { font-size: 17px; font-weight: 500; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lead { color: var(--muted); font-size: 17px; }
+header { display: grid; gap: 12px; }
+section { display: grid; gap: 18px; }
+.sec-head { display: grid; gap: 8px; }
+
+/* Телевизор */
+.tv {
+  background: var(--tv); border-radius: 22px; padding: 14px;
+  box-shadow: 0 2px 0 rgba(0,0,0,.25), 0 18px 40px -18px rgba(0,0,0,.45);
+  display: grid; gap: 12px;
+}
+.screen { position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 10px; overflow: hidden; background: #000; touch-action: pan-y; cursor: grab; }
+.screen canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.screen .msg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px; color: #d9e3cf; font: 500 14px/1.5 var(--mono); }
+.screen .msg[hidden] { display: none; }
+.osd { position: absolute; left: 10px; top: 8px; color: #e9ffd9; font: 600 12px/1.3 var(--mono); text-shadow: 1px 1px 0 #000; pointer-events: none; letter-spacing: .04em; }
+.controls { display: grid; gap: 10px; color: #dfe7d6; font-size: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row > .lbl { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: #9fab94; min-width: 92px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button {
+  font: 500 14px/1 var(--body); padding: 9px 13px; border-radius: 999px;
+  border: 1px solid #485040; background: transparent; color: #dfe7d6; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: #5cc46b; border-color: #5cc46b; color: #0d140b; }
+.seg button:focus-visible, .chip:focus-visible, .copy:focus-visible { outline: 2px solid #f0d34a; outline-offset: 2px; }
+input[type=range] { width: min(260px, 100%); accent-color: #5cc46b; }
+.hint { color: #9fab94; font-size: 13px; }
+
+/* Три направления */
+.dirs { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.dir { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.dir.pick { border: 2px solid var(--accent); }
+.dir-top { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.letter { font: 700 30px/1 var(--display); color: var(--accent); }
+.badge { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); padding: 6px 9px; border-radius: 6px; }
+.dir ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; max-width: 66ch; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+figure { margin: 0; display: grid; gap: 4px; min-width: 0; }
+figure img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 8px; background: var(--line); image-rendering: auto; }
+figcaption { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.ref-tag { font: 600 10px/1 var(--mono); color: var(--warn); letter-spacing: .06em; }
+
+/* Персонажи */
+.chars { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.char { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.char img { border-radius: 10px; width: 100%; aspect-ratio: 16/10; object-fit: cover; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; margin: 0; }
+.facts dt { color: var(--muted); font: 500 12px/1.6 var(--mono); }
+.facts dd { margin: 0; }
+.later { background: var(--cap); border-radius: 14px; padding: 16px; display: grid; gap: 6px; }
+
+/* Ответы */
+.form { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 20px; }
+.q { display: grid; gap: 8px; }
+.q-title { font-weight: 600; }
+.q-note { font-size: 14px; color: var(--muted); max-width: 66ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 14px/1.2 var(--body); padding: 9px 13px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.out { display: grid; gap: 10px; }
+textarea { width: 100%; min-height: 150px; font: 400 13px/1.5 var(--mono); padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+.copy { justify-self: start; font: 600 15px/1 var(--body); padding: 13px 18px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.status { font-size: 14px; color: var(--muted); }
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+footer p { max-width: 90ch; }
+a { color: var(--accent); }
+@media (min-width: 760px) {
+  .dirs { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Питомец · этап 1 · выбор за тобой</div>
+    <h1>Какой будет щенок</h1>
+    <p class="lead">Сверху живое 3D: настоящие бесплатные модели, которые можно брать в игру, и тот же ретро-рендер, что будет на iPhone. Переключай стиль, персонажа и «ретро». Внизу ответы одной кнопкой «Скопировать» — пришли их мне в чат.</p>
+  </header>
+
+  <section aria-label="Живой просмотр">
+    <div class="tv">
+      <div class="screen" id="screen">
+        <canvas id="cv" aria-label="3D-питомец"></canvas>
+        <div class="osd" id="osd">B · 240p</div>
+        <div class="msg" id="msg">Загружаю щенка…</div>
+      </div>
+      <div class="controls">
+        <div class="row"><span class="lbl">Стиль</span>
+          <div class="seg" id="segDir">
+            <button type="button" data-v="A" aria-pressed="false">A · Nintendogs</button>
+            <button type="button" data-v="B" aria-pressed="true">B · Petz PS2</button>
+            <button type="button" data-v="C" aria-pressed="false">C · Хоррор PS1</button>
+          </div>
+        </div>
+        <div class="row"><span class="lbl">Персонаж</span>
+          <div class="seg" id="segChar">
+            <button type="button" data-v="shiba" aria-pressed="true">Шиба</button>
+            <button type="button" data-v="husky" aria-pressed="false">Хаски</button>
+            <button type="button" data-v="cat" aria-pressed="false">Кот</button>
+          </div>
+        </div>
+        <div class="row"><span class="lbl">Действие</span>
+          <div class="seg" id="segAnim">
+            <button type="button" data-v="idle" aria-pressed="true">Стоит</button>
+            <button type="button" data-v="walk" aria-pressed="false">Идёт</button>
+            <button type="button" data-v="eat" aria-pressed="false">Ест</button>
+            <button type="button" data-v="run" aria-pressed="false">Бежит</button>
+            <button type="button" data-v="death" aria-pressed="false">Умер</button>
+          </div>
+        </div>
+        <div class="row"><span class="lbl">Состояние</span>
+          <div class="seg" id="segDirt">
+            <button type="button" data-v="1" aria-pressed="true">Лохматый и грязный</button>
+            <button type="button" data-v="0" aria-pressed="false">Ухоженный</button>
+          </div>
+        </div>
+        <div class="row"><label class="lbl" for="retro">Ретро</label>
+          <input type="range" id="retro" min="0" max="100" value="0">
+          <span class="hint" id="retroVal">0 %, до стиля C</span>
+        </div>
+        <p class="hint">Тяни по экрану, чтобы повернуть. Шерсть и грязь пока нарисованы шейдером: у этих моделей нет фото-текстур, их сделаем отдельно (см. ниже).</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Три направления</div>
+      <h2>Стиль мира</h2>
+      <p class="lead">Модель та же, меняются комната, свет, разрешение и цвета. Я советую B: оно ближе всего к твоим рефам Petz и Sims 2 Pets, и на нём лучше всего видно, как питомец из «лохматого» становится красивым.</p>
+    </div>
+    <div class="dirs">
+      <article class="dir">
+        <div class="dir-top"><span class="letter">A</span><h3>Nintendogs, DS-открытка</h3></div>
+        <ul>
+          <li>Светлая комната, клетчатый пол, пастель, мягкий тёплый свет.</li>
+          <li>Шерсть 128 px с лёгким «мылом», без дизеринга и дрожания.</li>
+          <li>Камера низко, на уровне носа, щенок крупно. Абсурд в шапках и костюмах.</li>
+        </ul>
+        <div class="strip">
+          <figure><img src="img/ref-5.jpg" alt="Твой реф 5" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 5</span></figcaption></figure>
+          <figure><img src="img/ref-6.jpg" alt="Твой реф 6" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 6</span></figcaption></figure>
+          <figure><img src="img/mb-06.jpg" alt="Щенок Google Poly" loading="lazy"><figcaption>Мультяшный щенок, 654 треугольника</figcaption></figure>
+          <figure><img src="img/mb-10.jpg" alt="Пушистый манул" loading="lazy"><figcaption>Круглый пушистый силуэт</figcaption></figure>
+          <figure><img src="img/mb-15.jpg" alt="Dog Petting Simulator" loading="lazy"><figcaption>Светлый двор (только референс)</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="dir pick">
+        <div class="dir-top"><span class="letter">B</span><h3>Petz / Sims 2 Pets, PS2</h3><span class="badge">советую</span></div>
+        <ul>
+          <li>Пропорции ближе к настоящим, фото-шерсть 256 px с пятнами и окрасами.</li>
+          <li>Комнаты с обоями, деревом и ковром. Тёплая лампа, лёгкая дымка по углам.</li>
+          <li>Чуть меньше цветов, еле заметный дизеринг, половинное разрешение.</li>
+          <li>Колтуны и грязь в начале, чистая блестящая шерсть потом.</li>
+        </ul>
+        <div class="strip">
+          <figure><img src="img/ref-2.jpg" alt="Твой реф 2" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 2</span></figcaption></figure>
+          <figure><img src="img/ref-3.jpg" alt="Твой реф 3" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 3</span></figcaption></figure>
+          <figure><img src="img/ref-4.jpg" alt="Твой реф 4" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 4</span></figcaption></figure>
+          <figure><img src="img/mb-08.jpg" alt="Французский бульдог PSX" loading="lazy"><figcaption>Бульдог PSX: фото-шерсть низкого разрешения</figcaption></figure>
+          <figure><img src="img/mb-14.jpg" alt="PSX Animals Farm Pack" loading="lazy"><figcaption>«Мыльная» шерсть PS2 (только референс)</figcaption></figure>
+          <figure><img src="img/mb-09.jpg" alt="Немецкая овчарка" loading="lazy"><figcaption>Овчарка с 13 анимациями: лечь, почесаться</figcaption></figure>
+        </div>
+      </article>
+
+      <article class="dir">
+        <div class="dir-top"><span class="letter">C</span><h3>Хоррор-мило, PS1</h3></div>
+        <ul>
+          <li>Четверть разрешения, дрожащие вершины, дизеринг, мало цветов, густой туман.</li>
+          <li>Щенок посреди хоррор-коридора, тунг-тунг-сахур. Смешно и криво.</li>
+          <li>Глаз от него устаёт, поэтому лучше как режим «ретро-телевизор» и для мини-игры «Щенок против зомби».</li>
+        </ul>
+        <div class="strip">
+          <figure><img src="img/ref-1.jpg" alt="Твой реф 1" loading="lazy"><figcaption><span class="ref-tag">ТВОЙ РЕФ 1</span></figcaption></figure>
+          <figure><img src="img/mb-13.jpg" alt="PSX-шейдер" loading="lazy"><figcaption>Эталон PS1-шейдера (только референс)</figcaption></figure>
+          <figure><img src="img/mb-16.jpg" alt="Haunted PS1" loading="lazy"><figcaption>Комната-хоррор, тёплый свет (только референс)</figcaption></figure>
+          <figure><img src="img/mb-07.jpg" alt="Чёрный кот PSX" loading="lazy"><figcaption>Кот PSX, 466 полигонов</figcaption></figure>
+        </div>
+      </article>
+    </div>
+    <p class="q-note">Моё предложение: B основной, а в настройках ползунок «Ретро» (его можно потрогать сверху) плавно уводит картинку в C. Сам режим C открывается как награда.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Кого заводим первым</div>
+      <h2>Варианты персонажа</h2>
+      <p class="lead">Все три бесплатные, их можно положить в приложение. Первый питомец задаёт «семейство скелета»: под него делаем анимации «сидеть» и «спать» и шьём первые шмотки.</p>
+    </div>
+    <div class="chars">
+      <article class="char">
+        <img src="img/mb-01.jpg" alt="Шиба Quaternius" loading="lazy">
+        <div class="dir-top"><h3>1. Шиба</h3><span class="badge">советую</span></div>
+        <p>Самый «щенячий» силуэт. Общий скелет с Хаски и Волком, поэтому окрасы и породы потом берутся почти бесплатно, а одна шапка подходит всем.</p>
+        <dl class="facts"><dt>Треуг.</dt><dd>1 812</dd><dt>Анимации</dt><dd>12: стоит ×3, идёт, бежит, ест, прыжок, удар, смерть</dd><dt>Нет</dt><dd>сидеть, спать (сделаю в Blender)</dd><dt>Лицензия</dt><dd>CC0, Quaternius</dd></dl>
+      </article>
+      <article class="char">
+        <img src="img/mb-02.jpg" alt="Хаски Quaternius" loading="lazy">
+        <h3>2. Хаски</h3>
+        <p>Тот же скелет, крупнее и пушистее. На нём сильнее разница между «лохматым» и «вычесанным». Хорош как вторая порода.</p>
+        <dl class="facts"><dt>Треуг.</dt><dd>1 822</dd><dt>Анимации</dt><dd>те же 12, что у Шибы</dd><dt>Нет</dt><dd>сидеть, спать</dd><dt>Лицензия</dt><dd>CC0, Quaternius</dd></dl>
+      </article>
+      <article class="char">
+        <img src="img/mb-04.jpg" alt="Кот Quaternius" loading="lazy">
+        <h3>3. Кот</h3>
+        <p>Отдельное семейство: свой скелет на 16 костей и уже есть текстура. Если кот главный, собаки идут второй очередью, и наоборот.</p>
+        <dl class="facts"><dt>Треуг.</dt><dd>2 448</dd><dt>Анимации</dt><dd>8: стоит, идёт, бежит, ест, бодается, прыжок, смерть</dd><dt>Нет</dt><dd>сидеть, спать, умываться</dd><dt>Лицензия</dt><dd>CC0, Quaternius</dd></dl>
+      </article>
+    </div>
+    <div class="later">
+      <h3>Свои персонажи потом</h3>
+      <p>Тунг-тунг-сахур и другие мемы — это семейство «двуногие» (риг через Mixamo), а кубики и слаймы — семейство «комок», как у Kenney. Каждый персонаж — папка: модель, анимации, конфиг. Их добавим после первого питомца.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Ответы</div>
+      <h2>Нажми, что нравится, и скопируй</h2>
+      <p class="lead">Можно ответить не на всё. Что пропустишь, я решу сам и напишу, что выбрал.</p>
+    </div>
+    <div class="form" id="form">
+      <div class="q" data-q="Стиль"><div class="q-title">Стиль мира</div>
+        <div class="chips"><button type="button" class="chip" data-v="A">A · Nintendogs</button><button type="button" class="chip" data-v="B">B · Petz PS2</button><button type="button" class="chip" data-v="C">C · Хоррор PS1</button></div></div>
+      <div class="q" data-q="Ползунок Ретро"><div class="q-title">Ползунок «Ретро» в настройках</div>
+        <div class="chips"><button type="button" class="chip" data-v="нужен">Нужен</button><button type="button" class="chip" data-v="не нужен">Не нужен</button></div></div>
+      <div class="q" data-q="Первый персонаж"><div class="q-title">Первый питомец</div>
+        <div class="chips"><button type="button" class="chip" data-v="Шиба">Шиба</button><button type="button" class="chip" data-v="Хаски">Хаски</button><button type="button" class="chip" data-v="Кот">Кот</button></div></div>
+      <div class="q" data-q="Перо ангела"><div class="q-title">Перо ангела</div>
+        <p class="q-note">Редкая награда за год с питомцем: одно воскрешение. Или смерть строго навсегда.</p>
+        <div class="chips"><button type="button" class="chip" data-v="включить">Включить</button><button type="button" class="chip" data-v="смерть навсегда">Смерть навсегда</button></div></div>
+      <div class="q" data-q="Друзья видят"><div class="q-title">Что видят друзья</div>
+        <p class="q-note">Точное число сердец твоего питомца или только цвет тревоги (зелёный, жёлтый, красный).</p>
+        <div class="chips"><button type="button" class="chip" data-v="точные сердца">Точные сердца</button><button type="button" class="chip" data-v="только цвет">Только цвет</button></div></div>
+      <div class="q" data-q="TikTok-обида"><div class="q-title">Обида на TikTok</div>
+        <p class="q-note">Сидишь в TikTok больше 30 минут подряд: питомец зевает, потом обижается «А со мной?». Сердца не теряются.</p>
+        <div class="chips"><button type="button" class="chip" data-v="оставить">Оставить, смешно</button><button type="button" class="chip" data-v="убрать">Убрать</button></div></div>
+      <div class="q" data-q="SOS-кормёжка"><div class="q-title">SOS-кормёжка</div>
+        <p class="q-note">Когда твой питомец при смерти, друг может один раз в сутки его покормить. С какого уровня дружбы?</p>
+        <div class="chips"><button type="button" class="chip" data-v="Лучшие (90 дней)">Лучшие, 90 дней</button><button type="button" class="chip" data-v="Близкие (30 дней)">Близкие, 30 дней</button></div></div>
+      <div class="q" data-q="Щенок против зомби"><div class="q-title">Мини-игра «Щенок против зомби»</div>
+        <p class="q-note">Раннер в стиле C: щенок отбивается игрушками от зомби, кивок в Resident Evil.</p>
+        <div class="chips"><button type="button" class="chip" data-v="да">Да</button><button type="button" class="chip" data-v="нет">Нет</button></div></div>
+
+      <div class="out">
+        <label class="q-title" for="answer">Твой ответ</label>
+        <textarea id="answer" readonly></textarea>
+        <button type="button" class="copy" id="copy">Скопировать ответ</button>
+        <div class="status" id="status" role="status"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Модели в окне: Shiba Inu, Husky, Cat из Quaternius Ultimate/Animated Animals, CC0 (poly.pizza). Картинки с пометкой «только референс» — скриншоты чужих игр и платных паков, в приложение они не попадут.</p>
+    <p>Шейдер сделан на WebGL, в приложении его повторит RealityKit: CustomMaterial и PostProcessEffect.</p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(function () {
+  // ---------- бланк ответов (работает и без 3D) ----------
+  const form = document.getElementById('form');
+  const answer = document.getElementById('answer');
+  const status = document.getElementById('status');
+  let picks = {};
+  try { picks = JSON.parse(localStorage.getItem('pet-picks') || '{}') || {}; } catch (e) { picks = {}; }
+  function renderAnswer() {
+    form.querySelectorAll('.q').forEach(q => {
+      const key = q.dataset.q;
+      q.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(picks[key] === c.dataset.v)));
+    });
+    const lines = Object.keys(picks).filter(k => picks[k]).map(k => k + ': ' + picks[k]);
+    answer.value = lines.length ? 'Питомец, выбор:\n' + lines.join('\n') : 'Пока ничего не выбрано.';
+    try { localStorage.setItem('pet-picks', JSON.stringify(picks)); } catch (e) {}
+  }
+  form.addEventListener('click', e => {
+    const chip = e.target.closest('.chip'); if (!chip) return;
+    const key = chip.closest('.q').dataset.q;
+    picks[key] = picks[key] === chip.dataset.v ? '' : chip.dataset.v;
+    renderAnswer();
+  });
+  document.getElementById('copy').addEventListener('click', () => {
+    const done = () => { status.textContent = 'Скопировано. Вставь в чат со мной.'; };
+    try {
+      navigator.clipboard.writeText(answer.value).then(done, () => { answer.select(); status.textContent = 'Текст выделен: скопируй его вручную.'; });
+    } catch (e) { answer.select(); status.textContent = 'Текст выделен: скопируй его вручную.'; }
+  });
+  renderAnswer();
+
+  // ---------- 3D ----------
+  const msg = document.getElementById('msg');
+  const osd = document.getElementById('osd');
+  if (!window.THREE || !THREE.GLTFLoader) { msg.textContent = '3D не загрузилось. Картинки ниже всё равно показывают стили.'; return; }
+
+  const screen = document.getElementById('screen');
+  const canvas = document.getElementById('cv');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false }); }
+  catch (e) { msg.textContent = 'Этот браузер не умеет WebGL. Картинки ниже показывают стили.'; return; }
+
+  const col = h => new THREE.Color(h).convertSRGBToLinear();
+
+  // Параметры направлений. Ретро-ползунок тянет числовые параметры к C.
+  const DIRS = {
+    A: { lines: 300, levels: 256, dither: 0.0, snap: 0.0, bg: '#f3ece6', fogNear: 9, fogFar: 22, hemiSky: '#fff6ee', hemiGround: '#c9d6e6', hemi: 1.05, key: '#fff3e2', keyI: 0.9, floor: 'checkerA', wall: 'wallA', fur: 0.35, smooth: false, name: 'A · DS' },
+    B: { lines: 240, levels: 40, dither: 0.35, snap: 0.0, bg: '#5a4433', fogNear: 4.5, fogFar: 12, hemiSky: '#ffe2b8', hemiGround: '#5b3b26', hemi: 0.8, key: '#ffcf8f', keyI: 1.25, floor: 'woodB', wall: 'wallB', fur: 1.0, smooth: true, name: 'B · PS2' },
+    C: { lines: 112, levels: 9, dither: 1.0, snap: 1.0, bg: '#0c0f0b', fogNear: 2.2, fogFar: 6.5, hemiSky: '#93a884', hemiGround: '#141a10', hemi: 0.55, key: '#c9e0a8', keyI: 0.9, floor: 'checkerC', wall: 'wallC', fur: 0.6, smooth: false, name: 'C · PS1' }
+  };
+  const state = { dir: 'B', char: 'shiba', anim: 'idle', dirt: 1, retro: 0 };
+  try { Object.assign(state, JSON.parse(localStorage.getItem('pet-view') || '{}')); } catch (e) {}
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 50);
+  camera.position.set(0, 0.78, 3.1);
+  camera.lookAt(0, 0.42, 0);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+  const key = new THREE.DirectionalLight(0xffffff, 1);
+  key.position.set(1.5, 3, 2.2);
+  scene.add(hemi, key);
+
+  // Общие униформы ретро-материала
+  const U = { uSnap: { value: 0 }, uSnapRes: { value: new THREE.Vector2(160, 120) }, uDirt: { value: 1 }, uFurAmt: { value: 1 } };
+  const NOISE = `
+    varying vec3 vObjPos;
+    uniform float uFur; uniform float uFurAmt; uniform float uDirt; uniform float uFurScale;
+    float h3(vec3 p){ p = fract(p*0.3183099+0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+    float vn(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z); }`;
+  function retroize(mat, opts) {
+    const furScale = { value: opts.furScale || 1 };
+    const fur = { value: opts.fur ? 1 : 0 };
+    mat.onBeforeCompile = sh => {
+      sh.uniforms.uSnap = U.uSnap; sh.uniforms.uSnapRes = U.uSnapRes;
+      sh.uniforms.uDirt = U.uDirt; sh.uniforms.uFurAmt = U.uFurAmt;
+      sh.uniforms.uFur = fur; sh.uniforms.uFurScale = furScale;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;\nuniform float uSnap; uniform vec2 uSnapRes;')
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          vObjPos = transformed;
+          if (uSnap > 0.01) { vec2 g = uSnapRes * mix(1.0, 0.45, uSnap); vec4 p = gl_Position;
+            p.xy = mix(p.xy, floor(p.xy / p.w * g + 0.5) / g * p.w, clamp(uSnap*1.5, 0.0, 1.0)); gl_Position = p; }`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\n' + NOISE)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          if (uFur > 0.5) {
+            vec3 u = vObjPos * uFurScale;
+            vec3 q = floor(u * 56.0) / 56.0;
+            float n = vn(q * vec3(22.0, 64.0, 22.0)) * 0.6 + vn(q * 9.0) * 0.4;
+            diffuseColor.rgb *= mix(1.0, 0.7 + 0.55 * n, uFurAmt);
+            float spot = smoothstep(0.52, 0.7, vn(u * 4.0 + 3.1));
+            float mud = smoothstep(0.45, 0.8, vn(u * 9.0 + 7.7));
+            vec3 dirty = diffuseColor.rgb * vec3(0.62, 0.5, 0.36);
+            diffuseColor.rgb = mix(diffuseColor.rgb, dirty, uDirt * clamp(spot * 0.9 + mud * 0.35, 0.0, 1.0));
+            diffuseColor.rgb *= mix(1.0, 0.85, uDirt);
+          }`);
+    };
+    mat.customProgramCacheKey = () => 'retro';
+    return mat;
+  }
+
+  // ---------- текстуры комнат (рисуем на canvas) ----------
+  function tex(size, draw, rep, smooth) {
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    draw(c.getContext('2d'), size);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]);
+    t.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
+    t.minFilter = smooth ? THREE.LinearMipmapLinearFilter : THREE.NearestFilter;
+    t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+  function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+  const TEX = {
+    checkerA: () => tex(64, (g, s) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#bcd3ee' : '#f4f1ea'; g.fillRect(x * 8, y * 8, 8, 8); } }, [6, 6], false),
+    wallA: () => tex(32, (g, s) => { g.fillStyle = '#fbefe4'; g.fillRect(0, 0, s, s); g.fillStyle = '#f6e2d2'; for (let y = 0; y < s; y += 8) g.fillRect(0, y, s, 2); }, [4, 2], false),
+    woodB: () => tex(64, (g, s) => { const r = rnd(7); for (let y = 0; y < 8; y++) { const off = Math.floor(r() * 64); for (let x = -64; x < 64; x += 32) { const v = 0.75 + r() * 0.3; g.fillStyle = `rgb(${Math.round(150 * v)},${Math.round(96 * v)},${Math.round(58 * v)})`; g.fillRect(x + off, y * 8, 32, 8); g.fillStyle = 'rgba(40,20,8,.55)'; g.fillRect(x + off, y * 8, 1, 8); } g.fillStyle = 'rgba(40,20,8,.6)'; g.fillRect(0, y * 8 + 7, s, 1); for (let k = 0; k < 18; k++) { g.fillStyle = 'rgba(255,220,170,.08)'; g.fillRect(r() * s, y * 8 + r() * 7, 6, 1); } } }, [4, 4], true),
+    wallB: () => tex(64, (g, s) => { g.fillStyle = '#c9b98f'; g.fillRect(0, 0, s, s); for (let x = 0; x < s; x += 16) { g.fillStyle = '#b3a477'; g.fillRect(x, 0, 6, s); } g.fillStyle = '#8f5f4a'; for (let y = 4; y < s; y += 16) for (let x = 11; x < s; x += 16) g.fillRect(x, y, 3, 3); g.fillStyle = '#6b4a35'; g.fillRect(0, s - 6, s, 6); }, [5, 2], true),
+    checkerC: () => tex(64, (g, s) => { const r = rnd(3); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#2a3326' : '#151a12'; g.fillRect(x * 8, y * 8, 8, 8); } for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(${60 + r() * 50},${20 + r() * 20},10,${0.2 + r() * 0.3})`; g.fillRect(r() * s, r() * s, 1 + r() * 4, 1 + r() * 3); } }, [6, 6], false),
+    wallC: () => tex(32, (g, s) => { const r = rnd(11); for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) { const v = 40 + r() * 26; g.fillStyle = `rgb(${v},${v + 4},${v - 4})`; g.fillRect(x, y, 1, 1); } g.fillStyle = 'rgba(80,10,6,.6)'; g.fillRect(10, 18, 3, 14); g.fillRect(9, 18, 6, 2); }, [5, 2], false)
+  };
+  const texCache = {};
+  const getTex = k => texCache[k] || (texCache[k] = TEX[k]());
+
+  const floorMat = retroize(new THREE.MeshLambertMaterial({ color: 0xffffff }), { fur: false });
+  const wallMat = retroize(new THREE.MeshLambertMaterial({ color: 0xffffff }), { fur: false });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14, 14, 14), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 6, 14, 6), wallMat);
+  wall.position.set(0, 3, -2.6);
+  scene.add(floor, wall);
+
+  // ---------- низкое разрешение + квантование + дизеринг ----------
+  const rt = new THREE.WebGLRenderTarget(160, 120, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
+  const postMat = new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: rt.texture }, res: { value: new THREE.Vector2(160, 120) }, levels: { value: 256 }, dither: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D tDiffuse; uniform vec2 res; uniform float levels; uniform float dither; varying vec2 vUv;
+      float b2(vec2 v){ return mod(2.0*v.x + 3.0*v.y, 4.0); }
+      float bayer4(vec2 p){ vec2 q = floor(mod(p, 4.0)); return (4.0*b2(mod(q,2.0)) + b2(floor(q/2.0))) / 16.0; }
+      void main(){
+        vec2 px = floor(vUv * res);
+        vec3 c = texture2D(tDiffuse, (px + 0.5) / res).rgb;
+        c = pow(max(c, 0.0), vec3(1.0/2.2));
+        float n = levels - 1.0;
+        float d = (bayer4(px) - 0.5) * dither;
+        c = floor(c * n + 0.5 + d) / n;
+        gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+      }`,
+    depthTest: false, depthWrite: false
+  });
+  const postScene = new THREE.Scene();
+  const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+
+  // ---------- модели ----------
+  const loader = new THREE.GLTFLoader();
+  const FILES = { shiba: 'shiba.json', husky: 'husky.json', cat: 'cat.json' };
+  const loaded = {};
+  let current = null, mixer = null, clips = [], action = null;
+  const pivot = new THREE.Group(); pivot.rotation.y = -0.6; scene.add(pivot);
+
+  function prepare(gltf) {
+    const root = gltf.scene;
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      const sz = new THREE.Vector3(); o.geometry.boundingBox.getSize(sz);
+      const old = Array.isArray(o.material) ? o.material : [o.material];
+      const mats = old.map(m => {
+        const isEye = /eye|pupil|black/i.test(m.name || '');
+        if (m.map) { m.map.encoding = THREE.sRGBEncoding; m.map.magFilter = THREE.LinearFilter; }
+        const nm = new THREE.MeshLambertMaterial({ color: m.color ? m.color.clone() : 0xffffff, map: m.map || null, vertexColors: !!o.geometry.attributes.color && m.vertexColors });
+        nm.name = m.name;
+        return retroize(nm, { fur: !isEye, furScale: 1 / Math.max(sz.x, sz.y, sz.z, 1e-4) });
+      });
+      o.material = Array.isArray(o.material) ? mats : mats[0];
+      o.frustumCulled = false;
+    });
+    // Габариты считаем по костям: у скиннед-мешей bounding box геометрии врёт.
+    const skinBox = () => {
+      root.updateMatrixWorld(true);
+      const b = new THREE.Box3(), v = new THREE.Vector3();
+      root.traverse(o => {
+        if (o.isBone) b.expandByPoint(v.setFromMatrixPosition(o.matrixWorld));
+        else if (o.isMesh && !o.isSkinnedMesh) b.expandByObject(o);
+      });
+      return b;
+    };
+    const box = skinBox();
+    const size = box.getSize(new THREE.Vector3());
+    const s = 1.55 / Math.max(size.x, size.y, size.z);
+    root.scale.multiplyScalar(s);
+    const box2 = skinBox();
+    const c = box2.getCenter(new THREE.Vector3());
+    root.position.x -= c.x; root.position.z -= c.z; root.position.y -= box2.min.y;
+    return { root, clips: gltf.animations };
+  }
+
+  const ANIM = { idle: /(^|\|)Idle$/, walk: /(^|\|)Walk$/, eat: /Eating$/, run: /(Gallop|Run)$/, death: /Death$/ };
+  function playAnim() {
+    if (!mixer) return;
+    const re = ANIM[state.anim];
+    const clip = clips.find(c => re.test(c.name) && !c.name.includes('|')) || clips.find(c => re.test(c.name));
+    if (!clip) return;
+    const next = mixer.clipAction(clip);
+    next.reset();
+    if (state.anim === 'death') { next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished = true; } else next.setLoop(THREE.LoopRepeat, Infinity);
+    if (action && action !== next) next.crossFadeFrom(action, 0.25, false);
+    next.play(); action = next;
+  }
+
+  function showChar() {
+    const k = state.char;
+    const apply = d => {
+      if (current) pivot.remove(current);
+      current = d.root; pivot.add(current);
+      mixer = new THREE.AnimationMixer(current); clips = d.clips; action = null;
+      playAnim();
+      msg.hidden = true;
+    };
+    if (loaded[k]) { apply(loaded[k]); return; }
+    msg.hidden = false; msg.textContent = 'Загружаю модель…';
+    loader.load(FILES[k], g => { loaded[k] = prepare(g); if (state.char === k) apply(loaded[k]); },
+      undefined, () => { msg.hidden = false; msg.textContent = 'Модель не загрузилась. Обнови страницу.'; });
+  }
+
+  // ---------- применение стиля ----------
+  const lerp = (a, b, t) => a + (b - a) * t;
+  let P = {};
+  function applyDir() {
+    const d = DIRS[state.dir], c = DIRS.C, t = state.retro;
+    P = {
+      lines: Math.round(lerp(d.lines, c.lines, t)),
+      levels: Math.round(Math.exp(lerp(Math.log(d.levels), Math.log(c.levels), t))),
+      dither: lerp(d.dither, c.dither, t),
+      snap: lerp(d.snap, c.snap, t)
+    };
+    scene.background = col(d.bg);
+    scene.fog = new THREE.Fog(col(d.bg), d.fogNear, d.fogFar);
+    hemi.color = col(d.hemiSky); hemi.groundColor = col(d.hemiGround); hemi.intensity = d.hemi;
+    key.color = col(d.key); key.intensity = d.keyI;
+    floorMat.map = getTex(d.floor); wallMat.map = getTex(d.wall);
+    floorMat.needsUpdate = wallMat.needsUpdate = true;
+    U.uSnap.value = P.snap; U.uFurAmt.value = d.fur; U.uDirt.value = state.dirt;
+    postMat.uniforms.levels.value = P.levels; postMat.uniforms.dither.value = P.dither;
+    resize();
+    osd.textContent = d.name + ' · ' + P.lines + 'p' + (t > 0 ? ' · ретро ' + Math.round(t * 100) + '%' : '');
+    try { localStorage.setItem('pet-view', JSON.stringify(state)); } catch (e) {}
+  }
+
+  function resize() {
+    const w = screen.clientWidth, h = screen.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    const lh = Math.min(P.lines || 240, Math.round(h * dpr));
+    const lw = Math.round(lh * w / h);
+    rt.setSize(lw, lh);
+    postMat.uniforms.res.value.set(lw, lh);
+    U.uSnapRes.value.set(lw / 2, lh / 2);
+  }
+  new ResizeObserver(resize).observe(screen);
+
+  // ---------- кнопки ----------
+  function seg(id, keyName, conv) {
+    const el = document.getElementById(id);
+    const sync = () => el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(state[keyName]) === b.dataset.v)));
+    el.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      state[keyName] = conv ? conv(b.dataset.v) : b.dataset.v; sync();
+      if (keyName === 'char') showChar(); else if (keyName === 'anim') playAnim(); else applyDir();
+      if (keyName === 'char' || keyName === 'anim') { try { localStorage.setItem('pet-view', JSON.stringify(state)); } catch (e2) {} }
+    });
+    sync();
+  }
+  seg('segDir', 'dir'); seg('segChar', 'char'); seg('segAnim', 'anim'); seg('segDirt', 'dirt', Number);
+  const retro = document.getElementById('retro'), retroVal = document.getElementById('retroVal');
+  retro.value = Math.round(state.retro * 100);
+  const onRetro = () => { state.retro = retro.value / 100; retroVal.textContent = retro.value + ' %, до стиля C'; applyDir(); };
+  retro.addEventListener('input', onRetro); retroVal.textContent = retro.value + ' %, до стиля C';
+
+  // поворот пальцем
+  let drag = null;
+  screen.addEventListener('pointerdown', e => { drag = { x: e.clientX, r: pivot.rotation.y }; screen.setPointerCapture(e.pointerId); screen.style.cursor = 'grabbing'; });
+  screen.addEventListener('pointermove', e => { if (drag) pivot.rotation.y = drag.r + (e.clientX - drag.x) * 0.012; });
+  const end = () => { drag = null; screen.style.cursor = 'grab'; };
+  screen.addEventListener('pointerup', end); screen.addEventListener('pointercancel', end);
+
+  // ---------- цикл (спит, когда экран не видно) ----------
+  let visible = true;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(screen);
+  const clock = new THREE.Clock();
+  function frame() {
+    requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (!visible || document.hidden) return;
+    if (mixer) mixer.update(dt);
+    renderer.setRenderTarget(rt); renderer.render(scene, camera);
+    renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+  }
+  applyDir(); showChar(); frame();
+})();
+</script>
