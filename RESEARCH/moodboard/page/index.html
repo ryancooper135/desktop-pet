@@ -545,8 +545,34 @@ a { color: var(--accent); }
     };
     if (loaded[k]) { apply(loaded[k]); return; }
     msg.hidden = false; msg.textContent = 'Загружаю модель…';
-    loader.load(FILES[k], g => { loaded[k] = prepare(g); if (state.char === k) apply(loaded[k]); },
-      undefined, () => { msg.hidden = false; msg.textContent = 'Модель не загрузилась. Обнови страницу.'; });
+    const fail = () => { msg.hidden = false; msg.textContent = 'Модель не загрузилась. Обнови страницу.'; };
+    fetchGlb(FILES[k]).then(glb => loader.parse(glb, '', g => {
+      loaded[k] = prepare(g); if (state.char === k) apply(loaded[k]);
+    }, fail)).catch(fail);
+  }
+
+  // Артефакт не даёт загрузчику fetch по data:-ссылке, поэтому буфер из .json
+  // раскодируем сами и собираем GLB в памяти: тогда парсеру ничего не надо качать.
+  async function fetchGlb(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    const gltf = await res.json();
+    const b64 = gltf.buffers[0].uri.split(',')[1];
+    const raw = atob(b64), bin = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+    delete gltf.buffers[0].uri;
+    let json = new TextEncoder().encode(JSON.stringify(gltf));
+    const pad4 = n => (n + 3) & ~3;
+    const jLen = pad4(json.length), bLen = pad4(bin.length);
+    const out = new Uint8Array(12 + 8 + jLen + 8 + bLen);
+    const dv = new DataView(out.buffer);
+    dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, out.length, true);
+    dv.setUint32(12, jLen, true); dv.setUint32(16, 0x4E4F534A, true);
+    out.fill(0x20, 20, 20 + jLen); out.set(json, 20);
+    const o = 20 + jLen;
+    dv.setUint32(o, bLen, true); dv.setUint32(o + 4, 0x004E4942, true);
+    out.set(bin, o + 8);
+    return out.buffer;
   }
 
   // ---------- применение стиля ----------
