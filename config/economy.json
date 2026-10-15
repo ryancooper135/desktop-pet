@@ -50,7 +50,7 @@
         "L2": { "name": "Плохо",    "color": "#E8743B", "when": "distress active || heart lost in last 12h", "notify_every_h": 4, "notify_max_per_day": 3, "night": false, "friends_see": true },
         "L3": { "name": "Критично", "color": "#D93B3B", "when": "hearts <= 2", "notify_every_h": 2, "notify_max_per_day": 6, "night": false, "friends_sos": "best_friends", "show_eta": true }
       },
-      "_sim": "Полный игнор с 80% шкал: −1-е сердце ≈ 25 ч, L3 ≈ 39–47 ч, смерть ≈ 58–69 ч. 4 захода/день: 0 потерь. 1 заход/день «до максимума»: потерь нет."
+      "_sim": "Полный игнор с 80% шкал: −1-е сердце ≈ 25 ч, L3 ≈ 39–47 ч, смерть ≈ 58–69 ч. 4 захода/день: 0 потерь. 3 захода: 0 потерь. 1 заход/день «до максимума»: ≈ −0,5 сердца/нед (медленное угасание, лечится 2-м заходом). 1 небрежный заход/день: смерть ≈ 6 сут."
     },
 
     "cooldowns_min": { "pet": 3, "play_toy": 10, "feed_same_item": 20, "poke": 0 },
