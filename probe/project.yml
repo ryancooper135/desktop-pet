@@ -1,0 +1,55 @@
+# Сборка-зонд: проверяет на телефоне App Group, виджет, Live Activity, Control widget,
+# шаги, локальные уведомления и App Intents для «Команд» при бесплатной подписи.
+name: PetProbe
+options:
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+targets:
+  PetProbe:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    scheme: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.probe
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_TARGET"
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: "Зонд"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSSupportsLiveActivities: true
+        NSMotionUsageDescription: "Питомец гуляет вместе с тобой по шагам"
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.vadimpet.probe]
+    dependencies:
+      - target: PetProbeWidgets
+  PetProbeWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [Widgets, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.probe.widgets
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: "Зонд"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.vadimpet.probe]

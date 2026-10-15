@@ -1,0 +1,44 @@
+# Облачная сборка зонда без Mac: неподписанный .ipa, его подписывает Sideloadly/SideStore
+# бесплатным Apple ID при установке на телефон.
+name: probe-ipa
+on:
+  workflow_dispatch:
+  push:
+    paths: ["probe/**", ".github/workflows/probe-ipa.yml"]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: xcodebuild -version
+      - name: Generate project
+        working-directory: probe
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build
+        working-directory: probe
+        run: |
+          xcodebuild -project PetProbe.xcodeproj -scheme PetProbe \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Ad-hoc sign with entitlements
+        # Без подписи в бинарнике нет entitlements, и Sideloadly не узнает про App Group.
+        working-directory: probe
+        run: |
+          APP=build/Build/Products/Release-iphoneos/PetProbe.app
+          codesign -f -s - --entitlements Widgets/Widgets.entitlements "$APP/PlugIns/PetProbeWidgets.appex"
+          codesign -f -s - --entitlements App/App.entitlements "$APP"
+          codesign -d --entitlements - "$APP"
+      - name: Package ipa
+        working-directory: probe
+        run: |
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/PetProbe.app out/Payload/
+          cd out && zip -qry PetProbe.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PetProbe-ipa
+          path: probe/out/PetProbe.ipa

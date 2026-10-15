@@ -4,3 +4,9 @@ build/
 *.ipa
 DerivedData/
 .DS_Store
+probe/*.xcodeproj/
+probe/out/
+probe/App/Info.plist
+probe/Widgets/Info.plist
+probe/App/App.entitlements
+probe/Widgets/Widgets.entitlements
