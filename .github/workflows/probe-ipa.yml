@@ -7,7 +7,7 @@ on:
     paths: ["probe/**", ".github/workflows/probe-ipa.yml"]
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Xcode
