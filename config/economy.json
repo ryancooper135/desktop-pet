@@ -1,0 +1,273 @@
+{
+  "_about": "Черновик баланса «Питомец». Отдаётся сервером (Worker GET /config/economy), клиент кэширует; правка без пересборки. Единицы: шкалы 0..100, скорости — пунктов в час, время — минуты/часы как подписано, цены — монеты. Обоснование и симуляции: RESEARCH/04-game-design.md.",
+  "version": 1,
+  "updated": "2026-10-15",
+
+  "care": {
+    "needs": {
+      "food":   { "name": "Сытость",    "start": 70, "day_per_h": 5.0, "night_per_h": 0.6 },
+      "clean":  { "name": "Чистота",    "start": 35, "day_per_h": 2.5, "night_per_h": 0.25 },
+      "energy": { "name": "Энергия",    "start": 80, "day_per_h": 3.5, "night_regen_per_h": 12.0, "nap_below": 15, "nap_regen_per_h": 19.0, "nap_minutes": 45 },
+      "fun":    { "name": "Настроение", "start": 60, "day_per_h": 6.0, "night_per_h": 0.3 },
+      "love":   { "name": "Ласка",      "start": 50, "day_per_h": 4.0, "night_per_h": 0.3 },
+      "walk":   { "name": "Движение",   "start": 50, "day_per_h": 3.0, "night_per_h": 0.2, "steps_per_point": 80 },
+      "look":   { "name": "Ухоженность", "start": 5, "per_day": 6.0, "cosmetic_only": true,
+                  "stages": [ [0, "Рваный"], [25, "Лохматый"], [50, "Опрятный"], [75, "Шикарный"] ] }
+    },
+    "_needs_note": "start: питомец начинает «голым и рваным»: грязный, лохматый (look=5), слегка грустный — первые действия сразу дают видимый результат (endowed progress).",
+
+    "cross_effects": [
+      { "if": "food < 20",  "then": { "fun_decay_x": 1.25, "energy_decay_x": 1.25 } },
+      { "if": "clean < 25", "then": { "fun_decay_x": 1.3, "love_gain_x": 0.7, "flies": true } },
+      { "if": "clean < 10", "then": { "smell": true, "guests_avoid": true } },
+      { "if": "walk < 20",  "then": { "fun_decay_x": 1.2, "zoomies_chance_x": 2.0, "night_energy_regen_x": 0.85 } },
+      { "if": "love > 70",  "then": { "fun_decay_x": 0.85 } },
+      { "if": "energy < 20","then": { "refuses_games": true, "fun_gain_x": 0.5 } }
+    ],
+
+    "night": {
+      "default_bed": "23:30",
+      "default_wake": "07:30",
+      "pet_sleep_offset_min": { "after_bed": 15, "after_wake": 30 },
+      "learn": { "ema_alpha": 0.2, "min_observations": 3, "outlier_hours": 3, "split_weekend": true, "night_len_hours": [6, 10] },
+      "signals": { "focus_sleep_on": 1.0, "focus_sleep_off": 1.0, "alarm_stopped": 1.0, "charger_after_21": 0.5, "last_touch_of_day": 0.3, "first_touch_of_day": 0.4 }
+    },
+
+    "hearts": {
+      "max": 5,
+      "regen_per_h_awake": 0.0833,
+      "regen_night_x": 0.5,
+      "regen_requires_all_ge": 40,
+      "distress": {
+        "starve": { "when": "food == 0",              "grace_h_awake": 2, "hours_per_heart": 5 },
+        "dirty":  { "when": "clean < 10",             "grace_h_awake": 8, "hours_per_heart": 18 },
+        "toska":  { "when": "fun < 10 && love < 10",  "grace_h_awake": 8, "hours_per_heart": 18 }
+      },
+      "night_damage_x": 0.0,
+      "last_heart": { "timer_h_awake": 8, "no_death_first_h_after_wake": 3 },
+      "warnings": {
+        "L1": { "name": "Просит",   "color": "#E8B931", "when": "any(food,clean,fun,love) < 30", "notify_max_per_day": 3, "night": false },
+        "L2": { "name": "Плохо",    "color": "#E8743B", "when": "distress active || heart lost in last 12h", "notify_every_h": 4, "notify_max_per_day": 3, "night": false, "friends_see": true },
+        "L3": { "name": "Критично", "color": "#D93B3B", "when": "hearts <= 2", "notify_every_h": 2, "notify_max_per_day": 6, "night": false, "friends_sos": "best_friends", "show_eta": true }
+      },
+      "_sim": "Полный игнор с 80% шкал: −1-е сердце ≈ 25 ч, L3 ≈ 39–47 ч, смерть ≈ 58–69 ч. 4 захода/день: 0 потерь. 1 заход/день «до максимума»: потерь нет."
+    },
+
+    "cooldowns_min": { "pet": 3, "play_toy": 10, "feed_same_item": 20, "poke": 0 },
+    "bath_minutes_by_level": [60, 40, 25, 15],
+    "eat_seconds": { "small": 8, "meal": 20, "feast": 45 },
+    "requests": { "max_per_day": 6, "on_time_min": 60, "coins": 5, "xp": 5, "ignored_sulk_h": 3 },
+    "states": {
+      "zoomies": { "base_chance_per_h": 0.12, "requires": "awake && energy > 60", "after_bath_chance": 0.6, "auto_end_min": 10, "ignored_mess_clean": -5 },
+      "sulk":    { "min_minutes": 20, "max_minutes": 60, "love_gain_x": 0.5, "widget_actions": false },
+      "absence_sulk_after_h": 24
+    }
+  },
+
+  "currency": {
+    "coins":   { "name": "Монеты",   "icon": "🪙", "start": 150 },
+    "tickets": { "name": "Билетики", "icon": "🎟", "start": 1, "_note": "только для капсульного автомата; монетами — максимум 1 в день по 200" },
+    "shards":  { "name": "Клочки",   "icon": "🧶", "start": 0, "_note": "из дубликатов капсул; тратятся в Ателье" }
+  },
+
+  "rarities": [
+    { "id": "common",    "name": "Обычная",     "dog_show": "Дворовая",     "color": "#9AA0A6" },
+    { "id": "rare",      "name": "Редкая",      "dog_show": "Породистая",   "color": "#3D8BEA" },
+    { "id": "epic",      "name": "Эпическая",   "dog_show": "Выставочная",  "color": "#A35BE0" },
+    { "id": "legendary", "name": "Легендарная", "dog_show": "Чемпионская",  "color": "#F2B01E" }
+  ],
+
+  "income": {
+    "daily_login": { "cycle": [15, 20, 25, 30, 35, 40, 60], "day7_tickets": 1 },
+    "streak": {
+      "milestones": { "7": { "tickets": 1 }, "14": { "coins": 100, "tickets": 2 }, "30": { "coins": 300, "item": "medal_30" }, "60": { "coins": 500, "tickets": 3 }, "100": { "item": "legendary_collar_100" }, "365": { "item": "crown_365" } },
+      "freeze": { "price": 150, "max_hold": 2 },
+      "repair": { "price_per_day_missed": 250, "max_days": 2, "window_h": 48 }
+    },
+    "daily_quests": { "count": 3, "rewards": [20, 25, 35], "xp": [10, 15, 25], "reroll_price": 20,
+      "pool": [
+        "Покорми чем-нибудь новым", "Погладь 3 раза за день", "Сыграй в любую мини-игру",
+        "Пройди 4000 шагов", "Искупай питомца", "Выполни 2 просьбы вовремя",
+        "Тыкни друга", "Сыграй в Блок Дуо с другом", "Ляг спать вовремя",
+        "Поймай зумиз", "Сходи в гости", "Набери 3000 очков в Блок Дуо"
+      ]
+    },
+    "weekly_quest": { "coins": 200, "tickets": 2, "_note": "кооп-цель с друзьями (шаги/игры), бонус за участие 50 даже при провале" },
+    "habits": {
+      "daily_cap": 70,
+      "steps": { "coins_per_steps": 250, "cap": 40 },
+      "duolingo_open": { "coins": 10, "per_day": 1 },
+      "slept_on_time": { "coins": 15, "window_min": 30 },
+      "alarm_no_snooze": { "coins": 5 },
+      "workout": { "coins": 10, "per_day": 1 }
+    },
+    "friends": {
+      "visit_friend_pet": { "coins": 5, "per_day": 3 },
+      "sitting_per_day": { "coins": 40, "requires_hearts_ge": 3 },
+      "duo_participation": 15, "duo_win": 20, "duo_draw": 10
+    },
+    "owner_level_up_coins_x_level": 40
+  },
+
+  "minigames": {
+    "diminishing": [ { "games_from": 1, "x": 1.0 }, { "games_from": 7, "x": 0.5 }, { "games_from": 13, "x": 0.2 } ],
+    "energy_cost": 6,
+    "fun_gain": 18,
+    "list": {
+      "block_duo":  { "name": "Блок Дуо",            "formula": "min(70, 10 + floor(sqrt(score)/2.2))", "record_bonus": 20, "url": "https://blockduo.spotify-together.workers.dev/?embed=pet" },
+      "catch":      { "name": "Ловишка",             "base": 10, "max": 55, "par_score": 40 },
+      "fetch":      { "name": "Апорт",               "base": 10, "max": 50, "par_score": 12, "walk_gain": 15 },
+      "zoomies":    { "name": "Поймай зумиз",        "base": 5,  "max": 25, "only_in_state": "zoomies", "walk_gain": 10 },
+      "simon":      { "name": "Повторюшка",          "base": 8,  "max": 50, "par_score": 9 },
+      "hide_seek":  { "name": "Прятки",              "base": 10, "max": 45, "per_hiding_spot": 2, "_note": "больше мебели = больше укрытий = больше награда" },
+      "dig":        { "name": "Копай!",              "per_day": 3, "loot": "dig_table", "requires_upgrade": "yard>=2" },
+      "zombie_run": { "name": "Щенок против зомби",  "base": 10, "max": 60, "par_score": 800 }
+    },
+    "dig_table": [ [40, "coins:10"], [25, "coins:25"], [15, "food:common"], [10, "treasure:common"], [6, "treasure:rare"], [3, "tickets:1"], [1, "treasure:epic"] ]
+  },
+
+  "roulette": {
+    "free_per_day": 1,
+    "paid_prices": [50, 100, 200],
+    "sectors": [
+      { "w": 30, "reward": "coins:10" },
+      { "w": 25, "reward": "coins:25" },
+      { "w": 15, "reward": "coins:50" },
+      { "w": 12, "reward": "food:common" },
+      { "w": 7,  "reward": "coins:100" },
+      { "w": 6,  "reward": "tickets:1" },
+      { "w": 4,  "reward": "item:rare" },
+      { "w": 1,  "reward": "jackpot:500|item:epic" }
+    ],
+    "_ev": "≈29 монет + ≈20 в предметах/билетиках за вращение; платные — сток (EV < цены)"
+  },
+
+  "capsule": {
+    "name": "Автомат «Шарик»",
+    "price": { "tickets": 1, "or_coins": 120, "coins_step_per_pull_today": 40, "max_coin_pulls_per_day": 10 },
+    "odds": { "common": 70, "rare": 22, "epic": 7, "legendary": 1 },
+    "pity": { "epic_every": 15, "legendary_every": 60, "start_counter": 3 },
+    "duplicate_to_shards": { "common": 5, "rare": 15, "epic": 50, "legendary": 150 },
+    "atelier_price_shards": { "common": 40, "rare": 120, "epic": 400, "legendary": 1200 },
+    "pools_rotate_days": 14
+  },
+
+  "shop": {
+    "food": [
+      { "id": "kibble",   "name": "Хрустики",          "rarity": "common",    "price": 6,   "food": 20 },
+      { "id": "carrot",   "name": "Морковка",          "rarity": "common",    "price": 4,   "food": 10, "clean": 0 },
+      { "id": "broccoli", "name": "Брокколи",          "rarity": "common",    "price": 5,   "food": 25, "fun": -10, "_note": "ненавидит, если не «Привереда-ЗОЖ»" },
+      { "id": "milk",     "name": "Тёплое молоко",     "rarity": "common",    "price": 8,   "food": 15, "sleep_regen_x": 1.3, "buff_min": 60 },
+      { "id": "sausage",  "name": "Сосиска",           "rarity": "common",    "price": 10,  "food": 28, "love": 2 },
+      { "id": "stew",     "name": "Мясное рагу",       "rarity": "common",    "price": 12,  "food": 35, "fun": 3 },
+      { "id": "fish",     "name": "Рыбка",             "rarity": "rare",      "price": 25,  "food": 40, "fun": 10 },
+      { "id": "pizza",    "name": "Пицца",             "rarity": "rare",      "price": 30,  "food": 50, "fun": 15, "clean": -10 },
+      { "id": "cake",     "name": "Тортик",            "rarity": "epic",      "price": 60,  "food": 45, "fun": 30, "love": 10, "energy": 10, "zoomies_chance": 0.5 },
+      { "id": "gold_bone","name": "Золотая косточка",  "rarity": "legendary", "price": 200, "food": 100, "fun": 20, "love": 20, "clean": 20, "hearts": 0.5, "cooldown_h": 24 }
+    ],
+    "consumables": [
+      { "id": "soap",       "name": "Шампунь",            "rarity": "common", "price": 15,  "uses": 1 },
+      { "id": "soap_aroma", "name": "Ароматный шампунь",  "rarity": "rare",   "price": 40,  "uses": 1, "clean_decay_x": 0.8, "buff_h": 24 },
+      { "id": "vitamin",    "name": "Витаминка",          "rarity": "rare",   "price": 150, "hearts": 0.5, "cooldown_h": 24 },
+      { "id": "grooming",   "name": "Салон: стрижка и расчёс", "rarity": "common", "price": 60, "look": 35 },
+      { "id": "brush",      "name": "Расчёска (навсегда)", "rarity": "rare",  "price": 250, "look_per_session": 6, "sessions_per_day": 1 },
+      { "id": "hotel_day",  "name": "Пансион, сутки",     "rarity": "common", "price": 80 }
+    ],
+    "toys": [
+      { "id": "ball",    "name": "Мячик",            "rarity": "common", "price": 30,  "durability": 20, "fun": 15 },
+      { "id": "squeaky", "name": "Пищалка",          "rarity": "common", "price": 50,  "durability": 25, "fun": 18 },
+      { "id": "rope",    "name": "Канат",            "rarity": "common", "price": 80,  "durability": 40, "fun": 20, "ends_zoomies": true },
+      { "id": "laser",   "name": "Лазерная указка",  "rarity": "rare",   "price": 180, "durability": 60, "fun": 25, "walk": 8 },
+      { "id": "robot",   "name": "Робо-мышь",        "rarity": "epic",   "price": 600, "durability": 150, "fun": 30, "walk": 10 }
+    ],
+    "price_bands": {
+      "clothes":   { "common": [80, 150],  "rare": [300, 600],  "epic": [900, 1800],  "legendary": [3000, 6000] },
+      "furniture": { "common": [100, 250], "rare": [400, 800],  "epic": [1200, 2500], "legendary": [5000, 8000] },
+      "_note": "легендарные — только капсулы/вехи/ярмарка выходного дня (1–2 позиции в неделю)"
+    },
+    "vanity": { "fur_dye": 500, "rename": 200, "photo_frame": 300, "name_tag": 150 },
+    "gift_wrap_fee_pct": 10,
+    "weekend_fair": { "slots": 4, "legendary_slots": 1, "rotate": "fri 18:00" }
+  },
+
+  "home_upgrades": {
+    "_note": "уровень 1 — бесплатный стартовый. Уровни 3/4 открываются уровнем хозяина 5/12 (хозяин, не питомец — дом переживает смерть питомца).",
+    "bath":    { "name": "Ванная",         "levels": [
+      { "name": "Тазик",               "price": 0 },
+      { "name": "Ванна",               "price": 700,  "buff": { "bath_min": 40, "clean_decay_x": 0.9 } },
+      { "name": "Джакузи",             "price": 1800, "buff": { "bath_min": 25, "clean_decay_x": 0.8, "fun_after_bath": 10 } },
+      { "name": "Спа",                 "price": 4000, "buff": { "bath_min": 15, "clean_decay_x": 0.7, "look_after_bath": 5 } } ] },
+    "bed":     { "name": "Спальное место", "levels": [
+      { "name": "Коврик",              "price": 0 },
+      { "name": "Лежанка",             "price": 600,  "buff": { "sleep_regen_x": 1.15 } },
+      { "name": "Кроватка с балдахином","price": 1600, "buff": { "sleep_regen_x": 1.3, "night_food_decay_x": 0.8 } },
+      { "name": "Королевская перина",  "price": 3500, "buff": { "sleep_regen_x": 1.45, "night_food_decay_x": 0.7, "love_on_wake": 5 } } ] },
+    "kitchen": { "name": "Кухня",          "levels": [
+      { "name": "Миска",               "price": 0,    "buff": { "storage": 5 } },
+      { "name": "Холодильник",         "price": 600,  "buff": { "storage": 15 } },
+      { "name": "Холодильник с автокормушкой", "price": 1700, "buff": { "storage": 30, "autofeed_below": 15 } },
+      { "name": "Кухня шефа",          "price": 3500, "buff": { "storage": 60, "autofeed_below": 25, "food_price_x": 0.9, "cooking": true } } ] },
+    "kennel":  { "name": "Будка",          "levels": [
+      { "name": "Коробка",             "price": 0 },
+      { "name": "Будка",               "price": 900,  "buff": { "heart_damage_x": 0.85 } },
+      { "name": "Тёплая будка",        "price": 2200, "buff": { "heart_damage_x": 0.7, "heart_regen_x": 1.25 } },
+      { "name": "Домик с камином",     "price": 4500, "buff": { "heart_damage_x": 0.55, "heart_regen_x": 1.5, "max_hearts": 6 } } ] },
+    "play":    { "name": "Игровой уголок", "levels": [
+      { "name": "Пустой угол",         "price": 0 },
+      { "name": "Корзина игрушек",     "price": 500,  "buff": { "fun_decay_x": 0.9 } },
+      { "name": "Игровой комплекс",    "price": 1400, "buff": { "fun_decay_x": 0.8, "minigame_coins_x": 1.1 } },
+      { "name": "Батут и горка",       "price": 3000, "buff": { "fun_decay_x": 0.7, "minigame_coins_x": 1.15 } } ] },
+    "yard":    { "name": "Дворик",         "levels": [
+      { "name": "Подоконник",          "price": 0 },
+      { "name": "Дворик",              "price": 700,  "buff": { "walk_decay_x": 0.85, "dig": true } },
+      { "name": "Сад",                 "price": 1700, "buff": { "walk_decay_x": 0.75, "npc_visitors": true, "memorial_garden": true } },
+      { "name": "Парк",                "price": 3500, "buff": { "walk_decay_x": 0.65, "dig_per_day": 5, "friend_visit_coins_x": 2 } } ] },
+    "rooms": [
+      { "id": "wardrobe", "name": "Гардеробная",   "price": 1500, "buff": { "outfit_slots": 5 } },
+      { "id": "room2",    "name": "Вторая комната","price": 2500, "buff": { "furniture_slots": 12 } },
+      { "id": "guest",    "name": "Гостевая",      "price": 3000, "buff": { "sitting_slots": 2, "guest_hours_x": 1.5 } }
+    ]
+  },
+
+  "levels": {
+    "owner": { "xp_formula": "round(50 * L^1.5)", "max": 50, "start_progress_pct": 30,
+               "unlocks": { "rare_shop": 3, "upgrades_L3": 5, "epic_shop": 8, "upgrades_L4": 12, "legendary_fair": 15 } },
+    "bond":  { "name": "Привязанность", "xp_formula": "round(30 * L^1.4)", "max": 20, "dies_with_pet": true,
+               "unlocks": { "trick_sit": 2, "trick_paw": 4, "trick_roll": 7, "greets_at_door": 9, "brings_gifts": 12, "sleeps_on_widget_with_you": 15 } },
+    "xp": { "feed": 2, "pet": 2, "play": 3, "bath": 10, "request_on_time": 5, "minigame": 5, "steps_per_1000": 1, "friend_interaction": 3 },
+    "growth_days": { "Щенок": 0, "Подросток": 3, "Взрослый": 14, "Мудрый": 180 }
+  },
+
+  "friends": {
+    "levels": [
+      { "name": "Приятели",       "days": 1,  "perks": ["poke", "guest_visit"] },
+      { "name": "Друзья",         "days": 7,  "perks": ["gifts_rare", "sitting"] },
+      { "name": "Близкие друзья", "days": 30, "perks": ["friend_streak_x1.5", "gift_fee_0"] },
+      { "name": "Лучшие друзья",  "days": 90, "perks": ["sos_feed", "shared_album_photo", "guest_overnight"] }
+    ],
+    "interaction_counts_once_per_day": true,
+    "gift_travel_minutes": [60, 180],
+    "guest_visit_hours": 2,
+    "poke_batch": true,
+    "friend_streak": { "max_friends": 5, "rule": "оба ухаживали за своими питомцами + 1 взаимодействие друг с другом за день", "freeze_shared": true },
+    "sitting": { "max_days": 7, "cooldown_days": 7, "friend_must_checkin_h": 24, "min_hearts_floor": 1, "owner_pet_decay_x": 1.0, "packed_bag_slots": 10 },
+    "hotel":   { "price_per_day": 80, "max_days": 14, "book_ahead_min": 60, "freeze_bars_at_min": 50, "xp": false }
+  },
+
+  "death": {
+    "permanent": true,
+    "keep": ["coins", "tickets", "shards", "house", "furniture", "wardrobe", "owner_level", "album"],
+    "lose": ["pet", "bond_level", "traits", "age", "pet_achievements", "friend_streaks_of_pet"],
+    "mourning_hours": 12,
+    "heir_if_lived_days": 30,
+    "heir_trait_inherit_pct": 30,
+    "angel_feather": { "enabled": false, "_note": "опция на выбор Вадима: 1 воскрешение за жизнь хозяина в течение 1 ч, только из вехи 365 дней" }
+  },
+
+  "anti_inflation": {
+    "targets": { "spend_to_earn_7d": [0.7, 1.05], "median_balance_vs_next_goal": 2.0 },
+    "levers": ["minigame diminishing", "habit cap", "capsule escalation", "paid roulette", "toy durability", "consumable soap", "gift wrap fee", "weekend fair legendaries", "seasonal items", "vanity sinks"]
+  },
+
+  "analytics": { "upload": "batch on app open, max 1/10 min", "retention_days_raw": 90, "weekly_report": "mon 10:00" }
+}
