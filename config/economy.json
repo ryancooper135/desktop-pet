@@ -47,12 +47,13 @@
       "last_heart": { "timer_h_awake": 8, "no_death_first_h_after_wake": 3 },
       "warnings": {
         "L1": { "name": "Просит",   "color": "#E8B931", "when": "any(food,clean,fun,love) < 30", "notify_max_per_day": 3, "night": false },
-        "L2": { "name": "Плохо",    "color": "#E8743B", "when": "distress active || heart lost in last 12h", "notify_every_h": 4, "notify_max_per_day": 3, "night": false, "friends_see": true },
-        "L3": { "name": "Критично", "color": "#D93B3B", "when": "hearts <= 2", "notify_every_h": 2, "notify_max_per_day": 6, "night": false, "friends_sos": "best_friends", "show_eta": true }
+        "L2": { "name": "Плохо",    "color": "#E8743B", "when": "distress active || heart lost in last 12h", "notify_every_h": 4, "notify_max_per_day": 3, "night": false, "friends_see": true, "friends_see_exact_hearts": true },
+        "L3": { "name": "Критично", "color": "#D93B3B", "when": "hearts <= 2", "notify_every_h": 2, "notify_max_per_day": 6, "night": false, "friends_sos": "close_friends", "show_eta": true }
       },
       "_sim": "Полный игнор с 80% шкал: −1-е сердце ≈ 25 ч, L3 ≈ 39–47 ч, смерть ≈ 58–69 ч. 4 захода/день: 0 потерь. 3 захода: 0 потерь. 1 заход/день «до максимума»: ≈ −0,5 сердца/нед (медленное угасание, лечится 2-м заходом). 1 небрежный заход/день: смерть ≈ 6 сут."
     },
 
+    "actions": { "pet": { "love": 12 }, "_note": "ласка за одно поглаживание; игра — minigames.fun_gain/energy_cost, шаги — needs.walk.steps_per_point, еда — shop.food" },
     "cooldowns_min": { "pet": 3, "play_toy": 10, "feed_same_item": 20, "poke": 0 },
     "bath_minutes_by_level": [60, 40, 25, 15],
     "eat_seconds": { "small": 8, "meal": 20, "feast": 45 },
@@ -242,8 +243,8 @@
     "levels": [
       { "name": "Приятели",       "days": 1,  "perks": ["poke", "guest_visit"] },
       { "name": "Друзья",         "days": 7,  "perks": ["gifts_rare", "sitting"] },
-      { "name": "Близкие друзья", "days": 30, "perks": ["friend_streak_x1.5", "gift_fee_0"] },
-      { "name": "Лучшие друзья",  "days": 90, "perks": ["sos_feed", "shared_album_photo", "guest_overnight"] }
+      { "name": "Близкие друзья", "days": 30, "perks": ["friend_streak_x1.5", "gift_fee_0", "sos_feed"] },
+      { "name": "Лучшие друзья",  "days": 90, "perks": ["shared_album_photo", "guest_overnight"] }
     ],
     "interaction_counts_once_per_day": true,
     "gift_travel_minutes": [60, 180],
@@ -261,7 +262,7 @@
     "mourning_hours": 12,
     "heir_if_lived_days": 30,
     "heir_trait_inherit_pct": 30,
-    "angel_feather": { "enabled": false, "_note": "опция на выбор Вадима: 1 воскрешение за жизнь хозяина в течение 1 ч, только из вехи 365 дней" }
+    "angel_feather": { "enabled": true, "_note": "включено Вадимом 16.10: 1 воскрешение за жизнь хозяина в течение 1 ч, только из вехи 365 дней" }
   },
 
   "anti_inflation": {

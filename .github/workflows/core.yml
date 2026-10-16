@@ -1,0 +1,28 @@
+# Ядро питомца: тесты TS, свежесть общих векторов и сверка Swift-порта с ними.
+name: core
+on:
+  workflow_dispatch:
+  push:
+    paths: ["core/**", "config/economy.json", ".github/workflows/core.yml"]
+jobs:
+  ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Тесты
+        run: node --test "core/ts/test/*.test.ts"
+      - name: Векторы не устарели
+        run: |
+          node core/ts/tools/vectors.ts
+          git diff --exit-code core/vectors
+  swift:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        working-directory: core/swift
+        run: swift test
