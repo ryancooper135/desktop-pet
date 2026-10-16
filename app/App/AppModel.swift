@@ -4,6 +4,7 @@
 // Вход в приложение: догнать время, срок подписи, собрать «Пока тебя не было» от seen, запомнить seen.
 // Уход в фон: снова запомнить seen — действия за сессию не попадают в следующий отчёт.
 
+import CoreGraphics
 import Foundation
 import Observation
 @preconcurrency import PetCore
@@ -28,8 +29,50 @@ final class AppModel {
     var showNeeds = false
     var showSettings = false
 
+    // MARK: отклик на касания (juice)
+
+    /// Реакция сцены на действие: id растёт на каждое действие сразу, до ответа ядра; при отказе — ещё раз, с ok = false.
+    struct Reaction: Equatable, Sendable {
+        var id: Int
+        var kind: String
+        var ok: Bool
+        var reason: String?
+    }
+
+    enum BuzzKind: Sendable { case light, medium, success, warning }
+
+    /// Счётчики хаптики по видам: каждый — свой trigger для .sensoryFeedback.
+    struct Buzzes: Equatable, Sendable {
+        var light = 0
+        var medium = 0
+        var success = 0
+        var warning = 0
+    }
+
+    /// Поза «радость/ест» в приложении держится 12 с (у виджетов — Presenter.reactionWindow, 90 с).
+    static let reactionWindow: Double = 12
+    static let maxPops = 16
+
+    private(set) var reaction = Reaction(id: 0, kind: "", ok: true, reason: nil)
+    /// Куда смотреть: −1…1 по x пальца относительно сцены; nil — пальца нет (через 0,6 с после отпускания).
+    private(set) var lookX: Float? = nil
+    private(set) var buzz = 0
+    private(set) var buzzKind: BuzzKind = .light
+    private(set) var buzzes = Buzzes()
+    /// Отказы по виду действия (feed, pet, play…): кнопка с этим видом качается.
+    private(set) var refusals: [String: Int] = [:]
+    private(set) var pops: [Pop] = []
+    /// Как изменились видимые шкалы от последнего удачного действия из приложения: ["food": 12, "love": 8].
+    var lastDelta: [String: Int] = [:]
+
+    /// Размер сцены и последняя точка пальца — только для размещения всплывашек, экран их не читает.
+    @ObservationIgnored var stageSize: CGSize = .zero
+    @ObservationIgnored private var popAnchor: CGPoint? = nil
+
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
+    @ObservationIgnored private var lookTask: Task<Void, Never>?
+    @ObservationIgnored private var poseTask: Task<Void, Never>?
 
     init() {
         LaunchSeed.applyOnce()
@@ -38,10 +81,10 @@ final class AppModel {
             // mutate сам заведёт щенка, если файла ещё нет (первый запуск).
             let f = try PetStore.shared.mutate { (f: inout SaveFile) -> SaveFile in f }
             // Сначала snap (без значения по умолчанию), потом остальное: у @Observable init-аксессоры.
-            snap = Presenter.make(f, at: now)
+            snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             file = f
         } catch {
-            snap = Presenter.make(SaveFile.fresh(now: now), at: now)
+            snap = Presenter.make(SaveFile.fresh(now: now), at: now, reactionWindow: Self.reactionWindow)
             storeError = error.localizedDescription
         }
         NotificationScheduler.registerCategories()
@@ -97,7 +140,7 @@ final class AppModel {
         do {
             guard let f = try PetStore.shared.read() else { return }
             file = f
-            snap = Presenter.make(f, at: now)
+            snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
         } catch {
             storeError = error.localizedDescription
         }
@@ -116,19 +159,141 @@ final class AppModel {
 
     // MARK: действия с экрана
 
+    /// Отклик сразу (реакция сцены + хаптика), ядро — следом. Итог разбирает settle из AppActions.perform.
     func act(_ a: PetAction) {
+        react(a.kind)
+        haptic(.light)
         Task { _ = await AppActions.shared.perform(a, source: .app) }
     }
 
-    /// Тап по питомцу: в беде — самое срочное, иначе погладить.
+    /// Тап по питомцу: в беде — самое срочное (как кнопка «Спасти»), иначе только отклик, без ядра.
+    /// Погладить — провести пальцем (StrokeTracker): так тап не тратит кулдаун ласки.
     func tapPet() {
         guard snap.alive else { return }
         if snap.level >= 3, let a = snap.main.action {
             act(a)
-        } else if snap.main == .wake {
-            act(.wake)
-        } else if snap.main != .none {
-            act(.pet)
+        } else {
+            react("tap")
+            haptic(.light)
+        }
+    }
+
+    /// Щекотка: несколько быстрых тапов подряд.
+    func tickle() {
+        guard snap.alive else { return }
+        react("tickle")
+        haptic(.medium)
+    }
+
+    /// Мгновенная реакция сцены, до ответа ядра.
+    func react(_ kind: String) {
+        reaction = Reaction(id: reaction.id + 1, kind: kind, ok: true, reason: nil)
+    }
+
+    func haptic(_ kind: BuzzKind) {
+        buzz += 1
+        buzzKind = kind
+        switch kind {
+        case .light: buzzes.light += 1
+        case .medium: buzzes.medium += 1
+        case .success: buzzes.success += 1
+        case .warning: buzzes.warning += 1
+        }
+    }
+
+    /// Ответ ядра на действие из приложения. AppActions.perform зовёт сразу после записи, до виджетов и острова.
+    func settle(_ a: PetAction, _ out: ActOutcome, delta: [String: Int]) {
+        if out.ok {
+            lastDelta = delta
+            haptic(.success)
+            popDelta(delta)
+            // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
+            poseTask?.cancel()
+            poseTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(12_500))
+                if Task.isCancelled { return }
+                self?.refresh()
+            }
+        } else {
+            reaction = Reaction(id: reaction.id + 1, kind: a.kind, ok: false, reason: out.reason)
+            refusals[a.kind, default: 0] += 1
+            haptic(.warning)
+            pop(Self.refuseIcon(out.reason), at: anchor)
+        }
+    }
+
+    /// Всплывашка в точке сцены; сама исчезает через 0,9 с.
+    func pop(_ text: String, at point: CGPoint) {
+        let p = Pop(text: text, point: point)
+        pops.append(p)
+        if pops.count > Self.maxPops { pops.removeFirst(pops.count - Self.maxPops) }
+        let id = p.id
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            self?.pops.removeAll { $0.id == id }
+        }
+    }
+
+    /// Палец на сцене: куда смотреть и где всплывать.
+    func touch(at point: CGPoint) {
+        lookTask?.cancel()
+        popAnchor = point
+        guard stageSize.width > 0 else { return }
+        let x = Swift.min(1, Swift.max(-1, Float(point.x / stageSize.width) * 2 - 1))
+        // Шаг 0,05: не дёргать наблюдателей на каждый пиксель.
+        let q = (x * 20).rounded() / 20
+        if lookX != q { lookX = q }
+    }
+
+    /// Палец отпущен: взгляд и точка всплывашек гаснут через 0,6 с.
+    func touchEnded() {
+        lookTask?.cancel()
+        lookTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(600))
+            if Task.isCancelled { return }
+            self?.lookX = nil
+            self?.popAnchor = nil
+        }
+    }
+
+    /// Точка для всплывашек без пальца: над спиной питомца.
+    private var anchor: CGPoint {
+        popAnchor ?? CGPoint(x: stageSize.width / 2, y: stageSize.height * 0.45)
+    }
+
+    /// «+12 🍖», «+8 ❤» столбиком над точкой касания.
+    private func popDelta(_ d: [String: Int]) {
+        let base = anchor
+        var i = 0
+        for need in VisibleNeeds.all {
+            guard let v = d[need.rawValue], v > 0 else { continue }
+            pop("+\(v) \(Self.needEmoji(need))", at: CGPoint(x: base.x, y: base.y - 26 * CGFloat(i)))
+            i += 1
+            if i >= 3 { break }
+        }
+    }
+
+    static func needEmoji(_ n: Need) -> String {
+        switch n {
+        case .food: return "🍖"
+        case .clean: return "🫧"
+        case .energy: return "⚡"
+        case .fun: return "🎾"
+        case .love: return "❤"
+        case .walk: return "🐾"
+        case .look: return "✨"
+        }
+    }
+
+    /// Иконка отказа над питомцем (тост — отдельно, его может и не быть).
+    static func refuseIcon(_ reason: String?) -> String {
+        switch reason {
+        case "cooldown": return "⏳"
+        case "asleep": return "💤"
+        case "tired": return "🥱"
+        case "bathing": return "🫧"
+        case "not_napping": return "👀"
+        default: return "✋"
         }
     }
 
@@ -165,7 +330,7 @@ final class AppModel {
             if let f = try PetStore.shared.read() {
                 storeError = nil
                 file = f
-                snap = Presenter.make(f, at: Clock.now())
+                snap = Presenter.make(f, at: Clock.now(), reactionWindow: Self.reactionWindow)
                 becameActive()
             } else {
                 storeError = "Сохранение отложено в сторону, восстановить не из чего."
