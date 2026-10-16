@@ -35,7 +35,8 @@ struct PopView: View {
             .offset(y: up && !reduceMotion ? -Self.rise : 0)
             .opacity(gone ? 0 : 1)
             .position(pop.point)
-            .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+            // Только прозрачность: после .position вид во весь слой, .scale тянул бы цифру из центра экрана.
+            .transition(.opacity)
             .onAppear {
                 // Подъём быстрый в начале, угасание — к концу, чтобы цифру успели прочитать.
                 withAnimation(.easeOut(duration: Self.life)) { up = true }
