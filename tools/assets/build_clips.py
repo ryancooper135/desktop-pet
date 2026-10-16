@@ -585,6 +585,8 @@ def build(args) -> None:
         note = ""
         if loop:
             frames, note = close_seam(rig, frames)
+            if note.startswith("slerp"):  # смешанные кадры могли уйти от пола — сажаем заново
+                frames = ground(rig, frames, modes.get(name, "lift"), floor, height)
         clips[k] = (name, loop, how, frames)
         if note and note != "ok":
             print(f"  шов {name}: {note}")
@@ -706,6 +708,11 @@ def check(args) -> int:
         ys = [(rig.min_y(loc) - floor) / height * 100 for loc in frames]
         miny, hover = min(ys), max(ys)
         seam = rig.seam_deg(frames[-1], frames[0]) if c["loop"] else None
+        move = None  # шов по положению суставов в мире, % роста (seam_deg видит только повороты)
+        if c["loop"]:
+            ga = globals_from_local(rig.mats(frames[0]), rig.par)
+            gb = globals_from_local(rig.mats(frames[-1]), rig.par)
+            move = max(float(np.linalg.norm(gb[i][:3, 3] - ga[i][:3, 3])) for i in rig.joints) / height * 100
         ends = None
         if c.get("source") == "overlay" and not c["loop"]:
             ends = max(rig.seam_deg(frames[0], idle0), rig.seam_deg(frames[-1], idle0))
@@ -713,6 +720,8 @@ def check(args) -> int:
         bad = []
         if c["loop"] and seam is not None and seam > SEAM_MAX_DEG:
             bad.append(f"шов {seam:.2f}°")
+        if move is not None and move > FLOOR_TOL * 100:
+            bad.append(f"шов сдвиг {move:.2f}%")
         if c["loop"] and len(frames) < 4:
             bad.append(f"цикл {len(frames)} кадров")
         if name != "death" and miny < MIN_Y_FAIL * 100:
@@ -722,13 +731,13 @@ def check(args) -> int:
         if ends is not None and ends > SEAM_MAX_DEG:
             bad.append(f"концы не в idle {ends:.2f}°")
         problems += [f"{name}: {b}" for b in bad]
-        rows.append((name, len(frames), (f1 - f0) / fps, c["loop"], seam, miny, hover, mode, "; ".join(bad)))
+        rows.append((name, len(frames), (f1 - f0) / fps, c["loop"], seam, miny, hover, mode, "; ".join(bad), move))
 
     lines = ["### Клипы: швы и пол", "",
-             f"Рост {height:.3f}, пол {floor:.4f}. Порог: шов ≤ {SEAM_MAX_DEG}°, min Y ≥ {MIN_Y_FAIL * 100:.0f}% "
+             f"Рост {height:.3f}, пол {floor:.4f}. Порог: шов ≤ {SEAM_MAX_DEG}° и ≤ {FLOOR_TOL * 100:.1f}% сдвига, min Y ≥ {MIN_Y_FAIL * 100:.0f}% "
              f"(кроме death), snap-клип не выше {HOVER_FAIL * 100:.0f}%.", "",
              "| клип | длина | шов° | min Y % | max низа % | пол | |", "|---|---|---|---|---|---|---|"]
-    for name, nfr, dur, loop, seam, miny, hover, mode, bad in rows:
+    for name, nfr, dur, loop, seam, miny, hover, mode, bad, _ in rows:
         lines.append(f"| {name} | {dur:.3f} с · {nfr} к{' · loop' if loop else ''} | "
                      f"{'—' if seam is None else f'{seam:.3f}'} | {miny:.2f} | {hover:.2f} | {mode} | "
                      f"{'❌ ' + bad if bad else '✅'} |")
@@ -741,7 +750,7 @@ def check(args) -> int:
     if args.report:
         Path(args.report).write_text(json.dumps({"height": height, "floor": floor, "problems": problems, "clips": [
             {"name": r[0], "frames": r[1], "dur": r[2], "loop": r[3], "seam_deg": r[4], "min_y_pct": r[5],
-             "max_low_pct": r[6], "ground": r[7]} for r in rows]}, ensure_ascii=False, indent=1), encoding="utf-8")
+             "max_low_pct": r[6], "ground": r[7], "seam_move_pct": r[9]} for r in rows]}, ensure_ascii=False, indent=1), encoding="utf-8")
     if problems:
         print("FAIL:", *problems, sep="\n  ")
         return 1
