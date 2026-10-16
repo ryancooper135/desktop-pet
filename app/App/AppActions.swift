@@ -14,6 +14,8 @@ final class AppActions {
     /// Действие хозяина. Его зовут кнопки экрана, виджет, остров, контрол, «Команды», уведомления и шаги.
     func perform(_ a: PetAction, source: ActionSource) async -> ActOutcome {
         let now = Clock.now()
+        // Снимок до действия: из приложения показываем «+N» по шкалам.
+        let before: SaveFile? = source == .app ? (try? PetStore.shared.read()) : nil
         let out: ActOutcome
         do {
             out = try PetRunner.perform(a, source: source, now: now)
@@ -22,7 +24,16 @@ final class AppActions {
         }
         let model = AppModel.shared
         model.refresh(now: now)
-        if !out.ok && source != .steps {
+        if source == .app {
+            var delta: [String: Int] = [:]
+            if out.ok, let before, let after = model.file {
+                delta = Self.delta(PetRunner.peek(before, at: now), PetRunner.peek(after, at: now))
+            }
+            model.settle(a, out, delta: delta)
+        }
+        // Кулдаун ласки из приложения уже виден анимацией и иконкой — без тоста.
+        let quiet = source == .app && a == .pet && out.reason == "cooldown"
+        if !out.ok && source != .steps && !quiet {
             model.show(RefuseText.text(out.reason), ok: false)
         }
         await afterChange()
@@ -31,6 +42,16 @@ final class AppActions {
             await NotificationScheduler.requestOnce()
         }
         return out
+    }
+
+    /// Изменение видимых шкал в целых, без нулей: ["food": 12, "love": 8].
+    static func delta(_ a: PetState, _ b: PetState) -> [String: Int] {
+        var d: [String: Int] = [:]
+        for n in VisibleNeeds.all {
+            let v = Int(((b.needs[n] ?? 0) - (a.needs[n] ?? 0)).rounded())
+            if v != 0 { d[n.rawValue] = v }
+        }
+        return d
     }
 
     /// Остров включён/выключен (контрол, «Команды», настройки).

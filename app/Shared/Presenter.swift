@@ -94,18 +94,20 @@ struct PetSnapshot: Hashable, Sendable {
 }
 
 enum Presenter {
-    /// Реакция на действие держится 90 секунд.
+    /// Реакция на действие держится 90 секунд (виджеты и остров). Приложение передаёт своё окно, короче.
     static let reactionWindow: Double = 90
 
     /// Снимок из файла на момент t. upcoming — прогноз от этого же стейта (если уже посчитан для timeline).
-    static func make(_ f: SaveFile, at t: Double, upcoming: [ForecastEvent]? = nil) -> PetSnapshot {
+    static func make(_ f: SaveFile, at t: Double, upcoming: [ForecastEvent]? = nil,
+                     reactionWindow: Double = Presenter.reactionWindow) -> PetSnapshot {
         let o = PetRunner.owner(f, at: t)
         let s = PetRunner.peek(f, at: t)
-        return make(file: f, pet: s, owner: o, at: t, upcoming: upcoming)
+        return make(file: f, pet: s, owner: o, at: t, upcoming: upcoming, reactionWindow: reactionWindow)
     }
 
     static func make(file f: SaveFile, pet s: PetState, owner o: Owner, at t: Double,
-                     upcoming: [ForecastEvent]? = nil) -> PetSnapshot {
+                     upcoming: [ForecastEvent]? = nil,
+                     reactionWindow: Double = Presenter.reactionWindow) -> PetSnapshot {
         let r = Catalog.rules
         let mood = PetEngine.mood(s, r, o, now: t)
         let level = PetEngine.level(s, r)

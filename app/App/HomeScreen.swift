@@ -8,36 +8,36 @@ import SwiftUI
 struct HomeScreen: View {
     @Environment(AppModel.self) private var model
     @State private var confirmStartOver = false
+    /// Состояние жеста по сцене. В коробке: точки пальца не перерисовывают экран.
+    @State private var touch = TouchBox()
 
     var body: some View {
         @Bindable var model = model
         let snap = model.snap
+        let rescue = snap.level >= 3 && snap.alive
         ZStack {
             PetPalette.bg.ignoresSafeArea()
 
-            PetStage(pose: snap.pose)
-                .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture { model.tapPet() }
-                .gesture(
-                    DragGesture(minimumDistance: 20).onEnded { g in
-                        let dx = g.translation.width, dy = g.translation.height
-                        if dy < -80 && abs(dx) < 80 {
-                            model.showNeeds = true
-                        } else if abs(dx) > 150 {
-                            // Провёл пальцем по спине — погладил.
-                            model.act(.pet)
-                        }
-                    }
-                )
-                .accessibilityElement()
-                .accessibilityLabel(Text("\(snap.name): \(PetFaceView.accessibilityText(snap.pose))"))
-                .accessibilityHint(Text("Нажми, чтобы погладить"))
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
+            GeometryReader { geo in
+                PetStage(pose: snap.pose)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .gesture(stageGesture)
+                    .overlay { PopLayer() }
+                    .onChange(of: geo.size, initial: true) { _, s in model.stageSize = s }
+            }
+            .ignoresSafeArea()
+            .accessibilityElement()
+            .accessibilityLabel(Text("\(snap.name): \(PetFaceView.accessibilityText(snap.pose))"))
+            .accessibilityHint(Text("Проведи пальцем по спине, чтобы погладить"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { model.act(.pet) }
+            .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
+            .accessibilityIdentifier("pet.stage")
 
-            if snap.level >= 3 && snap.alive {
+            if rescue {
                 RescueVignette()
+                    .transition(.opacity)
             }
 
             VStack(spacing: 10) {
@@ -71,6 +71,8 @@ struct HomeScreen: View {
                 if let icon = snap.wantIcon, snap.alive {
                     ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
                         .padding(.top, 6)
+                        .accessibilityIdentifier("pet.thought")
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
 
                 Spacer()
@@ -81,13 +83,17 @@ struct HomeScreen: View {
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 16).fill(PetPalette.card))
+                        .accessibilityIdentifier("pet.line")
                 }
 
-                if snap.level >= 3 && snap.alive {
+                if rescue {
                     RescueButton(main: snap.main) { model.doMain() }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 if snap.alive {
@@ -118,6 +124,9 @@ struct HomeScreen: View {
             }
         }
         .animation(.snappy, value: model.toast)
+        .animation(.snappy, value: rescue)
+        .animation(.snappy, value: snap.wantIcon)
+        .background { HapticsLayer() }
         .sheet(isPresented: $model.showNeeds) {
             NeedsSheet()
                 .environment(model)
@@ -131,6 +140,75 @@ struct HomeScreen: View {
             Button("Начать заново", role: .destructive) { model.startOver() }
             Button("Отмена", role: .cancel) {}
         }
+    }
+
+    // MARK: касания по сцене
+
+    /// Один жест на всё: тап, ласка (провести пальцем), щекотка, свайп вверх. Разбор — в StrokeTracker.
+    private var stageGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in stageMoved(g) }
+            .onEnded { g in stageEnded(g) }
+    }
+
+    private func stageMoved(_ g: DragGesture.Value) {
+        let t = g.time.timeIntervalSinceReferenceDate
+        // Новый жест (или прошлый оборвался без onEnded) — начать заново.
+        if !touch.tracker.active || touch.start != g.startLocation {
+            touch.tracker.begin(at: g.startLocation, time: t)
+            touch.start = g.startLocation
+        }
+        handle(touch.tracker.move(to: g.location, time: t), at: g.location)
+        model.touch(at: g.location)
+    }
+
+    private func stageEnded(_ g: DragGesture.Value) {
+        let t = g.time.timeIntervalSinceReferenceDate
+        let events = touch.tracker.end(at: g.location, time: t)
+        touch.start = nil
+        handle(events, at: g.location)
+        model.touchEnded()
+    }
+
+    private func handle(_ events: [StrokeEvent], at p: CGPoint) {
+        for e in events {
+            switch e {
+            case .tick:
+                // Каждые 50 pt пути — лёгкий тик и сердечко под пальцем.
+                guard model.snap.alive else { continue }
+                model.haptic(.light)
+                model.pop("❤", at: p)
+            case .stroke:
+                model.act(.pet)
+            case .tap:
+                model.tapPet()
+            case .tickle:
+                model.tickle()
+            case .swipeUp:
+                model.showNeeds = true
+            }
+        }
+    }
+}
+
+/// Изменяемое состояние жеста по сцене (не @Observable: экран его не читает).
+final class TouchBox {
+    var tracker = StrokeTracker()
+    var start: CGPoint? = nil
+}
+
+/// Хаптика по счётчикам модели: каждый вид — свой trigger.
+struct HapticsLayer: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Color.clear
+            .sensoryFeedback(.impact(weight: .light), trigger: model.buzzes.light)
+            .sensoryFeedback(.impact(weight: .medium), trigger: model.buzzes.medium)
+            .sensoryFeedback(.success, trigger: model.buzzes.success)
+            .sensoryFeedback(.warning, trigger: model.buzzes.warning)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -171,37 +249,19 @@ struct ActionBar: View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
                 if snap.pose == .nap {
-                    item("Разбудить", "sun.max.fill", dim: false) { model.act(.wake) }
+                    ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false) { model.act(.wake) }
                 }
-                item("Покормить", "fork.knife", dim: bathing) { model.act(.feed(Catalog.mainFood)) }
-                item("Погладить", "hand.raised.fill", dim: bathing) { model.act(.pet) }
-                item("Поиграть", "tennisball.fill", dim: bathing || snap.pose == .sleep) { model.act(.play) }
-                item("Помыть", "bathtub.fill", dim: bathing) { model.act(.bath) }
+                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing) { model.act(.feed(Catalog.mainFood)) }
+                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing) { model.act(.pet) }
+                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || snap.pose == .sleep) { model.act(.play) }
+                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing) { model.act(.bath) }
                 if Self.lampTime(Clock.now()) {
-                    item("Отбой", "lamp.desk.fill", dim: false) { model.setBedtime(minute: Self.minuteNow(Clock.now())) }
+                    ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false) {
+                        model.setBedtime(minute: Self.minuteNow(Clock.now()))
+                    }
                 }
             }
         }
-    }
-
-    private func item(_ title: String, _ icon: String, dim: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 3) {
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(PetPalette.ink)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .opacity(dim ? 0.45 : 1)
-        .glassEffect(.regular.interactive(), in: Capsule())
-        .accessibilityLabel(Text(title))
     }
 
     /// Лампа видна с 20:00 до 02:00 по местному времени.
@@ -213,6 +273,60 @@ struct ActionBar: View {
     static func minuteNow(_ t: Double) -> Int {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date(timeIntervalSince1970: t))
         return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+}
+
+/// Кнопка панели: пружинит, иконка подпрыгивает на нажатие, при отказе ядра кнопка качается.
+/// kind — вид действия ядра (PetAction.kind), id для UI-тестов — "act.<kind>".
+struct ActButton: View {
+    @Environment(AppModel.self) private var model
+    let title: String
+    let icon: String
+    let kind: String
+    let dim: Bool
+    let action: () -> Void
+
+    @State private var taps = 0
+
+    init(title: String, icon: String, kind: String, dim: Bool, action: @escaping () -> Void) {
+        self.title = title
+        self.icon = icon
+        self.kind = kind
+        self.dim = dim
+        self.action = action
+    }
+
+    /// Смещения по x за одно покачивание.
+    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
+
+    var body: some View {
+        Button {
+            taps += 1
+            action()
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .symbolEffect(.bounce, value: taps)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(PetPalette.ink)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(SquishStyle())
+        .opacity(dim ? 0.45 : 1)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .phaseAnimator(Self.shake, trigger: model.refusals[kind, default: 0], content: { view, x in
+            view.offset(x: x)
+        }, animation: { _ in
+            .linear(duration: 0.06)
+        })
+        .accessibilityLabel(Text(title))
+        .accessibilityIdentifier("act.\(kind)")
     }
 }
 
@@ -240,7 +354,8 @@ struct RescueButton: View {
             .frame(maxWidth: .infinity, minHeight: 56)
             .background(Capsule().fill(PetPalette.red))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SquishStyle())
+        .accessibilityIdentifier("act.rescue")
         .padding(.horizontal, 16)
     }
 }
