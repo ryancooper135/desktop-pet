@@ -23,7 +23,8 @@ enum NotificationScheduler {
     }
 
     static func requestOnce() async {
-        guard !Env.isUnitTest else { return }
+        // Под UI-тестами системный запрос закрывал питомца на всех кадрах анимаций.
+        guard !Env.isTesting else { return }
         guard !PetStore.load().flags.notifAsked else { return }
         _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.flags.notifAsked = true }
         let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
