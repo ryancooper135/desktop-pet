@@ -89,7 +89,10 @@ jobs:
           # В колесе usd-core нет complianceChecker.py (это и есть usdchecker) — берём его из исходников той же версии.
           VER=$(python -c "from pxr import Usd; v=Usd.GetVersion(); print(f'v{v[1]:02d}.{v[2]:02d}')")
           mkdir -p "$RUNNER_TEMP/usdcc"
-          curl -fsSL "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/$VER/pxr/usd/usdUtils/complianceChecker.py"             -o "$RUNNER_TEMP/usdcc/complianceChecker.py" || echo "::warning::complianceChecker.py $VER не скачался"
+          # С v26 файл убрали (переехал в C++ UsdValidation) — тогда последний, где он был: v25.08.
+          for T in "$VER" v25.08; do
+            curl -fsSL "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/$T/pxr/usd/usdUtils/complianceChecker.py"               -o "$RUNNER_TEMP/usdcc/complianceChecker.py" && { echo "complianceChecker.py из $T (usd-core $VER)"; break; }
+          done || echo "::warning::complianceChecker.py не скачался"
           export PYTHONPATH="$RUNNER_TEMP/usdcc${PYTHONPATH:+:$PYTHONPATH}"
           python tools/assets/check_usdz.py "$OUT/shiba.usdz" --clips "$OUT/clips.json" \
             --report "$OUT/usdz_report.json" --strict
