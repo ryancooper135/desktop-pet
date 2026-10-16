@@ -1,6 +1,7 @@
 // Сцена: RealityView с виртуальной камерой (без AR). Модель — Resources/shiba.usdz, если она есть в бандле,
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
-// Дыхание и покачивание — своя ECS-система по компоненту на обёртке питомца. При Reduce Motion — стоит неподвижно.
+// Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
+// Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
 import SwiftUI
 import UIKit
@@ -9,25 +10,35 @@ import UIKit
 
 struct PetStage: View {
     var pose: Pose
+    /// Растёт на каждое действие: новая реакция телом (kind — feed/item/pet/play/wake/bath).
+    var reactionId: Int = 0
+    var reactionKind: String = ""
+    var reactionOk: Bool = true
+    /// Куда смотреть: −1 — влево, 1 — вправо, nil — прямо.
+    var lookX: Float? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // В @Sendable-замыкание RealityView передаём только Sendable-значения, не self.
         let pose = self.pose
         let reduceMotion = self.reduceMotion
+        let reaction = PetReaction(id: reactionId, kind: reactionKind, ok: reactionOk)
+        let lookX = self.lookX
         return RealityView { content in
             content.camera = .virtual
-            BreatheSystem.registerOnce()
+            PetModel.registerOnce()
             let pet = await PetModel.load()
             pet.name = PetModel.petName
-            PetModel.apply(pose: pose, reduceMotion: reduceMotion, to: pet)
             content.add(pet)
             content.add(PetModel.floor())
             content.add(PetModel.camera())
             content.add(PetModel.light())
+            // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
+            PetModel.prime(pet, reactionId: reaction.id)
+            PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         } update: { content in
             guard let pet = content.entities.first(where: { $0.name == PetModel.petName }) else { return }
-            PetModel.apply(pose: pose, reduceMotion: reduceMotion, to: pet)
+            PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         }
         .background(PetPalette.bg)
     }
@@ -36,10 +47,17 @@ struct PetStage: View {
 @MainActor
 enum PetModel {
     static let petName = "pet"
+    static let bodyName = "petBody"
+    /// Обёртка между корнем и моделью: ей JuiceSystem задаёт дыхание, squash, подскок и поворот.
+    static let pivotName = "petJuice"
     /// Высота питомца в метрах сцены; камера подобрана под неё.
     static let height: Float = 0.42
 
-    /// Обёртка с BreatheComponent; внутри — модель, приведённая к росту height и поставленная на пол.
+    static func registerOnce() {
+        JuiceSystem.registerOnce()
+    }
+
+    /// Корень с JuiceComponent → petJuice → модель, приведённая к росту height и поставленная на пол.
     static func load() async -> Entity {
         let wrapper = Entity()
         var model: Entity?
@@ -54,91 +72,241 @@ enum PetModel {
             body.scale = SIMD3<Float>(repeating: k)
             body.position = SIMD3<Float>(-bounds.center.x * k, -bounds.min.y * k, -bounds.center.z * k)
         }
-        wrapper.addChild(body)
-        wrapper.components.set(BreatheComponent())
-        // Клипы есть — позы даёт скелет; нет таблицы — играем всю анимацию по кругу, как раньше.
-        if model != nil, ClipTable.shared != nil, !body.availableAnimations.isEmpty {
-            wrapper.components.set(ClipState())
-        } else if let anim = body.availableAnimations.first {
-            body.playAnimation(anim.repeat())
+        let pivot = Entity()
+        pivot.name = pivotName
+        pivot.addChild(body)
+        wrapper.addChild(pivot)
+        wrapper.components.set(JuiceComponent())
+        if model != nil, !body.availableAnimations.isEmpty {
+            if ClipTable.shared != nil {
+                // Позы даёт скелет по клипам; кэш клипов — от прошлой модели, собираем заново.
+                ClipPlayer.reset()
+                wrapper.components.set(ClipState())
+            } else if let anim = body.availableAnimations.first {
+                // Нет clips.json — играем весь таймлайн по кругу, как в самом начале.
+                body.playAnimation(anim.repeat())
+            }
         }
         return wrapper
     }
 
-    static let bodyName = "petBody"
-
-    /// Какой клип играть в позе и чем в него войти (sit_in, sleep_in…).
-    static func clip(for pose: Pose) -> (intro: String?, main: String) {
-        switch pose {
-        case .happy, .loved: return (nil, "idle_2")
-        case .eating: return (nil, "eat")
-        case .sleep, .nap: return ("sleep_in", "sleep")
-        case .critical, .tired: return ("lie_in", "lie")
-        case .bored, .lonely, .sulky, .hungry: return (nil, "idle_headlow")
-        case .dirty, .bath: return ("sit_in", "sit")
-        case .dead: return (nil, "death")
-        case .idle: return (nil, "idle")
+    /// Запомнить текущую реакцию как уже показанную: при открытии экрана её не играем.
+    static func prime(_ pet: Entity, reactionId: Int) {
+        if var c = pet.components[JuiceComponent.self] {
+            c.lastReactionId = reactionId
+            pet.components.set(c)
         }
-    }
-
-    static func playClip(for pose: Pose, reduceMotion: Bool, on pet: Entity) {
-        guard var st = pet.components[ClipState.self], let table = ClipTable.shared,
-              let body = pet.findEntity(named: bodyName), let source = body.availableAnimations.first else { return }
-        var (intro, main) = clip(for: pose)
-        if reduceMotion { intro = nil }
-        let key = main + (reduceMotion ? "~" : "")
-        guard st.current != key, let mc = table.clips[main] else { return }
-        do {
-            let mainView = AnimationView(source: source.definition, name: main,
-                                         fillMode: mc.loop ? [] : .forwards,
-                                         trimStart: mc.start, trimEnd: mc.end)
-            var res = try AnimationResource.generate(with: mainView)
-            if mc.loop && !reduceMotion { res = res.repeat(count: 100_000) }
-            if let i = intro, let ic = table.clips[i], !st.current.isEmpty {
-                let introView = AnimationView(source: source.definition, name: i, trimStart: ic.start, trimEnd: ic.end)
-                res = try AnimationResource.sequence(with: [AnimationResource.generate(with: introView), res])
-            }
-            let ctl = body.playAnimation(res, transitionDuration: st.current.isEmpty ? 0 : 0.3, startsPaused: false)
-            // Reduce Motion: встал в позу и замер на первом кадре цикла.
-            if reduceMotion && mc.loop { ctl.pause() }
-            st.current = key
-            pet.components.set(st)
-        } catch {
-            st.current = key
+        if var st = pet.components[ClipState.self] {
+            st.lastReactionId = reactionId
             pet.components.set(st)
         }
     }
 
     static func apply(pose: Pose, reduceMotion: Bool, to pet: Entity) {
+        apply(pose: pose, reduceMotion: reduceMotion, reaction: nil, lookX: nil, to: pet)
+    }
+
+    /// Поза → дыхание и пружины (JuiceComponent) и клипы (ClipState). Реакция проверяется раньше позы.
+    static func apply(pose: Pose, reduceMotion: Bool, reaction: PetReaction?, lookX: Float?, to pet: Entity) {
         let hasClips = pet.components.has(ClipState.self)
-        if hasClips { playClip(for: pose, reduceMotion: reduceMotion, on: pet) }
-        var c = pet.components[BreatheComponent.self] ?? BreatheComponent()
+        var c = pet.components[JuiceComponent.self] ?? JuiceComponent()
         switch pose {
         case .sleep, .nap:
-            c.rate = 0.18; c.amount = 0.035; c.sway = 0; c.lie = 1
+            c.targetRate = 0.22; c.targetAmount = 0.018
+        case .critical:
+            c.targetRate = 0.5; c.targetAmount = 0.03
         case .dead:
-            c.rate = 0; c.amount = 0; c.sway = 0; c.lie = 1
-        case .critical, .tired:
-            c.rate = 0.22; c.amount = 0.015; c.sway = 0.02; c.lie = 0.4
-        case .happy, .loved, .eating:
-            c.rate = 0.45; c.amount = 0.03; c.sway = 0.12; c.lie = 0
-        case .bored, .lonely, .sulky:
-            c.rate = 0.25; c.amount = 0.02; c.sway = 0.04; c.lie = 0.2
+            c.targetRate = 0; c.targetAmount = 0
         default:
-            c.rate = 0.3; c.amount = 0.025; c.sway = 0.07; c.lie = 0
+            c.targetRate = 0.3; c.targetAmount = 0.012
         }
-        if reduceMotion {
-            c.amount = 0
-            c.sway = 0
+        if !c.primed {
+            c.rate = c.targetRate
+            c.amount = c.targetAmount
+            c.primed = true
         }
-        // Лежит и спит скелет сам; приплющивание — только для заглушки.
-        if hasClips { c.lie = 0 }
+        if hasClips {
+            // Скелет лежит и поворачивается сам: вертушки и приплющивания нет.
+            c.sway = 0; c.lie = 0
+        } else {
+            switch pose {
+            case .sleep, .nap, .dead: c.sway = 0; c.lie = 1
+            case .critical, .tired: c.sway = 0.02; c.lie = 0.4
+            case .happy, .loved, .eating: c.sway = 0.12; c.lie = 0
+            case .bored, .lonely, .sulky: c.sway = 0.04; c.lie = 0.2
+            default: c.sway = 0.07; c.lie = 0
+            }
+        }
+        if let x = lookX, pose != .dead {
+            c.yawTarget = min(max(x, -1), 1) * 0.35
+        } else {
+            c.yawTarget = 0
+        }
+        c.still = reduceMotion
+        if reduceMotion { c.amount = 0; c.targetAmount = 0 }
+        if let r = reaction, r.id != c.lastReactionId {
+            c.lastReactionId = r.id
+            if !reduceMotion && r.ok && pose != .dead {
+                let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
+                switch r.kind {
+                case "pet", "feed", "item":
+                    c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
+                case "play":
+                    c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
+                default:
+                    break
+                }
+            }
+        }
         pet.components.set(c)
-        if reduceMotion || pose == .dead {
-            // Система всё равно поставит позу в следующем кадре, но без движения.
-            pet.scale = SIMD3<Float>(1, 1 - 0.3 * c.lie, 1)
-            pet.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
+        if hasClips {
+            drive(pet, pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX)
         }
+    }
+
+    // MARK: клипы
+
+    /// Сменить позу и/или сыграть реакцию. Реакция проверяется до сравнения ключа позы.
+    static func drive(_ pet: Entity, pose: Pose, reduceMotion: Bool, reaction: PetReaction?, lookX: Float?) {
+        guard var st = pet.components[ClipState.self], let table = ClipTable.shared else { return }
+        let available = Set(table.clips.keys)
+        let target = PetStance.stance(for: pose)
+        let loop = PetStance.loop(for: pose)
+        let key = PetStance.intro(for: pose).joined(separator: ",") + ">" + loop + (reduceMotion ? "~" : "")
+
+        var fresh = false
+        if let r = reaction, r.id != st.lastReactionId {
+            st.lastReactionId = r.id
+            fresh = true
+        }
+        st.reduceMotion = reduceMotion
+        let poseChanged = key != st.current
+        guard fresh || poseChanged else {
+            // Поза вернулась к той, что играет: отложенная уже устарела.
+            st.pendingPose = nil
+            pet.components.set(st)
+            return
+        }
+
+        if reduceMotion {
+            // Без переходов и реакций: сразу статичная поза на последнем кадре цикла.
+            if poseChanged {
+                ClipPlayer.still(loop, on: pet)
+                st.current = key
+                st.stance = target
+                st.loop = loop
+                st.busyUntil = st.clock
+                st.lockUntil = st.clock
+                st.pendingPose = nil
+            }
+            pet.components.set(st)
+            return
+        }
+
+        // Реакция ещё идёт — новую позу доиграет режиссёр, когда она кончится.
+        if !fresh && st.clock < st.lockUntil {
+            st.pendingPose = pose
+            pet.components.set(st)
+            return
+        }
+        st.pendingPose = nil
+
+        let initial = st.current.isEmpty
+        var steps: [String] = []
+        if !initial {
+            steps += PetStance.pick(PetStance.path(from: st.stance, to: target), available: available)
+        }
+        var mainLoop = loop
+        var endStance = target
+        var reacted = false
+        if fresh, let r = reaction {
+            let rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
+            steps += rc
+            reacted = !rc.isEmpty
+            endStance = PetStance.endStance(after: rc, from: target)
+            if endStance != target {
+                // Реакция сменила положение (разбудили, а поза ещё «спит»): стоим так, пока не придёт новая поза.
+                mainLoop = PetStance.restLoop(for: endStance)
+            }
+        }
+        if poseChanged && !reacted && !initial {
+            steps += PetStance.pick(PetStance.intro(for: pose), available: available)
+        }
+
+        if steps.isEmpty && !initial && mainLoop == st.loop && !st.current.hasSuffix("~") {
+            // Играть нечего, цикл тот же (реакция без клипа, happy→loved): не перезапускаем его.
+            // После Reduce Motion («~») стоит замерший кадр — его перезапускать надо.
+            st.current = key
+            st.stance = endStance
+            pet.components.set(st)
+            return
+        }
+
+        let transition: TimeInterval = initial ? 0 : (fresh ? 0.15 : 0.25)
+        let busy = ClipPlayer.play(steps, then: mainLoop, on: pet, transition: transition,
+                                   randomSpeed: steps.isEmpty, initial: initial) ?? 0
+        st.current = key
+        st.stance = endStance
+        st.loop = mainLoop
+        st.busyUntil = st.clock + busy
+        st.lockUntil = fresh ? st.busyUntil : st.clock
+        if endStance != target {
+            // Через полторы секунды без новой позы — вернуться в прежнюю переходом.
+            st.current = "~settle"
+            st.pendingPose = pose
+            st.lockUntil = st.busyUntil + 1.5
+        }
+        st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
+        pet.components.set(st)
+    }
+
+    /// Кадр режиссёра: часы, отложенная поза, фиджеты в простое.
+    static func tick(_ pet: Entity, dt: TimeInterval) {
+        guard var st = pet.components[ClipState.self] else { return }
+        st.clock += dt
+        if let p = st.pendingPose, st.clock >= st.lockUntil {
+            st.pendingPose = nil
+            st.lockUntil = st.clock
+            pet.components.set(st)
+            drive(pet, pose: p, reduceMotion: st.reduceMotion, reaction: nil, lookX: nil)
+            return
+        }
+        guard !st.reduceMotion, st.pendingPose == nil, st.stance != .dead,
+              st.clock >= st.busyUntil, st.clock >= st.nextFidgetAt, let table = ClipTable.shared else {
+            pet.components.set(st)
+            return
+        }
+        let available = Set(table.clips.keys)
+        let idles = ["idle", "idle_2"]
+        let standIdle = st.stance == .stand && idles.contains(st.loop)
+        var options = PetStance.pick(PetStance.fidgets(for: st.stance), available: available).filter { $0 != st.loop }
+        // Стоя фиджетим только в спокойном цикле; грустная стойка (idle_headlow) просто дышит.
+        if st.stance == .stand && !standIdle { options = [] }
+
+        // Каждые 2–3 фиджета — смена цикла idle ↔ idle_2. Нечего вставить — меняем цикл сразу.
+        var loop = st.loop
+        st.fidgets += 1
+        if standIdle && (st.fidgets >= st.swapEvery || options.isEmpty) {
+            let other = st.loop == "idle" ? "idle_2" : "idle"
+            if available.contains(other) {
+                loop = other
+                options = options.filter { $0 != other }
+            }
+            st.fidgets = 0
+            st.swapEvery = Int.random(in: 2...3)
+        }
+        let fidget = options.randomElement()
+        if fidget == nil && loop == st.loop {
+            st.nextFidgetAt = st.clock + Double.random(in: 15...25)
+            pet.components.set(st)
+            return
+        }
+        let busy = ClipPlayer.play(fidget.map { [$0] } ?? [], then: loop, on: pet, transition: 0.3,
+                                   randomSpeed: true, initial: false) ?? 0
+        st.loop = loop
+        st.busyUntil = st.clock + busy
+        st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
+        pet.components.set(st)
     }
 
     static func floor() -> Entity {
@@ -207,52 +375,26 @@ enum StubDog {
     }
 }
 
-// MARK: - Дыхание
-
-/// rate — вдохов в секунду, amount — доля роста по y, sway — амплитуда покачивания (рад), lie — насколько «лёг» (0…1).
-struct BreatheComponent: Component {
-    var rate: Float = 0.3
-    var amount: Float = 0.025
-    var sway: Float = 0.07
-    var lie: Float = 0
-    var phase: Float = 0
-}
-
-struct BreatheSystem: System {
-    private let query = EntityQuery(where: .has(BreatheComponent.self))
-
-    init(scene: RealityKit.Scene) {}
-
-    func update(context: SceneUpdateContext) {
-        let dt = Float(context.deltaTime)
-        for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
-            guard var c = e.components[BreatheComponent.self] else { continue }
-            c.phase += dt
-            let breath = 1 + c.amount * sin(c.phase * c.rate * 2 * .pi)
-            let ly = 1 - 0.3 * c.lie
-            e.scale = SIMD3<Float>(1, ly * breath, 1)
-            let angle = c.sway * sin(c.phase * 0.35 * 2 * .pi)
-            e.orientation = simd_quatf(angle: angle, axis: SIMD3<Float>(0, 1, 0))
-            e.components.set(c)
-        }
-    }
-
-    @MainActor private static var registered = false
-
-    @MainActor static func registerOnce() {
-        guard !registered else { return }
-        registered = true
-        BreatheComponent.registerComponent()
-        ClipState.registerComponent()
-        BreatheSystem.registerSystem()
-    }
-}
-
 // MARK: - Клипы
 
-/// Какой клип сейчас играет (ключ: имя клипа, «~» — замер при Reduce Motion).
+/// Что сейчас играет и где режиссёр простоя. Время — свои часы по deltaTime, не Date.
 struct ClipState: Component {
+    /// Ключ позы (intro>цикл, «~» — Reduce Motion). Пусто — ещё ничего не играли.
     var current = ""
+    var stance: Stance = .stand
+    /// Цикл, который крутится сейчас (idle и idle_2 режиссёр меняет местами).
+    var loop = ""
+    var lastReactionId = 0
+    var clock: TimeInterval = 0
+    /// До этого момента идут одноразовые клипы: фиджеты не вставляем.
+    var busyUntil: TimeInterval = 0
+    /// До этого момента реакцию не перебиваем: новая поза ждёт в pendingPose.
+    var lockUntil: TimeInterval = 0
+    var nextFidgetAt: TimeInterval = 20
+    var fidgets = 0
+    var swapEvery = 2
+    var reduceMotion = false
+    var pendingPose: Pose? = nil
 }
 
 /// shiba.clips.json из tools/assets: клипы — куски одной анимации «Clips», границы в секундах.
@@ -270,4 +412,109 @@ struct ClipTable: Decodable, Sendable {
               let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(ClipTable.self, from: data)
     }()
+}
+
+/// Проигрыватель клипов: вырезает куски из таймлайна «Clips», склеивает в sequence, держит кэш и контроллеры.
+@MainActor
+enum ClipPlayer {
+    enum Mode {
+        case once   // один раз
+        case loop   // по кругу
+        case hold   // один раз и стоять на последнем кадре (death)
+        case still  // только последний кадр (Reduce Motion, открытие экрана мёртвым)
+    }
+
+    static let loopCount = 100_000
+    private static var cache: [String: AnimationResource] = [:]
+    private static var controllers: [ObjectIdentifier: AnimationPlaybackController] = [:]
+
+    static func reset() {
+        cache.removeAll()
+        controllers.removeAll()
+    }
+
+    /// Клип из таблицы; нет клипа или не собрался — nil, шаг пропускается.
+    static func resource(_ name: String, mode: Mode, source: AnimationResource, table: ClipTable) -> AnimationResource? {
+        guard let c = table.clips[name], c.end > c.start else { return nil }
+        let key: String
+        switch mode {
+        case .once: key = name
+        case .loop: key = name + "×\(loopCount)"
+        case .hold: key = name + "!"
+        case .still: key = name + "·"
+        }
+        if let r = cache[key] { return r }
+        var start = c.start
+        if mode == .still {
+            start = max(c.start, c.end - 1 / max(table.fps, 1))
+        }
+        let hold = mode == .hold || mode == .still
+        let view = AnimationView(source: source.definition, name: name,
+                                 fillMode: hold ? .forwards : [],
+                                 trimStart: start, trimEnd: c.end)
+        guard var res = try? AnimationResource.generate(with: view) else { return nil }
+        if mode == .loop { res = res.repeat(count: loopCount) }
+        cache[key] = res
+        return res
+    }
+
+    /// Сыграть шаги по разу, потом цикл loop. Возвращает, сколько секунд идут одноразовые клипы; nil — играть нечего.
+    @discardableResult
+    static func play(_ steps: [String], then loop: String, on pet: Entity, transition: TimeInterval,
+                     randomSpeed: Bool, initial: Bool) -> TimeInterval? {
+        guard let table = ClipTable.shared,
+              let body = pet.findEntity(named: PetModel.bodyName),
+              let source = body.availableAnimations.first else { return nil }
+        var steps = steps
+        let main = table.clips[loop]
+        let looping = main?.loop ?? false
+        // death — не цикл: играет один раз и стоит. Если путь уже кончается им, второй раз не играем.
+        if main != nil, !looping, steps.last == loop { steps.removeLast() }
+
+        var parts: [AnimationResource] = []
+        var busy: TimeInterval = 0
+        for s in steps {
+            guard let c = table.clips[s], let r = resource(s, mode: .once, source: source, table: table) else { continue }
+            parts.append(r)
+            busy += c.end - c.start
+        }
+        if let c = main {
+            let mode: Mode = looping ? .loop : (initial && parts.isEmpty ? .still : .hold)
+            if let r = resource(loop, mode: mode, source: source, table: table) {
+                parts.append(r)
+                if mode == .hold { busy += c.end - c.start }
+            }
+        }
+        guard !parts.isEmpty else { return nil }
+
+        let res: AnimationResource
+        if parts.count == 1 {
+            res = parts[0]
+        } else {
+            guard let seq = try? AnimationResource.sequence(with: parts) else { return nil }
+            res = seq
+        }
+        let ctl = body.playAnimation(res, transitionDuration: transition, startsPaused: false)
+        // Живость: циклы и фиджеты чуть быстрее или медленнее, переходы — ровно 1.
+        let speed: Float = randomSpeed ? Float.random(in: 0.92...1.08) : 1
+        ctl.speed = speed
+        keep(ctl, for: pet)
+        return busy / TimeInterval(speed)
+    }
+
+    /// Reduce Motion: сразу последний кадр клипа, без перехода и движения.
+    static func still(_ name: String, on pet: Entity) {
+        guard let table = ClipTable.shared,
+              let body = pet.findEntity(named: PetModel.bodyName),
+              let source = body.availableAnimations.first,
+              let res = resource(name, mode: .still, source: source, table: table) else { return }
+        let ctl = body.playAnimation(res, transitionDuration: 0, startsPaused: false)
+        keep(ctl, for: pet)
+    }
+
+    private static func keep(_ ctl: AnimationPlaybackController, for pet: Entity) {
+        let id = ObjectIdentifier(pet)
+        if controllers.count > 8 { controllers.removeAll() }
+        controllers[id] = ctl
+    }
 }

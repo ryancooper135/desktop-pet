@@ -1,0 +1,163 @@
+// Положение тела Шибы и какие клипы играть: переходы между позами, основной цикл, фиджеты, реакции на действия.
+// Чистая логика без RealityKit — её покрывает PetStanceTests. Проигрыватель — PetModel в PetStage.swift.
+
+import Foundation
+
+/// Как стоит тело. Между положениями — только через клипы-переходы, без телепорта.
+enum Stance: String, Sendable, CaseIterable {
+    case stand, sit, lie, sleep, dead
+}
+
+/// Реакция на действие: id растёт на каждое нажатие, kind — feed/item/pet/play/wake/bath, ok — получилось ли.
+struct PetReaction: Sendable, Equatable {
+    var id: Int = 0
+    var kind: String = ""
+    var ok: Bool = true
+}
+
+enum PetStance {
+    // MARK: поза → положение и цикл
+
+    static func stance(for pose: Pose) -> Stance {
+        switch pose {
+        case .sleep, .nap: return .sleep
+        case .critical, .tired: return .lie
+        case .dirty, .bath: return .sit
+        case .dead: return .dead
+        case .happy, .loved, .eating, .idle, .bored, .lonely, .sulky, .hungry: return .stand
+        }
+    }
+
+    /// Основной цикл позы. У смерти цикла нет: death играет один раз и стоит на последнем кадре.
+    static func loop(for pose: Pose) -> String {
+        switch pose {
+        case .happy, .loved: return "idle_2"
+        // Ест три раза (intro или реакция feed), потом довольная стойка.
+        case .eating: return "idle_2"
+        case .sleep, .nap: return "sleep"
+        case .critical, .tired: return "lie"
+        case .bored, .lonely, .sulky, .hungry: return "idle_headlow"
+        case .dirty, .bath: return "sit"
+        case .dead: return "death"
+        case .idle: return "idle"
+        }
+    }
+
+    /// Что сыграть один раз при входе в позу, если реакция этого не сделала.
+    static func intro(for pose: Pose) -> [String] {
+        pose == .eating ? ["eat", "eat", "eat"] : []
+    }
+
+    /// Цикл по умолчанию для положения: им заполняем паузу, пока поза ещё не пришла.
+    static func restLoop(for stance: Stance) -> String {
+        switch stance {
+        case .stand: return "idle"
+        case .sit: return "sit"
+        case .lie: return "lie"
+        case .sleep: return "sleep"
+        case .dead: return "death"
+        }
+    }
+
+    // MARK: переходы
+
+    /// Клипы перехода из a в b. Из X в X — пусто; в смерть — death; из смерти — мгновенная смена.
+    static func path(from a: Stance, to b: Stance) -> [String] {
+        if a == b { return [] }
+        if b == .dead { return ["death"] }
+        switch (a, b) {
+        case (.dead, _): return []
+        case (.stand, .sit): return ["sit_in"]
+        case (.stand, .lie): return ["lie_in"]
+        case (.stand, .sleep): return ["lie_in", "sleep_in"]
+        case (.sit, .stand): return ["sit_out"]
+        case (.sit, .lie): return ["sit_out", "lie_in"]
+        case (.sit, .sleep): return ["sit_out", "lie_in", "sleep_in"]
+        case (.lie, .stand): return ["lie_out"]
+        case (.lie, .sit): return ["lie_out", "sit_in"]
+        case (.lie, .sleep): return ["sleep_in"]
+        case (.sleep, .stand): return ["sleep_out", "lie_out"]
+        case (.sleep, .lie): return ["sleep_out"]
+        case (.sleep, .sit): return ["sleep_out", "lie_out", "sit_in"]
+        default: return []
+        }
+    }
+
+    /// В каком положении окажется тело после этих клипов.
+    static func endStance(after clips: [String], from start: Stance) -> Stance {
+        var s = start
+        for c in clips {
+            switch c {
+            case "sit_in": s = .sit
+            case "sit_out", "lie_out": s = .stand
+            case "lie_in", "sleep_out": s = .lie
+            case "sleep_in": s = .sleep
+            case "death": s = .dead
+            default: break
+            }
+        }
+        return s
+    }
+
+    // MARK: фиджеты простоя
+
+    /// Короткие вставки в простое по положению. Из optional — только если клип есть.
+    static let fidgetTable: [Stance: [String]] = [
+        .stand: ["idle_2", "ear_flick", "head_tilt", "sniff", "look_l", "look_r", "yawn"],
+        .sit: ["ear_flick", "head_tilt"],
+        .lie: ["ear_flick", "yawn"],
+    ]
+
+    static func fidgets(for stance: Stance) -> [String] {
+        fidgetTable[stance] ?? []
+    }
+
+    // MARK: реакции
+
+    /// Одноразовая реакция телом. Клипы стоя (hit, eat, прыжок) — только из положения stand, иначе был бы телепорт:
+    /// если действие поднимает питомца, проигрыватель сначала играет переход, потом реакцию уже стоя.
+    static func reaction(kind: String, ok: Bool, stance: Stance, lookX: Float? = nil,
+                         available: Set<String> = Set(PetClipNames.required)) -> [String] {
+        if stance == .dead { return [] }
+        if !ok {
+            return stance == .sleep ? [] : pick(["head_tilt"], available: available)
+        }
+        let standing = stance == .stand
+        var out: [String] = []
+        switch kind {
+        case "pet":
+            if standing {
+                let left: Bool
+                if let x = lookX, x != 0 { left = x < 0 } else { left = Bool.random() }
+                out = [left ? "hit_left" : "hit_right", "happy_wag"]
+            } else {
+                out = ["ear_flick"]
+            }
+        case "play":
+            if standing {
+                let fun = pick(["hop", "play_bow"], available: available)
+                out = fun.randomElement().map { [$0] } ?? ["jump_to_idle"]
+            }
+        case "feed":
+            if standing { out = ["eat", "eat", "eat"] }
+        case "item":
+            if standing { out = ["eat"] }
+        case "wake":
+            switch stance {
+            case .sleep: out = ["sleep_out", "lie_out"]
+            case .lie: out = ["lie_out"]
+            default: out = []
+            }
+        case "bath":
+            if standing { out = ["shake"] }
+        default:
+            out = []
+        }
+        return pick(out, available: available)
+    }
+
+    /// Оставляет только клипы, которые есть. Нет клипа — шаг пропускается.
+    static func pick(_ names: [String], available: Set<String>) -> [String] {
+        names.filter { available.contains($0) }
+    }
+}
