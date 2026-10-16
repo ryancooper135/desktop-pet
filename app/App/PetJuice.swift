@@ -8,7 +8,7 @@ import Foundation
 // MARK: - Пружина
 
 /// Затухающая пружина, решённая точно на шаге dt (без ошибки интегратора, стабильна при любом dt).
-enum Spring {
+enum PetSpring {
     /// Новые (x, v) через dt. zeta ≥ 1 считается как критическое демпфирование.
     static func step(x: Float, v: Float, target: Float, omega: Float, zeta: Float, dt: Float) -> (Float, Float) {
         let z = min(max(zeta, 0), 1)
@@ -87,9 +87,9 @@ struct JuiceComponent: Component {
         swayPhase += dt * twoPi * 0.35
         if swayPhase >= twoPi { swayPhase -= twoPi }
         let w = JuiceComponent.omega
-        (squash, squashV) = Spring.step(x: squash, v: squashV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
-        (hop, hopV) = Spring.step(x: hop, v: hopV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
-        (yaw, yawV) = Spring.step(x: yaw, v: yawV, target: yawTarget, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
+        (squash, squashV) = PetSpring.step(x: squash, v: squashV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
+        (hop, hopV) = PetSpring.step(x: hop, v: hopV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
+        (yaw, yawV) = PetSpring.step(x: yaw, v: yawV, target: yawTarget, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
     }
 
     /// Масштаб с сохранением объёма: тянется по y — сужается по x/z.

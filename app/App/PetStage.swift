@@ -150,9 +150,9 @@ enum PetModel {
                 let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
                 switch r.kind {
                 case "pet", "feed", "item":
-                    c.squashV += Spring.impulse(peak: -0.12, omega: w, zeta: z)
+                    c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
                 case "play":
-                    c.hopV += Spring.impulse(peak: 0.04 * height, omega: w, zeta: z)
+                    c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
                 default:
                     break
                 }
@@ -182,6 +182,8 @@ enum PetModel {
         st.reduceMotion = reduceMotion
         let poseChanged = key != st.current
         guard fresh || poseChanged else {
+            // Поза вернулась к той, что играет: отложенная уже устарела.
+            st.pendingPose = nil
             pet.components.set(st)
             return
         }
@@ -229,6 +231,15 @@ enum PetModel {
         }
         if poseChanged && !reacted && !initial {
             steps += PetStance.pick(PetStance.intro(for: pose), available: available)
+        }
+
+        if steps.isEmpty && !initial && mainLoop == st.loop && !st.current.hasSuffix("~") {
+            // Играть нечего, цикл тот же (реакция без клипа, happy→loved): не перезапускаем его.
+            // После Reduce Motion («~») стоит замерший кадр — его перезапускать надо.
+            st.current = key
+            st.stance = endStance
+            pet.components.set(st)
+            return
         }
 
         let transition: TimeInterval = initial ? 0 : (fresh ? 0.15 : 0.25)

@@ -145,8 +145,8 @@ final class PetStanceTests: XCTestCase {
         var x: Float = 1, v: Float = 0
         var lowest: Float = 1
         for _ in 0..<60 {
-            (x, v) = Spring.step(x: x, v: v, target: 0, omega: JuiceComponent.omega,
-                                 zeta: JuiceComponent.squashZeta, dt: dt)
+            (x, v) = PetSpring.step(x: x, v: v, target: 0, omega: JuiceComponent.omega,
+                                    zeta: JuiceComponent.squashZeta, dt: dt)
             lowest = min(lowest, x)
         }
         XCTAssertLessThan(abs(x), 1e-3)
@@ -155,8 +155,8 @@ final class PetStanceTests: XCTestCase {
         // Поворот (ζ 0.8) тоже доходит до цели за секунду.
         var y: Float = 0, yv: Float = 0
         for _ in 0..<60 {
-            (y, yv) = Spring.step(x: y, v: yv, target: 0.35, omega: JuiceComponent.omega,
-                                  zeta: JuiceComponent.yawZeta, dt: dt)
+            (y, yv) = PetSpring.step(x: y, v: yv, target: 0.35, omega: JuiceComponent.omega,
+                                     zeta: JuiceComponent.yawZeta, dt: dt)
         }
         XCTAssertEqual(y, 0.35, accuracy: 1e-3)
     }
@@ -165,10 +165,10 @@ final class PetStanceTests: XCTestCase {
         let dt: Float = 1.0 / 240.0
         let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
         var x: Float = 0
-        var v = Spring.impulse(peak: -0.12, omega: w, zeta: z)
+        var v = PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
         var lowest: Float = 0
         for _ in 0..<240 {
-            (x, v) = Spring.step(x: x, v: v, target: 0, omega: w, zeta: z, dt: dt)
+            (x, v) = PetSpring.step(x: x, v: v, target: 0, omega: w, zeta: z, dt: dt)
             lowest = min(lowest, x)
         }
         XCTAssertEqual(lowest, -0.12, accuracy: 0.005)
