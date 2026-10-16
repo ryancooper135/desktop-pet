@@ -57,17 +57,29 @@ def main() -> None:
     if not rep["defaultPrim"]:
         problems.append("no defaultPrim")
 
+    # Время для мировых матриц: Blender пишет повороты/масштаб арматуры сэмплами по времени,
+    # и в Default там пусто (единичная матрица) — тогда морда «смотрит» как в Blender (-Y).
+    t0 = Usd.TimeCode(st.GetStartTimeCode())
     skels, anims, meshes, mats, tris = [], [], [], [], 0
     for prim in st.Traverse():
         if prim.IsA(UsdSkel.Skeleton):
             sk = UsdSkel.Skeleton(prim)
             joints = list(sk.GetJointsAttr().Get() or [])
             binds = sk.GetBindTransformsAttr().Get() or []
-            l2w = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+            l2w = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(t0)
+            chain = []
+            p = prim
+            while p and p.GetPath() != p.GetPath().absoluteRootPath:
+                if p.IsA(UsdGeom.Xformable):
+                    ops = UsdGeom.Xformable(p).GetOrderedXformOps()
+                    if ops:
+                        chain.append({"prim": str(p.GetPath()),
+                                      "ops": [f"{o.GetOpName()}{' (timesampled)' if o.GetNumTimeSamples() else ''}" for o in ops]})
+                p = p.GetParent()
             pos = {}
             for j, m in zip(joints, binds):
                 pos[j.split("/")[-1]] = l2w.Transform(Gf.Matrix4d(m).ExtractTranslation())
-            info = {"path": str(prim.GetPath()), "joints": len(joints)}
+            info = {"path": str(prim.GetPath()), "joints": len(joints), "xform_chain": chain}
             if "Head" in pos and "Tail3" in pos:
                 d = pos["Head"] - pos["Tail3"]
                 info["head_minus_tail"] = [round(x, 4) for x in d]
@@ -91,6 +103,12 @@ def main() -> None:
             meshes.append({"path": str(prim.GetPath()), "triangles": n})
         elif prim.IsA(UsdShade.Material):
             mats.append(str(prim.GetPath()))
+    try:
+        bb = UsdGeom.BBoxCache(t0, [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]).ComputeWorldBound(st.GetPseudoRoot()).ComputeAlignedRange()
+        size = bb.GetSize()
+        rep["world_size_m"] = [round(size[i] * rep["metersPerUnit"], 4) for i in range(3)]
+    except Exception as e:  # noqa: BLE001
+        rep["world_size_m"] = repr(e)
     rep.update(skeletons=skels, animations=anims, meshes=meshes, triangles=tris, materials=mats)
     if not skels:
         problems.append("no Skeleton")

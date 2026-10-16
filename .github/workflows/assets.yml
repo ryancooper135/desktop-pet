@@ -91,11 +91,12 @@ jobs:
           {
             echo "### shiba.usdz"
             echo '```json'
-            python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','triangles','skeletons','animations','problems','warnings')},indent=1))"
+            python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','world_size_m','triangles','skeletons','animations','problems','warnings')},indent=1))"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
+        if: always()   # и при падении проверки — чтобы файл можно было разобрать
         with:
           name: shiba-usdz
           path: build/assets/
