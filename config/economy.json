@@ -231,6 +231,8 @@
   },
 
   "levels": {
+    "warn_low": 30,
+    "_warn_low": "порог жёлтого «Просит» (L1): еда, чистота, настроение или ласка ниже — просит; ядро читает, без поля — 30",
     "owner": { "xp_formula": "round(50 * L^1.5)", "max": 50, "start_progress_pct": 30,
                "unlocks": { "rare_shop": 3, "upgrades_L3": 5, "epic_shop": 8, "upgrades_L4": 12, "legendary_fair": 15 } },
     "bond":  { "name": "Привязанность", "xp_formula": "round(30 * L^1.4)", "max": 20, "dies_with_pet": true,

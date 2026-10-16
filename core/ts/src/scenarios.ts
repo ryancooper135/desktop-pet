@@ -1,8 +1,9 @@
 // Сценарии ухода из RESEARCH/04 §2.2: ими проверяем баланс и из них же собираем тест-векторы.
 
 import { act, defaultOwner, newPet, stepTo } from './engine.ts';
-import type { Action, Owner, PetState } from './engine.ts';
-import type { Rules } from './rules.ts';
+import type { Action, ActResult, Owner, PetState } from './engine.ts';
+import { DISTRESS, NEEDS } from './rules.ts';
+import type { Distress, Rules, Vals } from './rules.ts';
 
 export interface TimedAction { t: number; action: Action }
 
@@ -27,34 +28,66 @@ export function visit(s: PetState, bath: boolean): Action[] {
   return a;
 }
 
-export interface RunResult { state: PetState; log: TimedAction[]; minHearts: number }
+/** Подмена act: шпион в тестах, варианты баланса в balance.ts. */
+export type ActFn = (s: PetState, r: Rules, o: Owner, a: Action) => ActResult;
+
+export interface RunOpts {
+  steps?: number;      // шагов в день
+  careless?: boolean;  // заход только с едой
+  full?: boolean;      // заход «до максимума»
+  act?: ActFn;
+}
+
+export interface RunResult {
+  state: PetState;
+  log: TimedAction[];
+  minHearts: number;
+  avgNeeds: Vals;      // среднее по почасовым замерам, пока жив
+}
+
+/** День, в который засчитываются шаги: первый заход с 18:00, иначе последний заход дня. */
+function stepsVisit(visits: number[]): number {
+  const i = visits.findIndex(h => h >= 18);
+  return i >= 0 ? i : visits.length - 1;
+}
 
 /**
- * Прогнать дни ухода: visits — часы заходов, steps — шагов в день (раздаются в 18:00),
- * careless — заход только с едой.
+ * Прогнать дни ухода: visits — часы заходов. Шаги дня (opts.steps) приходят при заходе
+ * (см. stepsVisit) и начисляются до действий этого захода.
  */
-export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: number[], opts: { steps?: number; careless?: boolean | 2; full?: boolean } = {}): RunResult {
+export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: number[], opts: RunOpts = {}): RunResult {
+  const doAct = opts.act ?? act;
   const log: TimedAction[] = [];
   let minHearts = s.hearts;
+  const sum = {} as Vals;
+  for (const n of NEEDS) sum[n] = 0;
+  let samples = 0;
+  const hour = () => {
+    stepTo(s, r, o, s.t + 3600);
+    minHearts = Math.min(minHearts, s.hearts);
+    if (!s.alive) return;
+    for (const n of NEEDS) sum[n] += s.needs[n];
+    samples++;
+  };
   const day0 = Math.floor((s.t - T0) / 86400);
-  const plan: { t: number; kind: 'visit' | 'steps'; bath?: boolean }[] = [];
+  const si = stepsVisit(visits);
+  const plan: { t: number; bath: boolean; steps: boolean }[] = [];
   for (let d = day0; d < day0 + days; d++) {
-    visits.forEach((h, i) => plan.push({ t: T0 + d * 86400 + h * H, kind: 'visit', bath: i === 1 || visits.length === 1 }));
-    if (opts.steps) plan.push({ t: T0 + d * 86400 + 18 * H, kind: 'steps' });
+    visits.forEach((h, i) => plan.push({ t: T0 + d * 86400 + h * H, bath: i === 1 || visits.length === 1, steps: !!opts.steps && i === si }));
   }
   plan.sort((a, b) => a.t - b.t);
   const pet = (t: number, action: Action) => {
-    if (act(s, r, o, action).ok) log.push({ t, action });
+    if (doAct(s, r, o, action).ok) log.push({ t, action });
   };
   for (const p of plan) {
     if (p.t < s.t) continue;
-    while (s.alive && s.t + 3600 <= p.t) { stepTo(s, r, o, s.t + 3600); minHearts = Math.min(minHearts, s.hearts); }
+    while (s.alive && s.t + 3600 <= p.t) hour();
     stepTo(s, r, o, p.t);
     if (!s.alive) break;
-    if (p.kind === 'steps') { pet(s.t, { type: 'steps', count: opts.steps! }); continue; }
+    if (p.steps) pet(s.t, { type: 'steps', count: opts.steps! });
     if (opts.careless) { pet(s.t, { type: 'feed', item: 'stew' }); pet(s.t, { type: 'feed', item: 'carrot' }); continue; }
     if (opts.full) { fillUp(s, r, o, pet); continue; }
-    for (const a of visit(s, p.bath!)) {
+    for (const a of visit(s, p.bath)) {
       if (a.type === 'pet') {
         // три поглаживания с паузой в кулдаун
         for (let k = 0; k < 3; k++) { pet(s.t, a); stepTo(s, r, o, s.t + r.petCooldownMin * 60); }
@@ -62,8 +95,10 @@ export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: n
     }
   }
   const end = T0 + (day0 + days) * 86400;
-  while (s.alive && s.t + 3600 <= end) { stepTo(s, r, o, s.t + 3600); minHearts = Math.min(minHearts, s.hearts); }
-  return { state: s, log, minHearts };
+  while (s.alive && s.t + 3600 <= end) hour();
+  const avgNeeds = {} as Vals;
+  for (const n of NEEDS) avgNeeds[n] = samples ? sum[n] / samples : s.needs[n];
+  return { state: s, log, minHearts, avgNeeds };
 }
 
 /** Заход «до максимума»: кормить до сытости, гладить и играть до упора, купать. */
@@ -78,6 +113,46 @@ export function ignoreUntilDeath(r: Rules, o: Owner, s: PetState, maxH = 200): n
   const start = s.t;
   stepTo(s, r, o, start + maxH * H);
   return s.alive ? null : (s.diedAt! - start) / H;
+}
+
+// ---------- именованные сценарии для balance.ts, векторов и тестов ----------
+
+export interface Scenario { key: string; title: string; short: string; visits: number[]; opts: RunOpts }
+
+/** Все стартуют в 07:30 со шкалами 80. short — заголовок колонки в таблице вариантов. */
+export const SCENARIOS: Scenario[] = [
+  { key: 'visits4_steps', title: '4 захода (8, 13, 18, 22:30) + 6000 шагов', short: '4 + шаги', visits: [8, 13, 18, 22.5], opts: { steps: 6000 } },
+  { key: 'visits3', title: '3 захода (8, 14, 21)', short: '3', visits: [8, 14, 21], opts: {} },
+  { key: 'visits2', title: '2 обычных захода (9, 21)', short: '2', visits: [9, 21], opts: {} },
+  { key: 'careless2', title: '2 захода (9, 21), только покормить', short: '2, только еда', visits: [9, 21], opts: { careless: true } },
+  { key: 'full1_noon', title: '1 заход «до максимума» в 12:00', short: '1 до максимума', visits: [12], opts: { full: true } },
+  { key: 'visits1', title: '1 обычный заход в 12:00', short: '1 обычный', visits: [12], opts: {} },
+  { key: 'careless1', title: '1 заход в 12:00, только покормить', short: '1, только еда', visits: [12], opts: { careless: true } },
+];
+
+export const START_HOUR = 7.5;
+
+export function scenario(key: string): Scenario {
+  const sc = SCENARIOS.find(x => x.key === key);
+  if (!sc) throw new Error(`нет сценария ${key}`);
+  return sc;
+}
+
+export interface Summary {
+  diedDay: number | null;  // сутки от старта до смерти, null — дожил до конца прогона
+  causes: Distress[];      // беды, активные в момент смерти (state.cause — только первая из них)
+  minHearts: number;
+  avgNeeds: Vals;
+}
+
+/** Прогнать именованный сценарий с 07:30 на days суток. act — подмена для вариантов баланса. */
+export function runScenario(r: Rules, o: Owner, sc: Scenario, days: number, act?: ActFn): RunResult & Summary {
+  const s = startAt(r, START_HOUR);
+  const t0 = s.t;
+  const res = runDays(r, o, s, days, sc.visits, act ? { ...sc.opts, act } : sc.opts);
+  const st = res.state;
+  const causes = st.alive ? [] : DISTRESS.filter(d => r.distress[d].cond(st.needs));
+  return { ...res, diedDay: st.diedAt === null ? null : (st.diedAt - t0) / 86400, causes };
 }
 
 export { defaultOwner };

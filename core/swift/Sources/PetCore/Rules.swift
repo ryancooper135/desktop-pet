@@ -63,7 +63,7 @@ public struct Rules {
     public let food: [String: Effect]
     public let items: [String: Effect]
     public let home: [HomeLine: [Effect]]
-    public let warnLow: Double = 30
+    public let warnLow: Double
 
     public func need(_ n: Need, _ key: String) -> Double { needs[n]?[key] ?? 0 }
 
@@ -129,6 +129,8 @@ public struct Rules {
         petCooldownMin = try num(care["cooldowns_min"]["pet"], "cooldowns_min.pet")
         funGain = try num(cfg["minigames"]["fun_gain"], "minigames.fun_gain")
         energyCost = try num(cfg["minigames"]["energy_cost"], "minigames.energy_cost")
+        // порог «Просит»; без поля в конфиге — 30, как было
+        warnLow = cfg["levels"]["warn_low"].double ?? 30
 
         var food: [String: Effect] = [:]
         for f in cfg["shop"]["food"].array { if let id = f["id"].string { food[id] = effect(f) } }

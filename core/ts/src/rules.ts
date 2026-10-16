@@ -87,6 +87,6 @@ export function makeRules(cfg: any): Rules {
     petCooldownMin: care.cooldowns_min.pet,
     play: { funGain: cfg.minigames.fun_gain, energyCost: cfg.minigames.energy_cost },
     food, items, home,
-    warnLow: 30,
+    warnLow: cfg.levels?.warn_low ?? 30,
   };
 }
