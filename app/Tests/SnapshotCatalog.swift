@@ -94,22 +94,40 @@ enum SnapshotCatalog {
 
 // MARK: - Общий стор
 
-/// Тесты стора работают во временной папке: настоящую App Group (и сохранение на симуляторе) не трогают.
+/// Тесты стора работают во временной папке: настоящую App Group не трогают.
+/// Зеркало Documents стор приложения (APP_TARGET) пишет попутно — его копию снимаем и возвращаем.
 enum StoreHooks {
     /// Базовый ID группы из entitlements. На телефоне сайдлоадер дописывает суффикс,
     /// на симуляторе (ad-hoc подпись) группа ровно такая.
     static let appGroupID = "group.com.vadimpet.pet"
 
     /// Свежая временная папка под стор. Удаляет вызывающий (defer / removeTempStore).
+    /// Рядом кладём копию зеркала приложения: стор его перезапишет.
     static func makeTempStoreDir(_ tag: String = "pet-store-test") -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(tag)-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if let data = try? Data(contentsOf: Paths.mirror) {
+            try? data.write(to: mirrorBackup(dir), options: .atomic)
+        }
         return dir
     }
 
+    /// Удалить папку и вернуть зеркало как было (не было — убрать).
     static func removeTempStore(_ dir: URL) {
-        try? FileManager.default.removeItem(at: dir)
+        let fm = FileManager.default
+        try? fm.removeItem(at: dir)
+        let backup = mirrorBackup(dir)
+        if let data = try? Data(contentsOf: backup) {
+            try? data.write(to: Paths.mirror, options: .atomic)
+            try? fm.removeItem(at: backup)
+        } else {
+            try? fm.removeItem(at: Paths.mirror)
+        }
+    }
+
+    private static func mirrorBackup(_ dir: URL) -> URL {
+        dir.deletingLastPathComponent().appendingPathComponent(dir.lastPathComponent + ".mirror.json")
     }
 
     /// Записать метку тем API, каким пишет приложение (mutate), и прочитать её тем API, каким читает виджет (read).

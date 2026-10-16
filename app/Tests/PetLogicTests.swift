@@ -1,6 +1,7 @@
 // Логика без экрана: реакция на действие, главная кнопка, «Пока тебя не было», план уведомлений,
 // реплики, файл сохранения, догон времени и стор. Стор — только во временной папке (StoreHooks),
-// настоящую группу и сохранение на симуляторе не трогаем; wipe() не зовём: он стирает зеркало приложения.
+// настоящую группу не трогаем; зеркало Documents, которое стор пишет попутно, StoreHooks возвращает как было.
+// wipe() не зовём: он стирает зеркало приложения.
 
 import Foundation
 import XCTest
@@ -24,13 +25,13 @@ private func localDay(_ t: Double, _ o: Owner) -> Int {
     return Int((Double(m) / 1440).rounded(.down))
 }
 
-private func encode(_ f: SaveFile) throws -> Data {
+private func encodeFile(_ f: SaveFile) throws -> Data {
     let enc = JSONEncoder()
     enc.outputFormatting = [.sortedKeys]
     return try enc.encode(f)
 }
 
-private func decode(_ data: Data) throws -> SaveFile {
+private func decodeFile(_ data: Data) throws -> SaveFile {
     try JSONDecoder().decode(SaveFile.self, from: data)
 }
 
@@ -273,7 +274,7 @@ final class PetLogicTests: XCTestCase {
         f.notif.lastSentT = t0 - 100
         f.log("act.feed", t: t0 - 5, source: .widget, ok: true, key: Catalog.mainFood)
 
-        let d1 = try decode(encode(f))
+        let d1 = try decodeFile(encodeFile(f))
         XCTAssertEqual(d1.petId, f.petId)
         XCTAssertEqual(d1.deviceId, f.deviceId)
         XCTAssertEqual(d1.rev, 7)
@@ -290,14 +291,14 @@ final class PetLogicTests: XCTestCase {
         XCTAssertEqual(d1.debugMarker, 42)
 
         // Второй круг байт в байт: формат устойчив.
-        let e2 = try encode(d1)
-        let e3 = try encode(decode(e2))
+        let e2 = try encodeFile(d1)
+        let e3 = try encodeFile(decodeFile(e2))
         XCTAssertEqual(e2, e3)
     }
 
     func testSaveFileSurvivesBrokenSubobjects() throws {
         let f = freshFile()
-        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encode(f)) as? [String: Any])
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encodeFile(f)) as? [String: Any])
         obj["journal"] = "мусор"
         obj["outbox"] = 5
         obj["build"] = ["expiresT": "завтра"]
@@ -307,7 +308,7 @@ final class PetLogicTests: XCTestCase {
         obj["island"] = "вкл"
         let data = try JSONSerialization.data(withJSONObject: obj)
 
-        let d = try decode(data)
+        let d = try decodeFile(data)
         XCTAssertEqual(d.petId, f.petId, "питомец пережил битые подобъекты")
         XCTAssertEqual(d.pet.hearts, f.pet.hearts)
         XCTAssertTrue(d.journal.isEmpty)
@@ -320,10 +321,10 @@ final class PetLogicTests: XCTestCase {
     }
 
     func testSaveFileWithoutPetFails() throws {
-        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encode(freshFile())) as? [String: Any])
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encodeFile(freshFile())) as? [String: Any])
         obj.removeValue(forKey: "pet")
         let data = try JSONSerialization.data(withJSONObject: obj)
-        XCTAssertThrowsError(try decode(data), "без питомца файл — ошибка, а не новый щенок")
+        XCTAssertThrowsError(try decodeFile(data), "без питомца файл — ошибка, а не новый щенок")
     }
 
     func testJournalTrimmedTo200() {

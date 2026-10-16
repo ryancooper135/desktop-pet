@@ -10,6 +10,7 @@ on:
       # assets.test.ts: таблица клипов, список обязательных клипов, длины реплик
       - "app/Resources/Pets/**"
       - "app/App/PetClips.swift"
+      - "app/Shared/Lines.swift"
       - "content/**"
 jobs:
   ts:
