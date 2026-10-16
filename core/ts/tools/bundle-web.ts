@@ -14,7 +14,7 @@ const src = (f: string) => {
 };
 
 const names = [
-  'NEEDS', 'DISTRESS', 'HOME_LINES', 'compileCond', 'makeRules',
+  'NEEDS', 'DISTRESS', 'HOME_LINES', 'compileCond', 'makeRules', 'presetNames', 'withPreset',
   'defaultOwner', 'newPet', 'clone', 'localMin', 'ownerAsleep', 'petNight', 'mods', 'maxHearts',
   'stepTo', 'advance', 'act', 'level', 'moods', 'forecast',
   'WANT_SPECS', 'wants', 'mood', 'daypart', 'rescue', 'awaySummary', 'notificationPlan',

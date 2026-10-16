@@ -1,6 +1,6 @@
 // Сценарии ухода из RESEARCH/04 §2.2: ими проверяем баланс и из них же собираем тест-векторы.
 
-import { act, defaultOwner, newPet, stepTo } from './engine.ts';
+import { STEP, act, defaultOwner, level, newPet, step, stepTo } from './engine.ts';
 import type { Action, ActResult, Owner, PetState } from './engine.ts';
 import { DISTRESS, NEEDS } from './rules.ts';
 import type { Distress, Rules, Vals } from './rules.ts';
@@ -35,6 +35,8 @@ export interface RunOpts {
   steps?: number;      // шагов в день
   careless?: boolean;  // заход только с едой
   full?: boolean;      // заход «до максимума»
+  noBath?: boolean;    // никогда не купает
+  away?: [number, number][]; // часы от полуночи первого дня [с, по): заходы в этих окнах пропускаются
   act?: ActFn;
 }
 
@@ -43,6 +45,9 @@ export interface RunResult {
   log: TimedAction[];
   minHearts: number;
   avgNeeds: Vals;      // среднее по почасовым замерам, пока жив
+  firstBadT: number | null;  // первый момент уровня ≥ 2 («Плохо»), с точностью до минуты вне заходов
+  firstLossT: number | null; // первое потерянное сердце (целое на экране стало меньше)
+  heartsByDay: number[];     // сердца на старте и через 1, 2, … суток; после смерти 0
 }
 
 /** Индекс захода, с которым приходят шаги дня: первый заход с 18:00, иначе последний заход дня. */
@@ -62,8 +67,23 @@ export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: n
   const sum = {} as Vals;
   for (const n of NEEDS) sum[n] = 0;
   let samples = 0;
+  const tStart = s.t;
+  let firstBadT: number | null = null;
+  let firstLossT: number | null = null;
+  const hc0 = Math.ceil(s.hearts - 1e-9);
+  const heartsByDay: number[] = [];
+  // то же, что stepTo, но с наблюдением после каждой минуты: «Плохо» и сердца по суткам
+  const watch = () => {
+    if (firstBadT === null && level(s, r) >= 2) firstBadT = s.t;
+    if (firstLossT === null && Math.ceil(s.hearts - 1e-9) < hc0) firstLossT = s.t;
+    while (s.t >= tStart + heartsByDay.length * 86400 && heartsByDay.length < days) heartsByDay.push(s.hearts);
+  };
+  const go = (T: number) => {
+    while (s.alive && s.t + STEP <= T) { step(s, r, o); watch(); }
+  };
+  watch();
   const hour = () => {
-    stepTo(s, r, o, s.t + 3600);
+    go(s.t + 3600);
     minHearts = Math.min(minHearts, s.hearts);
     if (!s.alive) return;
     for (const n of NEEDS) sum[n] += s.needs[n];
@@ -72,8 +92,13 @@ export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: n
   const day0 = Math.floor((s.t - T0) / 86400);
   const si = stepsVisit(visits);
   const plan: { t: number; bath: boolean; steps: boolean }[] = [];
+  const end = T0 + (day0 + days) * 86400;
+  const away = (t: number) => (opts.away ?? []).some(([a, b]) => t >= T0 + (day0 * 24 + a) * H && t < T0 + (day0 * 24 + b) * H);
   for (let d = day0; d < day0 + days; d++) {
-    visits.forEach((h, i) => plan.push({ t: T0 + d * 86400 + h * H, bath: i === 1 || visits.length === 1, steps: !!opts.steps && i === si }));
+    visits.forEach((h, i) => {
+      const t = T0 + d * 86400 + h * H;
+      if (t < end && !away(t)) plan.push({ t, bath: !opts.noBath && (i === 1 || visits.length === 1), steps: !!opts.steps && i === si });
+    });
   }
   plan.sort((a, b) => a.t - b.t);
   const pet = (t: number, action: Action) => {
@@ -82,7 +107,7 @@ export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: n
   for (const p of plan) {
     if (p.t < s.t) continue;
     while (s.alive && s.t + 3600 <= p.t) hour();
-    stepTo(s, r, o, p.t);
+    go(p.t);
     if (!s.alive) break;
     if (p.steps) pet(s.t, { type: 'steps', count: opts.steps! });
     if (opts.careless) { pet(s.t, { type: 'feed', item: 'stew' }); pet(s.t, { type: 'feed', item: 'carrot' }); continue; }
@@ -94,11 +119,11 @@ export function runDays(r: Rules, o: Owner, s: PetState, days: number, visits: n
       } else pet(s.t, a);
     }
   }
-  const end = T0 + (day0 + days) * 86400;
   while (s.alive && s.t + 3600 <= end) hour();
+  while (heartsByDay.length < days && !s.alive) heartsByDay.push(0);
   const avgNeeds = {} as Vals;
   for (const n of NEEDS) avgNeeds[n] = samples ? sum[n] / samples : s.needs[n];
-  return { state: s, log, minHearts, avgNeeds };
+  return { state: s, log, minHearts, avgNeeds, firstBadT, firstLossT, heartsByDay };
 }
 
 /** Заход «до максимума»: кормить до сытости, гладить и играть до упора, купать. */
@@ -117,7 +142,10 @@ export function ignoreUntilDeath(r: Rules, o: Owner, s: PetState, maxH = 200): n
 
 // ---------- именованные сценарии для balance.ts, векторов и тестов ----------
 
-export interface Scenario { key: string; title: string; short: string; visits: number[]; opts: RunOpts }
+export interface Scenario {
+  key: string; title: string; short: string; visits: number[]; opts: RunOpts;
+  owner?: { bedMin: number; wakeMin: number };  // свой график сна хозяина (иначе из конфига)
+}
 
 /** Все стартуют в 07:30 со шкалами 80. short — заголовок колонки в таблице вариантов. */
 export const SCENARIOS: Scenario[] = [
@@ -132,6 +160,23 @@ export const SCENARIOS: Scenario[] = [
 
 export const START_HOUR = 7.5;
 
+/**
+ * Образы игроков для выбора строгости смерти (RESEARCH/12-balance-options.md).
+ * Старт во вторник 07:30. Окна away — часы от полуночи первого дня: пт 21:30 = 3 × 24 + 21,5.
+ */
+export const PATTERNS: Scenario[] = [
+  { key: 'carer', title: 'Заботливый: 4 захода + 6000 шагов', short: 'заботливый', visits: [8, 13, 18, 22.5], opts: { steps: 6000 } },
+  { key: 'regular', title: 'Обычный: 3 захода (8, 14, 21)', short: 'обычный', visits: [8, 14, 21], opts: {} },
+  { key: 'busy2', title: 'Занятой: 2 захода (9, 21)', short: 'занятой', visits: [9, 21], opts: {} },
+  { key: 'feed2', title: '2 захода (9, 21), только покормить', short: '2 × еда', visits: [9, 21], opts: { careless: true } },
+  { key: 'evening1', title: '1 заход в 20:00 после работы', short: '1 вечером', visits: [20], opts: {} },
+  { key: 'feed1', title: '1 заход в 12:00, только покормить', short: '1 × еда', visits: [12], opts: { careless: true } },
+  { key: 'nobath', title: '3 захода, но не купает', short: 'не купает', visits: [8, 14, 21], opts: { noBath: true } },
+  { key: 'owl', title: 'Сова: спит 02:00–10:00, заходы в 12 и 01', short: 'сова', visits: [12, 25], opts: {}, owner: { bedMin: 120, wakeMin: 600 } },
+  { key: 'weekend', title: '3 захода, выходные без захода (пт 21 → вс 21, 48 ч)', short: 'выходные 48 ч', visits: [8, 14, 21], opts: { away: [[3 * 24 + 21.5, 5 * 24 + 21]] } },
+  { key: 'vacation', title: '3 захода, отпуск 5 суток (пт 21 → ср 21)', short: 'отпуск 5 сут', visits: [8, 14, 21], opts: { away: [[3 * 24 + 21.5, 8 * 24 + 21]] } },
+];
+
 export function scenario(key: string): Scenario {
   const sc = SCENARIOS.find(x => x.key === key);
   if (!sc) throw new Error(`нет сценария ${key}`);
@@ -143,16 +188,20 @@ export interface Summary {
   causes: Distress[];      // беды, активные в момент смерти (state.cause — только первая из них)
   minHearts: number;
   avgNeeds: Vals;
+  firstBadH: number | null;  // часы от старта до первого «Плохо»
+  firstLossH: number | null; // часы от старта до первого потерянного сердца
 }
 
 /** Прогнать именованный сценарий с 07:30 на days суток. act — подмена для вариантов баланса. */
 export function runScenario(r: Rules, o: Owner, sc: Scenario, days: number, act?: ActFn): RunResult & Summary {
   const s = startAt(r, START_HOUR);
   const t0 = s.t;
-  const res = runDays(r, o, s, days, sc.visits, act ? { ...sc.opts, act } : sc.opts);
+  const ow = sc.owner ? { ...o, ...sc.owner } : o;
+  const res = runDays(r, ow, s, days, sc.visits, act ? { ...sc.opts, act } : sc.opts);
   const st = res.state;
   const causes = st.alive ? [] : DISTRESS.filter(d => r.distress[d].cond(st.needs));
-  return { ...res, diedDay: st.diedAt === null ? null : (st.diedAt - t0) / 86400, causes };
+  const h = (t: number | null) => t === null ? null : (t - t0) / 3600;
+  return { ...res, diedDay: st.diedAt === null ? null : (st.diedAt - t0) / 86400, causes, firstBadH: h(res.firstBadT), firstLossH: h(res.firstLossT) };
 }
 
 export { defaultOwner };

@@ -10,8 +10,8 @@ final class VectorTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent()
     let tol = 1e-6
 
-    func rules() throws -> Rules {
-        try Rules(data: Data(contentsOf: Self.repo.appendingPathComponent("config/economy.json")))
+    func rules(preset: String? = nil) throws -> Rules {
+        try Rules(data: Data(contentsOf: Self.repo.appendingPathComponent("config/economy.json")), preset: preset)
     }
 
     func vectorFiles() throws -> [URL] {
@@ -53,12 +53,14 @@ final class VectorTests: XCTestCase {
     }
 
     func testVectors() throws {
-        let r = try rules()
+        let r0 = try rules()
         let files = try vectorFiles()
         XCTAssertFalse(files.isEmpty, "нет векторов в core/vectors")
         for f in files {
             let v = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: f))
             let name = v["name"].string ?? f.lastPathComponent
+            // вектор с полем preset считан на правилах этого пресета строгости
+            let r = try v["preset"].string.map { try rules(preset: $0) } ?? r0
             let o = Owner(json: v["owner"])
             var s = PetState(json: v["start"])
             for (i, st) in v["steps"].array.enumerated() {
@@ -90,6 +92,43 @@ final class VectorTests: XCTestCase {
             checkAway(v["away"], PetState(json: v["start"]), r, o, name)
             for (k, c) in v["notify"].array.enumerated() { checkNotify(c, r, o, "\(name)/notify#\(k)") }
         }
+    }
+
+    func testPresets() throws {
+        let strict = try rules()
+        XCTAssertEqual(strict.preset, "strict")
+        let explicit = try rules(preset: "strict")
+        XCTAssertEqual(explicit.lastChanceH, strict.lastChanceH)
+        XCTAssertEqual(explicit.regenAllGe, strict.regenAllGe)
+        let medium = try rules(preset: "medium")
+        XCTAssertEqual(medium.preset, "medium")
+        XCTAssertEqual(medium.distress[.dirty]?.hoursPerHeart, 48)
+        XCTAssertEqual(medium.distress[.dirty]?.graceH, 24)
+        XCTAssertEqual(medium.distress[.toska]?.hoursPerHeart, 36)
+        XCTAssertEqual(medium.regenAllGe, 15)
+        XCTAssertEqual(medium.lastChanceH, 12)
+        XCTAssertEqual(medium.distress[.starve]?.hoursPerHeart, strict.distress[.starve]?.hoursPerHeart)
+        let soft = try rules(preset: "soft")
+        XCTAssertEqual(soft.regenPerH, 0.125)
+        XCTAssertEqual(soft.distress[.starve]?.hoursPerHeart, 8)
+        var dirty: Vals = [:]
+        for n in Need.allCases { dirty[n] = 80 }
+        dirty[.clean] = 0
+        XCTAssertFalse(soft.distress[.dirty]!.cond(dirty), "в мягком грязь не беда")
+        XCTAssertTrue(strict.distress[.dirty]!.cond(dirty))
+        XCTAssertThrowsError(try rules(preset: "hardcore"))
+        XCTAssertThrowsError(try rules(preset: "_note"))
+        // конфиг без пресетов читается как раньше
+        let raw = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: Self.repo.appendingPathComponent("config/economy.json")))
+        var care = raw["care"].object, hearts = raw["care"]["hearts"].object, root = raw.object
+        hearts["preset"] = nil
+        hearts["presets"] = nil
+        care["hearts"] = .object(hearts)
+        root["care"] = .object(care)
+        let bare = try Rules(json: .object(root))
+        XCTAssertNil(bare.preset)
+        XCTAssertEqual(bare.lastChanceH, strict.lastChanceH)
+        XCTAssertEqual(bare.distress[.dirty]?.hoursPerHeart, strict.distress[.dirty]?.hoursPerHeart)
     }
 
     func testChunksEqualWhole() throws {

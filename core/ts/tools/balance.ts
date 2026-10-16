@@ -1,10 +1,10 @@
 // Таблица баланса: node core/ts/tools/balance.ts
 // Сценарии ухода × варианты строгости. Варианты — только параметры прогона, config/economy.json не меняется.
 import { readFileSync } from 'node:fs';
-import { makeRules, DISTRESS } from '../src/rules.ts';
+import { makeRules, presetNames, DISTRESS } from '../src/rules.ts';
 import type { Rules } from '../src/rules.ts';
 import { act, defaultOwner, forecast } from '../src/engine.ts';
-import { SCENARIOS, START_HOUR, ignoreUntilDeath, runScenario, startAt } from '../src/scenarios.ts';
+import { PATTERNS, SCENARIOS, START_HOUR, ignoreUntilDeath, runScenario, startAt } from '../src/scenarios.ts';
 import type { ActFn } from '../src/scenarios.ts';
 
 const DAYS = 30;
@@ -100,4 +100,26 @@ for (const v of VARIANTS) {
     return res.diedDay === null ? `❤ ${f1(res.minHearts)} / ${Math.round(res.avgNeeds.fun)}` : `† ${f1(res.diedDay)} (${why(res.causes)})`;
   });
   console.log(`| ${v.title} | ${ign === null ? '> 200' : f1(ign)} | ${cells.join(' | ')} |`);
+}
+
+// ---------- пресеты строгости (care.hearts.presets) × образы игроков ----------
+
+const PDAYS = 21;
+const hh = (x: number | null) => x === null ? '—' : f1(x);
+console.log(`\n## Пресеты строгости × образы игроков (старт вт 07:30, ${PDAYS} суток)\n`);
+console.log('Ячейка: первое «Плохо» (ч) · первое ❤ потеряно (ч) · смерть (сут) · ❤ через 7 сут. «—» — не случилось.\n');
+const PRESETS = presetNames(cfg0);
+for (const p of PRESETS) {
+  const rp = makeRules(cfg0, p);
+  const op = defaultOwner(rp);
+  const ign = ignoreUntilDeath(rp, op, startAt(rp, START_HOUR));
+  console.log(`### ${cfg0.care.hearts.presets[p]._name ?? p} (${p}) — полный игнор: † ${ign === null ? '> 200' : f1(ign)} ч\n`);
+  console.log('| Образ | «Плохо», ч | −1 ❤, ч | Смерть, сут | ❤ 7 сут | ❤ 14 сут | Мин. ❤ |');
+  console.log('|---|---|---|---|---|---|---|');
+  for (const sc of PATTERNS) {
+    const res = runScenario(rp, op, sc, PDAYS);
+    const death = res.diedDay === null ? '—' : `${f1(res.diedDay)} (${why(res.causes)})`;
+    console.log(`| ${sc.title} | ${hh(res.firstBadH)} | ${hh(res.firstLossH)} | ${death} | ${f1(res.heartsByDay[7])} | ${f1(res.heartsByDay[14])} | ${f1(res.minHearts)} |`);
+  }
+  console.log('');
 }

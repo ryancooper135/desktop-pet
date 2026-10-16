@@ -10,7 +10,9 @@ import { T0, runDays, scenario, startAt } from '../src/scenarios.ts';
 import type { TimedAction } from '../src/scenarios.ts';
 
 const cfgUrl = new URL('../../../config/economy.json', import.meta.url);
-const r = makeRules(JSON.parse(readFileSync(cfgUrl, 'utf8')));
+const cfg = JSON.parse(readFileSync(cfgUrl, 'utf8'));
+let r = makeRules(cfg);
+const preset0 = r.preset;
 const outDir = new URL('../../vectors/', import.meta.url);
 mkdirSync(outDir, { recursive: true });
 const H = 3600;
@@ -51,7 +53,7 @@ function record(name: string, o: Owner, start: PetState, actions: TimedAction[],
   const fc = forecast(s, r, o, 72);
   const away = { now: endT, journal: actions, ...awaySummary(start, r, o, endT, actions) };
   const notify = notifyCases(o, start, s);
-  writeFileSync(new URL(`${name}.json`, outDir), JSON.stringify({ name, owner: o, start, steps, forecast: { from: clone(s), horizonH: 72, events: fc }, away, notify }, null, 1) + '\n');
+  writeFileSync(new URL(`${name}.json`, outDir), JSON.stringify({ name, ...(r.preset !== preset0 ? { preset: r.preset } : {}), owner: o, start, steps, forecast: { from: clone(s), horizonH: 72, events: fc }, away, notify }, null, 1) + '\n');
   console.log(name, steps.length, 'шагов,', fc.length, 'событий прогноза');
 }
 
@@ -86,3 +88,9 @@ const oKiev = defaultOwner(r, 180);
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 6, sc.visits, sc.opts); record('careless2', o, s, res.log, res.state.diedAt ?? T0 + 6 * 86400, 12); }
 // 8. один заход «до максимума» в 12:00, дом стартовый
 { const sc = scenario('full1_noon'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, sc.visits, sc.opts); record('full1_noon', o, s, res.log, T0 + 4 * 86400, 12); }
+
+// 9–10. пресеты строгости: Swift строит правила по полю preset
+r = makeRules(cfg, 'medium');
+{ const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_medium', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }
+r = makeRules(cfg, 'soft');
+{ const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 12, [12], { careless: true }); record('careless1_soft', o, s, res.log, res.state.diedAt ?? T0 + 12 * 86400, 12); }
