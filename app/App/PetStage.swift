@@ -29,15 +29,23 @@ struct PetStage: View {
             PetModel.registerOnce()
             let pet = await PetModel.load()
             pet.name = PetModel.petName
-            content.add(pet)
-            content.add(PetModel.floor())
-            content.add(PetModel.camera())
-            content.add(PetModel.light())
+            PetRoom.matte(pet)
+            // Подставка с поворотом 3/4: внутри питомец и пятно-тень (пятно не дышит вместе с ним).
+            let stand = Entity()
+            stand.name = PetModel.standName
+            stand.orientation = simd_quatf(angle: PetRoom.yaw3q, axis: SIMD3<Float>(0, 1, 0))
+            stand.addChild(PetRoom.blobShadow())
+            stand.addChild(pet)
+            content.add(stand)
+            content.add(PetRoom.room())
+            content.add(PetRoom.camera())
+            content.add(PetRoom.lights())
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
             PetModel.prime(pet, reactionId: reaction.id)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         } update: { content in
-            guard let pet = content.entities.first(where: { $0.name == PetModel.petName }) else { return }
+            guard let stand = content.entities.first(where: { $0.name == PetModel.standName }),
+                  let pet = stand.children.first(where: { $0.name == PetModel.petName }) else { return }
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         }
         .background(PetPalette.bg)
@@ -47,6 +55,7 @@ struct PetStage: View {
 @MainActor
 enum PetModel {
     static let petName = "pet"
+    static let standName = "petStand"
     static let bodyName = "petBody"
     /// Обёртка между корнем и моделью: ей JuiceSystem задаёт дыхание, squash, подскок и поворот.
     static let pivotName = "petJuice"

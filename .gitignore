@@ -12,3 +12,4 @@ probe/App/App.entitlements
 probe/Widgets/Widgets.entitlements
 *.log
 .build/
+__pycache__/

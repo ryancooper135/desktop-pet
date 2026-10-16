@@ -19,7 +19,11 @@ struct HomeScreen: View {
             PetPalette.bg.ignoresSafeArea()
 
             GeometryReader { geo in
-                PetStage(pose: snap.pose)
+                PetStage(pose: snap.pose,
+                         reactionId: model.reaction.id,
+                         reactionKind: model.reaction.kind,
+                         reactionOk: model.reaction.ok,
+                         lookX: model.lookX)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .gesture(stageGesture)
