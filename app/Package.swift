@@ -16,7 +16,9 @@ let package = Package(
         // Имя «Pet», как у цели приложения: тесты пишут `@testable import Pet` и там, и тут.
         .target(
             name: "Pet",
-            dependencies: ["PetCore"],
+            // Пакет по пути получает имя папки («swift»), поэтому продукт с явным пакетом:
+            // голое "PetCore" SwiftPM 5.2+ не примет.
+            dependencies: [.product(name: "PetCore", package: "swift")],
             path: "Shared",
             sources: [
                 "AppGroup.swift",
@@ -37,7 +39,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PetTests",
-            dependencies: ["Pet", "PetCore"],
+            dependencies: ["Pet", .product(name: "PetCore", package: "swift")],
             path: "Tests",
             sources: [
                 "PetLogicTests.swift",
