@@ -1,4 +1,4 @@
-// Прогноз «если никто не придёт»: точки для timeline виджета, ближайший таймер, staleDate острова.
+// Прогноз «если никто не придёт»: кадры timeline виджета, ближайший таймер, staleDate острова.
 
 import Foundation
 @preconcurrency import PetCore
@@ -39,36 +39,143 @@ enum ForecastTools {
         }
     }
 
-    /// Моменты, когда картинка виджета меняется: сейчас, каждые 30 минут на 24 ч, события прогноза,
-    /// конец ванны и дрёмы, смена ночи, конец реакции на действие. Точки ближе минуты склеиваются, не больше 64.
-    static func timelineDates(_ f: SaveFile, now: Double, events: [ForecastEvent]) -> [Double] {
+    // MARK: timeline виджета
+
+    /// Сколько точек и как часто. Сетка идёт по стенным часам: смена реплики (слот 30 мин) совпадает с точкой.
+    enum Budget {
+        static let horizonH: Double = 24      // на сколько вперёд
+        static let nearH: Double = 12         // первые 12 ч — каждые 30 минут
+        static let nearStep: Double = 1800
+        static let farStep: Double = 3600     // дальше — раз в час
+        static let nightStep: Double = 7200   // питомец спит — раз в 2 ч
+        static let maxEntries = 64
+        static let minGap: Double = 60        // точки ближе склеиваются в более позднюю
+        static let reloadH: Double = 12       // новый timeline не позже чем через 12 ч
+        static let minReload: Double = 15 * 60
+    }
+
+    /// Шаг ядра — минута: точнее искать смену картинки незачем.
+    private static let coreStep: Double = 60
+
+    /// Всё, что видно на виджете, кроме самой реплики (она крутится по слотам сама).
+    /// Смена этого между соседними точками — повод найти точную минуту и поставить туда точку.
+    private struct Look: Equatable {
+        let pose: Pose
+        let mood: String
+        let want: String?
+        let urgent: Bool
+        let level: Int
+        let main: MainAct
+        let alive: Bool
+        let timerKind: String?
+        let timerEnd: Double?
+        let halfHearts: Int
+        let tier: Int
+        let daypart: Daypart
+    }
+
+    private struct Probe {
+        let t: Double
+        let pet: PetState
+        let snap: PetSnapshot
+        let look: Look
+    }
+
+    private static func look(_ s: PetSnapshot, _ o: Owner, _ r: Rules) -> Look {
+        Look(pose: s.pose, mood: s.mood, want: s.want, urgent: s.urgent, level: s.level, main: s.main, alive: s.alive,
+             timerKind: s.timer?.kind, timerEnd: s.timer?.end, halfHearts: Int((s.hearts * 2 - 1e-9).rounded(.up)),
+             tier: Presenter.tier(s.t, o), daypart: PetEngine.daypart(s.t, r, o))
+    }
+
+    /// Кадры виджета на horizonH часов вперёд, если никто не придёт: ядро крутится без действий,
+    /// в каждой точке — поза, шкалы, пузырь мысли, реплика и таймер. Точки: сейчас, сетка Budget,
+    /// события прогноза, конец реакции на действие; между соседними точками с разной картинкой
+    /// бисекцией ищется минута смены (сон, дрёма, ванна, голод, пороги шкал). После смерти точек нет.
+    /// tzOffsetMin — закрепить пояс (тесты); nil — пояс устройства на момент каждой точки.
+    static func timeline(_ f: SaveFile, now: Double, horizonH: Double = Budget.horizonH,
+                         tzOffsetMin: Int? = nil) -> [PetSnapshot] {
         let r = Catalog.rules
-        let o = PetRunner.owner(f, at: now)
-        let s = PetRunner.peek(f, at: now)
-        let end = now + 24 * 3600
-        var pts: [Double] = [now]
-        var k = 1.0
-        while now + k * 1800 <= end { pts.append(now + k * 1800); k += 1 }
+        func ownerAt(_ t: Double) -> Owner {
+            var o = f.owner
+            o.tzOffsetMin = tzOffsetMin ?? Clock.tzOffsetMin(at: t)
+            return o
+        }
+        // Ядро крутится с поясом из файла, как PetRunner.peek в приложении; Presenter — с поясом точки.
+        var eo = f.owner
+        if let tzOffsetMin { eo.tzOffsetMin = tzOffsetMin }
+        let o = eo
+        let s0 = PetEngine.advance(f.pet, r, o, now)
+        let end = now + horizonH * 3600
+        // Прогноз с запасом: таймер «проголодается через…» смотрит на 12 ч вперёд и в конце timeline.
+        let events = PetEngine.forecast(s0, r, o, horizonH: horizonH + 12)
+
+        func probe(_ s: PetState, _ t: Double) -> Probe {
+            let ot = ownerAt(t)
+            let snap = Presenter.make(file: f, pet: s, owner: ot, at: t, upcoming: events)
+            return Probe(t: t, pet: s, snap: snap, look: look(snap, ot, r))
+        }
+
+        /// Первая минута между a и bT, где картинка уже не как в a; nil — смена только в самой bT.
+        func firstChange(_ a: Probe, _ bT: Double) -> Probe? {
+            var lo = a
+            var hi: Probe? = nil
+            var hiT = bT
+            while hiT - lo.t > coreStep {
+                let mid = ((lo.t + hiT) / 2).rounded(.down)
+                let m = probe(PetEngine.advance(lo.pet, r, o, mid), mid)
+                if m.look == a.look { lo = m } else { hi = m; hiT = mid }
+            }
+            return hi
+        }
+
+        // Точки: сетка по стенным часам, ночью реже, дальше 12 ч — раз в час.
+        var pts: [Double] = []
+        var p = ((now / Budget.nearStep).rounded(.down) + 1) * Budget.nearStep
+        while p <= end {
+            let every = PetEngine.petNight(p, r, ownerAt(p)) ? Budget.nightStep
+                : (p - now < Budget.nearH * 3600 ? Budget.nearStep : Budget.farStep)
+            if p.truncatingRemainder(dividingBy: every) == 0 { pts.append(p) }
+            p += Budget.nearStep
+        }
         for e in events where e.t > now && e.t <= end { pts.append(e.t + 1) }
-        if let b = s.bathUntil, b > now { pts.append(b + 1) }
-        if let n = s.napUntil, n > now { pts.append(n + 1) }
-        if let la = f.lastAction, la.t + Presenter.reactionWindow > now { pts.append(la.t + Presenter.reactionWindow + 1) }
-        // Смены ночи с шагом 5 минут.
-        var night = PetEngine.petNight(now, r, o)
-        var x = now + 300
-        while x <= end {
-            let n = PetEngine.petNight(x, r, o)
-            if n != night { pts.append(x); night = n }
-            x += 300
+        if let la = f.lastAction, la.ok, la.t + Presenter.reactionWindow > now, la.t + Presenter.reactionWindow <= end {
+            pts.append(la.t + Presenter.reactionWindow)
         }
         pts.sort()
-        var out: [Double] = []
-        for p in pts {
-            if let last = out.last, p - last < 60 { continue }
-            out.append(p)
-            if out.count >= 64 { break }
+        var times: [Double] = [now]
+        for x in pts where x > now {
+            if times.count > 1, let last = times.last, x - last < Budget.minGap { times[times.count - 1] = x } else { times.append(x) }
         }
-        return out
+
+        // Двигаем стейт по точкам по порядку: каждый шаг — только от прошлой точки.
+        var out: [Probe] = []
+        var cur = s0
+        for t in times {
+            cur = PetEngine.advance(cur, r, o, t)
+            let b = probe(cur, t)
+            if let a = out.last, a.look != b.look {
+                // Несколько смен в одном промежутке (например, проснулся и сразу проголодался) — до 4 подряд.
+                var left = a
+                for _ in 0..<4 {
+                    guard let c = firstChange(left, t) else { break }
+                    out.append(c)
+                    if c.look == b.look { break }
+                    left = c
+                }
+            }
+            out.append(b)
+            if !cur.alive { break }
+        }
+        if out.count > Budget.maxEntries { out.removeLast(out.count - Budget.maxEntries) }
+        return out.map { $0.snap }
+    }
+
+    /// Когда просить новый timeline: через 12 ч или раньше, если точки кончились; после смерти — через 12 ч,
+    /// дальше картинка не меняется, а приложение само перезагрузит виджет.
+    static func reloadT(_ snaps: [PetSnapshot], now: Double) -> Double {
+        let cap = now + Budget.reloadH * 3600
+        guard let last = snaps.last, last.alive else { return cap }
+        return min(cap, max(now + Budget.minReload, last.t))
     }
 
     /// Когда содержимое острова устареет: ближайшее из конца ванны, следующего события прогноза, startedT + 8 ч.
