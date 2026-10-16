@@ -6,7 +6,7 @@ import { act, clone, defaultOwner, forecast, level, moods, stepTo } from '../src
 import type { Action, Owner, PetState } from '../src/engine.ts';
 import { awaySummary, daypart, mood, notificationPlan, rescue, wants } from '../src/insights.ts';
 import type { NotifyOpts } from '../src/insights.ts';
-import { T0, runDays, startAt } from '../src/scenarios.ts';
+import { T0, runDays, scenario, startAt } from '../src/scenarios.ts';
 import type { TimedAction } from '../src/scenarios.ts';
 
 const cfgUrl = new URL('../../../config/economy.json', import.meta.url);
@@ -62,8 +62,8 @@ const oKiev = defaultOwner(r, 180);
 { const s = startAt(r, 7.5); record('ignore_0730', o, s, [], s.t + 62 * H); }
 // 2. будка L4 + UTC+3 + нестандартный график
 { const s = startAt(r, 14); s.home.kennel = 3; s.home.bed = 2; const ow = { ...oKiev, bedMin: 60, wakeMin: 9 * 60 }; record('kennel4_tz180', ow, s, [], s.t + 90 * H); }
-// 3. 4 захода + шаги, 4 дня
-{ const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, [8, 13, 18, 22.5], { steps: 6000 }); record('visits4_steps', o, s, res.log, T0 + 4 * 86400); }
+// 3. 4 захода + шаги, 4 дня (шаги начисляются в начале захода в 18:00)
+{ const sc = scenario('visits4_steps'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, sc.visits, sc.opts); record('visits4_steps', o, s, res.log, T0 + 4 * 86400); }
 // 4. один небрежный заход до смерти
 { const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 5, [12], { careless: true }); record('careless1', o, s, res.log, res.state.diedAt ?? T0 + 5 * 86400, 12); }
 // 5. один заход «до максимума», улучшенный дом
@@ -82,3 +82,7 @@ const oKiev = defaultOwner(r, 180);
     A(3 * H, { type: 'wake' }), A(5 * H, { type: 'steps', count: 2345 }), A(6 * H, { type: 'feed', item: 'milk' }), A(9 * H, { type: 'feed', item: 'cake' }),
   ], t + 30 * H, 2);
 }
+// 7. два захода «только покормить» до смерти
+{ const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 6, sc.visits, sc.opts); record('careless2', o, s, res.log, res.state.diedAt ?? T0 + 6 * 86400, 12); }
+// 8. один заход «до максимума» в 12:00, дом стартовый
+{ const sc = scenario('full1_noon'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, sc.visits, sc.opts); record('full1_noon', o, s, res.log, T0 + 4 * 86400, 12); }
