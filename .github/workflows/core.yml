@@ -1,9 +1,16 @@
-# Ядро питомца: тесты TS, свежесть общих векторов и сверка Swift-порта с ними.
+# Ядро питомца: тесты TS (и ассетов: клипы, реплики), свежесть общих векторов и сверка Swift-порта с ними.
 name: core
 on:
   workflow_dispatch:
   push:
-    paths: ["core/**", "config/economy.json", ".github/workflows/core.yml"]
+    paths:
+      - "core/**"
+      - "config/economy.json"
+      - ".github/workflows/core.yml"
+      # assets.test.ts: таблица клипов, список обязательных клипов, длины реплик
+      - "app/Resources/Pets/**"
+      - "app/App/PetClips.swift"
+      - "content/**"
 jobs:
   ts:
     runs-on: ubuntu-latest
