@@ -94,24 +94,59 @@ enum SnapshotCatalog {
 
 // MARK: - Общий стор
 
+/// Тесты стора работают во временной папке: настоящую App Group не трогают.
+/// Зеркало Documents стор приложения (APP_TARGET) пишет попутно — его копию снимаем и возвращаем.
 enum StoreHooks {
     /// Базовый ID группы из entitlements. На телефоне сайдлоадер дописывает суффикс,
     /// на симуляторе (ad-hoc подпись) группа ровно такая.
     static let appGroupID = "group.com.vadimpet.pet"
 
-    /// Записать в общий стор метку тем API, каким пишет приложение (mutate),
-    /// и прочитать её тем API, каким читает виджет (load).
-    static func writeThenRead(marker: Double) throws -> (written: Double, read: Double)? {
-        try PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.debugMarker = marker }
-        return (marker, PetStore.load().debugMarker ?? .nan)
+    /// Свежая временная папка под стор. Удаляет вызывающий (defer / removeTempStore).
+    /// Рядом кладём копию зеркала приложения: стор его перезапишет.
+    static func makeTempStoreDir(_ tag: String = "pet-store-test") -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(tag)-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if let data = try? Data(contentsOf: Paths.mirror) {
+            try? data.write(to: mirrorBackup(dir), options: .atomic)
+        }
+        return dir
     }
 
-    /// Время идёт через стор: свежий щенок пишется в отдельную временную папку (настоящее сохранение
-    /// не трогаем), читается обратно и догоняется на `hours` часов вперёд, как это делает виджет.
+    /// Удалить папку и вернуть зеркало как было (не было — убрать).
+    static func removeTempStore(_ dir: URL) {
+        let fm = FileManager.default
+        try? fm.removeItem(at: dir)
+        let backup = mirrorBackup(dir)
+        if let data = try? Data(contentsOf: backup) {
+            try? data.write(to: Paths.mirror, options: .atomic)
+            try? fm.removeItem(at: backup)
+        } else {
+            try? fm.removeItem(at: Paths.mirror)
+        }
+    }
+
+    private static func mirrorBackup(_ dir: URL) -> URL {
+        dir.deletingLastPathComponent().appendingPathComponent(dir.lastPathComponent + ".mirror.json")
+    }
+
+    /// Записать метку тем API, каким пишет приложение (mutate), и прочитать её тем API, каким читает виджет (read).
+    /// Два разных экземпляра PetStore над одной папкой — как два процесса над одной группой.
+    static func writeThenRead(marker: Double) throws -> (written: Double, read: Double)? {
+        let dir = makeTempStoreDir("pet-store-hooks")
+        defer { removeTempStore(dir) }
+        let app = PetStore(dir: dir)
+        try app.mutate { (f: inout SaveFile) -> Void in f.debugMarker = marker }
+        let widget = PetStore(dir: dir)
+        let read = try widget.read()?.debugMarker ?? .nan
+        return (marker, read)
+    }
+
+    /// Время идёт через стор: свежий щенок пишется во временную папку, читается обратно
+    /// и догоняется на `hours` часов вперёд, как это делает виджет.
     static func food(afterHours hours: Double) throws -> (before: Double, after: Double)? {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("pet-store-test-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
+        let dir = makeTempStoreDir()
+        defer { removeTempStore(dir) }
         let store = PetStore(dir: dir)
         let now = Clock.now()
         try store.mutate { (f: inout SaveFile) -> Void in f = SaveFile.fresh(now: now) }

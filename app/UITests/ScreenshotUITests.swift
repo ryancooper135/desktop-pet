@@ -7,19 +7,21 @@
 //   ui-01-main-tree дерево элементов главного экрана (txt) — по нему видно accessibilityIdentifier
 //   ui-1N-tab-N     каждая вкладка TabView, если она есть
 //   ui-2N-<имя>     экраны из списка `screens` ниже (по accessibilityIdentifier)
+// Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
 import XCTest
 
 final class ScreenshotUITests: XCTestCase {
     /// Экран → accessibilityIdentifier кнопки, которая его открывает с главного.
-    /// Нет такого элемента — снимок пропускается. Дополняется по мере появления экранов.
+    /// Нет такого элемента — снимок пропускается. Дополняется по мере появления экранов
+    /// (магазин, дом и гардероб вернутся сюда вместе со своими кнопками).
     static let screens: [(name: String, identifier: String)] = [
-        ("ui-21-shop", "open.shop"),
-        ("ui-22-home", "open.home"),
-        ("ui-23-wardrobe", "open.wardrobe"),
         ("ui-24-settings", "open.settings"),
     ]
+
+    /// Элемент, по которому видно, что главный экран дорисовался.
+    static let mainMarker = "open.settings"
 
     override func setUpWithError() throws {
         continueAfterFailure = true
@@ -30,9 +32,8 @@ final class ScreenshotUITests: XCTestCase {
         let app = Self.makeApp()
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
-        settle(2)
         acceptSystemAlerts()
-        settle(2)
+        waitForMain(app)
 
         snap("ui-01-main")
         let tree = XCTAttachment(string: app.debugDescription)
@@ -57,9 +58,8 @@ final class ScreenshotUITests: XCTestCase {
         for screen in present {
             app.terminate()
             app.launch()
-            settle(2)
             let el = app.descendants(matching: .any)[screen.identifier]
-            guard el.waitForExistence(timeout: 2), el.isHittable else { continue }
+            guard el.waitForExistence(timeout: 15), el.isHittable else { continue }
             el.tap()
             settle(1.5)
             snap(screen.name)
@@ -89,6 +89,16 @@ final class ScreenshotUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    /// Главный экран на месте (по mainMarker), плюс секунда сцене на первый кадр.
+    /// Маркера нет (старая сборка) — просто подождать, как раньше.
+    @MainActor
+    func waitForMain(_ app: XCUIApplication) {
+        if !app.descendants(matching: .any)[Self.mainMarker].waitForExistence(timeout: 15) {
+            settle(2)
+        }
+        settle(1)
     }
 
     /// Дать анимациям и 3D-сцене дорисоваться.

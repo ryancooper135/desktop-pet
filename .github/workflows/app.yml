@@ -1,13 +1,22 @@
 # Настоящее приложение: .ipa для телефона + тесты на симуляторе с картинками.
 # Только ручной запуск: macOS-минуты в приватном репо считаются (~200 в месяц).
-#   gh workflow run app.yml -f tests=true
+#   gh workflow run app.yml                # всё: .ipa, юнит-тесты, UI-тесты (скриншоты ui-* и кадры anim-*)
+#   gh workflow run app.yml -f mode=unit   # только юнит-тесты (PetTests) с покрытием
+#   gh workflow run app.yml -f mode=ui     # только UI-тесты (PetUITests): скриншоты и контактные листы anim-*
+#   gh workflow run app.yml -f mode=ipa    # только .ipa (то же, что старое -f tests=false)
+# Тесты: одна сборка build-for-testing, потом test-without-building по целям, у каждой свой xcresult.
 # Подробно — RESEARCH/11-ci-testing.md.
 name: app
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Что делать: all | ipa | unit | ui"
+        type: choice
+        options: [all, ipa, unit, ui]
+        default: all
       tests:
-        description: "Гонять тесты на симуляторе и снимать скриншоты"
+        description: "Старый флаг: false — только .ipa (как mode=ipa)"
         type: boolean
         default: true
 concurrency:
@@ -16,7 +25,7 @@ concurrency:
 jobs:
   app:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 50
     defaults:
       run:
         working-directory: app
@@ -25,6 +34,31 @@ jobs:
       OUT: ${{ github.workspace }}/app/out
     steps:
       - uses: actions/checkout@v4
+
+      - name: Mode
+        # Дальше шаги смотрят только на RUN_IPA / RUN_UNIT / RUN_UI / RUN_TESTS.
+        env:
+          MODE_IN: ${{ inputs.mode }}
+          TESTS_IN: ${{ inputs.tests }}
+        run: |
+          MODE="${MODE_IN:-all}"
+          if [ "$TESTS_IN" = "false" ]; then MODE=ipa; fi
+          case "$MODE" in
+            ipa)  IPA=1; UNIT=0; UI=0 ;;
+            unit) IPA=0; UNIT=1; UI=0 ;;
+            ui)   IPA=0; UNIT=0; UI=1 ;;
+            *)    MODE=all; IPA=1; UNIT=1; UI=1 ;;
+          esac
+          TESTS=0
+          if [ "$UNIT" = 1 ] || [ "$UI" = 1 ]; then TESTS=1; fi
+          echo "Режим: $MODE (ipa=$IPA unit=$UNIT ui=$UI)"
+          {
+            echo "MODE=$MODE"
+            echo "RUN_IPA=$IPA"
+            echo "RUN_UNIT=$UNIT"
+            echo "RUN_UI=$UI"
+            echo "RUN_TESTS=$TESTS"
+          } >> "$GITHUB_ENV"
 
       - name: XcodeGen
         # Готовый бинарь с релиза быстрее brew (тот тратит минуту на auto-update); brew — запасной путь.
@@ -40,11 +74,11 @@ jobs:
             XG=xcodegen
           fi
           "$XG" generate
-          mkdir -p "$OUT/screens"
+          mkdir -p "$OUT/screens" "$OUT/anim"
 
       - name: Simulator
         # Выбираем и будим симулятор заранее: он грузится, пока собирается .ipa.
-        if: ${{ inputs.tests }}
+        if: ${{ env.RUN_TESTS == '1' }}
         run: |
           read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
           import json, re, sys
@@ -68,6 +102,7 @@ jobs:
           xcrun simctl boot "$UDID" || true
 
       - name: Build ipa
+        if: ${{ env.RUN_IPA == '1' }}
         timeout-minutes: 15
         run: |
           xcodebuild -project Pet.xcodeproj -scheme Pet \
@@ -76,6 +111,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Ad-hoc sign with entitlements
+        if: ${{ env.RUN_IPA == '1' }}
         # Без подписи в бинарнике нет entitlements, и сайдлоадер не узнает про App Group.
         # Пути к .entitlements берём из настроек сборки, чтобы не зависеть от раскладки project.yml.
         run: |
@@ -96,63 +132,117 @@ jobs:
           codesign -d --entitlements - "$APP/PlugIns/PetWidgets.appex" 2>/dev/null | grep -q 'group.com.vadimpet.pet'
 
       - name: Package ipa
+        if: ${{ env.RUN_IPA == '1' }}
         run: |
           mkdir -p ipa/Payload
           cp -R build/Build/Products/Release-iphoneos/Pet.app ipa/Payload/
           cd ipa && zip -qry "$OUT/Pet.ipa" Payload
 
       - uses: actions/upload-artifact@v4
+        if: ${{ env.RUN_IPA == '1' }}
         with:
           name: Pet-ipa
           path: app/out/Pet.ipa
           retention-days: 30
 
-      - name: Test on simulator
-        if: ${{ inputs.tests }}
-        timeout-minutes: 20
-        # TEST_RUNNER_* уходит в процесс тестов без префикса: SNAPSHOT_DIR видят WidgetSnapshotTests.
+      - name: Build for testing
+        id: bft
+        # Тесты собираем и после упавшей .ipa: картинки нужны всё равно.
+        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
+        timeout-minutes: 15
+        # Одна сборка на оба набора; покрытие вшивается при сборке — включаем, только когда будут юнит-тесты.
         # Симулятор подписываем ad-hoc ("-"): так entitlements (App Group) встают и без команды.
         run: |
+          COV=NO
+          if [ "$RUN_UNIT" = 1 ]; then COV=YES; fi
           xcrun simctl bootstatus "$SIM_UDID" -b
           xcrun simctl status_bar "$SIM_UDID" override --time 9:41 \
             --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
-          TEST_RUNNER_SNAPSHOT_DIR="$OUT/screens" \
-          xcodebuild test -project Pet.xcodeproj -scheme Pet \
+          xcodebuild build-for-testing -project Pet.xcodeproj -scheme Pet \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
-            -derivedDataPath build-sim -resultBundlePath "$OUT/Pet.xcresult" \
-            -parallel-testing-enabled NO \
-            -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
+            -derivedDataPath build-sim -enableCodeCoverage "$COV" \
             -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
 
-      - name: Export screenshots
-        # Вложения из xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
-        if: ${{ inputs.tests && !cancelled() }}
+      - name: Unit tests
+        if: ${{ env.RUN_UNIT == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        timeout-minutes: 10
+        # TEST_RUNNER_* уходит в процесс тестов без префикса: SNAPSHOT_DIR видят WidgetSnapshotTests.
         run: |
-          [ -d "$OUT/Pet.xcresult" ] || { echo "xcresult нет — тесты не дошли до запуска"; exit 0; }
+          TEST_RUNNER_SNAPSHOT_DIR="$OUT/screens" \
+          xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath build-sim -resultBundlePath "$OUT/PetTests.xcresult" \
+            -only-testing:PetTests -enableCodeCoverage YES \
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
+            -quiet
+
+      - name: Coverage
+        if: ${{ env.RUN_UNIT == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        run: |
+          if [ ! -d "$OUT/PetTests.xcresult" ]; then echo "xcresult юнит-тестов нет"; exit 0; fi
+          xcrun xccov view --report --only-targets "$OUT/PetTests.xcresult" | tee "$OUT/coverage.txt" || true
+
+      - name: UI tests
+        # Идут и после упавших юнит-тестов: скриншоты и кадры нужны всё равно.
+        if: ${{ env.RUN_UI == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        timeout-minutes: 25
+        run: |
+          xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath build-sim -resultBundlePath "$OUT/PetUITests.xcresult" \
+            -only-testing:PetUITests \
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
+            -quiet
+
+      - name: Export screenshots
+        # Вложения из каждого xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
+        # Всё — в screens/, контактные листы анимации anim-* ещё и отдельно в anim/.
+        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
+        run: |
           RAW="$RUNNER_TEMP/attachments"
           rm -rf "$RAW" && mkdir -p "$RAW"
-          xcrun xcresulttool export attachments --path "$OUT/Pet.xcresult" --output-path "$RAW"
-          python3 - "$RAW" "$OUT/screens" <<'PY'
+          for R in "$OUT"/*.xcresult; do
+            [ -d "$R" ] || continue
+            D="$RAW/$(basename "$R" .xcresult)"
+            mkdir -p "$D"
+            xcrun xcresulttool export attachments --path "$R" --output-path "$D" || echo "не выгрузилось: $R"
+          done
+          python3 - "$RAW" "$OUT/screens" "$OUT/anim" <<'PY'
           import json, pathlib, re, shutil, sys
-          raw, dst = map(pathlib.Path, sys.argv[1:])
+          raw, dst, anim = map(pathlib.Path, sys.argv[1:])
           dst.mkdir(parents=True, exist_ok=True)
-          n = 0
-          for test in json.loads((raw / "manifest.json").read_text()):
-              for a in test.get("attachments", []):
-                  src = raw / a["exportedFileName"]
-                  name = a.get("suggestedHumanReadableName") or src.name
-                  # «ui-01-main_0_<UUID>.png» → «ui-01-main.png»
-                  name = re.sub(r"_\d+_[0-9A-Fa-f-]{36}(?=\.[^.]+$|$)", "", name)
-                  if not pathlib.Path(name).suffix:
-                      name += src.suffix
-                  shutil.copy2(src, dst / name)
-                  n += 1
-          print(f"вложений: {n} → {dst}")
+          anim.mkdir(parents=True, exist_ok=True)
+          total = 0
+          for d in sorted(p for p in raw.iterdir() if p.is_dir()):
+              manifest = d / "manifest.json"
+              if not manifest.exists():
+                  print(f"{d.name}: вложений нет")
+                  continue
+              n = 0
+              for test in json.loads(manifest.read_text()):
+                  for a in test.get("attachments", []):
+                      src = d / a["exportedFileName"]
+                      name = a.get("suggestedHumanReadableName") or src.name
+                      # «ui-01-main_0_<UUID>.png» → «ui-01-main.png»
+                      name = re.sub(r"_\d+_[0-9A-Fa-f-]{36}(?=\.[^.]+$|$)", "", name)
+                      if not pathlib.Path(name).suffix:
+                          name += src.suffix
+                      shutil.copy2(src, dst / name)
+                      if name.startswith("anim-"):
+                          shutil.copy2(src, anim / name)
+                      n += 1
+              print(f"{d.name}: вложений {n}")
+              total += n
+          print(f"всего вложений: {total} → {dst}")
           PY
           ls -1 "$OUT/screens"
+          echo "кадры анимации:"
+          ls -1 "$OUT/anim"
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.tests && !cancelled() }}
+        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
         with:
           name: Pet-screens
           path: app/out/screens
@@ -160,9 +250,19 @@ jobs:
           retention-days: 14
 
       - uses: actions/upload-artifact@v4
-        if: ${{ inputs.tests && !cancelled() }}
+        if: ${{ env.RUN_UI == '1' && !cancelled() }}
+        with:
+          name: Pet-anim
+          path: app/out/anim
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
         with:
           name: Pet-xcresult
-          path: app/out/Pet.xcresult
+          path: |
+            app/out/*.xcresult
+            app/out/coverage.txt
           if-no-files-found: ignore
           retention-days: 7
