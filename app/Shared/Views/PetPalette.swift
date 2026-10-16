@@ -32,6 +32,8 @@ enum PetPalette {
     static let red = Color(hex: 0xe5534b)
     static let green = Color(hex: 0x74bf78)
     static let yellow = Color(hex: 0xf2bf4a)
+    /// Фон 3D-сцены: сцена — «комната», а не UI, поэтому одинаковый в обеих темах.
+    static let stageBg = Color(hex: 0xf6efe6)
 
     // Шерсть и мордочка: одинаковые в обеих темах.
     static let fur = Color(hex: 0xe39a55)
