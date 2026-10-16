@@ -35,8 +35,12 @@ def main() -> None:
     # ARKit-проверки — предупреждения (RealityKit терпит многое); жёстко — с --strict-compliance
     try:
         Checker = getattr(UsdUtils, "ComplianceChecker", None)
-        if Checker is None:  # в usd-core класс лежит в подмодуле, а не в UsdUtils
-            from pxr.UsdUtils.complianceChecker import ComplianceChecker as Checker
+        if Checker is None:
+            # В колесе usd-core этого модуля нет; CI кладёт complianceChecker.py из исходников OpenUSD в PYTHONPATH.
+            try:
+                from pxr.UsdUtils.complianceChecker import ComplianceChecker as Checker
+            except ImportError:
+                from complianceChecker import ComplianceChecker as Checker
         checker = Checker(arkit=True, skipARKitRootLayerCheck=False,
                                              rootPackageOnly=False, skipVariants=False, verbose=False)
         checker.CheckCompliance(a.usdz)

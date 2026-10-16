@@ -86,6 +86,11 @@ jobs:
 
       - name: Проверка USDZ (usd-core, ARKit-правила)
         run: |
+          # В колесе usd-core нет complianceChecker.py (это и есть usdchecker) — берём его из исходников той же версии.
+          VER=$(python -c "from pxr import Usd; v=Usd.GetVersion(); print(f'v{v[1]:02d}.{v[2]:02d}')")
+          mkdir -p "$RUNNER_TEMP/usdcc"
+          curl -fsSL "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/$VER/pxr/usd/usdUtils/complianceChecker.py"             -o "$RUNNER_TEMP/usdcc/complianceChecker.py" || echo "::warning::complianceChecker.py $VER не скачался"
+          export PYTHONPATH="$RUNNER_TEMP/usdcc${PYTHONPATH:+:$PYTHONPATH}"
           python tools/assets/check_usdz.py "$OUT/shiba.usdz" --clips "$OUT/clips.json" \
             --report "$OUT/usdz_report.json" --strict
           {
