@@ -82,8 +82,10 @@ function withPreset(cfg     , preset         )                                  
   const h = cfg.care.hearts;
   const name = preset ?? h.preset ?? null;
   if (name === null) return { cfg, preset: null };
-  if (name.startsWith('_') || !h.presets || !(name in h.presets)) throw new Error(`нет пресета строгости: ${name}`);
-  return { cfg: { ...cfg, care: { ...cfg.care, hearts: mergePatch(h, h.presets[name]) } }, preset: name };
+  // как в Swift: только собственный ключ-объект (не toString из прототипа и не строка)
+  const patch = h.presets && Object.hasOwn(h.presets, name) ? h.presets[name] : undefined;
+  if (name.startsWith('_') || typeof patch !== 'object' || patch === null || Array.isArray(patch)) throw new Error(`нет пресета строгости: ${name}`);
+  return { cfg: { ...cfg, care: { ...cfg.care, hearts: mergePatch(h, patch) } }, preset: name };
 }
 
 function makeRules(cfg0     , presetName         )        {

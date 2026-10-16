@@ -107,7 +107,7 @@ for (const v of VARIANTS) {
 const PDAYS = 21;
 const hh = (x: number | null) => x === null ? '—' : f1(x);
 console.log(`\n## Пресеты строгости × образы игроков (старт вт 07:30, ${PDAYS} суток)\n`);
-console.log('Ячейка: первое «Плохо» (ч) · первое ❤ потеряно (ч) · смерть (сут) · ❤ через 7 сут. «—» — не случилось.\n');
+console.log('Часы и сутки — от старта, ❤ — дробные сердца (на экране округляются вверх). «—» — не случилось.\n');
 const PRESETS = presetNames(cfg0);
 for (const p of PRESETS) {
   const rp = makeRules(cfg0, p);

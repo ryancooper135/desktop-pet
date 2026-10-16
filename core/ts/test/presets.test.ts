@@ -43,6 +43,10 @@ test('пресеты: strict — пустая заплатка, конфиг б�
 test('пресеты: неизвестное имя и служебные ключи — ошибка', () => {
   assert.throws(() => makeRules(cfg(), 'hardcore'), /нет пресета/);
   assert.throws(() => makeRules(cfg(), '_note'), /нет пресета/);
+  assert.throws(() => makeRules(cfg(), 'toString'), /нет пресета/);
+  const bad = cfg();
+  bad.care.hearts.presets.broken = 'medium';
+  assert.throws(() => makeRules(bad, 'broken'), /нет пресета/);
   const c = cfg();
   c.care.hearts.preset = 'nope';
   assert.throws(() => makeRules(c), /нет пресета/);
