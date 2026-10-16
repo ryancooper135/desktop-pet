@@ -94,24 +94,41 @@ enum SnapshotCatalog {
 
 // MARK: - Общий стор
 
+/// Тесты стора работают во временной папке: настоящую App Group (и сохранение на симуляторе) не трогают.
 enum StoreHooks {
     /// Базовый ID группы из entitlements. На телефоне сайдлоадер дописывает суффикс,
     /// на симуляторе (ad-hoc подпись) группа ровно такая.
     static let appGroupID = "group.com.vadimpet.pet"
 
-    /// Записать в общий стор метку тем API, каким пишет приложение (mutate),
-    /// и прочитать её тем API, каким читает виджет (load).
-    static func writeThenRead(marker: Double) throws -> (written: Double, read: Double)? {
-        try PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.debugMarker = marker }
-        return (marker, PetStore.load().debugMarker ?? .nan)
+    /// Свежая временная папка под стор. Удаляет вызывающий (defer / removeTempStore).
+    static func makeTempStoreDir(_ tag: String = "pet-store-test") -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(tag)-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
-    /// Время идёт через стор: свежий щенок пишется в отдельную временную папку (настоящее сохранение
-    /// не трогаем), читается обратно и догоняется на `hours` часов вперёд, как это делает виджет.
+    static func removeTempStore(_ dir: URL) {
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    /// Записать метку тем API, каким пишет приложение (mutate), и прочитать её тем API, каким читает виджет (read).
+    /// Два разных экземпляра PetStore над одной папкой — как два процесса над одной группой.
+    static func writeThenRead(marker: Double) throws -> (written: Double, read: Double)? {
+        let dir = makeTempStoreDir("pet-store-hooks")
+        defer { removeTempStore(dir) }
+        let app = PetStore(dir: dir)
+        try app.mutate { (f: inout SaveFile) -> Void in f.debugMarker = marker }
+        let widget = PetStore(dir: dir)
+        let read = try widget.read()?.debugMarker ?? .nan
+        return (marker, read)
+    }
+
+    /// Время идёт через стор: свежий щенок пишется во временную папку, читается обратно
+    /// и догоняется на `hours` часов вперёд, как это делает виджет.
     static func food(afterHours hours: Double) throws -> (before: Double, after: Double)? {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("pet-store-test-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: dir) }
+        let dir = makeTempStoreDir()
+        defer { removeTempStore(dir) }
         let store = PetStore(dir: dir)
         let now = Clock.now()
         try store.mutate { (f: inout SaveFile) -> Void in f = SaveFile.fresh(now: now) }
