@@ -503,12 +503,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     $('legend').innerHTML = ['food', 'clean', 'energy', 'fun', 'love', 'walk'].map(k => `<span style="--c:${NEED[k][2]}">${NEED[k][1]}</span>`).join('') + '<span style="--c:#e5534b">Сердца</span><span style="--c:var(--night)">ночь Шибы</span>';
     $('evs').innerHTML = fc.ev.filter(e => e.kind !== 'level').slice(0, 8).map(e => `<li><time>${wd(e.t)} ${hm(e.t)}</time><span>${evText(e)}</span></li>`).join('') || '<li><time>—</time><span>Ничего плохого за 72 ч.</span></li>';
 
-    // кулдауны на кнопках
+    // недоступные кнопки: серые, на кнопке сразу видно почему и до когда
     document.querySelectorAll('.it[data-do]').forEach(el => {
-      const id = el.dataset.do.split(':')[1] || el.dataset.do, cd = s.cooldowns[id];
-      el.dataset.cool = cd && cd > s.t ? 1 : 0;
+      const why = blocked(el.dataset.do);
+      el.dataset.cool = why ? 1 : 0;
       const sm = el.querySelector('small');
-      if (sm && el.dataset.base) sm.textContent = cd && cd > s.t ? 'через ' + dur(cd - s.t) : el.dataset.base;
+      if (sm && el.dataset.base) sm.textContent = why ? why.short : el.dataset.base;
     });
 
     // дом
@@ -529,6 +529,34 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   function refresh(full) { sync(); if (full !== false) computeForecast(); render(); save(); }
 
   // ---------- действия ----------
+  // почему действие сейчас недоступно: пробуем его на копии состояния
+  function nightEnd(t) {
+    const end = (o.wakeMin + R.night.afterWakeMin) % 1440;
+    for (let i = 0, x = Math.floor(t / 60) * 60; i < 1441; i++, x += 60) if (P.localMin(x, o) === end) return x;
+    return t;
+  }
+  function why(reason, key) {
+    const t = s.t, night = P.petNight(t, R, o);
+    switch (reason) {
+      case 'cooldown': { const cd = s.cooldowns[key]; return { short: 'через ' + dur(cd - t), long: 'Ещё рано: можно в ' + hm(cd) + '.' }; }
+      case 'asleep': return night
+        ? { short: 'спит до ' + hm(nightEnd(t)), long: 'Ночью Шиба спит до ' + hm(nightEnd(t)) + '. Перемотай «До утра» — погладить и покормить можно и сейчас.' }
+        : { short: 'дремлет до ' + hm(s.napUntil), long: 'Дремлет до ' + hm(s.napUntil) + '. Нажми «Разбудить» или покорми — еда будит.' };
+      case 'not_napping': return night
+        ? { short: 'ночью не будится', long: 'Ночной сон не прервать — он спит до ' + hm(nightEnd(t)) + '. «Разбудить» работает только на дневную дрёму.' }
+        : { short: 'если дремлет', long: 'Он и так не спит.' };
+      case 'bathing': return { short: 'купается до ' + hm(s.bathUntil), long: 'Сейчас купается, до ' + hm(s.bathUntil) + '.' };
+      case 'tired': return { short: 'устал', long: 'Слишком устал, чтобы играть: дай поспать или покорми.' };
+      default: return { short: REASON[reason] || reason, long: REASON[reason] || reason };
+    }
+  }
+  function blocked(code) {
+    const [type, arg] = code.split(':'), a = { type };
+    if (type === 'feed' || type === 'item') a.item = arg;
+    if (type === 'steps') a.count = +arg;
+    const res = P.act(P.clone(s), R, o, a);
+    return res.ok ? null : why(res.reason, arg || type);
+  }
   const SAY = { feed: ['Ням!', 'eat', 3.2], pet: ['Да-да, вот тут!', 'jump', 1.4], play: ['Апорт!', 'run', 2.6], bath: ['Буль-буль!', null, 0], steps: ['Гуляем!', 'run', 2.4], wake: ['Ррр… я спал!', 'jump', 1.4], item: ['Спасибо!', 'jump', 1.4] };
   function doAct(code) {
     const [type, arg] = code.split(':');
@@ -538,11 +566,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     if (type === 'steps') a.count = +arg;
     const res = P.act(s, R, o, a);
     const nm = type === 'feed' ? (cfg.shop.food.find(f => f.id === arg) || {}).name : type === 'item' ? (cfg.shop.consumables.find(f => f.id === arg) || {}).name : { pet: 'Погладить', play: 'Поиграть', bath: 'Помыть', steps: '+' + arg + ' шагов', wake: 'Разбудить' }[type];
-    if (!res.ok) {
-      let why = REASON[res.reason] || res.reason;
-      const cd = s.cooldowns[arg || type]; if (res.reason === 'cooldown' && cd) why = 'Ещё рано: можно в ' + hm(cd) + '.';
-      toast(nm + ' — нельзя. ' + why, 'bad'); return;
-    }
+    if (!res.ok) { toast(nm + ' — нельзя. ' + why(res.reason, arg || type).long, 'bad'); return; }
     const sy = SAY[type]; toast(nm + ' — готово.', 'ok'); log(nm);
     pop(type === 'feed' || type === 'item' ? (EMO[arg] || '✨') : { pet: '💗', play: '🎾', bath: '🫧', steps: '🐾', wake: '⏰' }[type]);
     if (sy[1]) G.oneShot(sy[1], sy[2]);
@@ -558,10 +582,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   $('food').innerHTML = cfg.shop.food.map(f => { const base = '+' + f.food + (f.hearts ? ' · +' + f.hearts + '❤' : '') + (f.fun ? ' · ' + f.fun + ' 🎾' : ''); return `<button class="it" data-do="feed:${f.id}" data-base="${base}"><span>${EMO[f.id] || '🍽'}</span>${f.name}<small>${base}</small></button>`; }).join('');
   const misc = cfg.shop.consumables.filter(c => c.hearts || c.look).map(c => { const base = c.hearts ? '+' + c.hearts + '❤ · раз в сутки' : '+' + c.look + ' ✨'; return `<button class="it" data-do="item:${c.id}" data-base="${base}"><span>${EMO[c.id] || '✨'}</span>${c.name.split(':')[0]}<small>${base}</small></button>`; });
   misc.push(`<button class="it" data-do="pet" data-base="+${R.petLove} 💗 · раз в ${R.petCooldownMin} мин"><span>💗</span>Погладить<small>+${R.petLove} 💗</small></button>`);
-  misc.push(`<button class="it" data-do="play"><span>🎾</span>Поиграть<small>+${R.play.funGain} 🎾 · −${R.play.energyCost} ⚡</small></button>`);
-  misc.push(`<button class="it" data-do="bath"><span>🛁</span>Помыть<small>по уровню ванной</small></button>`);
-  misc.push(`<button class="it" data-do="steps:2000"><span>🐾</span>Прогулка<small>+2000 шагов</small></button>`);
-  misc.push(`<button class="it" data-do="wake"><span>⏰</span>Разбудить<small>если дремлет</small></button>`);
+  misc.push(`<button class="it" data-do="play" data-base="+${R.play.funGain} 🎾 · −${R.play.energyCost} ⚡"><span>🎾</span>Поиграть<small>+${R.play.funGain} 🎾 · −${R.play.energyCost} ⚡</small></button>`);
+  misc.push(`<button class="it" data-do="bath" data-base="по уровню ванной"><span>🛁</span>Помыть<small>по уровню ванной</small></button>`);
+  misc.push(`<button class="it" data-do="steps:2000" data-base="+2000 шагов"><span>🐾</span>Прогулка<small>+2000 шагов</small></button>`);
+  misc.push(`<button class="it" data-do="wake" data-base="если дремлет"><span>⏰</span>Разбудить<small>если дремлет</small></button>`);
   $('misc').innerHTML = misc.join('');
 
   // ---------- перемотка ----------
