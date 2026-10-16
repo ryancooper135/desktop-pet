@@ -45,7 +45,7 @@ export interface RunResult {
   avgNeeds: Vals;      // среднее по почасовым замерам, пока жив
 }
 
-/** День, в который засчитываются шаги: первый заход с 18:00, иначе последний заход дня. */
+/** Индекс захода, с которым приходят шаги дня: первый заход с 18:00, иначе последний заход дня. */
 function stepsVisit(visits: number[]): number {
   const i = visits.findIndex(h => h >= 18);
   return i >= 0 ? i : visits.length - 1;

@@ -86,14 +86,15 @@ test('careless2: смерть совпадает с вектором core/vector
 
 test('warn_low из конфига: нет поля → 30, 40 → 40', () => {
   const c = cfg();
-  assert.equal(c.levels.warn_low, 30);
+  assert.equal(r.warnLow, c.levels.warn_low);
   delete c.levels.warn_low;
-  assert.equal(makeRules(c).warnLow, 30);
+  const r30 = makeRules(c);
+  assert.equal(r30.warnLow, 30);
   c.levels.warn_low = 40;
   const r40 = makeRules(c);
   assert.equal(r40.warnLow, 40);
   const s = startAt(r, 12);
   s.needs.fun = 35;
-  assert.equal(level(s, r), 0);
+  assert.equal(level(s, r30), 0);
   assert.equal(level(s, r40), 1);
 });
