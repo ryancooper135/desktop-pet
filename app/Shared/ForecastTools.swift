@@ -137,7 +137,7 @@ enum ForecastTools {
             if p.truncatingRemainder(dividingBy: every) == 0 { pts.append(p) }
             p += Budget.nearStep
         }
-        for e in events where e.t > now && e.t <= end { pts.append(e.t + 1) }
+        for e in events where e.t > now && e.t + 1 <= end { pts.append(e.t + 1) }
         if let la = f.lastAction, la.ok, la.t + Presenter.reactionWindow > now, la.t + Presenter.reactionWindow <= end {
             pts.append(la.t + Presenter.reactionWindow)
         }
@@ -149,21 +149,31 @@ enum ForecastTools {
 
         // Двигаем стейт по точкам по порядку: каждый шаг — только от прошлой точки.
         var out: [Probe] = []
+        // Точки ближе minGap склеиваются в более позднюю; «сейчас» не трогаем.
+        func push(_ x: Probe) {
+            if out.count > 1, let last = out.last, x.t - last.t < Budget.minGap { out[out.count - 1] = x } else { out.append(x) }
+        }
         var cur = s0
         for t in times {
             cur = PetEngine.advance(cur, r, o, t)
             let b = probe(cur, t)
+            var died = false
             if let a = out.last, a.look != b.look {
                 // Несколько смен в одном промежутке (например, проснулся и сразу проголодался) — до 4 подряд.
                 var left = a
                 for _ in 0..<4 {
                     guard let c = firstChange(left, t) else { break }
-                    out.append(c)
+                    // Та же картинка, что в b, меньше чем за минуту до неё — b и так её покажет.
+                    if c.look == b.look && t - c.t < Budget.minGap { break }
+                    push(c)
+                    // Смерть нашлась бисекцией — это последняя точка, b (тоже мёртвый) не нужен.
+                    if !c.snap.alive { died = true; break }
                     if c.look == b.look { break }
                     left = c
                 }
             }
-            out.append(b)
+            if died { break }
+            push(b)
             if !cur.alive { break }
         }
         if out.count > Budget.maxEntries { out.removeLast(out.count - Budget.maxEntries) }

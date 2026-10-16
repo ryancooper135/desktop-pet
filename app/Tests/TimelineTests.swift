@@ -45,7 +45,8 @@ final class TimelineTests: XCTestCase {
                 XCTAssertLessThanOrEqual(last.t, now + ForecastTools.Budget.horizonH * hour, tag)
                 for (a, b) in zip(tl, tl.dropFirst()) {
                     XCTAssertGreaterThan(b.t, a.t, "точки строго по возрастанию, \(tag)")
-                    XCTAssertLessThanOrEqual(b.t - a.t, ForecastTools.Budget.nightStep, "дыра больше 2 ч, \(tag)")
+                    // Склейка точек ближе minGap сдвигает точку позже, на меньше минуты.
+                    XCTAssertLessThanOrEqual(b.t - a.t, ForecastTools.Budget.nightStep + ForecastTools.Budget.minGap, "дыра больше 2 ч, \(tag)")
                 }
                 if last.alive {
                     XCTAssertGreaterThanOrEqual(last.t, now + 12 * hour, "живому хватает на 12 ч, \(tag)")
@@ -61,7 +62,7 @@ final class TimelineTests: XCTestCase {
         // С 14:13 до 22:13 питомец не спит: точки не реже чем раз в 30 минут.
         let tl = timeline(file())
         for (a, b) in zip(tl, tl.dropFirst()) where b.t <= t0 + 8 * hour {
-            XCTAssertLessThanOrEqual(b.t - a.t, ForecastTools.Budget.nearStep)
+            XCTAssertLessThanOrEqual(b.t - a.t, ForecastTools.Budget.nearStep + ForecastTools.Budget.minGap)
         }
     }
 
