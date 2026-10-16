@@ -40,10 +40,10 @@ export type Action =
 
 export interface ActResult { ok: boolean; reason?: string }
 
-const STEP = 60;
+export const STEP = 60;
 const DH = 1 / 60;
 const CARE: Need[] = ['food', 'clean', 'fun', 'love', 'walk'];
-const WATCH: Need[] = ['food', 'clean', 'fun', 'love'];
+export const WATCH: Need[] = ['food', 'clean', 'fun', 'love'];
 
 export function defaultOwner(r: Rules, tzOffsetMin = 0): Owner {
   return { bedMin: r.night.bedMin, wakeMin: r.night.wakeMin, tzOffsetMin };
@@ -71,7 +71,7 @@ export function localMin(t: number, o: Owner): number {
   return (((Math.floor(t / 60) + o.tzOffsetMin) % 1440) + 1440) % 1440;
 }
 
-function inWindow(m: number, from: number, to: number): boolean {
+export function inWindow(m: number, from: number, to: number): boolean {
   const a = ((from % 1440) + 1440) % 1440, b = ((to % 1440) + 1440) % 1440;
   return a <= b ? m >= a && m < b : m >= a || m < b;
 }
@@ -125,7 +125,8 @@ function finishBath(s: PetState, r: Rules) {
   s.bathUntil = null;
 }
 
-function step(s: PetState, r: Rules, o: Owner) {
+/** Один шаг в 1 минуту (на месте). Снаружи ядра зовите stepTo/advance. */
+export function step(s: PetState, r: Rules, o: Owner) {
   const t = s.t;
   if (s.napUntil !== null && t >= s.napUntil) s.napUntil = null;
   if (s.bathUntil !== null && t >= s.bathUntil) finishBath(s, r);
@@ -300,31 +301,45 @@ export interface ForecastEvent {
   value?: number;
 }
 
+/** Что уже было до начала наблюдения: от этого считаются новые события прогноза. */
+export interface Tracker { low: Set<Need>; dist: Set<Distress>; lvl: number; hc: number; lc: boolean }
+
+export function tracker(s: PetState, r: Rules): Tracker {
+  return {
+    low: new Set(WATCH.filter(n => s.needs[n] < r.warnLow)),
+    dist: new Set(DISTRESS.filter(d => r.distress[d].cond(s.needs))),
+    lvl: level(s, r),
+    hc: Math.ceil(s.hearts - 1e-9),
+    lc: s.lastChanceH !== null,
+  };
+}
+
+/** После шага: дописать в ev новые события (low, distress, heart, last_chance, level). */
+export function observe(tr: Tracker, s: PetState, r: Rules, ev: ForecastEvent[]) {
+  for (const n of WATCH) if (s.needs[n] < r.warnLow && !tr.low.has(n)) { tr.low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
+  for (const d of DISTRESS) {
+    const on = r.distress[d].cond(s.needs);
+    if (on && !tr.dist.has(d)) { tr.dist.add(d); ev.push({ t: s.t, kind: 'distress', key: d }); }
+    if (!on) tr.dist.delete(d);
+  }
+  const c = Math.ceil(s.hearts - 1e-9);
+  if (c < tr.hc) ev.push({ t: s.t, kind: 'heart', value: c });
+  tr.hc = c;
+  if (s.lastChanceH !== null && !tr.lc) ev.push({ t: s.t, kind: 'last_chance' });
+  tr.lc = s.lastChanceH !== null;
+  const l = level(s, r);
+  if (l !== tr.lvl) { ev.push({ t: s.t, kind: 'level', value: l }); tr.lvl = l; }
+}
+
 /** Что случится, если никто не придёт: для локальных уведомлений и «умрёт в чт ~15:00». */
 export function forecast(s0: PetState, r: Rules, o: Owner, horizonH = 72): ForecastEvent[] {
   const s = clone(s0);
   const end = s.t + horizonH * 3600;
   const ev: ForecastEvent[] = [];
-  const low = new Set(WATCH.filter(n => s.needs[n] < r.warnLow));
-  const dist = new Set(DISTRESS.filter(d => r.distress[d].cond(s.needs)));
-  let lvl = level(s, r);
-  let hc = Math.ceil(s.hearts - 1e-9);
-  let lc = s.lastChanceH !== null;
+  const tr = tracker(s, r);
   while (s.alive && s.t + STEP <= end) {
     step(s, r, o);
-    for (const n of WATCH) if (s.needs[n] < r.warnLow && !low.has(n)) { low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
-    for (const d of DISTRESS) {
-      const on = r.distress[d].cond(s.needs);
-      if (on && !dist.has(d)) { dist.add(d); ev.push({ t: s.t, kind: 'distress', key: d }); }
-      if (!on) dist.delete(d);
-    }
-    const c = Math.ceil(s.hearts - 1e-9);
-    if (c < hc) ev.push({ t: s.t, kind: 'heart', value: c });
-    hc = c;
-    if (s.lastChanceH !== null && !lc) ev.push({ t: s.t, kind: 'last_chance' });
-    lc = s.lastChanceH !== null;
-    const l = level(s, r);
-    if (l !== lvl) { ev.push({ t: s.t, kind: 'level', value: l }); lvl = l; }
+    observe(tr, s, r, ev);
   }
   if (!s.alive) ev.push({ t: s.diedAt!, kind: 'death', key: s.cause ?? undefined });
   return ev;

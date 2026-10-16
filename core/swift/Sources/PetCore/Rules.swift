@@ -2,9 +2,9 @@
 
 import Foundation
 
-public enum Need: String, CaseIterable, Codable { case food, clean, energy, fun, love, walk, look }
-public enum Distress: String, CaseIterable, Codable { case starve, dirty, toska }
-public enum HomeLine: String, CaseIterable, Codable { case bath, bed, kitchen, kennel, play, yard }
+public enum Need: String, CaseIterable, Codable, Sendable { case food, clean, energy, fun, love, walk, look }
+public enum Distress: String, CaseIterable, Codable, Sendable { case starve, dirty, toska }
+public enum HomeLine: String, CaseIterable, Codable, Sendable { case bath, bed, kitchen, kennel, play, yard }
 
 public typealias Vals = [Need: Double]
 

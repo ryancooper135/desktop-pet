@@ -4,6 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { makeRules } from '../src/rules.ts';
 import { act, clone, defaultOwner, forecast, level, moods, stepTo } from '../src/engine.ts';
 import type { Action, Owner, PetState } from '../src/engine.ts';
+import { awaySummary, daypart, mood, notificationPlan, rescue, wants } from '../src/insights.ts';
+import type { NotifyOpts } from '../src/insights.ts';
 import { T0, runDays, startAt } from '../src/scenarios.ts';
 import type { TimedAction } from '../src/scenarios.ts';
 
@@ -13,13 +15,29 @@ const outDir = new URL('../../vectors/', import.meta.url);
 mkdirSync(outDir, { recursive: true });
 const H = 3600;
 
-type Step = { t: number; do: Action; ok: boolean; reason?: string } | { t: number; expect: PetState; level: number; moods: string[] };
+type Step = { t: number; do: Action; ok: boolean; reason?: string } | { t: number; expect: PetState; level: number; moods: string[]; [k: string]: unknown };
+
+/** Случаи плана уведомлений: свежий заход, 2,5 дня без открытий (порог «скучаю»), конец сценария. */
+function notifyCases(o: Owner, start: PetState, end: PetState) {
+  const cases: { from: PetState; now: number; opts: NotifyOpts }[] = [
+    { from: start, now: start.t, opts: { horizonH: 14 * 24 } },
+    { from: start, now: start.t, opts: { horizonH: 14 * 24, lastOpenT: start.t - 2.5 * 86400, lastSentT: start.t - H } },
+    { from: end, now: end.t + 30, opts: { horizonH: 72, quietFromMin: 22 * 60, quietToMin: 9 * 60 } },
+  ];
+  return cases.map(c => ({ ...c, from: clone(c.from), plan: notificationPlan(c.from, r, o, c.now, c.opts) }));
+}
 
 /** Переиграть действия с нуля, вставляя контрольные точки каждые checkH часов. */
 function record(name: string, o: Owner, start: PetState, actions: TimedAction[], endT: number, checkH = 6, extra: (s: PetState) => void = () => {}) {
   const s = clone(start);
   const steps: Step[] = [];
-  const check = (t: number) => { stepTo(s, r, o, t); steps.push({ t, expect: clone(s), level: level(s, r), moods: moods(s, r, o) }); };
+  const check = (t: number) => {
+    stepTo(s, r, o, t);
+    steps.push({
+      t, expect: clone(s), level: level(s, r), moods: moods(s, r, o),
+      mood: mood(s, r, o), daypart: daypart(s.t, r, o), wants: wants(s, r, o), rescue: rescue(s, r, o),
+    });
+  };
   let nextCheck = start.t + checkH * H;
   for (const a of actions) {
     while (nextCheck <= a.t) { check(nextCheck); nextCheck += checkH * H; }
@@ -31,7 +49,9 @@ function record(name: string, o: Owner, start: PetState, actions: TimedAction[],
   check(endT);
   extra(s);
   const fc = forecast(s, r, o, 72);
-  writeFileSync(new URL(`${name}.json`, outDir), JSON.stringify({ name, owner: o, start, steps, forecast: { from: clone(s), horizonH: 72, events: fc } }, null, 1) + '\n');
+  const away = { now: endT, journal: actions, ...awaySummary(start, r, o, endT, actions) };
+  const notify = notifyCases(o, start, s);
+  writeFileSync(new URL(`${name}.json`, outDir), JSON.stringify({ name, owner: o, start, steps, forecast: { from: clone(s), horizonH: 72, events: fc }, away, notify }, null, 1) + '\n');
   console.log(name, steps.length, 'шагов,', fc.length, 'событий прогноза');
 }
 

@@ -143,7 +143,11 @@
     "cause": null
    },
    "level": 0,
-   "moods": []
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
   },
   {
    "t": 1788285600,
@@ -220,7 +224,17 @@
     "cause": null
    },
    "level": 0,
-   "moods": []
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "sleep",
+     "strength": 0.04499999999999666,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788301800,
@@ -284,7 +298,17 @@
    "level": 0,
    "moods": [
     "sleep"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.13740000000001443,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788334200,
@@ -327,7 +351,17 @@
    "level": 0,
    "moods": [
     "sleep"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.16140000000003352,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788336000,
@@ -441,7 +475,17 @@
    "level": 1,
    "moods": [
     "bath"
-   ]
+   ],
+   "mood": "bath",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.18426666666661207,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788372000,
@@ -518,7 +562,17 @@
     "cause": null
    },
    "level": 0,
-   "moods": []
+   "moods": [],
+   "mood": "wants_walk",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788388200,
@@ -597,7 +651,17 @@
    "level": 0,
    "moods": [
     "sleep"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788420600,
@@ -640,7 +704,17 @@
    "level": 0,
    "moods": [
     "sleep"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788422400,
@@ -745,7 +819,17 @@
     "cause": null
    },
    "level": 0,
-   "moods": []
+   "moods": [],
+   "mood": "wants_walk",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788458400,
@@ -814,7 +898,27 @@
     "cause": null
    },
    "level": 0,
-   "moods": []
+   "moods": [],
+   "mood": "wants_walk",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    },
+    {
+     "key": "play",
+     "strength": 0.23875809999983683,
+     "urgent": false
+    },
+    {
+     "key": "bath",
+     "strength": 0.07700000000001456,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788474600,
@@ -894,7 +998,22 @@
    "moods": [
     "sleep",
     "bored"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    },
+    {
+     "key": "bath",
+     "strength": 0.25400000000001044,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788507000,
@@ -938,7 +1057,22 @@
    "moods": [
     "sleep",
     "bored"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    },
+    {
+     "key": "bath",
+     "strength": 0.27800000000002956,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788508800,
@@ -1054,7 +1188,17 @@
     "bath",
     "dirty",
     "bored"
-   ]
+   ],
+   "mood": "bath",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   },
   {
    "t": 1788544800,
@@ -1133,7 +1277,28 @@
    "level": 1,
    "moods": [
     "bored"
-   ]
+   ],
+   "mood": "bored",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "play",
+     "strength": 0.5345200000000002,
+     "urgent": false
+    },
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": {
+    "key": "play",
+    "action": {
+     "type": "play"
+    },
+    "because": "fun"
+   }
   },
   {
    "t": 1788561000,
@@ -1205,7 +1370,17 @@
    "moods": [
     "sleep",
     "bored"
-   ]
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": null
   }
  ],
  "forecast": {
@@ -1317,5 +1492,1195 @@
     "key": "starve"
    }
   ]
- }
+ },
+ "away": {
+  "now": 1788566400,
+  "journal": [
+   {
+    "t": 1788249600,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788249780,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788249960,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788250140,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788267600,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788267600,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788267780,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788267960,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788268140,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788285600,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788285600,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788285780,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788285960,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788286140,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788301800,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788301980,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788302160,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788336000,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788336000,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788336180,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788336360,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788336540,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788354000,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788354180,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788354360,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788354540,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788354540,
+    "action": {
+     "type": "bath"
+    }
+   },
+   {
+    "t": 1788372000,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788372000,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788372180,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788372360,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788372540,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788388200,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788388200,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788388380,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788388560,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788388740,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788422400,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788422580,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788422760,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788422940,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788440400,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788440400,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788440580,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788440760,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788440940,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788458400,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788458580,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788458760,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788458940,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788474600,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788474600,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788474780,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788474960,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788475140,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788508800,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788508980,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788509160,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788509340,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788526800,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788526800,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788526980,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788527160,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788527340,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788527340,
+    "action": {
+     "type": "bath"
+    }
+   },
+   {
+    "t": 1788544800,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788544800,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788544980,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788545160,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788545340,
+    "action": {
+     "type": "play"
+    }
+   },
+   {
+    "t": 1788561000,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788561180,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788561360,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788561540,
+    "action": {
+     "type": "play"
+    }
+   }
+  ],
+  "from": 1788247800,
+  "to": 1788566400,
+  "awayH": 88.5,
+  "show": true,
+  "greet": "welcome_long",
+  "cta": "cta_ok",
+  "sleptH": 26.1,
+  "heartsFrom": 5,
+  "heartsTo": 5,
+  "needs": {
+   "food": -16.299999999996423,
+   "clean": -4.062500000002672,
+   "energy": -56.575000000000074,
+   "fun": -68.80850000000002,
+   "love": 15.32500000000033,
+   "walk": -80,
+   "look": -5
+  },
+  "events": [
+   {
+    "t": 1788249600,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788249600,
+    "kind": "wake"
+   },
+   {
+    "t": 1788249780,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788249960,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788250140,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788267600,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788267600,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788267780,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788267960,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788268140,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788285600,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788285600,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788285780,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788285960,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788286140,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788301800,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788301980,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788302160,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788304200,
+    "kind": "nap"
+   },
+   {
+    "t": 1788306300,
+    "kind": "sleep"
+   },
+   {
+    "t": 1788336000,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788336000,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788336000,
+    "kind": "wake"
+   },
+   {
+    "t": 1788336180,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788336360,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788336540,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788350100,
+    "kind": "low",
+    "key": "clean"
+   },
+   {
+    "t": 1788354000,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788354180,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788354360,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788354540,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788354540,
+    "kind": "act",
+    "key": "bath",
+    "ok": true
+   },
+   {
+    "t": 1788372000,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788372000,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788372180,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788372360,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788372540,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788388200,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788388200,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788388380,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788388560,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788388740,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788392700,
+    "kind": "sleep"
+   },
+   {
+    "t": 1788422400,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788422400,
+    "kind": "wake"
+   },
+   {
+    "t": 1788422580,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788422760,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788422940,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788440400,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788440400,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788440580,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788440760,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788440940,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788454980,
+    "kind": "low",
+    "key": "fun"
+   },
+   {
+    "t": 1788458400,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788458580,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788458760,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788458940,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788465540,
+    "kind": "low",
+    "key": "fun"
+   },
+   {
+    "t": 1788474600,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788474600,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788474780,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788474960,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788475140,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788477900,
+    "kind": "low",
+    "key": "fun"
+   },
+   {
+    "t": 1788479100,
+    "kind": "sleep"
+   },
+   {
+    "t": 1788508800,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788508800,
+    "kind": "wake"
+   },
+   {
+    "t": 1788508980,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788509160,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788509340,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788512400,
+    "kind": "low",
+    "key": "clean"
+   },
+   {
+    "t": 1788516720,
+    "kind": "low",
+    "key": "fun"
+   },
+   {
+    "t": 1788526800,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788526800,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788526980,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788527160,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788527340,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788527340,
+    "kind": "act",
+    "key": "bath",
+    "ok": true
+   },
+   {
+    "t": 1788544800,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788544800,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788544980,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788545160,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788545340,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788561000,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788561180,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788561360,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788561540,
+    "kind": "act",
+    "key": "play",
+    "ok": true
+   },
+   {
+    "t": 1788565500,
+    "kind": "sleep"
+   }
+  ],
+  "died": false,
+  "state": {
+   "t": 1788566400,
+   "needs": {
+    "food": 63.70000000000358,
+    "clean": 75.93749999999733,
+    "energy": 23.424999999999926,
+    "fun": 11.191499999999971,
+    "love": 95.32500000000033,
+    "walk": 0,
+    "look": 0
+   },
+   "hearts": 5,
+   "grace": {
+    "starve": 0,
+    "dirty": 0,
+    "toska": 0
+   },
+   "lastChanceH": null,
+   "napUntil": null,
+   "bathUntil": null,
+   "lastHeartLossT": null,
+   "cooldowns": {
+    "pet": 1788561540
+   },
+   "home": {
+    "bath": 0,
+    "bed": 0,
+    "kitchen": 0,
+    "kennel": 0,
+    "play": 0,
+    "yard": 0
+   },
+   "alive": true,
+   "diedAt": null,
+   "cause": null
+  }
+ },
+ "notify": [
+  {
+   "from": {
+    "t": 1788247800,
+    "needs": {
+     "food": 80,
+     "clean": 80,
+     "energy": 80,
+     "fun": 80,
+     "love": 80,
+     "walk": 80,
+     "look": 5
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null
+   },
+   "now": 1788247800,
+   "opts": {
+    "horizonH": 336
+   },
+   "plan": [
+    {
+     "at": 1788280860,
+     "trigger": "bored",
+     "kind": "low",
+     "key": "fun"
+    },
+    {
+     "at": 1788389640,
+     "trigger": "critical",
+     "kind": "level"
+    },
+    {
+     "at": 1788432540,
+     "trigger": "last_chance",
+     "kind": "last_chance"
+    }
+   ]
+  },
+  {
+   "from": {
+    "t": 1788247800,
+    "needs": {
+     "food": 80,
+     "clean": 80,
+     "energy": 80,
+     "fun": 80,
+     "love": 80,
+     "walk": 80,
+     "look": 5
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null
+   },
+   "now": 1788247800,
+   "opts": {
+    "horizonH": 336,
+    "lastOpenT": 1788031800,
+    "lastSentT": 1788244200
+   },
+   "plan": []
+  },
+  {
+   "from": {
+    "t": 1788566400,
+    "needs": {
+     "food": 63.70000000000358,
+     "clean": 75.93749999999733,
+     "energy": 23.424999999999926,
+     "fun": 11.191499999999971,
+     "love": 95.32500000000033,
+     "walk": 0,
+     "look": 0
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788561540
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null
+   },
+   "now": 1788566430,
+   "opts": {
+    "horizonH": 72,
+    "quietFromMin": 1320,
+    "quietToMin": 540
+   },
+   "plan": [
+    {
+     "at": 1788637620,
+     "trigger": "hungry",
+     "kind": "distress",
+     "key": "starve"
+    },
+    {
+     "at": 1788727320,
+     "trigger": "critical",
+     "kind": "level"
+    },
+    {
+     "at": 1788771600,
+     "trigger": "last_chance",
+     "kind": "last_chance"
+    }
+   ]
+  }
+ ]
 }

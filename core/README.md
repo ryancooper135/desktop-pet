@@ -17,7 +17,7 @@
 
 CI (`.github/workflows/core.yml`) гоняет TS-тесты, пересобирает векторы, проверяет, что они не поменялись, и запускает `swift test`.
 
-`bundle-web.ts` снимает типы через `node:module` `stripTypeScriptTypes`, убирает `import`/`export` и заворачивает `rules.ts` + `engine.ts` в один IIFE. Код движка руками не переписывается, поэтому песочница считает ровно то же, что тесты и Swift. После правок в `src/` бандл надо пересобрать.
+`bundle-web.ts` снимает типы через `node:module` `stripTypeScriptTypes`, убирает `import`/`export` и заворачивает `rules.ts` + `engine.ts` + `insights.ts` в один IIFE (имена верхнего уровня во всех файлах должны быть разными). Код движка руками не переписывается, поэтому песочница считает ровно то же, что тесты и Swift. После правок в `src/` бандл надо пересобрать.
 
 ## Как устроено
 
@@ -27,6 +27,32 @@ CI (`.github/workflows/core.yml`) гоняет TS-тесты, пересобир
 - **Действия.** `act(s, R, owner, action)` → `{ok, reason}`; отказ не меняет состояние. Причины: `dead`, `unknown_item`, `bathing`, `cooldown`, `asleep`, `tired`, `not_napping`.
 - **Прогноз.** `forecast(s, R, owner, horizonH)` — события `low`, `level`, `distress`, `heart`, `last_chance`, `death` без ухода; на нём строятся уведомления и timeline виджета.
 
+## Что показать и когда позвать (`insights.ts` / `Insights.swift`)
+
+Считается из состояния ядра, баланс не трогает. Пороги показа (`WANT_SPECS`, 3 ч утра/вечера и т. п.) — константы в коде, это не баланс.
+
+| Функция | Для чего | Возвращает |
+|---|---|---|
+| `wants(s, R, o, now?)` | пузырь мысли | `[{key, strength 0..1, urgent}]`: сначала идёт беда, дальше по силе; во сне без play/sleep, в ванне без food/bath/play |
+| `mood(s, R, o, now?)` | реплика виджета и острова | одно настроение |
+| `daypart(t, R, o)` | утро/вечер в репликах | `morning` (3 ч после подъёма питомца), `evening` (3 ч до отбоя), `night`, `day` |
+| `rescue(s, R, o, {now, food='kibble', heal='vitamin'})` | кнопка «Спасти» | `{key, action, because}` или `null`. Порядок: беда (по скорости урона) → шкала ниже порога регенерации в порядке `wants` → лечебный предмет при L3. Действие заранее проверено `act` на копии |
+| `awaySummary(prev, R, o, now, journal?)` | «Пока тебя не было» | `show` (≥ 2 ч), `greet`, `cta`, `sleptH`, сердца было/стало, изменения шкал, события (`sleep`, `wake`, `nap`, `heart_up`, `act`, `low`, `distress`, `heart`, `last_chance`, `death`), `state` на now. `journal` — действия с виджета и острова, применяются в своё время |
+| `notificationPlan(s, R, o, now, opts)` | локальные уведомления | `[{at, trigger, kind, key?}]` |
+
+**Ключи = `content/ru/lines.json`** (тест `ключи есть в content/ru/lines.json` это проверяет):
+
+- желания → `thoughts`: `food`, `bath`, `sleep`, `play`, `pet`, `walk`;
+- настроения → `widget` / `island`: `dead` (только widget), `critical`, `bath`, `sleep`, `nap`, `hungry`, `smelly`, `dirty`, `tired`, `bored`, `wants_love`, `wants_walk`, `sulky`, `ok`. Приоритет: смерть → L3 → ванна → ночь → дрёма → первое желание ниже порога настроения → L2 (`sulky`) → `ok`;
+- триггеры → `notifications`: `hungry` (low еды, беда голода), `dirty` (low чистоты), `smelly` (беда грязи), `bored` (low веселья), `wants_love` (low любви), `unwell` (тоска), `heart_lost`, `critical` (L3), `last_chance`, `miss_you`;
+- экран → `away`: `welcome` / `welcome_long` (от 24 ч), `cta_hungry`, `cta_dirty`, `cta_bored`, `cta_love`, `cta_tired`, `cta_ok`.
+
+Строки `morning`, `evening`, `bedtime` и прочие из lines.json ядро пока не планирует — это ритуалы и события вне ядра.
+
+**Правила уведомлений** (RESEARCH/07 #6): не больше 1 в местный день (берётся самое серьёзное: `last_chance` > `critical` > беда/сердце > low, при равенстве — раньшее); в тихие часы (по умолчанию сон хозяина) переносится на их конец; не раньше чем через час после `now`; не после смерти по прогнозу; в день `lastSentT` не зовём. Первые 3 дня от `lastOpenT` — по событиям прогноза, дальше до 14-го дня только `miss_you` раз в 3 дня, потом тишина. Обычный питомец без ухода умирает раньше 3 дней, так что `miss_you` бывает только у крепкого (будка L4 и т. п.).
+
+Лимиты `notify_max_per_day` 3/3/6 в `economy.json` противоречат «1 в день» из RESEARCH/07 — ядро следует RESEARCH/07, лимиты из конфига не читает.
+
 ## Векторы
 
 `core/vectors/*.json` генерирует TS, Swift обязан их повторить с допуском 1e-6:
@@ -34,8 +60,12 @@ CI (`.github/workflows/core.yml`) гоняет TS-тесты, пересобир
 ```
 { name, owner, start: PetState,
   steps: [ {t, do: Action, ok, reason} | {t, expect: PetState, level, moods} ],
-  forecast: { from: PetState, horizonH, events: [{t, kind, key, value}] } }
+  forecast: { from: PetState, horizonH, events: [{t, kind, key, value}] },
+  away: { now, journal, ...awaySummary(start, …, now, journal) },
+  notify: [ {from: PetState, now, opts, plan} ] }
 ```
+
+В контрольных точках `steps` ещё есть `mood`, `daypart`, `wants`, `rescue`.
 
 Поменял логику → `node core/ts/tools/vectors.ts`, закоммитить векторы вместе с кодом.
 

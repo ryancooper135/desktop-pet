@@ -74,6 +74,7 @@ final class VectorTests: XCTestCase {
                     compare(s, PetState(json: st["expect"]), ctx)
                     XCTAssertEqual(PetEngine.level(s, r), Int(st["level"].double ?? -1), "\(ctx): level")
                     XCTAssertEqual(PetEngine.moods(s, r, o), st["moods"].array.compactMap(\.string), "\(ctx): moods")
+                    checkInsights(s, r, o, st, ctx)
                 }
             }
             let fc = v["forecast"]
@@ -86,6 +87,8 @@ final class VectorTests: XCTestCase {
                 XCTAssertEqual(e.key, w["key"].string, "\(name): forecast key")
                 XCTAssertEqual(e.value, w["value"].double.map { Int($0) }, "\(name): forecast value")
             }
+            checkAway(v["away"], PetState(json: v["start"]), r, o, name)
+            for (k, c) in v["notify"].array.enumerated() { checkNotify(c, r, o, "\(name)/notify#\(k)") }
         }
     }
 
@@ -100,5 +103,94 @@ final class VectorTests: XCTestCase {
         for dt in dts { part = PetEngine.advance(part, r, o, part.t + dt) }
         part = PetEngine.advance(part, r, o, s.t + 50 * 3600)
         XCTAssertEqual(part, whole)
+    }
+
+    // MARK: insights (core/ts/src/insights.ts)
+
+    func checkInsights(_ s: PetState, _ r: Rules, _ o: Owner, _ st: JSONValue, _ ctx: String) {
+        XCTAssertEqual(PetEngine.mood(s, r, o).rawValue, st["mood"].string, "\(ctx): mood")
+        XCTAssertEqual(PetEngine.daypart(s.t, r, o).rawValue, st["daypart"].string, "\(ctx): daypart")
+        let w = PetEngine.wants(s, r, o)
+        let ww = st["wants"].array
+        XCTAssertEqual(w.map { $0.key.rawValue }, ww.compactMap { $0["key"].string }, "\(ctx): wants")
+        for (a, b) in zip(w, ww) {
+            near(a.strength, b["strength"].double, "want.\(a.key.rawValue)", ctx)
+            XCTAssertEqual(a.urgent, b["urgent"].bool, "\(ctx): want.\(a.key.rawValue).urgent")
+        }
+        let rs = PetEngine.rescue(s, r, o)
+        let rj = st["rescue"]
+        if rj.isNull {
+            XCTAssertNil(rs, "\(ctx): rescue")
+        } else {
+            XCTAssertEqual(rs?.key, rj["key"].string, "\(ctx): rescue.key")
+            XCTAssertEqual(rs?.because, rj["because"].string, "\(ctx): rescue.because")
+            XCTAssertEqual(rs?.action, Action(json: rj["action"]), "\(ctx): rescue.action")
+        }
+    }
+
+    func checkAway(_ j: JSONValue, _ start: PetState, _ r: Rules, _ o: Owner, _ name: String) {
+        let ctx = "\(name)/away"
+        var journal: [TimedAct] = []
+        for x in j["journal"].array {
+            if let a = Action(json: x["action"]), let t = x["t"].double { journal.append(TimedAct(t: t, action: a)) }
+        }
+        XCTAssertEqual(journal.count, j["journal"].array.count, "\(ctx): journal")
+        let a = PetEngine.awaySummary(start, r, o, now: j["now"].double ?? 0, journal: journal)
+        near(a.from, j["from"].double, "from", ctx)
+        near(a.to, j["to"].double, "to", ctx)
+        near(a.awayH, j["awayH"].double, "awayH", ctx)
+        XCTAssertEqual(a.show, j["show"].bool, "\(ctx): show")
+        XCTAssertEqual(a.greet, j["greet"].string, "\(ctx): greet")
+        XCTAssertEqual(a.cta, j["cta"].string, "\(ctx): cta")
+        near(a.sleptH, j["sleptH"].double, "sleptH", ctx)
+        near(a.heartsFrom, j["heartsFrom"].double, "heartsFrom", ctx)
+        near(a.heartsTo, j["heartsTo"].double, "heartsTo", ctx)
+        for n in Need.allCases { near(a.needs[n], j["needs"][n.rawValue].double, "needs.\(n.rawValue)", ctx) }
+        XCTAssertEqual(a.died, j["died"].bool, "\(ctx): died")
+        compare(a.state, PetState(json: j["state"]), ctx)
+        let want = j["events"].array
+        XCTAssertEqual(a.events.count, want.count, "\(ctx): число событий")
+        for (e, w) in zip(a.events, want) {
+            XCTAssertEqual(e.kind, w["kind"].string, "\(ctx): kind")
+            near(e.t, w["t"].double, "t(\(e.kind))", ctx)
+            XCTAssertEqual(e.key, w["key"].string, "\(ctx): key(\(e.kind))")
+            XCTAssertEqual(e.value, w["value"].double.map { Int($0) }, "\(ctx): value(\(e.kind))")
+            XCTAssertEqual(e.ok, w["ok"].bool, "\(ctx): ok(\(e.kind))")
+        }
+    }
+
+    func checkNotify(_ c: JSONValue, _ r: Rules, _ o: Owner, _ ctx: String) {
+        let oj = c["opts"]
+        let opts = NotifyOpts(horizonH: oj["horizonH"].double ?? 72, lastOpenT: oj["lastOpenT"].double,
+                              lastSentT: oj["lastSentT"].double,
+                              quietFromMin: oj["quietFromMin"].double.map { Int($0) },
+                              quietToMin: oj["quietToMin"].double.map { Int($0) })
+        let plan = PetEngine.notificationPlan(PetState(json: c["from"]), r, o, now: c["now"].double ?? 0, opts: opts)
+        let want = c["plan"].array
+        XCTAssertEqual(plan.count, want.count, "\(ctx): число уведомлений")
+        for (p, w) in zip(plan, want) {
+            near(p.at, w["at"].double, "at", ctx)
+            XCTAssertEqual(p.trigger.rawValue, w["trigger"].string, "\(ctx): trigger")
+            XCTAssertEqual(p.kind, w["kind"].string, "\(ctx): kind")
+            XCTAssertEqual(p.key, w["key"].string, "\(ctx): key")
+        }
+    }
+
+    func testNotificationRules() throws {
+        let r = try rules()
+        let o = PetEngine.defaultOwner(r)
+        var s = PetEngine.newPet(r, t: 1_788_220_800 + 13 * 3600)
+        for n in Need.allCases { s.needs[n] = 100 }
+        s.home[.kennel] = 3
+        let lastOpen = s.t - 2.5 * 86400
+        let plan = PetEngine.notificationPlan(s, r, o, now: s.t, opts: NotifyOpts(horizonH: 14 * 24, lastOpenT: lastOpen))
+        XCTAssertFalse(plan.isEmpty)
+        var days = Set<Int>()
+        for p in plan {
+            XCTAssertTrue(days.insert(Int(((p.at / 60).rounded(.down) / 1440).rounded(.down))).inserted, "больше одного в день")
+            XCTAssertFalse(PetEngine.ownerAsleep(p.at, o), "тихие часы")
+            if p.at >= lastOpen + 3 * 86400 { XCTAssertEqual(p.trigger, .miss_you) }
+            XCTAssertLessThan(p.at, lastOpen + 14 * 86400)
+        }
     }
 }

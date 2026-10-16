@@ -17,6 +17,7 @@ const names = [
   'NEEDS', 'DISTRESS', 'HOME_LINES', 'compileCond', 'makeRules',
   'defaultOwner', 'newPet', 'clone', 'localMin', 'ownerAsleep', 'petNight', 'mods', 'maxHearts',
   'stepTo', 'advance', 'act', 'level', 'moods', 'forecast',
+  'WANT_SPECS', 'wants', 'mood', 'daypart', 'rescue', 'awaySummary', 'notificationPlan',
 ];
 
 const out = `// Сгенерировано core/ts/tools/bundle-web.ts из core/ts/src. Руками не править.
@@ -24,6 +25,7 @@ const out = `// Сгенерировано core/ts/tools/bundle-web.ts из core
 'use strict';
 ${src('rules.ts')}
 ${src('engine.ts')}
+${src('insights.ts')}
 g.PetCore = { ${names.join(', ')} };
 })(typeof window !== 'undefined' ? window : globalThis);
 `;

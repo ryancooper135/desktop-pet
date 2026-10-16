@@ -185,6 +185,7 @@ function finishBath(s          , r       ) {
   s.bathUntil = null;
 }
 
+/** Один шаг в 1 минуту (на месте). Снаружи ядра зовите stepTo/advance. */
 function step(s          , r       , o       ) {
   const t = s.t;
   if (s.napUntil !== null && t >= s.napUntil) s.napUntil = null;
@@ -360,35 +361,350 @@ function moods(s          , r       , o       )           {
                  
  
 
+/** Что уже было до начала наблюдения: от этого считаются новые события прогноза. */
+                                                                                                      
+
+function tracker(s          , r       )          {
+  return {
+    low: new Set(WATCH.filter(n => s.needs[n] < r.warnLow)),
+    dist: new Set(DISTRESS.filter(d => r.distress[d].cond(s.needs))),
+    lvl: level(s, r),
+    hc: Math.ceil(s.hearts - 1e-9),
+    lc: s.lastChanceH !== null,
+  };
+}
+
+/** После шага: дописать в ev новые события (low, distress, heart, last_chance, level). */
+function observe(tr         , s          , r       , ev                 ) {
+  for (const n of WATCH) if (s.needs[n] < r.warnLow && !tr.low.has(n)) { tr.low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
+  for (const d of DISTRESS) {
+    const on = r.distress[d].cond(s.needs);
+    if (on && !tr.dist.has(d)) { tr.dist.add(d); ev.push({ t: s.t, kind: 'distress', key: d }); }
+    if (!on) tr.dist.delete(d);
+  }
+  const c = Math.ceil(s.hearts - 1e-9);
+  if (c < tr.hc) ev.push({ t: s.t, kind: 'heart', value: c });
+  tr.hc = c;
+  if (s.lastChanceH !== null && !tr.lc) ev.push({ t: s.t, kind: 'last_chance' });
+  tr.lc = s.lastChanceH !== null;
+  const l = level(s, r);
+  if (l !== tr.lvl) { ev.push({ t: s.t, kind: 'level', value: l }); tr.lvl = l; }
+}
+
 /** Что случится, если никто не придёт: для локальных уведомлений и «умрёт в чт ~15:00». */
 function forecast(s0          , r       , o       , horizonH = 72)                  {
   const s = clone(s0);
   const end = s.t + horizonH * 3600;
   const ev                  = [];
-  const low = new Set(WATCH.filter(n => s.needs[n] < r.warnLow));
-  const dist = new Set(DISTRESS.filter(d => r.distress[d].cond(s.needs)));
-  let lvl = level(s, r);
-  let hc = Math.ceil(s.hearts - 1e-9);
-  let lc = s.lastChanceH !== null;
+  const tr = tracker(s, r);
   while (s.alive && s.t + STEP <= end) {
     step(s, r, o);
-    for (const n of WATCH) if (s.needs[n] < r.warnLow && !low.has(n)) { low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
-    for (const d of DISTRESS) {
-      const on = r.distress[d].cond(s.needs);
-      if (on && !dist.has(d)) { dist.add(d); ev.push({ t: s.t, kind: 'distress', key: d }); }
-      if (!on) dist.delete(d);
-    }
-    const c = Math.ceil(s.hearts - 1e-9);
-    if (c < hc) ev.push({ t: s.t, kind: 'heart', value: c });
-    hc = c;
-    if (s.lastChanceH !== null && !lc) ev.push({ t: s.t, kind: 'last_chance' });
-    lc = s.lastChanceH !== null;
-    const l = level(s, r);
-    if (l !== lvl) { ev.push({ t: s.t, kind: 'level', value: l }); lvl = l; }
+    observe(tr, s, r, ev);
   }
   if (!s.alive) ev.push({ t: s.diedAt , kind: 'death', key: s.cause ?? undefined });
   return ev;
 }
 
-g.PetCore = { NEEDS, DISTRESS, HOME_LINES, compileCond, makeRules, defaultOwner, newPet, clone, localMin, ownerAsleep, petNight, mods, maxHearts, stepTo, advance, act, level, moods, forecast };
+// Что показать и когда позвать: желания для пузыря, одно настроение для реплик, «Пока тебя не было»,
+// кнопка «Спасти» и план локальных уведомлений. Всё считается из состояния ядра и не меняет баланс.
+// Swift-порт — core/swift/Sources/PetCore/Insights.swift, сверка по общим векторам core/vectors.
+// Имена верхнего уровня не должны совпадать с engine.ts и rules.ts: бандл склеивает их в одну область.
+// Ключи совпадают с content/ru/lines.json: желания — thoughts, настроения — widget/island, триггеры — notifications, экран — away.
+                                                                          
+                                                                                                                                                                     
+                                                              
+                                                                                                                                                 
+
+// Пороги показа (не баланс): from — с какого значения шкалы питомец начинает хотеть,
+// mood — ниже какого значения желание становится настроением, w — вес при сортировке.
+                                                                                                            
+const WANT_SPECS             = [
+  { key: 'food', need: 'food', from: 50, mood: 25, w: 1, moodKey: 'hungry' },
+  { key: 'bath', need: 'clean', from: 50, mood: 25, w: 0.8, moodKey: 'dirty' }, // ниже SMELLY_BELOW — smelly
+  { key: 'sleep', need: 'energy', from: 30, mood: 20, w: 0.6, moodKey: 'tired' },
+  { key: 'play', need: 'fun', from: 50, mood: 30, w: 0.7, moodKey: 'bored' },
+  { key: 'pet', need: 'love', from: 50, mood: 35, w: 0.7, moodKey: 'wants_love' },
+  { key: 'walk', need: 'walk', from: 30, mood: 15, w: 0.4, moodKey: 'wants_walk' },
+];
+const WANT_DISTRESS                              = { starve: ['food'], dirty: ['bath'], toska: ['play', 'pet'] };
+const SMELLY_BELOW = 10;        // как в moods(): чистота ниже — smelly, ниже 25 — dirty
+const PART_MIN = 180;           // утро — 3 ч после подъёма питомца, вечер — 3 ч до отбоя хозяина
+const AWAY_SHOW_H = 2;          // экран «Пока тебя не было» — после ≥ 2 ч (04 §6.4)
+const AWAY_LONG_H = 24;         // от суток — welcome_long
+const N_CARE_DAYS = 3;          // RESEARCH/07 #6: 3 дня без открытий — только «скучаю»
+const N_MISS_EVERY_DAYS = 3;    // «скучаю» раз в 3 дня
+const N_STOP_DAYS = 14;         // после 14 дней — тишина
+const N_LEAD_MIN = 60;          // не звать раньше чем через час после «сейчас»: человек только что всё видел
+const NEED_TRIGGER                                 = { food: 'hungry', clean: 'dirty', fun: 'bored', love: 'wants_love' };
+const DISTRESS_TRIGGER                            = { starve: 'hungry', dirty: 'smelly', toska: 'unwell' };
+
+const at = (s          , r       , o       , now         ) => (now !== undefined && now > s.t ? advance(s, r, o, now) : s);
+const sleepingNow = (s          , r       , o       ) => petNight(s.t, r, o) || s.napUntil !== null;
+
+// ---------- желания ----------
+
+                                                                         
+
+/** Желания для пузыря мысли: срочные (идёт беда) первыми, дальше по силе 0..1. Пусто — ничего не хочет. */
+function wants(s0          , r       , o       , now         )         {
+  const s = at(s0, r, o, now);
+  if (!s.alive) return [];
+  const bathing = s.bathUntil !== null, sleeping = sleepingNow(s, r, o);
+  const tired = mods(s, r).refuses_games === true;
+  const urgent = new Set         ();
+  for (const d of DISTRESS) if (r.distress[d].cond(s.needs)) for (const k of WANT_DISTRESS[d]) urgent.add(k);
+  const out                           = [];
+  WANT_SPECS.forEach((w, i) => {
+    if (bathing && (w.key === 'food' || w.key === 'bath' || w.key === 'play')) return;
+    if (sleeping && (w.key === 'sleep' || w.key === 'play')) return;
+    if (tired && w.key === 'play') return;
+    const v = s.needs[w.need];
+    if (v >= w.from) return;
+    const strength = Math.min(1, w.w * (w.from - v) / w.from);
+    out.push({ key: w.key, strength, urgent: urgent.has(w.key), i });
+  });
+  out.sort((a, b) => (a.urgent !== b.urgent ? (a.urgent ? -1 : 1) : b.strength !== a.strength ? b.strength - a.strength : a.i - b.i));
+  return out.map(({ key, strength, urgent }) => ({ key, strength, urgent }));
+}
+
+// ---------- настроение ----------
+
+/** Одно настроение для реплик виджета и острова. */
+function mood(s0          , r       , o       , now         )       {
+  const s = at(s0, r, o, now);
+  if (!s.alive) return 'dead';
+  const lv = level(s, r);
+  if (lv === 3) return 'critical';
+  if (s.bathUntil !== null) return 'bath';
+  if (petNight(s.t, r, o)) return 'sleep';
+  if (s.napUntil !== null) return 'nap';
+  for (const w of wants(s, r, o)) {
+    const spec = WANT_SPECS.find(x => x.key === w.key) ;
+    const v = s.needs[spec.need];
+    if (spec.key === 'bath' && v < SMELLY_BELOW) return 'smelly';
+    if (spec.moodKey !== null && v < spec.mood) return spec.moodKey;
+  }
+  if (lv === 2) return 'sulky';
+  return 'ok';
+}
+
+/** Время суток для реплик: утро — 3 ч после подъёма питомца, вечер — 3 ч до отбоя, ночь — питомец спит. */
+function daypart(t        , r       , o       )          {
+  if (petNight(t, r, o)) return 'night';
+  const m = localMin(t, o);
+  const up = o.wakeMin + r.night.afterWakeMin;
+  if (inWindow(m, up, up + PART_MIN)) return 'morning';
+  if (inWindow(m, o.bedMin - PART_MIN, o.bedMin + r.night.afterBedMin)) return 'evening';
+  return 'day';
+}
+
+// ---------- «Спасти» ----------
+
+                                                                                                      
+                                                                          
+
+const NEED_ACTIONS                                  = {
+  food: [{ type: 'feed', item: '' }], clean: [{ type: 'bath' }], fun: [{ type: 'play' }], love: [{ type: 'pet' }],
+};
+const DISTRESS_ACTIONS                             = {
+  starve: [{ type: 'feed', item: '' }], dirty: [{ type: 'bath' }], toska: [{ type: 'play' }, { type: 'pet' }],
+};
+
+function actionKey(a        )                   {
+  switch (a.type) {
+    case 'feed': return 'food';
+    case 'bath': return 'bath';
+    case 'play': return 'play';
+    case 'pet': return 'pet';
+    default: return 'heal';
+  }
+}
+
+/**
+ * Одно самое срочное действие, которое ядро примет прямо сейчас (проверяется act на копии):
+ * беда по скорости урона → шкалы ниже порога регенерации (или ниже warnLow при полных сердцах) в порядке wants →
+ * в критичном состоянии лечебный предмет. null — делать нечего или ничего не поможет сейчас (ванна, ночь).
+ * food/heal — какой корм и предмет предлагать (что есть в инвентаре — решает приложение).
+ */
+function rescue(s0          , r       , o       , opts             = {})                {
+  const s = at(s0, r, o, opts.now);
+  if (!s.alive) return null;
+  const food = opts.food ?? 'kibble', heal = opts.heal ?? 'vitamin';
+  const fill = (a        )         => (a.type === 'feed' ? { type: 'feed', item: food } : a);
+  const tryAct = (a        ) => { const c = clone(s); return act(c, r, o, a).ok ? c : null; };
+
+  const dist = DISTRESS.filter(d => r.distress[d].cond(s.needs))
+    .map((d, i) => ({ d, i, h: r.distress[d].hoursPerHeart }))
+    .sort((a, b) => (a.h !== b.h ? a.h - b.h : a.i - b.i));
+  for (const { d } of dist) {
+    let first                = null;
+    for (const a0 of DISTRESS_ACTIONS[d]) {
+      const a = fill(a0);
+      const c = tryAct(a);
+      if (!c) continue;
+      if (first === null) first = a;
+      if (a.type === 'bath' || !r.distress[d].cond(c.needs)) return { key: actionKey(a), action: a, because: d };
+    }
+    if (first !== null) return { key: actionKey(first), action: first, because: d };
+  }
+
+  const maxH = maxHearts(s, r);
+  const bar = s.hearts < maxH ? r.hearts.regenAllGe : r.warnLow;
+  for (const w of wants(s, r, o)) {
+    const n = WANT_SPECS.find(x => x.key === w.key) .need;
+    if (!WATCH.includes(n) || s.needs[n] >= bar) continue;
+    for (const a0 of NEED_ACTIONS[n] ?? []) {
+      const a = fill(a0);
+      if (tryAct(a)) return { key: actionKey(a), action: a, because: n };
+    }
+  }
+
+  if (level(s, r) === 3 && s.hearts < maxH) {
+    const a         = { type: 'item', item: heal };
+    if (tryAct(a)) return { key: 'heal', action: a, because: 'hearts' };
+  }
+  return null;
+}
+
+// ---------- «Пока тебя не было» ----------
+
+                                                       
+                                                                                                     
+const WANT_CTA                           = { food: 'cta_hungry', bath: 'cta_dirty', play: 'cta_bored', pet: 'cta_love', sleep: 'cta_tired', walk: 'cta_ok' };
+                                                                                                               
+                                                                                                    
+                              
+               
+             
+                
+                                                             
+                                                                                                                       
+                                                                                     
+                                                                        
+                     
+                   
+                                                                 
+                                                                            
+                
+                                                                                   
+ 
+
+/**
+ * Пересчитать отсутствие от prev до now. journal — действия, сделанные без приложения
+ * (кнопки виджета и острова, шаги): применяются в своё время, как в векторах (act в момент s.t после stepTo).
+ */
+function awaySummary(prev          , r       , o       , now        , journal             = [])              {
+  const s = clone(prev);
+  const ev              = [];
+  let tr = tracker(s, r);
+  let wasNight = petNight(s.t, r, o);
+  let sleptMin = 0;
+  const hc = () => Math.ceil(s.hearts - 1e-9);
+  const run = (T        ) => {
+    while (s.alive && s.t + STEP <= T) {
+      const t0 = s.t, h0 = hc(), nap0 = s.napUntil;
+      step(s, r, o);
+      const night = petNight(t0, r, o);
+      if (night !== wasNight) { ev.push({ t: t0, kind: night ? 'sleep' : 'wake' }); wasNight = night; }
+      if (!night && s.napUntil !== null && s.napUntil !== nap0) ev.push({ t: s.t, kind: 'nap' });
+      if (night || s.napUntil !== null) sleptMin++;
+      if (hc() > h0) ev.push({ t: s.t, kind: 'heart_up', value: hc() });
+      observe(tr, s, r, ev                              );
+      if (!s.alive) ev.push({ t: s.diedAt , kind: 'death', key: s.cause ?? undefined });
+    }
+  };
+  const acts = journal.map((a, i) => ({ a, i })).filter(x => x.a.t >= prev.t && x.a.t <= now)
+    .sort((x, y) => (x.a.t !== y.a.t ? x.a.t - y.a.t : x.i - y.i));
+  for (const { a } of acts) {
+    run(a.t);
+    if (!s.alive) break;
+    const h0 = hc();
+    const res = act(s, r, o, a.action);
+    ev.push({ t: s.t, kind: 'act', key: a.action.type, ok: res.ok });
+    if (hc() > h0) ev.push({ t: s.t, kind: 'heart_up', value: hc() });
+    tr = tracker(s, r);
+  }
+  run(now);
+  const needs = {}                        ;
+  for (const n of NEEDS) needs[n] = s.needs[n] - prev.needs[n];
+  const awayH = (now - prev.t) / 3600;
+  const died = prev.alive && !s.alive;
+  const show = awayH >= AWAY_SHOW_H;
+  const live = show && s.alive;
+  const top = live ? wants(s, r, o)[0] : undefined;
+  return {
+    from: prev.t, to: now, awayH, show, greet: live ? (awayH >= AWAY_LONG_H ? 'welcome_long' : 'welcome') : null,
+    cta: live ? (top ? WANT_CTA[top.key] : 'cta_ok') : null,
+    sleptH: sleptMin / 60, heartsFrom: prev.hearts, heartsTo: s.hearts, needs,
+    events: ev.filter(e => (e.kind          ) !== 'level'), died, state: s,
+  };
+}
+
+// ---------- план уведомлений ----------
+
+                             
+                                                                                                        
+                                                                                            
+                                                                                                     
+                                                                                                
+                      
+ 
+                                                                                                                                                            
+
+const localDay = (t        , o       ) => Math.floor((Math.floor(t / 60) + o.tzOffsetMin) / 1440);
+
+/**
+ * Локальные уведомления по прогнозу без ухода (RESEARCH/07 #6):
+ * не больше 1 в местный день (самое серьёзное, при равенстве — раньшее), тихие часы переносят на их конец;
+ * первые 3 дня после открытия — по событиям прогноза, с 3-го по 14-й — только «скучаю» раз в 3 дня, дальше тишина.
+ * После смерти по прогнозу не зовём.
+ */
+function notificationPlan(s0          , r       , o       , now        , opts             = {})                        {
+  const s = at(s0, r, o, now);
+  if (!s.alive) return [];
+  const horizonH = opts.horizonH ?? 72;
+  const lastOpen = opts.lastOpenT ?? now;
+  const qFrom = opts.quietFromMin ?? o.bedMin, qTo = opts.quietToMin ?? o.wakeMin;
+  const end = now + horizonH * 3600;
+  const careUntil = lastOpen + N_CARE_DAYS * 86400, stopAt = lastOpen + N_STOP_DAYS * 86400;
+  const quiet = (t        ) => {
+    const m = localMin(t, o);
+    return inWindow(m, qFrom, qTo) ? t + ((((qTo - m) % 1440) + 1440) % 1440) * 60 : t;
+  };
+  const ev = forecast(s, r, o, horizonH);
+  const death = ev.find(e => e.kind === 'death');
+  const deathT = death ? death.t : Infinity;
+  const cands                                            = [];
+  for (const e of ev) {
+    let trigger                     , sev = 0;
+    if (e.kind === 'low') { trigger = NEED_TRIGGER[e.key        ]; sev = 1; }
+    else if (e.kind === 'distress') { trigger = DISTRESS_TRIGGER[e.key            ]; sev = 2; }
+    else if (e.kind === 'heart') { trigger = 'heart_lost'; sev = 2; }
+    else if (e.kind === 'level' && e.value === 3) { trigger = 'critical'; sev = 3; }
+    else if (e.kind === 'last_chance') { trigger = 'last_chance'; sev = 4; }
+    if (trigger === undefined) continue;
+    const t = quiet(e.t);
+    if (t >= careUntil) continue;
+    const c                                        = { at: t, trigger, kind: e.kind                               , sev };
+    if (e.key !== undefined) c.key = e.key;
+    cands.push(c);
+  }
+  for (let k = 1; lastOpen + k * N_MISS_EVERY_DAYS * 86400 < stopAt; k++) {
+    const t = quiet(lastOpen + k * N_MISS_EVERY_DAYS * 86400);
+    if (t < stopAt) cands.push({ at: t, trigger: 'miss_you', kind: 'absent', sev: 0 });
+  }
+  const sentDay = opts.lastSentT !== undefined && opts.lastSentT !== null ? localDay(opts.lastSentT, o) : null;
+  const ok = cands.filter(c => c.at >= now + N_LEAD_MIN * 60 && c.at <= end && c.at < deathT && localDay(c.at, o) !== sentDay)
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => (a.c.at !== b.c.at ? a.c.at - b.c.at : a.i - b.i));
+  const byDay = new Map                                               ();
+  for (const { c } of ok) {
+    const d = localDay(c.at, o);
+    const cur = byDay.get(d);
+    if (cur === undefined || c.sev > cur.sev) byDay.set(d, c);
+  }
+  return [...byDay.values()].sort((a, b) => a.at - b.at).map(({ sev, ...p }) => p);
+}
+
+g.PetCore = { NEEDS, DISTRESS, HOME_LINES, compileCond, makeRules, defaultOwner, newPet, clone, localMin, ownerAsleep, petNight, mods, maxHearts, stepTo, advance, act, level, moods, forecast, WANT_SPECS, wants, mood, daypart, rescue, awaySummary, notificationPlan };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -4,7 +4,7 @@
 
 import Foundation
 
-public struct Owner: Equatable {
+public struct Owner: Equatable, Sendable {
     public var bedMin: Int       // во сколько хозяин ложится, минуты от полуночи
     public var wakeMin: Int      // во сколько встаёт
     public var tzOffsetMin: Int  // смещение местного времени от UTC
@@ -13,7 +13,7 @@ public struct Owner: Equatable {
     }
 }
 
-public struct PetState: Equatable {
+public struct PetState: Equatable, Sendable {
     public var t: Double                      // unix-секунды, до которых всё посчитано
     public var needs: Vals
     public var hearts: Double                 // дробное, на экране половинки
@@ -29,19 +29,19 @@ public struct PetState: Equatable {
     public var cause: Distress?
 }
 
-public enum Action: Equatable {
+public enum Action: Equatable, Sendable {
     case feed(String), item(String), pet, play, bath, steps(Int), wake
 }
 
-public struct ActResult: Equatable {
+public struct ActResult: Equatable, Sendable {
     public let ok: Bool
     public let reason: String?
     static let ok = ActResult(ok: true, reason: nil)
     static func no(_ r: String) -> ActResult { ActResult(ok: false, reason: r) }
 }
 
-public struct ForecastEvent: Equatable {
-    public enum Kind: String { case low, distress, heart, last_chance, level, death }
+public struct ForecastEvent: Equatable, Sendable {
+    public enum Kind: String, Sendable { case low, distress, heart, last_chance, level, death }
     public let t: Double
     public let kind: Kind
     public let key: String?
@@ -293,33 +293,51 @@ public enum PetEngine {
         return out
     }
 
+    /// Что уже было до начала наблюдения: от этого считаются новые события прогноза.
+    struct Tracker {
+        var low: Set<Need>
+        var dist: Set<Distress>
+        var lvl: Int
+        var hc: Double
+        var lc: Bool
+    }
+
+    static func tracker(_ s: PetState, _ r: Rules) -> Tracker {
+        Tracker(low: Set(WATCH.filter { s.needs[$0]! < r.warnLow }),
+                dist: Set(Distress.allCases.filter { r.distress[$0]!.cond(s.needs) }),
+                lvl: level(s, r),
+                hc: (s.hearts - 1e-9).rounded(.up),
+                lc: s.lastChanceH != nil)
+    }
+
+    /// После шага: дописать в ev новые события (low, distress, heart, last_chance, level).
+    static func observe(_ tr: inout Tracker, _ s: PetState, _ r: Rules, _ ev: inout [ForecastEvent]) {
+        for n in WATCH where s.needs[n]! < r.warnLow && !tr.low.contains(n) {
+            tr.low.insert(n); ev.append(ForecastEvent(t: s.t, kind: .low, key: n.rawValue, value: nil))
+        }
+        for d in Distress.allCases {
+            let on = r.distress[d]!.cond(s.needs)
+            if on && !tr.dist.contains(d) { tr.dist.insert(d); ev.append(ForecastEvent(t: s.t, kind: .distress, key: d.rawValue, value: nil)) }
+            if !on { tr.dist.remove(d) }
+        }
+        let c = (s.hearts - 1e-9).rounded(.up)
+        if c < tr.hc { ev.append(ForecastEvent(t: s.t, kind: .heart, key: nil, value: Int(c))) }
+        tr.hc = c
+        if s.lastChanceH != nil && !tr.lc { ev.append(ForecastEvent(t: s.t, kind: .last_chance, key: nil, value: nil)) }
+        tr.lc = s.lastChanceH != nil
+        let l = level(s, r)
+        if l != tr.lvl { ev.append(ForecastEvent(t: s.t, kind: .level, key: nil, value: l)); tr.lvl = l }
+    }
+
     /// Что случится, если никто не придёт: для локальных уведомлений и «умрёт в чт ~15:00».
     public static func forecast(_ s0: PetState, _ r: Rules, _ o: Owner, horizonH: Double = 72) -> [ForecastEvent] {
         var s = s0
         let end = s.t + horizonH * 3600
         var ev: [ForecastEvent] = []
-        var low = Set(WATCH.filter { s.needs[$0]! < r.warnLow })
-        var dist = Set(Distress.allCases.filter { r.distress[$0]!.cond(s.needs) })
-        var lvl = level(s, r)
-        var hc = (s.hearts - 1e-9).rounded(.up)
-        var lc = s.lastChanceH != nil
+        var tr = tracker(s, r)
         while s.alive && s.t + STEP <= end {
             step(&s, r, o)
-            for n in WATCH where s.needs[n]! < r.warnLow && !low.contains(n) {
-                low.insert(n); ev.append(ForecastEvent(t: s.t, kind: .low, key: n.rawValue, value: nil))
-            }
-            for d in Distress.allCases {
-                let on = r.distress[d]!.cond(s.needs)
-                if on && !dist.contains(d) { dist.insert(d); ev.append(ForecastEvent(t: s.t, kind: .distress, key: d.rawValue, value: nil)) }
-                if !on { dist.remove(d) }
-            }
-            let c = (s.hearts - 1e-9).rounded(.up)
-            if c < hc { ev.append(ForecastEvent(t: s.t, kind: .heart, key: nil, value: Int(c))) }
-            hc = c
-            if s.lastChanceH != nil && !lc { ev.append(ForecastEvent(t: s.t, kind: .last_chance, key: nil, value: nil)) }
-            lc = s.lastChanceH != nil
-            let l = level(s, r)
-            if l != lvl { ev.append(ForecastEvent(t: s.t, kind: .level, key: nil, value: l)); lvl = l }
+            observe(&tr, s, r, &ev)
         }
         if !s.alive { ev.append(ForecastEvent(t: s.diedAt!, kind: .death, key: s.cause?.rawValue, value: nil)) }
         return ev

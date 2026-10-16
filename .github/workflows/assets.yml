@@ -1,0 +1,127 @@
+# 3D-ассеты питомца: GLB Quaternius → позы/склейка клипов (numpy) → Blender (фон) → shiba.usdz.
+# Только Linux (бесплатные минуты), без Mac. Подробно — RESEARCH/10-3d-pipeline.md.
+#   gh workflow run assets.yml                 # только артефакт
+#   gh workflow run assets.yml -f commit=true  # ещё и закоммитить в app/Resources/Pets/
+name: assets
+on:
+  workflow_dispatch:
+    inputs:
+      blender:
+        description: "Версия Blender (официальный tar с download.blender.org)"
+        default: "5.2.2"
+      commit:
+        description: "Положить shiba.usdz + clips.json в app/Resources/Pets/ коммитом"
+        type: boolean
+        default: false
+  push:
+    paths: ["tools/assets/**", ".github/workflows/assets.yml"]
+concurrency:
+  group: assets-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  usdz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLENDER_VERSION: ${{ inputs.blender || '5.2.2' }}
+      OUT: build/assets
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: numpy + usd-core
+        run: pip install --disable-pip-version-check numpy usd-core
+
+      - name: Клипы и позы (sit/lie/sleep) → один таймлайн
+        run: |
+          mkdir -p "$OUT"
+          python tools/assets/build_clips.py tools/assets/source/shiba.glb \
+            --poses tools/assets/poses.json --style tools/assets/style_a.json \
+            --out-glb "$OUT/shiba_clips.glb" --out-json "$OUT/clips.json"
+
+      - name: Превью поз (PNG, без GPU)
+        run: |
+          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
+            --only sit_in --only sit --only lie_in --only sleep_in --only sleep --yaw 90 --out "$OUT/preview_side.png"
+          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
+            --only idle --only walk --only eat --only sit --only lie --only sleep --yaw 35 --out "$OUT/preview_3q.png"
+
+      - name: Библиотеки для Blender без экрана
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libgl1 libegl1 libx11-6 libxext6 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6
+
+      - name: Кэш архива Blender
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/blender-dl
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+
+      - name: Скачать Blender (официальный сайт, сверка sha256)
+        run: |
+          V="$BLENDER_VERSION"; SERIES="${V%.*}"
+          BASE="https://download.blender.org/release/Blender$SERIES"
+          TAR="blender-$V-linux-x64.tar.xz"
+          mkdir -p ~/blender-dl && cd ~/blender-dl
+          [ -f "$TAR" ] || curl -fL --retry 3 -o "$TAR" "$BASE/$TAR"
+          curl -fsSL --retry 3 -o sums "$BASE/blender-$V.sha256"
+          grep " $TAR\$" sums | sha256sum -c -
+          mkdir -p ~/blender && tar -xJf "$TAR" -C ~/blender --strip-components=1
+          ~/blender/blender --version | head -1
+
+      - name: Blender → shiba.usdz
+        run: |
+          ~/blender/blender -b --factory-startup --python-exit-code 1 \
+            --python tools/assets/blender_export.py -- \
+            --glb "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
+            --style tools/assets/style_a.json --out "$OUT/shiba.usdz"
+          ls -l "$OUT"
+
+      - name: Проверка USDZ (usd-core, ARKit-правила)
+        run: |
+          python tools/assets/check_usdz.py "$OUT/shiba.usdz" --clips "$OUT/clips.json" \
+            --report "$OUT/usdz_report.json" --strict
+          {
+            echo "### shiba.usdz"
+            echo '```json'
+            python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','triangles','skeletons','animations','problems','warnings')},indent=1))"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shiba-usdz
+          path: build/assets/
+          retention-days: 30
+
+  commit:
+    # Только по ручному запуску с commit=true: кладёт результат в app/Resources/Pets/.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.commit }}
+    needs: usdz
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: shiba-usdz
+          path: build/assets
+      - name: Коммит в app/Resources/Pets
+        run: |
+          mkdir -p app/Resources/Pets
+          cp build/assets/shiba.usdz app/Resources/Pets/shiba.usdz
+          cp build/assets/clips.json app/Resources/Pets/shiba.clips.json
+          git add app/Resources/Pets
+          if git diff --cached --quiet; then echo "без изменений"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "assets: shiba.usdz ($(git rev-parse --short HEAD))"
+          git push

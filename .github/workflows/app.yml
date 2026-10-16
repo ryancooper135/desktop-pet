@@ -1,0 +1,168 @@
+# Настоящее приложение: .ipa для телефона + тесты на симуляторе с картинками.
+# Только ручной запуск: macOS-минуты в приватном репо считаются (~200 в месяц).
+#   gh workflow run app.yml -f tests=true
+# Подробно — RESEARCH/11-ci-testing.md.
+name: app
+on:
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: "Гонять тесты на симуляторе и снимать скриншоты"
+        type: boolean
+        default: true
+concurrency:
+  group: app
+  cancel-in-progress: true
+jobs:
+  app:
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: app
+    env:
+      XCODEGEN_VERSION: "2.45.4"
+      OUT: ${{ github.workspace }}/app/out
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: XcodeGen
+        # Готовый бинарь с релиза быстрее brew (тот тратит минуту на auto-update); brew — запасной путь.
+        run: |
+          xcodebuild -version
+          if curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+               "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip" \
+             && unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP" \
+             && "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version; then
+            XG="$RUNNER_TEMP/xcodegen/bin/xcodegen"
+          else
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
+            XG=xcodegen
+          fi
+          "$XG" generate
+          mkdir -p "$OUT/screens"
+
+      - name: Simulator
+        # Выбираем и будим симулятор заранее: он грузится, пока собирается .ipa.
+        if: ${{ inputs.tests }}
+        run: |
+          read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
+          import json, re, sys
+          want = ["iPhone Air", "iPhone 17 Pro", "iPhone 17"]
+          best = None
+          for rt, devs in json.load(sys.stdin)["devices"].items():
+              m = re.search(r"iOS-(\d+)-(\d+)", rt)
+              if not m or int(m[1]) < 26:
+                  continue
+              for d in devs:
+                  if d["name"] in want:
+                      key = (want.index(d["name"]), -int(m[1]), -int(m[2]))
+                      if best is None or key < best[0]:
+                          best = (key, d["udid"], d["name"].replace(" ", "_") + "_iOS_" + m[1] + "." + m[2])
+          if best is None:
+              sys.exit("нет подходящего симулятора iOS 26")
+          print(best[1], best[2])
+          ')
+          echo "Симулятор: $INFO ($UDID)"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+
+      - name: Build ipa
+        timeout-minutes: 15
+        run: |
+          xcodebuild -project Pet.xcodeproj -scheme Pet \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build -quiet \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+      - name: Ad-hoc sign with entitlements
+        # Без подписи в бинарнике нет entitlements, и сайдлоадер не узнает про App Group.
+        # Пути к .entitlements берём из настроек сборки, чтобы не зависеть от раскладки project.yml.
+        run: |
+          ent() {
+            xcodebuild -project Pet.xcodeproj -target "$1" -configuration Release -sdk iphoneos \
+              -showBuildSettings 2>/dev/null | awk -F ' = ' '$1 ~ /^ *CODE_SIGN_ENTITLEMENTS$/ {print $2; exit}'
+          }
+          APP_ENT=$(ent Pet); EXT_ENT=$(ent PetWidgets)
+          echo "entitlements: Pet=$APP_ENT PetWidgets=$EXT_ENT"
+          test -f "$APP_ENT" && test -f "$EXT_ENT"
+          APP=build/Build/Products/Release-iphoneos/Pet.app
+          if [ -d "$APP/Frameworks" ]; then
+            find "$APP/Frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -exec codesign -f -s - {} \;
+          fi
+          codesign -f -s - --entitlements "$EXT_ENT" "$APP/PlugIns/PetWidgets.appex"
+          codesign -f -s - --entitlements "$APP_ENT" "$APP"
+          codesign -d --entitlements - "$APP" 2>/dev/null | tee /dev/stderr | grep -q 'group.com.vadimpet.pet'
+          codesign -d --entitlements - "$APP/PlugIns/PetWidgets.appex" 2>/dev/null | grep -q 'group.com.vadimpet.pet'
+
+      - name: Package ipa
+        run: |
+          mkdir -p ipa/Payload
+          cp -R build/Build/Products/Release-iphoneos/Pet.app ipa/Payload/
+          cd ipa && zip -qry "$OUT/Pet.ipa" Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pet-ipa
+          path: app/out/Pet.ipa
+          retention-days: 30
+
+      - name: Test on simulator
+        if: ${{ inputs.tests }}
+        timeout-minutes: 20
+        # TEST_RUNNER_* уходит в процесс тестов без префикса: SNAPSHOT_DIR видят WidgetSnapshotTests.
+        # Симулятор подписываем ad-hoc ("-"): так entitlements (App Group) встают и без команды.
+        run: |
+          xcrun simctl bootstatus "$SIM_UDID" -b
+          xcrun simctl status_bar "$SIM_UDID" override --time 9:41 \
+            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
+          TEST_RUNNER_SNAPSHOT_DIR="$OUT/screens" \
+          xcodebuild test -project Pet.xcodeproj -scheme Pet \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            -derivedDataPath build-sim -resultBundlePath "$OUT/Pet.xcresult" \
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
+            -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
+
+      - name: Export screenshots
+        # Вложения из xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
+        if: ${{ inputs.tests && !cancelled() }}
+        run: |
+          [ -d "$OUT/Pet.xcresult" ] || { echo "xcresult нет — тесты не дошли до запуска"; exit 0; }
+          RAW="$RUNNER_TEMP/attachments"
+          rm -rf "$RAW" && mkdir -p "$RAW"
+          xcrun xcresulttool export attachments --path "$OUT/Pet.xcresult" --output-path "$RAW"
+          python3 - "$RAW" "$OUT/screens" <<'PY'
+          import json, pathlib, re, shutil, sys
+          raw, dst = map(pathlib.Path, sys.argv[1:])
+          dst.mkdir(parents=True, exist_ok=True)
+          n = 0
+          for test in json.loads((raw / "manifest.json").read_text()):
+              for a in test.get("attachments", []):
+                  src = raw / a["exportedFileName"]
+                  name = a.get("suggestedHumanReadableName") or src.name
+                  # «ui-01-main_0_<UUID>.png» → «ui-01-main.png»
+                  name = re.sub(r"_\d+_[0-9A-Fa-f-]{36}(?=\.[^.]+$|$)", "", name)
+                  if not pathlib.Path(name).suffix:
+                      name += src.suffix
+                  shutil.copy2(src, dst / name)
+                  n += 1
+          print(f"вложений: {n} → {dst}")
+          PY
+          ls -1 "$OUT/screens"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.tests && !cancelled() }}
+        with:
+          name: Pet-screens
+          path: app/out/screens
+          if-no-files-found: warn
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.tests && !cancelled() }}
+        with:
+          name: Pet-xcresult
+          path: app/out/Pet.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

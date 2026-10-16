@@ -1,0 +1,146 @@
+# Настоящее приложение «Питомец»: Шиба в RealityKit, виджеты, остров, контрол, «Команды».
+# Генерация: cd app && xcodegen generate. Info.plist и entitlements XcodeGen пишет сам из properties ниже.
+# Ядро — локальный пакет ../core/swift (продукт PetCore), тексты — ../content/ru/lines.json.
+name: Pet
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  PetCore:
+    path: ../core/swift
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  Pet:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+      - path: ../config/economy.json
+        buildPhase: resources
+      - path: ../content/ru/lines.json
+        buildPhase: resources
+        optional: true
+      # Сюда кладётся shiba.usdz; нет файла — на сцене заглушка из примитивов.
+      - path: Resources
+        buildPhase: resources
+        optional: true
+        excludes:
+          - "**/*.md"
+    dependencies:
+      - target: PetWidgets
+      - package: PetCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.pet
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_TARGET"
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: "Питомец"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSMotionUsageDescription: "Питомец гуляет вместе с тобой по шагам"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.vadimpet.pet
+            CFBundleURLSchemes: [pet]
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.vadimpet.pet]
+
+  # Одно расширение: виджеты, Live Activity и контрол Пункта управления.
+  PetWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      - Shared
+      - path: ../config/economy.json
+        buildPhase: resources
+      - path: ../content/ru/lines.json
+        buildPhase: resources
+        optional: true
+    dependencies:
+      - package: PetCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.pet.widgets
+        SKIP_INSTALL: YES
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: "Питомец"
+        CFBundleExecutable: "$(EXECUTABLE_NAME)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/Widgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.vadimpet.pet]
+
+  PetTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+      - path: ../core/vectors
+        buildPhase: resources
+        type: folder
+        optional: true
+    dependencies:
+      - target: Pet
+      - package: PetCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.pet.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Pet.app/Pet"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+  PetUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: Pet
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vadimpet.pet.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Pet
+
+schemes:
+  Pet:
+    build:
+      targets:
+        Pet: all
+        PetTests: [test]
+        PetUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - PetTests
+        - PetUITests
+    archive:
+      config: Release

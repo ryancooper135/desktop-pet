@@ -1,0 +1,60 @@
+{
+ "_doc": "Повороты в градусах в мировых осях модели: X - ось к левому боку собаки (+X = нос вниз), Y - вверх (+Y = поворот влево), Z - вперёд (+Z = крен на правый бок). Кость.* = обе стороны, R зеркально. offset - сдвиг тела, ground=true - тело само ставится на пол.",
+ "poses": {
+  "sit": {
+   "offset": [0, 0, -0.2],
+   "rot": {
+    "Back": [-32, 0, 0],
+    "Neck1": [14, 0, 0],
+    "Head": [14, 0, 0],
+    "FrontUpperLeg.*": [24, 0, 0],
+    "BackLeg.*": [-28, 0, 0],
+    "BackUpperLeg.*": [80, 0, 0],
+    "BackLowerLeg.*": [-80, 0, 0],
+    "Tail1": [-30, 0, 0],
+    "FFB.*": [20, 0, 0]
+   }
+  },
+  "lie": {
+   "offset": [0, 0, 0],
+   "rot": {
+    "FrontUpperLeg.*": [-80, 0, 0],
+    "FrontLowerLeg.*": [-5, 0, 0],
+    "BackLeg.*": [-55, 0, 6],
+    "BackUpperLeg.*": [75, 0, 0],
+    "BackLowerLeg.*": [-85, 0, 0],
+    "Tail1": [-35, 0, 0],
+    "Back": [4, 0, 0],
+    "Neck1": [-6, 0, 0],
+    "FFB.*": [20, 0, 0]
+   }
+  },
+  "sleep": {
+   "from": "lie",
+   "rot": {
+    "Neck1": [22, 0, 0],
+    "Neck2": [8, 0, 0],
+    "Head": [4, -10, 0],
+    "Ear1.*": [12, 0, 0],
+    "Tail1": [0, -40, 0],
+    "Tail2": [0, -30, 0]
+   }
+  }
+ },
+ "clips": {
+  "sit_in": {"from": "idle", "to": "sit", "dur": 0.6},
+  "sit": {"pose": "sit", "dur": 3.0, "loop": true, "breath": [{"bone": "Torso2", "deg": [1.5, 0, 0], "period": 3.0}]},
+  "sit_out": {"from": "sit", "to": "idle", "dur": 0.5},
+  "lie_in": {"from": "idle", "to": "lie", "dur": 0.8},
+  "lie": {"pose": "lie", "dur": 3.0, "loop": true, "breath": [{"bone": "Torso2", "deg": [1.5, 0, 0], "period": 3.0}]},
+  "lie_out": {"from": "lie", "to": "idle", "dur": 0.7},
+  "sleep_in": {"from": "lie", "to": "sleep", "dur": 1.0},
+  "sleep": {
+   "pose": "sleep",
+   "dur": 4.0,
+   "loop": true,
+   "breath": [{"bone": "Torso2", "deg": [2.5, 0, 0], "period": 4.0}, {"bone": "Head", "deg": [-1.0, 0, 0], "period": 4.0, "phase": 0.25}]
+  },
+  "sleep_out": {"from": "sleep", "to": "lie", "dur": 0.8}
+ }
+}
