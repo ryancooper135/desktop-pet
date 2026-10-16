@@ -58,12 +58,20 @@ struct PetFaceView: View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
             ZStack {
-                head
-                eyes
-                nose
-                mouth
+                // В mono черты лица вырезаны из головы: один тон, но глаза и нос читаются.
+                ZStack {
+                    head
+                    ZStack {
+                        eyes
+                        nose
+                        mouth
+                        if ex.brows { brows }
+                    }
+                    .compositingGroup()
+                    .blendMode(mono ? .destinationOut : .normal)
+                }
+                .compositingGroup()
                 if ex.blush && !mono { blush }
-                if ex.brows { brows }
                 extra(side: side)
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -76,21 +84,24 @@ struct PetFaceView: View {
 
     // MARK: голова
 
-    private var furColor: Color { mono ? .primary.opacity(0.85) : PetPalette.fur }
-    private var creamColor: Color { mono ? .primary.opacity(0.35) : PetPalette.cream }
-    private var inkColor: Color { mono ? .primary : PetPalette.nose }
+    private var furColor: Color { mono ? .primary : PetPalette.fur }
+    /// В mono маска не красится, а наполовину вырезается из меха.
+    private var creamColor: Color { mono ? .black.opacity(0.45) : PetPalette.cream }
+    private var creamBlend: BlendMode { mono ? .destinationOut : .normal }
+    /// В mono ink — это «ножницы»: всё, что им нарисовано, станет дыркой.
+    private var inkColor: Color { mono ? .black : PetPalette.nose }
 
     private var head: some View {
         ZStack {
             UnitPath(unit: Self.ear(left: true)).fill(furColor)
             UnitPath(unit: Self.ear(left: false)).fill(furColor)
-            UnitPath(unit: Self.innerEar(left: true)).fill(creamColor)
-            UnitPath(unit: Self.innerEar(left: false)).fill(creamColor)
+            UnitPath(unit: Self.innerEar(left: true)).fill(creamColor).blendMode(creamBlend)
+            UnitPath(unit: Self.innerEar(left: false)).fill(creamColor).blendMode(creamBlend)
             UnitPath(unit: Path(ellipseIn: CGRect(x: 10, y: 20, width: 80, height: 70))).fill(furColor)
             // Светлая маска Шибы: щёки и подбородок, «бровки» над глазами.
-            UnitPath(unit: Path(ellipseIn: CGRect(x: 20, y: 52, width: 60, height: 36))).fill(creamColor)
-            UnitPath(unit: Path(ellipseIn: CGRect(x: 29, y: 37, width: 11, height: 6))).fill(creamColor)
-            UnitPath(unit: Path(ellipseIn: CGRect(x: 60, y: 37, width: 11, height: 6))).fill(creamColor)
+            UnitPath(unit: Path(ellipseIn: CGRect(x: 20, y: 52, width: 60, height: 36))).fill(creamColor).blendMode(creamBlend)
+            UnitPath(unit: Path(ellipseIn: CGRect(x: 29, y: 37, width: 11, height: 6))).fill(creamColor).blendMode(creamBlend)
+            UnitPath(unit: Path(ellipseIn: CGRect(x: 60, y: 37, width: 11, height: 6))).fill(creamColor).blendMode(creamBlend)
         }
     }
 
@@ -148,7 +159,8 @@ struct PetFaceView: View {
         case .sleepy:
             UnitPath(unit: Path(ellipseIn: CGRect(x: x - 5, y: y - 1, width: 10, height: 6))).fill(inkColor)
             UnitPath(unit: Self.line(CGPoint(x: x - 6.5, y: y - 1), CGPoint(x: x + 6.5, y: y - 1)))
-                .stroke(furColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(mono ? Color.black : furColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .blendMode(mono ? .destinationOut : .normal)
         }
     }
 

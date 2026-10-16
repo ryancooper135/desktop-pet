@@ -48,6 +48,33 @@ final class WidgetSnapshotTests: XCTestCase {
         XCTAssertTrue(blank.isEmpty, "Пустые снимки: \(blank.joined(separator: ", "))")
     }
 
+    /// Иконка приложения 1024×1024 из той же мордочки, что в виджете: CI кладёт app-icon.png
+    /// рядом со снимками, файл переносится в Resources/Assets.xcassets/AppIcon.appiconset.
+    @MainActor
+    func testRenderAppIcon() throws {
+        let side: CGFloat = 1024
+        let content = ZStack {
+            LinearGradient(colors: [Color(hex: 0xfff4e6), Color(hex: 0xf6d9b8)],
+                           startPoint: .top, endPoint: .bottom)
+            PetFaceView(pose: .happy)
+                .frame(width: side * 0.74, height: side * 0.74)
+                .offset(y: side * 0.035)
+        }
+        .frame(width: side, height: side)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 1
+        renderer.isOpaque = true
+        renderer.proposedSize = ProposedViewSize(width: side, height: side)
+        let image = try XCTUnwrap(renderer.uiImage, "иконка не отрисовалась")
+        XCTAssertFalse(Self.isUniform(image))
+        let png = try XCTUnwrap(image.pngData())
+        try png.write(to: Self.outputDir().appendingPathComponent("app-icon.png"))
+        let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+        attachment.name = "app-icon"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     @MainActor
     static func render(_ c: SnapshotCase) -> UIImage? {
         let content = c.view

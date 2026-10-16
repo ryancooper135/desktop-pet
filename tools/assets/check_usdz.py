@@ -34,7 +34,10 @@ def main() -> None:
 
     # ARKit-проверки — предупреждения (RealityKit терпит многое); жёстко — с --strict-compliance
     try:
-        checker = UsdUtils.ComplianceChecker(arkit=True, skipARKitRootLayerCheck=False,
+        Checker = getattr(UsdUtils, "ComplianceChecker", None)
+        if Checker is None:  # в usd-core класс лежит в подмодуле, а не в UsdUtils
+            from pxr.UsdUtils.complianceChecker import ComplianceChecker as Checker
+        checker = Checker(arkit=True, skipARKitRootLayerCheck=False,
                                              rootPackageOnly=False, skipVariants=False, verbose=False)
         checker.CheckCompliance(a.usdz)
         rep["compliance"] = {"errors": list(checker.GetErrors()), "failed": list(checker.GetFailedChecks()),

@@ -47,21 +47,71 @@ enum PetModel {
             model = try? await Entity(named: "shiba", in: Bundle.main)
         }
         let body = model ?? StubDog.make()
+        body.name = bodyName
         let bounds = body.visualBounds(relativeTo: nil)
         if model != nil, bounds.extents.y > 0 {
             let k = height / bounds.extents.y
             body.scale = SIMD3<Float>(repeating: k)
             body.position = SIMD3<Float>(-bounds.center.x * k, -bounds.min.y * k, -bounds.center.z * k)
         }
-        if let anim = body.availableAnimations.first {
-            body.playAnimation(anim.repeat())
-        }
         wrapper.addChild(body)
         wrapper.components.set(BreatheComponent())
+        // Клипы есть — позы даёт скелет; нет таблицы — играем всю анимацию по кругу, как раньше.
+        if model != nil, ClipTable.shared != nil, !body.availableAnimations.isEmpty {
+            wrapper.components.set(ClipState())
+        } else if let anim = body.availableAnimations.first {
+            body.playAnimation(anim.repeat())
+        }
         return wrapper
     }
 
+    static let bodyName = "petBody"
+
+    /// Какой клип играть в позе и чем в него войти (sit_in, sleep_in…).
+    static func clip(for pose: Pose) -> (intro: String?, main: String) {
+        switch pose {
+        case .happy, .loved: return (nil, "idle_2")
+        case .eating: return (nil, "eat")
+        case .sleep, .nap: return ("sleep_in", "sleep")
+        case .critical, .tired: return ("lie_in", "lie")
+        case .bored, .lonely, .sulky, .hungry: return (nil, "idle_headlow")
+        case .dirty, .bath: return ("sit_in", "sit")
+        case .dead: return (nil, "death")
+        case .idle: return (nil, "idle")
+        }
+    }
+
+    static func playClip(for pose: Pose, reduceMotion: Bool, on pet: Entity) {
+        guard var st = pet.components[ClipState.self], let table = ClipTable.shared,
+              let body = pet.findEntity(named: bodyName), let source = body.availableAnimations.first else { return }
+        var (intro, main) = clip(for: pose)
+        if reduceMotion { intro = nil }
+        let key = main + (reduceMotion ? "~" : "")
+        guard st.current != key, let mc = table.clips[main] else { return }
+        do {
+            let mainView = AnimationView(source: source.definition, name: main,
+                                         fillMode: mc.loop ? [] : .forwards,
+                                         trimStart: mc.start, trimEnd: mc.end)
+            var res = try AnimationResource.generate(with: mainView)
+            if mc.loop && !reduceMotion { res = res.repeat(count: 100_000) }
+            if let i = intro, let ic = table.clips[i], !st.current.isEmpty {
+                let introView = AnimationView(source: source.definition, name: i, trimStart: ic.start, trimEnd: ic.end)
+                res = try AnimationResource.sequence(with: [AnimationResource.generate(with: introView), res])
+            }
+            let ctl = body.playAnimation(res, transitionDuration: st.current.isEmpty ? 0 : 0.3, startsPaused: false)
+            // Reduce Motion: встал в позу и замер на первом кадре цикла.
+            if reduceMotion && mc.loop { ctl.pause() }
+            st.current = key
+            pet.components.set(st)
+        } catch {
+            st.current = key
+            pet.components.set(st)
+        }
+    }
+
     static func apply(pose: Pose, reduceMotion: Bool, to pet: Entity) {
+        let hasClips = pet.components.has(ClipState.self)
+        if hasClips { playClip(for: pose, reduceMotion: reduceMotion, on: pet) }
         var c = pet.components[BreatheComponent.self] ?? BreatheComponent()
         switch pose {
         case .sleep, .nap:
@@ -81,6 +131,8 @@ enum PetModel {
             c.amount = 0
             c.sway = 0
         }
+        // Лежит и спит скелет сам; приплющивание — только для заглушки.
+        if hasClips { c.lie = 0 }
         pet.components.set(c)
         if reduceMotion || pose == .dead {
             // Система всё равно поставит позу в следующем кадре, но без движения.
@@ -191,6 +243,31 @@ struct BreatheSystem: System {
         guard !registered else { return }
         registered = true
         BreatheComponent.registerComponent()
+        ClipState.registerComponent()
         BreatheSystem.registerSystem()
     }
+}
+
+// MARK: - Клипы
+
+/// Какой клип сейчас играет (ключ: имя клипа, «~» — замер при Reduce Motion).
+struct ClipState: Component {
+    var current = ""
+}
+
+/// shiba.clips.json из tools/assets: клипы — куски одной анимации «Clips», границы в секундах.
+struct ClipTable: Decodable, Sendable {
+    struct Clip: Decodable, Sendable {
+        var start: Double
+        var end: Double
+        var loop: Bool
+    }
+    var fps: Double
+    var clips: [String: Clip]
+
+    static let shared: ClipTable? = {
+        guard let url = Bundle.main.url(forResource: "shiba.clips", withExtension: "json"),
+              let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(ClipTable.self, from: data)
+    }()
 }
