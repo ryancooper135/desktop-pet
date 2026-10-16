@@ -1,0 +1,781 @@
+<title>Песочница Шибы</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+/* Песочница: настоящее ядро питомца (core/web/petcore.js) + живая Шиба. Время можно мотать. */
+:root {
+  --bg: #f5f0ea; --surface: #fbf8f4; --ink: #2e2621; --muted: #6d625a; --line: #ded3c7;
+  --accent: #d4643c; --accent-ink: #ffffff; --check: #ede5db; --soft: #f1e8de; --frame: #1c1d20;
+  --night: rgba(70, 86, 150, .10); --grid: rgba(46, 38, 33, .08);
+  /* мир приложения A одинаковый в любой теме */
+  --app-ink: #4a3b33; --app-soft: #8a7a70; --app-card: rgba(255, 251, 246, .9); --app-line: rgba(74, 59, 51, .12);
+  --app-accent: #f08a5d; --app-blue: #6f9fd8; --app-green: #74bf78; --app-yellow: #f2bf4a; --app-red: #e5534b; --app-orange: #f0913a; --app-violet: #9b7fd8; --app-teal: #4fb3a9;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Golos Text", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --round: "M PLUS Rounded 1c", "Golos Text", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1613; --surface: #231e1a; --ink: #eee5dc; --muted: #a8998c; --line: #3a322c;
+    --accent: #f08a5d; --accent-ink: #1a0f09; --check: #1f1a16; --soft: #2b241f; --frame: #000000;
+    --night: rgba(120, 140, 230, .12); --grid: rgba(238, 229, 220, .08);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1613; --surface: #231e1a; --ink: #eee5dc; --muted: #a8998c; --line: #3a322c;
+  --accent: #f08a5d; --accent-ink: #1a0f09; --check: #1f1a16; --soft: #2b241f; --frame: #000000;
+  --night: rgba(120, 140, 230, .12); --grid: rgba(238, 229, 220, .08);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  background-image: linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%),
+                    linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%);
+  background-size: 48px 48px; background-position: 0 0, 24px 24px;
+  color: var(--ink); font: 400 15px/1.5 var(--body);
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(24px, 5.4vw, 40px); line-height: 1.08; font-weight: 700; }
+h2 { font-size: 15px; font-weight: 500; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.lead { color: var(--muted); font-size: 16px; }
+header { display: grid; gap: 12px; }
+.note { color: var(--muted); font-size: 13px; }
+.mono { font-family: var(--mono); }
+
+.stage { display: grid; gap: 24px; align-items: start; grid-template-columns: 1fr; }
+@media (min-width: 820px) { .stage { grid-template-columns: 320px 1fr; } .left { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); } }
+.left { display: grid; gap: 14px; justify-items: center; }
+.side { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.ph { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lbl { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { font: 500 14px/1.2 var(--body); padding: 9px 13px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--app-yellow); outline-offset: 2px; }
+.two { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 1060px) { .two { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- время ---------- */
+.clock { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.clock b { font: 700 clamp(26px, 5vw, 34px)/1 var(--display); letter-spacing: -.02em; }
+.clock span { color: var(--muted); font-size: 14px; }
+.who { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font: 600 12px/1 var(--body); padding: 6px 9px; border-radius: 999px; background: var(--soft); color: var(--ink); }
+.tag.on { background: var(--app-blue); color: #fff; }
+.speed { display: flex; gap: 4px; background: var(--soft); padding: 3px; border-radius: 999px; }
+.speed button { border: 0; background: transparent; color: var(--muted); font: 600 12px/1 var(--mono); padding: 7px 9px; border-radius: 999px; cursor: pointer; }
+.speed button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+
+/* ---------- пока тебя не было ---------- */
+.away { border-color: var(--accent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), var(--surface)); }
+.away ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.away li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; font-size: 14px; }
+.away li time { font: 600 12px/1.6 var(--mono); color: var(--muted); }
+.deltas { display: flex; flex-wrap: wrap; gap: 6px; }
+.deltas span { font: 600 12px/1 var(--mono); padding: 6px 8px; border-radius: 8px; background: var(--soft); }
+.deltas .dn { color: var(--app-red); }
+.deltas .up { color: #3f8a44; }
+
+/* ---------- уход ---------- */
+.items { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.it { display: grid; grid-template-columns: 26px 1fr; gap: 0 6px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font: 500 13px/1.2 var(--body); }
+.it:hover { border-color: var(--accent); }
+.it span { grid-row: span 2; font-size: 20px; }
+.it small { color: var(--muted); font: 500 11px/1.2 var(--mono); }
+.it[data-cool="1"] { opacity: .5; }
+.toast { min-height: 20px; font-size: 14px; color: var(--muted); }
+.toast.bad { color: var(--app-red); }
+.toast.ok { color: #3f8a44; }
+
+/* ---------- шкалы ---------- */
+.needs { display: grid; gap: 8px; }
+.need { display: grid; grid-template-columns: 22px 112px 1fr 38px; gap: 8px; align-items: center; font-size: 13px; }
+.need i { display: block; height: 9px; border-radius: 9px; background: var(--soft); overflow: hidden; }
+.need i b { display: block; height: 100%; border-radius: 9px; transition: width .4s, background .4s; }
+.need em { font: 600 12px/1 var(--mono); font-style: normal; text-align: right; }
+
+/* ---------- прогноз ---------- */
+.verdict { font: 700 18px/1.25 var(--display); }
+.verdict.bad { color: var(--app-red); }
+.chart { overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; font-family: var(--mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 3px; border-radius: 2px; background: var(--c); margin-right: 5px; vertical-align: middle; }
+.evs { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.evs li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.evs time { font: 600 12px/1.6 var(--mono); color: var(--muted); }
+
+/* ---------- дом и хозяин ---------- */
+.home { display: grid; gap: 8px; }
+.hl { display: grid; grid-template-columns: 84px 1fr; gap: 8px; align-items: center; font-size: 13px; }
+.lv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; background: var(--soft); padding: 3px; border-radius: 10px; }
+.lv button { border: 0; background: transparent; color: var(--muted); font: 500 11.5px/1.15 var(--body); padding: 6px 2px; border-radius: 8px; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.lv button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); font-weight: 600; }
+.owner { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+.owner label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.owner input { font: 600 15px/1 var(--mono); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.log { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 13px; max-height: 210px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.log time { font: 600 12px/1.6 var(--mono); color: var(--muted); }
+
+/* ---------- iPhone Air ---------- */
+.phone { width: 300px; max-width: 100%; aspect-ratio: 1260 / 2736; background: var(--frame); border-radius: 48px; padding: 9px; box-shadow: 0 0 0 1px var(--line), 0 24px 50px -24px rgba(0,0,0,.5); }
+.scr { position: relative; width: 100%; height: 100%; border-radius: 40px; overflow: hidden; background: #f3ece6; font-family: var(--round); color: var(--app-ink); isolation: isolate; }
+.scr canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab; }
+.msg3d { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 30px; font: 500 13px/1.5 var(--round); color: var(--app-soft); }
+.island { position: absolute; z-index: 30; top: 9px; left: 50%; transform: translateX(-50%); height: 25px; min-width: 88px; border-radius: 20px; background: #000; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px; font: 800 11px/1 var(--round); transition: min-width .35s cubic-bezier(.3,1.4,.6,1), width .35s; white-space: nowrap; }
+.island .l, .island .r { opacity: 0; transition: opacity .2s; }
+.island.big { min-width: 176px; }
+.island.big .l, .island.big .r { opacity: 1; }
+.scr:has(.island.big) .sbar span { opacity: 0; }
+.island .r { font-family: var(--mono); font-weight: 600; font-size: 10.5px; }
+.island .r.red { color: #ff8a80; }
+.sbar { position: absolute; z-index: 29; top: 0; left: 0; right: 0; height: 40px; display: flex; justify-content: space-between; align-items: center; padding: 4px 26px 0; font: 700 13px/1 var(--round); color: var(--app-ink); pointer-events: none; }
+.hud { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.hud .card, .hud button { pointer-events: auto; }
+.card { background: var(--app-card); border-radius: 16px; box-shadow: 0 2px 0 var(--app-line), 0 6px 18px -10px rgba(74,59,51,.4); }
+.top { position: absolute; top: 42px; left: 10px; right: 10px; display: grid; gap: 6px; }
+.namerow { display: flex; align-items: center; gap: 8px; padding: 7px 10px; }
+.namerow .nm { font-weight: 800; font-size: 15px; }
+.namerow .age { font-size: 11px; color: var(--app-soft); font-weight: 700; }
+.namerow .lvl { margin-left: auto; font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
+.hearts { display: inline-flex; gap: 1px; }
+.hrt { position: relative; width: 14px; height: 14px; display: inline-block; }
+.hrt svg { position: absolute; inset: 0; width: 14px; height: 14px; }
+.hrt .fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; }
+.banner { display: none; padding: 7px 10px; border-radius: 14px; font-size: 11.5px; font-weight: 700; line-height: 1.35; color: #fff; }
+.banner b { font-weight: 800; }
+.scales { padding: 8px 10px; }
+.bars { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; }
+.bar { display: grid; grid-template-columns: 16px 1fr 22px; gap: 5px; align-items: center; font-size: 10.5px; font-weight: 700; }
+.bar i { display: block; height: 7px; border-radius: 9px; background: rgba(74,59,51,.1); overflow: hidden; }
+.bar i b { display: block; height: 100%; border-radius: 9px; transition: width .5s, background .5s; }
+.bubble { position: absolute; top: 38%; left: 50%; max-width: 62%; background: #fff; border-radius: 18px; padding: 8px 12px; font-size: 13px; font-weight: 800; box-shadow: 0 4px 14px -6px rgba(74,59,51,.5); opacity: 0; transform: translateY(6px) scale(.96); transition: opacity .25s, transform .25s; z-index: 6; pointer-events: none; }
+.bubble::after { content: ""; position: absolute; left: 18px; bottom: -7px; border: 8px solid transparent; border-top-color: #fff; border-bottom: 0; }
+.bubble small { display: block; font-size: 10px; color: var(--app-soft); font-weight: 700; margin-top: 2px; }
+.bubble.on { opacity: 1; transform: none; }
+.dock { position: absolute; left: 10px; right: 10px; bottom: 14px; display: flex; justify-content: space-between; gap: 6px; }
+.act { flex: 1; border: 0; background: var(--app-card); border-radius: 18px; padding: 7px 2px 6px; display: grid; justify-items: center; gap: 2px; font: 800 10px/1.1 var(--round); color: var(--app-ink); cursor: pointer; box-shadow: 0 2px 0 var(--app-line), 0 6px 18px -10px rgba(74,59,51,.5); }
+.act span { font-size: 20px; line-height: 1; }
+.act:active { transform: translateY(1px); }
+.dimmer { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at 50% 60%, rgba(30,40,80,.05), rgba(20,26,60,.5)); opacity: 0; transition: opacity .6s; }
+.vig { position: absolute; inset: 0; z-index: 4; pointer-events: none; box-shadow: inset 0 0 60px 10px rgba(229,83,75,.55); opacity: 0; transition: opacity .6s; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: inset 0 0 40px 4px rgba(229,83,75,.35); } }
+.zzz { position: absolute; z-index: 6; left: 56%; top: 47%; font: 800 18px/1 var(--round); color: #fff; pointer-events: none; display: none; }
+.zzz span { position: absolute; animation: zz 3s linear infinite; opacity: 0; }
+.zzz span:nth-child(2) { animation-delay: 1s; font-size: 14px; }
+.zzz span:nth-child(3) { animation-delay: 2s; font-size: 11px; }
+@keyframes zz { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(26px, -60px); opacity: 0; } }
+.pop { position: absolute; z-index: 7; pointer-events: none; font-size: 20px; animation: pop 1.2s ease-out forwards; }
+@keyframes pop { to { transform: translateY(-70px) scale(1.3); opacity: 0; } }
+.rip { position: absolute; inset: 0; z-index: 20; display: none; place-items: center; background: linear-gradient(#e9e4f3, #d9d2ea); text-align: center; padding: 30px; }
+.rip div { display: grid; gap: 8px; justify-items: center; }
+.rip .ic { font-size: 54px; }
+.rip b { font-size: 17px; font-weight: 800; }
+.rip p { font-size: 12px; font-weight: 700; color: var(--app-soft); }
+.rip button { margin-top: 6px; border: 0; border-radius: 14px; background: var(--app-accent); color: #fff; font: 800 13px/1 var(--round); padding: 11px 14px; cursor: pointer; box-shadow: 0 3px 0 #c96c45; }
+.scr[data-lvl="2"] .banner { display: block; background: var(--app-orange); }
+.scr[data-lvl="3"] .banner { display: block; background: var(--app-red); }
+.scr[data-lvl="3"] .vig { opacity: 1; }
+.scr[data-sleep="1"] .dimmer { opacity: 1; }
+.scr[data-sleep="1"] .zzz { display: block; }
+.scr[data-sleep="1"] .sbar { color: #fff; }
+.scr[data-dead="1"] .rip { display: grid; }
+.scr[data-dead="1"] .island { min-width: 88px; }
+
+/* малый виджет: одна работа — показать самое срочное */
+.widget { width: 158px; aspect-ratio: 1; border-radius: 24px; background: #fffaf4; color: var(--app-ink); font-family: var(--round); padding: 12px; display: grid; grid-template-rows: auto 1fr auto; box-shadow: 0 0 0 1px var(--line), 0 14px 30px -18px rgba(0,0,0,.45); position: relative; overflow: hidden; }
+.widget .w1 { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; }
+.widget .w2 { display: grid; align-content: center; justify-items: start; gap: 2px; }
+.widget .w2 .e { font-size: 34px; line-height: 1.1; }
+.widget .w2 b { font-size: 15px; font-weight: 800; line-height: 1.15; }
+.widget .w3 { font-size: 10.5px; font-weight: 700; color: var(--app-soft); }
+.widget::after { content: ""; position: absolute; inset: auto 0 0 0; height: 5px; background: var(--wc, var(--app-green)); }
+.wrow { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.wcap { font-size: 12px; color: var(--muted); max-width: 120px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.2 5.3 3.1 1.7-1.9 3.1-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></symbol></svg>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Питомец · песочница ядра</div>
+    <h1>Шиба живёт по настоящим правилам. Время можно мотать.</h1>
+    <p class="lead">Под капотом тот же движок, что пойдёт в приложение: TypeScript-ядро, которое сверено со Swift по общим тестам. Покорми, помой, поиграй или промотай сутки и посмотри, что будет без ухода.</p>
+  </header>
+
+  <div class="stage">
+    <div class="left">
+      <div class="phone">
+        <div class="scr" id="scr" data-lvl="0">
+          <canvas id="view" aria-label="Шиба в комнате, можно крутить пальцем"></canvas>
+          <div class="msg3d" id="msg3d">Загружаю Шибу…</div>
+          <div class="dimmer"></div><div class="vig"></div>
+          <div class="zzz" aria-hidden="true"><span>z</span><span>z</span><span>z</span></div>
+          <div class="island" id="island"><span class="l" id="isL"></span><span class="r" id="isR"></span></div>
+          <div class="sbar"><span id="sbTime">9:41</span><span>●●● 􀙇</span></div>
+          <div class="bubble" id="bubble"></div>
+          <div class="hud">
+            <div class="top">
+              <div class="card namerow"><span class="nm">Шиба</span><span class="hearts" id="hearts"></span><span class="age" id="age"></span><span class="lvl" id="lvlTag"></span></div>
+              <div class="banner" id="banner"></div>
+              <div class="card scales"><div class="bars" id="bars"></div></div>
+            </div>
+            <div class="dock">
+              <button class="act" data-do="feed:kibble"><span>🥣</span>Еда</button>
+              <button class="act" data-do="pet"><span>💗</span>Погладить</button>
+              <button class="act" data-do="play"><span>🎾</span>Играть</button>
+              <button class="act" data-do="bath"><span>🛁</span>Мыть</button>
+              <button class="act" data-do="steps:2000"><span>🐾</span>Гулять</button>
+            </div>
+          </div>
+          <div class="rip"><div><span class="ic">🌈</span><b>Шиба ушла на радугу</b><p id="ripWhy"></p><p>В приложении тут будет перо ангела.</p><button id="ripNew">Завести заново</button></div></div>
+        </div>
+      </div>
+      <div class="wrow">
+        <div class="widget" id="widget" aria-label="Малый виджет"><div class="w1"><span>Шиба</span><span id="wH"></span></div><div class="w2"><span class="e" id="wE">🙂</span><b id="wT">Всё хорошо</b></div><div class="w3" id="wS"></div></div>
+        <p class="wcap">Малый виджет: показывает одно — самое срочное.</p>
+      </div>
+    </div>
+
+    <div class="side">
+      <section class="panel" aria-label="Время">
+        <div class="ph"><div class="clock"><b id="clock">—</b><span id="clockDay"></span></div><div class="who" id="who"></div></div>
+        <div class="row">
+          <button class="btn" data-jump="600">+10 мин</button>
+          <button class="btn" data-jump="3600">+1 ч</button>
+          <button class="btn" data-jump="21600">+6 ч</button>
+          <button class="btn" data-jump="86400">+сутки</button>
+          <button class="btn" data-jump="morning">До утра</button>
+          <button class="btn" data-jump="72h">Бросить на 3 дня</button>
+        </div>
+        <div class="row">
+          <button class="btn pri" id="playBtn" aria-pressed="false">▶ Пустить время</button>
+          <div class="speed" id="speed" role="group" aria-label="Скорость">
+            <button data-sp="60" aria-pressed="true">1 мин/с</button>
+            <button data-sp="600" aria-pressed="false">10 мин/с</button>
+            <button data-sp="3600" aria-pressed="false">1 ч/с</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel away" id="away" hidden aria-live="polite">
+        <div class="ph"><h2 id="awayH">Пока тебя не было</h2><button class="btn" id="awayX">Понятно</button></div>
+        <div class="deltas" id="awayD"></div>
+        <ul id="awayL"></ul>
+      </section>
+
+      <div class="two">
+        <section class="panel" aria-label="Уход">
+          <div class="ph"><h2>Уход</h2><span class="lbl">кормёжка будит</span></div>
+          <div class="lbl">Еда</div>
+          <div class="items" id="food"></div>
+          <div class="lbl">Предметы и действия</div>
+          <div class="items" id="misc"></div>
+          <div class="toast" id="toast" aria-live="polite"></div>
+        </section>
+
+        <section class="panel" aria-label="Шкалы">
+          <div class="ph"><h2>Шкалы</h2><span class="lbl" id="lvlTxt"></span></div>
+          <div class="needs" id="needs"></div>
+          <p class="note" id="stateNote"></p>
+        </section>
+      </div>
+
+      <section class="panel" aria-label="Прогноз">
+        <div class="ph"><h2>Если никто не придёт · 72 ч</h2><span class="lbl">тот же расчёт пойдёт в уведомления</span></div>
+        <div class="verdict" id="verdict"></div>
+        <div class="chart" id="chart"></div>
+        <div class="legend" id="legend"></div>
+        <ul class="evs" id="evs"></ul>
+      </section>
+
+      <div class="two">
+        <section class="panel" aria-label="Дом">
+          <div class="ph"><h2>Дом</h2><span class="lbl">улучшения меняют расход</span></div>
+          <div class="home" id="home"></div>
+        </section>
+        <section class="panel" aria-label="Хозяин и сценарии">
+          <h2>Хозяин</h2>
+          <div class="owner">
+            <label>Ложусь <input type="time" id="bed" step="900"></label>
+            <label>Встаю <input type="time" id="wake" step="900"></label>
+          </div>
+          <p class="note">Ночью хозяина урон не копится, а Шиба засыпает через 15 минут после тебя и просыпается через 30 после подъёма.</p>
+          <div class="lbl">Сценарии</div>
+          <div class="row" id="presets">
+            <button class="btn" data-pre="new">Новый щенок</button>
+            <button class="btn" data-pre="weekend">Забыли на выходные</button>
+            <button class="btn" data-pre="last">Последнее сердце</button>
+            <button class="btn" data-pre="night">Ночь</button>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel" aria-label="Журнал">
+        <div class="ph"><h2>Журнал</h2><span class="lbl">в этом браузере</span></div>
+        <ul class="log" id="log"></ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="petcore.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  const P = window.PetCore;
+  const cfg = await fetch('economy.json').then(r => r.json());
+  const R = P.makeRules(cfg);
+  const TZ = -new Date().getTimezoneOffset();
+
+  // ---------- справочник ----------
+  const NEED = {
+    food: ['🍖', 'Сытость', '#f0913a'], clean: ['🫧', 'Чистота', '#6f9fd8'], energy: ['⚡', 'Энергия', '#f2bf4a'],
+    fun: ['🎾', 'Настроение', '#74bf78'], love: ['💗', 'Ласка', '#ef6a7a'], walk: ['🐾', 'Движение', '#9b7fd8'], look: ['✨', 'Ухоженность', '#4fb3a9']
+  };
+  const EMO = { kibble: '🥣', carrot: '🥕', broccoli: '🥦', milk: '🥛', sausage: '🌭', stew: '🍲', fish: '🐟', pizza: '🍕', cake: '🍰', gold_bone: '🦴', vitamin: '💊', grooming: '✂️' };
+  const LVL = [['Всё хорошо', '#74bf78'], ['Просит', '#f2bf4a'], ['Плохо', '#f0913a'], ['Критично', '#e5534b']];
+  const DIST = { starve: 'голод', dirty: 'грязь', toska: 'тоска' };
+  const REASON = { dead: 'Шибы больше нет.', unknown_item: 'Такого предмета нет.', bathing: 'Сейчас купается, подожди.', cooldown: 'Ещё рано, перезарядка.', asleep: 'Спит, не до игр.', tired: 'Слишком устал, чтобы играть.', not_napping: 'Он не дремлет.' };
+  const HOME_NAME = { bath: 'Ванная', bed: 'Спальня', kitchen: 'Кухня', kennel: 'Будка', play: 'Игры', yard: 'Двор' };
+
+  // ---------- состояние ----------
+  let o = P.defaultOwner(R, TZ), s, now, born, logs = [];
+  const save = () => { try { localStorage.setItem('pet-sandbox', JSON.stringify({ s, now, born, o, logs: logs.slice(0, 60) })); } catch (e) {} };
+  function fresh(t) { s = P.newPet(R, t); now = t; born = t; logs = []; }
+  try {
+    const d = JSON.parse(localStorage.getItem('pet-sandbox') || 'null');
+    if (d && d.s && d.now) { s = d.s; now = d.now; born = d.born || d.now; o = d.o || o; logs = d.logs || []; }
+  } catch (e) {}
+  if (!s) fresh(Math.floor(Date.now() / 60000) * 60);
+
+  // ---------- время и формат ----------
+  const dt = t => new Date(t * 1000);
+  const hm = t => dt(t).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const day = t => dt(t).toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
+  const wd = t => dt(t).toLocaleDateString('ru-RU', { weekday: 'short' });
+  const dur = sec => { sec = Math.max(0, Math.round(sec / 60)); const h = Math.floor(sec / 60), m = sec % 60; return h ? (h + ' ч' + (m ? ' ' + m + ' мин' : '')) : m + ' мин'; };
+  const mm = v => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(v % 60).padStart(2, '0');
+  const lvlColor = v => v < 30 ? 'var(--app-red)' : v < 50 ? 'var(--app-yellow)' : 'var(--app-green)';
+  const sync = () => P.stepTo(s, R, o, now);
+
+  function log(txt) { logs.unshift([now, txt]); }
+
+  // ---------- сердца с половинками ----------
+  function hearts(el, n) {
+    const max = R.hearts.max, col = n <= 1 ? 'var(--app-red)' : '#ef6a7a';
+    let h = '';
+    for (let i = 0; i < max; i++) {
+      const f = Math.max(0, Math.min(1, n - i));
+      h += `<span class="hrt"><svg fill="rgba(74,59,51,.18)"><use href="#heart"/></svg><span class="fill" style="width:${f * 100}%"><svg fill="${col}"><use href="#heart"/></svg></span></span>`;
+    }
+    el.innerHTML = h; el.setAttribute('aria-label', (Math.round(n * 2) / 2) + ' из ' + max + ' сердец');
+  }
+
+  // ---------- что хочет ----------
+  const WANT = {
+    critical: ['🆘', 'Мне очень плохо…'], hungry: ['🍖', 'Я голодный…'], smelly: ['🫧', 'Фу, я пахну'], dirty: ['🧼', 'Помой меня?'],
+    tired: ['😪', 'Устал…'], bored: ['🎾', 'Скучно! Поиграем?'], wants_love: ['💗', 'Почеши за ушком?']
+  };
+  function wish(m) { for (const k of Object.keys(WANT)) if (m.includes(k)) return [k].concat(WANT[k]); return null; }
+
+  // ---------- прогноз ----------
+  let fc = { ev: [], pts: [] };
+  function evText(e) {
+    if (e.kind === 'low') return NEED[e.key][0] + ' ' + NEED[e.key][1].toLowerCase() + ' ниже 30';
+    if (e.kind === 'distress') return '⚠️ началась беда: ' + DIST[e.key];
+    if (e.kind === 'heart') return '💔 минус сердце, осталось ' + e.value;
+    if (e.kind === 'last_chance') return '⏳ последний шанс: таймер ' + R.hearts.lastChanceH + ' бодрых часов';
+    if (e.kind === 'level') return 'Состояние: ' + LVL[e.value][0].toLowerCase();
+    if (e.kind === 'death') return '🌈 умрёт: ' + (DIST[e.key] || 'беда');
+    return e.kind;
+  }
+  function computeForecast() {
+    const H = 72, ev = P.forecast(s, R, o, H), pts = [];
+    const c = P.clone(s);
+    for (let i = 0; i <= H * 2; i++) {
+      const T = s.t + i * 1800;
+      P.stepTo(c, R, o, T);
+      pts.push({ t: T, n: Object.assign({}, c.needs), h: c.hearts, night: P.petNight(T, R, o), alive: c.alive });
+    }
+    fc = { ev, pts };
+  }
+  function drawChart() {
+    const W = 640, Hh = 210, L = 30, Rr = 10, Tp = 10, B = 26, pw = W - L - Rr, ph = Hh - Tp - B;
+    const t0 = fc.pts[0].t, span = 72 * 3600, X = t => L + (t - t0) / span * pw, Y = v => Tp + (1 - v / 100) * ph;
+    let g = '';
+    // ночи
+    let st = null;
+    fc.pts.forEach((p, i) => {
+      if (p.night && st === null) st = p.t;
+      if ((!p.night || i === fc.pts.length - 1) && st !== null) { g += `<rect x="${X(st)}" y="${Tp}" width="${Math.max(1, X(p.t) - X(st))}" height="${ph}" fill="var(--night)"/>`; st = null; }
+    });
+    [0, 30, 50, 100].forEach(v => { g += `<line x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" ${v === 30 ? 'stroke-dasharray="4 4"' : ''}/><text x="${L - 6}" y="${Y(v) + 3}" font-size="9" text-anchor="end" fill="var(--muted)">${v}</text>`; });
+    for (let h = 0; h <= 72; h += 12) { const t = t0 + h * 3600; g += `<text x="${X(t)}" y="${Hh - 8}" font-size="9" text-anchor="middle" fill="var(--muted)">${h ? wd(t) + ' ' + hm(t) : 'сейчас'}</text>`; }
+    const alive = fc.pts.filter(p => p.alive);
+    for (const k of ['food', 'clean', 'energy', 'fun', 'love', 'walk']) {
+      g += `<polyline fill="none" stroke="${NEED[k][2]}" stroke-width="2" stroke-linejoin="round" points="${alive.map(p => X(p.t).toFixed(1) + ',' + Y(p.n[k]).toFixed(1)).join(' ')}"/>`;
+    }
+    // сердца — ступеньки по нижней кромке
+    g += `<polyline fill="none" stroke="#e5534b" stroke-width="2.5" stroke-dasharray="1 0" points="${alive.map(p => X(p.t).toFixed(1) + ',' + Y(p.h / R.hearts.max * 100).toFixed(1)).join(' ')}"/>`;
+    for (const e of fc.ev) {
+      if (e.kind === 'heart') g += `<text x="${X(e.t)}" y="${Tp + 12}" font-size="11" text-anchor="middle">💔</text>`;
+      if (e.kind === 'death') g += `<line x1="${X(e.t)}" x2="${X(e.t)}" y1="${Tp}" y2="${Tp + ph}" stroke="#e5534b" stroke-width="2"/><text x="${X(e.t) - 4}" y="${Tp + 26}" font-size="12" text-anchor="end">🌈</text>`;
+    }
+    $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Прогноз шкал на 72 часа без ухода">${g}</svg>`;
+  }
+
+  // ---------- 3D-мост (заполняется, если WebGL поднялся) ----------
+  const G = { play() {}, oneShot() {}, setDirt() {}, setNight() {}, setVisible() {} };
+
+  // ---------- отрисовка ----------
+  let lastAnim = '';
+  function render() {
+    const m = P.moods(s, R, o), lv = P.level(s, R), scr = $('scr');
+    const sleeping = m.includes('sleep') || m.includes('nap');
+    scr.dataset.lvl = lv; scr.dataset.sleep = sleeping ? 1 : 0; scr.dataset.dead = s.alive ? 0 : 1;
+    $('sbTime').textContent = hm(now);
+    $('clock').textContent = hm(now); $('clockDay').textContent = day(now);
+    const ow = P.ownerAsleep(now, o), pn = P.petNight(now, R, o);
+    $('who').innerHTML = `<span class="tag ${ow ? 'on' : ''}">${ow ? '🌙 хозяин спит' : '☀️ хозяин не спит'}</span><span class="tag ${sleeping ? 'on' : ''}">${s.bathUntil ? '🛁 купается' : m.includes('nap') ? '💤 дремлет' : pn ? '💤 Шиба спит' : '🐕 Шиба бодрствует'}</span>`;
+    hearts($('hearts'), s.hearts); hearts($('wH'), s.hearts);
+    $('age').textContent = 'день ' + (Math.floor((now - born) / 86400) + 1);
+    $('lvlTag').textContent = LVL[lv][0]; $('lvlTag').style.background = LVL[lv][1];
+    $('lvlTxt').textContent = 'уровень ' + lv + ' · ' + LVL[lv][0].toLowerCase();
+    $('bars').innerHTML = ['food', 'clean', 'energy', 'fun', 'love', 'walk'].map(k => { const v = Math.round(s.needs[k]); return `<div class="bar" title="${NEED[k][1]}"><span>${NEED[k][0]}</span><i><b style="width:${v}%;background:${lvlColor(v)}"></b></i><span>${v}</span></div>`; }).join('');
+    $('needs').innerHTML = Object.keys(NEED).map(k => { const v = s.needs[k]; return `<div class="need"><span>${NEED[k][0]}</span><span>${NEED[k][1]}</span><i><b style="width:${v}%;background:${lvlColor(v)}"></b></i><em>${v.toFixed(1)}</em></div>`; }).join('');
+
+    // следующее событие прогноза для подписей
+    const next = fc.ev.find(e => e.kind === 'heart' || e.kind === 'death' || e.kind === 'last_chance');
+    const nextTxt = next ? (next.kind === 'death' ? 'умрёт через ' : next.kind === 'heart' ? 'минус сердце через ' : 'последний шанс через ') + dur(next.t - s.t) : '';
+    const dist = P.DISTRESS.filter(d => R.distress[d].cond(s.needs));
+    let ban = '';
+    if (lv === 3) ban = `<b>Критично${s.lastChanceH !== null ? ' · последнее сердце' : ''}.</b> ` + (s.lastChanceH !== null ? `Таймер ${s.lastChanceH.toFixed(1)} бодрых ч. ` : '') + (nextTxt ? nextTxt[0].toUpperCase() + nextTxt.slice(1) + '.' : '');
+    else if (lv === 2) ban = `<b>Плохо${dist.length ? ': ' + dist.map(d => DIST[d]).join(', ') : ''}.</b> ` + (nextTxt ? nextTxt[0].toUpperCase() + nextTxt.slice(1) + '.' : 'Сердце недавно терялось, держи шкалы выше 30.');
+    $('banner').innerHTML = ban;
+
+    // пузырь
+    const w = wish(m), b = $('bubble');
+    if (bubbleHold > Date.now()) {} else if (!s.alive || sleeping || !w) { b.classList.remove('on'); }
+    else { b.innerHTML = w[2] + (nextTxt && lv >= 2 ? '<small>' + nextTxt + '</small>' : ''); b.classList.add('on'); }
+    if (s.bathUntil && bubbleHold < Date.now()) { b.innerHTML = 'Буль-буль!<small>ещё ' + dur(s.bathUntil - s.t) + '</small>'; b.classList.add('on'); }
+
+    // остров
+    const isl = $('island'), big = s.alive && (lv >= 1 || s.bathUntil || m.includes('nap'));
+    isl.classList.toggle('big', !!big);
+    if (s.bathUntil) { $('isL').textContent = '🛁 моется'; $('isR').textContent = dur(s.bathUntil - s.t); $('isR').className = 'r'; }
+    else if (m.includes('nap')) { $('isL').textContent = '💤 дремлет'; $('isR').textContent = dur(s.napUntil - s.t); $('isR').className = 'r'; }
+    else if (w) { $('isL').textContent = w[1] + ' ' + w[2].replace(/[…?!]+$/, '').toLowerCase(); $('isR').textContent = next ? dur(next.t - s.t) : ''; $('isR').className = 'r' + (lv >= 2 ? ' red' : ''); }
+    else { $('isL').textContent = ''; $('isR').textContent = ''; }
+
+    // виджет
+    const wg = $('widget');
+    if (!s.alive) { $('wE').textContent = '🌈'; $('wT').textContent = 'Ушёл на радугу'; $('wS').textContent = ''; }
+    else if (sleeping) { $('wE').textContent = '💤'; $('wT').textContent = s.bathUntil ? 'Купается' : 'Спит'; $('wS').textContent = w ? 'проснётся и попросит: ' + w[2].toLowerCase() : 'не будить'; }
+    else if (w) { $('wE').textContent = w[1]; $('wT').textContent = w[2]; $('wS').textContent = nextTxt || 'нажми, чтобы помочь'; }
+    else { $('wE').textContent = '🙂'; $('wT').textContent = 'Всё хорошо'; $('wS').textContent = 'загляни вечером'; }
+    wg.style.setProperty('--wc', LVL[lv][1]);
+
+    $('stateNote').textContent = 'Состояния: ' + (m.length ? m.join(', ') : 'всё ровно') + '. Сердца: ' + s.hearts.toFixed(2) + (s.lastChanceH !== null ? ', таймер последнего шанса ' + s.lastChanceH.toFixed(2) + ' ч' : '') + '.';
+    $('ripWhy').textContent = s.alive ? '' : 'Причина: ' + (DIST[s.cause] || '—') + ', ' + day(s.diedAt) + ' ' + hm(s.diedAt) + '.';
+
+    // прогноз
+    const death = fc.ev.find(e => e.kind === 'death'), lost = fc.ev.filter(e => e.kind === 'heart').length;
+    const v = $('verdict');
+    if (!s.alive) { v.textContent = 'Шибы нет. Заведи заново кнопкой на экране.'; v.className = 'verdict bad'; }
+    else if (death) { v.textContent = 'Без ухода умрёт в ' + wd(death.t) + ' ~' + hm(death.t) + ' (' + dur(death.t - s.t) + ')'; v.className = 'verdict bad'; }
+    else { v.textContent = lost ? 'Доживёт 72 ч, но потеряет ' + lost + ' ❤' : 'Доживёт 72 ч без потерь'; v.className = 'verdict'; }
+    if (fc.pts.length) drawChart();
+    $('legend').innerHTML = ['food', 'clean', 'energy', 'fun', 'love', 'walk'].map(k => `<span style="--c:${NEED[k][2]}">${NEED[k][1]}</span>`).join('') + '<span style="--c:#e5534b">Сердца</span><span style="--c:var(--night)">ночь Шибы</span>';
+    $('evs').innerHTML = fc.ev.filter(e => e.kind !== 'level').slice(0, 8).map(e => `<li><time>${wd(e.t)} ${hm(e.t)}</time><span>${evText(e)}</span></li>`).join('') || '<li><time>—</time><span>Ничего плохого за 72 ч.</span></li>';
+
+    // кулдауны на кнопках
+    document.querySelectorAll('.it[data-do]').forEach(el => {
+      const id = el.dataset.do.split(':')[1] || el.dataset.do, cd = s.cooldowns[id];
+      el.dataset.cool = cd && cd > s.t ? 1 : 0;
+      const sm = el.querySelector('small');
+      if (sm && el.dataset.base) sm.textContent = cd && cd > s.t ? 'через ' + dur(cd - s.t) : el.dataset.base;
+    });
+
+    // дом
+    $('home').innerHTML = P.HOME_LINES.map(l => `<div class="hl"><span>${HOME_NAME[l]}</span><div class="lv">${cfg.home_upgrades[l].levels.map((x, i) => `<button data-home="${l}:${i}" aria-pressed="${s.home[l] === i}">${x.name}</button>`).join('')}</div></div>`).join('');
+    $('log').innerHTML = logs.slice(0, 40).map(([t, x]) => `<li><time>${wd(t)} ${hm(t)}</time><span>${x}</span></li>`).join('') || '<li><time>—</time><span>Пока пусто.</span></li>';
+
+    // 3D
+    const anim = !s.alive ? 'low' : sleeping ? 'sleep' : (lv >= 2 || m.includes('hungry')) ? 'low' : m.includes('bored') ? 'idle2' : 'idle';
+    if (anim !== lastAnim) { G.play(anim); lastAnim = anim; }
+    G.setDirt(Math.max(0, Math.min(1, (65 - s.needs.clean) / 60)) * .9 + .08);
+    G.setNight(sleeping); G.setVisible(s.alive);
+  }
+  let bubbleHold = 0;
+  function say(txt, sub) { const b = $('bubble'); b.innerHTML = txt + (sub ? '<small>' + sub + '</small>' : ''); b.classList.add('on'); bubbleHold = Date.now() + 2600; setTimeout(render, 2700); }
+  function pop(e) { const p = document.createElement('span'); p.className = 'pop'; p.textContent = e; p.style.left = (42 + Math.random() * 14) + '%'; p.style.top = '52%'; $('scr').appendChild(p); setTimeout(() => p.remove(), 1300); }
+  function toast(t, cls) { const el = $('toast'); el.textContent = t; el.className = 'toast ' + (cls || ''); }
+
+  function refresh(full) { sync(); if (full !== false) computeForecast(); render(); save(); }
+
+  // ---------- действия ----------
+  const SAY = { feed: ['Ням!', 'eat', 3.2], pet: ['Да-да, вот тут!', 'jump', 1.4], play: ['Апорт!', 'run', 2.6], bath: ['Буль-буль!', null, 0], steps: ['Гуляем!', 'run', 2.4], wake: ['Ррр… я спал!', 'jump', 1.4], item: ['Спасибо!', 'jump', 1.4] };
+  function doAct(code) {
+    const [type, arg] = code.split(':');
+    sync();
+    const a = { type };
+    if (type === 'feed' || type === 'item') a.item = arg;
+    if (type === 'steps') a.count = +arg;
+    const res = P.act(s, R, o, a);
+    const nm = type === 'feed' ? (cfg.shop.food.find(f => f.id === arg) || {}).name : type === 'item' ? (cfg.shop.consumables.find(f => f.id === arg) || {}).name : { pet: 'Погладить', play: 'Поиграть', bath: 'Помыть', steps: '+' + arg + ' шагов', wake: 'Разбудить' }[type];
+    if (!res.ok) {
+      let why = REASON[res.reason] || res.reason;
+      const cd = s.cooldowns[arg || type]; if (res.reason === 'cooldown' && cd) why = 'Ещё рано: можно в ' + hm(cd) + '.';
+      toast(nm + ' — нельзя. ' + why, 'bad'); return;
+    }
+    const sy = SAY[type]; toast(nm + ' — готово.', 'ok'); log(nm);
+    pop(type === 'feed' || type === 'item' ? (EMO[arg] || '✨') : { pet: '💗', play: '🎾', bath: '🫧', steps: '🐾', wake: '⏰' }[type]);
+    if (sy[1]) G.oneShot(sy[1], sy[2]);
+    refresh(); say(sy[0], type === 'bath' ? 'минут ' + R.bathMinutes[s.home.bath] : '');
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-do]'); if (b) { doAct(b.dataset.do); return; }
+    const h = e.target.closest('[data-home]');
+    if (h) { const [l, i] = h.dataset.home.split(':'); s.home[l] = +i; log(HOME_NAME[l] + ': ' + cfg.home_upgrades[l].levels[+i].name); refresh(); }
+  });
+
+  // кнопки еды и предметов
+  $('food').innerHTML = cfg.shop.food.map(f => { const base = '+' + f.food + (f.hearts ? ' · +' + f.hearts + '❤' : '') + (f.fun ? ' · ' + f.fun + ' 🎾' : ''); return `<button class="it" data-do="feed:${f.id}" data-base="${base}"><span>${EMO[f.id] || '🍽'}</span>${f.name}<small>${base}</small></button>`; }).join('');
+  const misc = cfg.shop.consumables.filter(c => c.hearts || c.look).map(c => { const base = c.hearts ? '+' + c.hearts + '❤ · раз в сутки' : '+' + c.look + ' ✨'; return `<button class="it" data-do="item:${c.id}" data-base="${base}"><span>${EMO[c.id] || '✨'}</span>${c.name.split(':')[0]}<small>${base}</small></button>`; });
+  misc.push(`<button class="it" data-do="pet" data-base="+${R.petLove} 💗 · раз в ${R.petCooldownMin} мин"><span>💗</span>Погладить<small>+${R.petLove} 💗</small></button>`);
+  misc.push(`<button class="it" data-do="play"><span>🎾</span>Поиграть<small>+${R.play.funGain} 🎾 · −${R.play.energyCost} ⚡</small></button>`);
+  misc.push(`<button class="it" data-do="bath"><span>🛁</span>Помыть<small>по уровню ванной</small></button>`);
+  misc.push(`<button class="it" data-do="steps:2000"><span>🐾</span>Прогулка<small>+2000 шагов</small></button>`);
+  misc.push(`<button class="it" data-do="wake"><span>⏰</span>Разбудить<small>если дремлет</small></button>`);
+  $('misc').innerHTML = misc.join('');
+
+  // ---------- перемотка ----------
+  function nextLocal(minOfDay) {
+    let t = Math.floor(now / 60) * 60 + 60;
+    for (let i = 0; i < 1441; i++, t += 60) if (P.localMin(t, o) === minOfDay) return t;
+    return now + 86400;
+  }
+  function jump(sec, label) {
+    const before = P.clone(sync()), t0 = now;
+    now += sec; sync();
+    const evs = P.forecast(before, R, o, sec / 3600 + 1 / 60).filter(e => e.t <= now && e.kind !== 'level');
+    log(label + ' (' + dur(sec) + ')');
+    if (sec >= 3 * 3600) showAway(before, evs, t0);
+    refresh();
+  }
+  function showAway(before, evs, t0) {
+    $('away').hidden = false;
+    $('awayH').textContent = 'Пока тебя не было ' + dur(now - t0);
+    const dh = s.hearts - before.hearts;
+    $('awayD').innerHTML = (Math.abs(dh) >= .05 ?`<span class="${dh < 0 ? 'dn' : 'up'}">❤ ${dh > 0 ? '+' : ''}${dh.toFixed(1)}</span>` : '<span>❤ без потерь</span>') +
+      ['food', 'clean', 'energy', 'fun', 'love', 'walk'].map(k => { const d = Math.round(s.needs[k] - before.needs[k]); return d ? `<span class="${d < 0 ? 'dn' : 'up'}">${NEED[k][0]} ${d > 0 ? '+' : ''}${d}</span>` : ''; }).join('');
+    $('awayL').innerHTML = evs.slice(0, 7).map(e => `<li><time>${hm(e.t)}</time><span>${evText(e)}</span></li>`).join('') || '<li><time>—</time><span>Ничего не случилось, Шиба держался молодцом.</span></li>';
+  }
+  $('awayX').onclick = () => { $('away').hidden = true; };
+  document.querySelectorAll('[data-jump]').forEach(b => b.addEventListener('click', () => {
+    const j = b.dataset.jump;
+    if (j === 'morning') jump(nextLocal((o.wakeMin + R.night.afterWakeMin) % 1440) - now, 'До утра');
+    else if (j === '72h') jump(72 * 3600, 'Бросили');
+    else jump(+j, 'Перемотка');
+  }));
+
+  let playing = false, speed = 60, acc = 0, lastFc = 0;
+  $('playBtn').onclick = () => { playing = !playing; $('playBtn').setAttribute('aria-pressed', playing); $('playBtn').textContent = playing ? '❚❚ Пауза' : '▶ Пустить время'; };
+  $('speed').addEventListener('click', e => { const b = e.target.closest('[data-sp]'); if (!b) return; speed = +b.dataset.sp; $('speed').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+  setInterval(() => {
+    if (!playing || !s.alive) return;
+    acc += speed / 4; const whole = Math.floor(acc); acc -= whole; now += whole;
+    const full = Date.now() - lastFc > 900; if (full) lastFc = Date.now();
+    refresh(full);
+  }, 250);
+
+  // ---------- хозяин и сценарии ----------
+  $('bed').value = mm(o.bedMin); $('wake').value = mm(o.wakeMin);
+  const tmin = v => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+  $('bed').onchange = () => { o.bedMin = tmin($('bed').value); log('Хозяин ложится в ' + $('bed').value); refresh(); };
+  $('wake').onchange = () => { o.wakeMin = tmin($('wake').value); log('Хозяин встаёт в ' + $('wake').value); refresh(); };
+  $('presets').addEventListener('click', e => {
+    const b = e.target.closest('[data-pre]'); if (!b) return;
+    const p = b.dataset.pre;
+    $('away').hidden = true;
+    if (p === 'new') { fresh(Math.floor(Date.now() / 60000) * 60); log('Завели щенка'); }
+    if (p === 'weekend') { fresh(Math.floor(Date.now() / 60000) * 60); log('Завели щенка'); jump(nextLocal(10 * 60) - now + 2 * 86400, 'Уехали на выходные'); return; }
+    if (p === 'last') {
+      fresh(Math.floor(Date.now() / 60000) * 60); log('Завели щенка');
+      // мотаем по часу, пока не останется последнее сердце
+      for (let i = 0; i < 24 * 14 && s.alive && s.lastChanceH === null; i++) { now += 3600; sync(); }
+      log('Довели до последнего сердца');
+    }
+    if (p === 'night') { now = nextLocal(2 * 60); log('Перемотали в 02:00'); }
+    refresh();
+  });
+  $('ripNew').onclick = () => { fresh(Math.floor(Date.now() / 60000) * 60); log('Завели заново'); $('away').hidden = true; refresh(); };
+
+  refresh();
+
+  // ---------- 3D ----------
+  if (!window.THREE || !THREE.GLTFLoader) { $('msg3d').textContent = '3D не загрузилось, песочница работает без Шибы.'; return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); }
+  catch (e) { $('msg3d').textContent = 'Браузер не умеет WebGL, песочница работает без Шибы.'; return; }
+  const RW = 1024, RH = 1024;
+  renderer.setPixelRatio(1); renderer.setSize(RW, RH, false);
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.setClearColor(0x000000, 0);
+  const col = h => new THREE.Color(h).convertSRGBToLinear();
+  const U = { uDirt: { value: .1 }, uFurAmt: { value: .35 } };
+  const NOISE = `
+    varying vec3 vObjPos;
+    uniform float uFur; uniform float uFurAmt; uniform float uDirt; uniform float uFurScale;
+    float h3(vec3 p){ p = fract(p*0.3183099+0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+    float vn(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.0-2.0*f);
+      return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+                 mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z); }`;
+  function retroize(mat, opts) {
+    const furScale = { value: opts.furScale || 1 }, fur = { value: opts.fur ? 1 : 0 };
+    mat.onBeforeCompile = sh => {
+      sh.uniforms.uDirt = U.uDirt; sh.uniforms.uFurAmt = U.uFurAmt; sh.uniforms.uFur = fur; sh.uniforms.uFurScale = furScale;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;').replace('#include <project_vertex>', '#include <project_vertex>\nvObjPos = transformed;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + NOISE).replace('#include <map_fragment>', `#include <map_fragment>
+        if (uFur > 0.5) {
+          vec3 u = vObjPos * uFurScale; vec3 q = floor(u * 56.0) / 56.0;
+          float n = vn(q * vec3(22.0, 64.0, 22.0)) * 0.6 + vn(q * 9.0) * 0.4;
+          diffuseColor.rgb *= mix(1.0, 0.7 + 0.55 * n, uFurAmt);
+          float spot = smoothstep(0.42, 0.6, vn(u * 5.0 + 3.1)); float mud = smoothstep(0.35, 0.7, vn(u * 11.0 + 7.7));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.36, 0.25, 0.15), uDirt * clamp(spot * 0.85 + mud * 0.4, 0.0, 0.9));
+          diffuseColor.rgb *= mix(1.0, 0.85, uDirt);
+        }`);
+    };
+    mat.customProgramCacheKey = () => 'retroA';
+    return mat;
+  }
+  function tex(size, draw, rep) {
+    const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]);
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestMipmapLinearFilter; t.encoding = THREE.sRGBEncoding; return t;
+  }
+  const lam = (c, map) => new THREE.MeshLambertMaterial({ color: col(c), map: map || null });
+  const scene = new THREE.Scene(); scene.fog = new THREE.Fog(col('#f3ece6'), 9, 22);
+  const hemi = new THREE.HemisphereLight(col('#fff6ee'), col('#c9d6e6'), 1.05);
+  const key = new THREE.DirectionalLight(col('#fff3e2'), .9); key.position.set(1.5, 3, 2.2); scene.add(hemi, key);
+  const checker = tex(64, g => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#bcd3ee' : '#f4f1ea'; g.fillRect(x * 8, y * 8, 8, 8); } }, [6, 6]);
+  const wallT = tex(32, (g, s2) => { g.fillStyle = '#fbefe4'; g.fillRect(0, 0, s2, s2); g.fillStyle = '#f6e2d2'; for (let y = 0; y < s2; y += 8) g.fillRect(0, y, s2, 2); }, [4, 2]);
+  { const f = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), lam('#ffffff', checker)); f.rotation.x = -Math.PI / 2; scene.add(f);
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), lam('#ffffff', wallT)); w.position.set(0, 3, -2.6); scene.add(w);
+    const rug = new THREE.Mesh(new THREE.CircleGeometry(.95, 24), lam('#f6c6b0')); rug.rotation.x = -Math.PI / 2; rug.position.y = .004; scene.add(rug);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(.17, .12, .09, 14), lam('#6f9fd8')); bowl.position.set(-.85, .045, .55); scene.add(bowl);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(.09, 12, 8), lam('#f2bf4a')); ball.position.set(.75, .09, .75); scene.add(ball);
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.24, .99), lam('#ffffff')); frame.position.set(.9, 1.9, -2.59); scene.add(frame); }
+  const winMat = lam('#cfe6f7'); { const win = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .85), winMat); win.position.set(.9, 1.9, -2.58); scene.add(win); }
+  const pivot = new THREE.Group(); pivot.rotation.y = -0.6; scene.add(pivot);
+
+  const loader = new THREE.GLTFLoader();
+  async function fetchGlb(url) {
+    const res = await fetch(url); if (!res.ok) throw new Error(res.status);
+    const gltf = await res.json();
+    const raw = atob(gltf.buffers[0].uri.split(',')[1]), bin = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+    delete gltf.buffers[0].uri;
+    const json = new TextEncoder().encode(JSON.stringify(gltf)), pad4 = n => (n + 3) & ~3;
+    const jLen = pad4(json.length), bLen = pad4(bin.length), out = new Uint8Array(28 + jLen + bLen), dv = new DataView(out.buffer);
+    dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, out.length, true);
+    dv.setUint32(12, jLen, true); dv.setUint32(16, 0x4E4F534A, true); out.fill(0x20, 20, 20 + jLen); out.set(json, 20);
+    const ofs = 20 + jLen; dv.setUint32(ofs, bLen, true); dv.setUint32(ofs + 4, 0x004E4942, true); out.set(bin, ofs + 8);
+    return out.buffer;
+  }
+  function skinBox(root) {
+    root.updateMatrixWorld(true);
+    const b = new THREE.Box3(), v = new THREE.Vector3();
+    root.traverse(x => { if (x.isBone) b.expandByPoint(v.setFromMatrixPosition(x.matrixWorld)); else if (x.isMesh && !x.isSkinnedMesh) b.expandByObject(x); });
+    return b;
+  }
+  function prepare(gltf) {
+    const root = gltf.scene;
+    root.traverse(x => {
+      if (!x.isMesh) return;
+      x.geometry.computeBoundingBox(); const sz = new THREE.Vector3(); x.geometry.boundingBox.getSize(sz);
+      const mats = (Array.isArray(x.material) ? x.material : [x.material]).map(m0 => {
+        if (m0.map) { m0.map.encoding = THREE.sRGBEncoding; m0.map.magFilter = THREE.LinearFilter; }
+        const nm = new THREE.MeshLambertMaterial({ color: m0.color ? m0.color.clone() : 0xffffff, map: m0.map || null, vertexColors: !!x.geometry.attributes.color && m0.vertexColors });
+        return retroize(nm, { fur: !/eye|pupil|black/i.test(m0.name || ''), furScale: 1 / Math.max(sz.x, sz.y, sz.z, 1e-4) });
+      });
+      x.material = Array.isArray(x.material) ? mats : mats[0]; x.frustumCulled = false;
+    });
+    let head = null; root.traverse(x => { if (!head && x.isBone && /head/i.test(x.name)) head = x; });
+    if (head) {
+      const c0 = skinBox(root).getCenter(new THREE.Vector3()), hp = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
+      root.rotation.y -= Math.atan2(hp.x - c0.x, hp.z - c0.z);
+    }
+    const size = skinBox(root).getSize(new THREE.Vector3());
+    root.scale.multiplyScalar(1.55 / Math.max(size.x, size.z));
+    const b2 = skinBox(root), c = b2.getCenter(new THREE.Vector3());
+    root.position.x -= c.x; root.position.z -= c.z; root.position.y -= b2.min.y;
+    return { root, clips: gltf.animations };
+  }
+  const ANIM = { idle: /(^|\|)Idle$/, idle2: /(^|\|)Idle_2$/, low: /Idle_2_HeadLow$/, sleep: /Idle_2_HeadLow$/, eat: /(Eating|Idle_Eating)$/, run: /(Gallop|Run)$/, jump: /(Jump_ToIdle|Jump_Start)$/ };
+  const clipBy = (clips, re) => clips.find(c => re.test(c.name) && !c.name.includes('|')) || clips.find(c => re.test(c.name)) || clips.find(c => ANIM.idle.test(c.name));
+  let inst = null, base = 'idle', os = 0;
+  function play(name, speed) {
+    if (!inst) return;
+    const clip = clipBy(inst.clips, ANIM[name]); if (!clip) return;
+    const a = inst.mixer.clipAction(clip); a.reset(); a.timeScale = speed || 1; a.setLoop(THREE.LoopRepeat, Infinity);
+    if (inst.action && inst.action !== a) a.crossFadeFrom(inst.action, .3, false);
+    a.play(); inst.action = a;
+  }
+  G.play = name => { base = name; clearTimeout(os); play(name, name === 'sleep' ? .3 : 1); };
+  G.oneShot = (name, sec) => { if (base === 'sleep') return; play(name); clearTimeout(os); os = setTimeout(() => play(base), sec * 1000); };
+  G.setDirt = v => { U.uDirt.value = v; };
+  G.setNight = n => { hemi.intensity = n ? .38 : 1.05; key.intensity = n ? .15 : .9; hemi.color = col(n ? '#b9c6ff' : '#fff6ee'); winMat.color = col(n ? '#3b4a7a' : '#cfe6f7'); };
+  G.setVisible = v => { if (inst) inst.root.visible = v; };
+
+  const cv = $('view'), ctx = cv.getContext('2d'), cam = new THREE.PerspectiveCamera(46, 1, .1, 50);
+  cam.position.set(0, 1.05, 3.5); cam.lookAt(0, .78, 0);
+  let rw = 0, rh = 0, vis = true;
+  const fit = () => {
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const k = Math.max(1, dpr * .5); rw = Math.min(RW, Math.round(w * k)); rh = Math.min(RH, Math.round(h * k));
+    cam.aspect = w / h; cam.updateProjectionMatrix();
+  };
+  new ResizeObserver(fit).observe(cv); fit();
+  new IntersectionObserver(es => { vis = es[0].isIntersecting; }).observe(cv);
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, r: pivot.rotation.y }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (drag) pivot.rotation.y = drag.r + (e.clientX - drag.x) * .012; });
+  const endDrag = () => { drag = null; }; cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+  fetchGlb('shiba.json').then(b => new Promise((ok, no) => loader.parse(b, '', ok, no))).then(g => {
+    const m = prepare(g), root = THREE.SkeletonUtils.clone(m.root); pivot.add(root);
+    inst = { root, mixer: new THREE.AnimationMixer(root), clips: m.clips, action: null };
+    $('msg3d').hidden = true; lastAnim = ''; render();
+  }).catch(() => { $('msg3d').textContent = 'Модель не загрузилась. Обнови страницу.'; });
+
+  const clock = new THREE.Clock();
+  (function frame() {
+    requestAnimationFrame(frame);
+    const d = Math.min(clock.getDelta(), .1);
+    if (document.hidden || !vis || !inst || !rw) return;
+    inst.mixer.update(d);
+    renderer.setViewport(0, 0, rw, rh); renderer.setScissor(0, 0, rw, rh); renderer.setScissorTest(true);
+    renderer.render(scene, cam);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#f3ece6'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(renderer.domElement, 0, RH - rh, rw, rh, 0, 0, cv.width, cv.height);
+  })();
+})();
+</script>
