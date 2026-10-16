@@ -2,7 +2,8 @@
 // Свет: тёплый ключевой с тенью, холодный заполняющий, контровой сзади. Камера 3/4 чуть сверху.
 // Пятно-тень под собакой заземляет её, даже если тень от света слабая. Всё матовое, без бликов.
 // Размеры в метрах; питомец ростом PetModel.height (0.42) стоит в начале координат, мордой к +z.
-// Кадр — экран iPhone во весь рост (узкий, ~0.46), поэтому миска и мяч стоят близко к собаке.
+// Кадр — экран iPhone во весь рост (узкий, ~0.46), поэтому миска и мяч стоят близко к собаке,
+// а левая стена (x = leftWallX) в кадр не попадает: у края кадра видна только задняя.
 // Числа вынесены в static let, чтобы править по скриншоту ui-home.
 
 import UIKit
@@ -14,10 +15,12 @@ enum PetRoom {
 
     /// Вертикальный угол обзора, градусы.
     static let cameraFov: Float = 32
-    static let cameraEye = SIMD3<Float>(0.12, 0.66, 1.45)
-    static let cameraTarget = SIMD3<Float>(0, 0.19, 0)
+    // Наклон ~14°. В портрете кадр упирается в ширину: Шиба в 3/4 (0.58 × 0.17 м) занимает ~0.45 м по ширине,
+    // поэтому камера на ~2.45 м: собака ~37% высоты и ±70% ширины кадра. Ближе — морда уходит за левый край.
+    static let cameraEye = SIMD3<Float>(0.06, 0.78, 2.4)
+    static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
 
-    /// Поворот обёртки питомца по Y для вида 3/4 (морда влево-вперёд, видно правый бок).
+    /// Поворот обёртки питомца по Y для вида 3/4: морда влево к камере, к камере повёрнут левый бок собаки.
     static let yaw3q: Float = -0.55
 
     // MARK: Комната
@@ -29,10 +32,14 @@ enum PetRoom {
     static let backWallZ: Float = -1.4
     static let leftWallX: Float = -1.8
     static let rugRadius: Float = 0.45
-    static let bowlPos = SIMD3<Float>(0.12, 0.025, -0.55)
-    static let ballPos = SIMD3<Float>(0.14, 0.05, 0.12)
+    /// Миска слева сзади, у морды (за собакой справа её закрывает круп). Мяч справа впереди, у лап.
+    static let bowlPos = SIMD3<Float>(-0.38, 0.025, -0.75)
+    static let ballPos = SIMD3<Float>(0.15, 0.05, 0.3)
     /// Пятно-тень чуть выше ковра (верх ковра — 0.004).
     static let blobY: Float = 0.006
+    /// Ширина (x) и длина (z, вдоль морды) пятна; край градиента прозрачный, поэтому длиннее собаки.
+    static let blobWidth: Float = 0.34
+    static let blobDepth: Float = 0.7
 
     // MARK: Свет
 
@@ -148,7 +155,7 @@ enum PetRoom {
             mat.color = .init(tint: UIColor(white: 0, alpha: 0.25), texture: nil)
         }
         mat.blending = .transparent(opacity: .init(floatLiteral: 1))
-        let e = ModelEntity(mesh: .generatePlane(width: 0.38, depth: 0.55), materials: [mat])
+        let e = ModelEntity(mesh: .generatePlane(width: blobWidth, depth: blobDepth), materials: [mat])
         e.name = "blobShadow"
         e.position = SIMD3<Float>(0, blobY, 0)
         noShadow(e)
