@@ -28,9 +28,9 @@ struct HeartsView: View {
                 let fill = Swift.min(1, Swift.max(0, ((hearts - Double(i)) * 2).rounded(.down) / 2))
                 ZStack {
                     Image(systemName: "heart.fill")
-                        .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle().opacity(0.25)) : AnyShapeStyle(PetPalette.soft.opacity(0.25)))
+                        .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary.opacity(0.25)) : AnyShapeStyle(PetPalette.soft.opacity(0.25)))
                     Image(systemName: "heart.fill")
-                        .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.red))
+                        .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.red))
                         .clipShape(LeadingFraction(fraction: fill))
                 }
                 .font(.system(size: size))
@@ -92,7 +92,7 @@ struct NeedTimerView: View {
                 .multilineTextAlignment(.leading)
         }
         .font(.system(size: 12, weight: .medium, design: .rounded))
-        .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.soft))
+        .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft))
     }
 
     static func icon(_ kind: String) -> String {

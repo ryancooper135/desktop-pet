@@ -84,9 +84,10 @@ struct PetFaceView: View {
 
     // MARK: голова
 
-    /// В mono — текущий цвет переднего плана (его задаёт система), а не Color.primary:
+    /// В mono — первый уровень текущего цвета переднего плана (его задаёт система), а не Color.primary:
     /// тот зависит только от темы и на экране блокировки может выйти чёрным по чёрному.
-    private var furColor: AnyShapeStyle { mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.fur) }
+    /// ForegroundStyle() не годится: внутри .foregroundStyle(...) он ссылается сам на себя и падает в чёрный.
+    private var furColor: AnyShapeStyle { mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.fur) }
     /// В mono маска не красится, а наполовину вырезается из меха.
     private var creamColor: Color { mono ? .black.opacity(0.45) : PetPalette.cream }
     private var creamBlend: BlendMode { mono ? .destinationOut : .normal }
@@ -234,11 +235,11 @@ struct PetFaceView: View {
                 Text("z").font(.system(size: 11 * u, weight: .bold, design: .rounded)).offset(x: 30 * u, y: -30 * u)
                 Text("z").font(.system(size: 15 * u, weight: .bold, design: .rounded)).offset(x: 38 * u, y: -40 * u)
             }
-            .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.soft))
+            .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft))
         case .heart:
             Image(systemName: "heart.fill")
                 .font(.system(size: 16 * u))
-                .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.red))
+                .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.red))
                 .offset(x: 34 * u, y: -36 * u)
         case .bubbles:
             ZStack {
@@ -257,11 +258,11 @@ struct PetFaceView: View {
         case .sweat:
             Image(systemName: "drop.fill")
                 .font(.system(size: 11 * u))
-                .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(Color(hex: 0x6f9fd8)))
+                .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(Color(hex: 0x6f9fd8)))
                 .offset(x: 36 * u, y: -14 * u)
         case .halo:
             Ellipse()
-                .stroke(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.yellow), lineWidth: 2.5 * u)
+                .stroke(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.yellow), lineWidth: 2.5 * u)
                 .frame(width: 34 * u, height: 9 * u)
                 .offset(y: -44 * u)
         case .crumbs:
@@ -274,7 +275,7 @@ struct PetFaceView: View {
         case .cloud:
             Image(systemName: "cloud.fill")
                 .font(.system(size: 14 * u))
-                .foregroundStyle(mono ? AnyShapeStyle(ForegroundStyle()) : AnyShapeStyle(PetPalette.soft.opacity(0.8)))
+                .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft.opacity(0.8)))
                 .offset(x: 36 * u, y: -38 * u)
         }
     }

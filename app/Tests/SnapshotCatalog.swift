@@ -44,6 +44,8 @@ enum SnapshotFamily: String, CaseIterable, Sendable {
     }
 
     var isIsland: Bool { self == .islandCompact || self == .islandExpanded }
+    /// Экран блокировки система рисует светлым по тёмному при любой теме.
+    var isLockScreen: Bool { self == .circular || self == .rectangular || self == .inline }
 }
 
 /// Состояния питомца для снимков.
@@ -71,8 +73,8 @@ enum SnapshotCatalog {
             for mood in SnapshotMood.allCases {
                 guard let view = view(family: family, mood: mood) else { continue }
                 let prefix = family.isIsland || family == .lockActivity ? "island" : "widget"
-                // Остров всегда чёрный; ночное состояние смотрим в тёмной теме.
-                let scheme: ColorScheme = family.isIsland || mood == .asleep ? .dark : .light
+                // Остров и экран блокировки всегда тёмные; ночное состояние смотрим в тёмной теме.
+                let scheme: ColorScheme = family.isIsland || family.isLockScreen || mood == .asleep ? .dark : .light
                 out.append(SnapshotCase(name: "\(prefix)-\(family.rawValue)-\(mood.rawValue)",
                                         size: family.size, cornerRadius: family.cornerRadius,
                                         colorScheme: scheme, view: view))
