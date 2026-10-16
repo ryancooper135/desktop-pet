@@ -11,7 +11,12 @@ enum AppGroup {
     static var id: String { resolved.id }
 
     static var containerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id)
+        #if canImport(Darwin)
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id)
+        #else
+        // Групп нет вне Apple (Linux-сборка логики в CI): стор уйдёт в Application Support.
+        return nil
+        #endif
     }
 
     private static func resolve() -> (id: String, source: String) {

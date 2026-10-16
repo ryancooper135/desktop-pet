@@ -1,0 +1,35 @@
+# Логика приложения (app/Shared без экрана) и её юнит-тесты на Linux — без минут macOS.
+# Пакет: app/Package.swift (цель Pet + PetCore из core/swift). Вью, виджеты и снимки проверяет только app.yml на macOS.
+name: logic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/Shared/**"
+      - "app/Tests/**"
+      - "app/Package.swift"
+      - "core/**"
+      - "config/economy.json"
+      - "content/**"
+      - ".github/workflows/logic.yml"
+
+concurrency:
+  group: logic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift:
+    runs-on: ubuntu-latest
+    # Тот же компилятор, что в Xcode 26 (Swift 6.2): правила Sendable совпадают с app.yml.
+    container: swift:6.2
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка
+        working-directory: app
+        run: swift build --build-tests
+      - name: Тесты
+        working-directory: app
+        run: swift test --skip-build

@@ -48,11 +48,16 @@ final class PetStore: @unchecked Sendable {
     func read() throws -> SaveFile? {
         lock.lock(); defer { lock.unlock() }
         var result: Result<SaveFile?, Error> = .success(nil)
+        #if canImport(Darwin)
         var coordErr: NSError?
         NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: stateURL, options: [], error: &coordErr) { url in
             result = Result { try self.loadUnlocked(url) }
         }
         if let coordErr { throw StoreError.corrupted(coordErr.localizedDescription) }
+        #else
+        // NSFileCoordinator есть только на Apple; в Linux-сборке логики хватает замка.
+        result = Result { try self.loadUnlocked(stateURL) }
+        #endif
         return try result.get()
     }
 
@@ -61,17 +66,15 @@ final class PetStore: @unchecked Sendable {
     func mutate<T>(_ body: (inout SaveFile) throws -> T) throws -> T {
         lock.lock(); defer { lock.unlock() }
         var result: Result<T, Error>?
+        #if canImport(Darwin)
         var coordErr: NSError?
         NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: stateURL, options: .forMerging, error: &coordErr) { url in
-            result = Result {
-                var f = try self.loadUnlocked(url) ?? SaveFile.fresh(now: Clock.now())
-                let out = try body(&f)
-                f.rev += 1
-                try self.writeUnlocked(f, to: url)
-                return out
-            }
+            result = Result { try self.applyUnlocked(url, body) }
         }
         if let coordErr { throw StoreError.writeFailed(coordErr.localizedDescription) }
+        #else
+        result = Result { try self.applyUnlocked(stateURL, body) }
+        #endif
         guard let result else { throw StoreError.writeFailed("координатор не вызвал запись") }
         return try result.get()
     }
@@ -101,6 +104,15 @@ final class PetStore: @unchecked Sendable {
 
     private func decode(_ data: Data) throws -> SaveFile {
         try JSONDecoder().decode(SaveFile.self, from: data)
+    }
+
+    /// Прочитать, применить правку, поднять rev и записать. Вызывать под замком.
+    private func applyUnlocked<T>(_ url: URL, _ body: (inout SaveFile) throws -> T) throws -> T {
+        var f = try loadUnlocked(url) ?? SaveFile.fresh(now: Clock.now())
+        let out = try body(&f)
+        f.rev += 1
+        try writeUnlocked(f, to: url)
+        return out
     }
 
     private func loadUnlocked(_ url: URL) throws -> SaveFile? {
@@ -134,7 +146,11 @@ final class PetStore: @unchecked Sendable {
         enc.outputFormatting = [.sortedKeys]
         let data: Data
         do { data = try enc.encode(f) } catch { throw StoreError.writeFailed("\(error)") }
+        #if canImport(Darwin)
         let opts: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+        #else
+        let opts: Data.WritingOptions = [.atomic]
+        #endif
         do { try data.write(to: url, options: opts) } catch { throw StoreError.writeFailed("\(error)") }
         if f.rev % 10 == 0 { try? data.write(to: prevURL, options: opts) }
         #if APP_TARGET

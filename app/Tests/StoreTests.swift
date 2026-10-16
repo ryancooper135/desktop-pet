@@ -13,6 +13,9 @@ final class StoreTests: XCTestCase {
 
     /// Контейнер группы на симуляторе есть, файл в нём пишется и читается обратно.
     func testAppGroupContainerRoundTrip() throws {
+        #if !canImport(Darwin)
+        throw XCTSkip("App Group есть только на Apple (Linux-сборка логики)")
+        #else
         guard let dir = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: StoreHooks.appGroupID)
         else {
@@ -25,6 +28,7 @@ final class StoreTests: XCTestCase {
         try JSONEncoder().encode(written).write(to: url, options: .atomic)
         let read = try JSONDecoder().decode([String: Double].self, from: Data(contentsOf: url))
         XCTAssertEqual(read, written)
+        #endif
     }
 
     // MARK: Стор приложения
