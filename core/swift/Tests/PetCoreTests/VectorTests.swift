@@ -96,7 +96,8 @@ final class VectorTests: XCTestCase {
         s.needs[.food] = 80
         let whole = PetEngine.advance(s, r, o, s.t + 50 * 3600)
         var part = s
-        for dt in [1.0, 59, 61, 3599, 7 * 3600 + 17, 13 * 3600, 29 * 3600] { part = PetEngine.advance(part, r, o, part.t + dt) }
+        let dts: [Double] = [1, 59, 61, 3599, 7 * 3600 + 17, 13 * 3600, 29 * 3600]
+        for dt in dts { part = PetEngine.advance(part, r, o, part.t + dt) }
         part = PetEngine.advance(part, r, o, s.t + 50 * 3600)
         XCTAssertEqual(part, whole)
     }
