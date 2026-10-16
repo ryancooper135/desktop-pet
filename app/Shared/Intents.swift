@@ -119,6 +119,32 @@ struct MainActionIntent: LiveActivityIntent {
     }
 }
 
+/// Кнопки острова: ровно то действие, что было на кнопке (план острова, IslandPlan). В «Командах» не показываем.
+struct IslandActIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Помочь Шибе из острова"
+    static let isDiscoverable: Bool = false
+
+    @Parameter(title: "Действие", default: "pet")
+    var act: String
+
+    @Parameter(title: "Откуда", default: "island")
+    var source: String
+
+    init() {}
+    init(_ a: IslandAct, _ src: ActionSource) {
+        act = a.rawValue
+        source = src.rawValue
+    }
+
+    func perform() async throws -> some IntentResult {
+        let src = ActionSource(rawValue: source) ?? .island
+        if let a = IslandAct(rawValue: act)?.action {
+            _ = await IntentBridge.run(a, source: src)
+        }
+        return .result()
+    }
+}
+
 /// Игра открывает приложение: играть с питомцем лучше на экране, а не вслепую.
 struct PlayIntent: AppIntent {
     static let title: LocalizedStringResource = "Поиграть с Шибой"
