@@ -7,14 +7,17 @@
   - upAxis = Y, metersPerUnit, диапазон времени и timeCodesPerSecond против clips.json;
   - есть Skeleton + SkelAnimation, сколько суставов и ключей;
   - куда смотрит морда (Head относительно Tail в позе привязки) — ждём +Z;
-  - меши, треугольники, материалы.
+  - меши, треугольники, материалы;
+  - с --clips: все обязательные клипы на месте, швы циклов в SkelAnimation (> 1° — ошибка, > 0.5° — предупреждение).
 --strict: код выхода 1, если что-то из обязательного не так.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
+from pathlib import Path
 
 from pxr import Gf, Usd, UsdGeom, UsdShade, UsdSkel, UsdUtils
 
@@ -135,6 +138,35 @@ def main() -> None:
         for an in anims:
             if an["first"] is not None and (abs(an["first"]) > 1e-6 or abs(an["last"] - want_end) > 1.01):
                 problems.append(f"animation samples {an['first']}..{an['last']}, want 0..{want_end}")
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        try:
+            from build_clips import EXTRA, REQUIRED
+            miss = [n for n in REQUIRED + EXTRA if n not in c["clips"]]
+            if miss:
+                problems.append(f"no clips {miss}")
+        except ImportError as e:
+            warnings.append(f"clip names not checked: {e!r}")
+        # швы циклов уже в USD: поворот каждого сустава в первом и последнем кадре клипа
+        try:
+            an = next(UsdSkel.Animation(p) for p in st.Traverse() if p.IsA(UsdSkel.Animation))
+            rot = an.GetRotationsAttr()
+            seams = {}
+            for name, cl in c["clips"].items():
+                if not cl.get("loop"):
+                    continue
+                a0, a1 = rot.Get(Usd.TimeCode(cl["frames"][0])), rot.Get(Usd.TimeCode(cl["frames"][1]))
+                worst = 0.0
+                for q0, q1 in zip(a0, a1):
+                    d = q0.GetInverse() * q1
+                    worst = max(worst, math.degrees(2 * math.atan2(d.GetImaginary().GetLength(), abs(d.GetReal()))))
+                seams[name] = round(worst, 3)
+                if worst > 1.0:
+                    problems.append(f"loop seam {name} {worst:.2f}° in USD")
+                elif worst > 0.5:
+                    warnings.append(f"loop seam {name} {worst:.2f}° in USD")
+            rep["usd_loop_seams_deg"] = seams
+        except Exception as e:  # noqa: BLE001
+            warnings.append(f"loop seams not checked: {e!r}")
 
     rep["problems"] = problems
     rep["warnings"] = warnings

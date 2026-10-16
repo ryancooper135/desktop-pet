@@ -1,5 +1,5 @@
 {
- "_doc": "Повороты в градусах в мировых осях модели: X - ось к левому боку собаки (+X = нос вниз), Y - вверх (+Y = поворот влево), Z - вперёд (+Z = крен на правый бок). Кость.* = обе стороны, R зеркально. offset - сдвиг тела, ground=true - тело само ставится на пол.",
+ "_doc": "Повороты в градусах в мировых осях модели: X - ось к левому боку собаки (+X = нос вниз, -X у ушей = назад), Y - вверх (+Y = поворот влево), Z - вперёд (+Z = крен на правый бок). Кость.* = обе стороны, R зеркально (y, z со сменой знака). offset - сдвиг тела, ground=true - тело само ставится на пол. wave - синус: bone, deg (амплитуда), hz или period, phase (доля периода), lag (опоздание огибающей, доля клипа); в цикле на длину клипа должно приходиться целое число периодов. Клипы: to - переход (overlap=false - без цепочки задержек), pose - удержание позы, over: idle - короткий клип поверх кадра 0 idle: overlay - поза в пике, keys - огибающая [[доля, вес], ...] (не-loop: 0 на концах), lag - опоздание кости, lift - подскок (доля роста). ground: snap | flight | lift.",
  "poses": {
   "sit": {
    "offset": [0, 0, -0.2],
@@ -41,20 +41,134 @@
    }
   }
  },
+ "source_wave": {
+  "idle": [
+   {"bone": "Torso2", "deg": [3.75, 0, 0], "hz": 0.3},
+   {"bone": "FrontShoulder.*", "deg": [-3.75, 0, 0], "hz": 0.3},
+   {"bone": "Neck1", "deg": [-2.5, 0, 0], "hz": 0.3}
+  ]
+ },
  "clips": {
-  "sit_in": {"from": "idle", "to": "sit", "dur": 0.6},
-  "sit": {"pose": "sit", "dur": 3.0, "loop": true, "breath": [{"bone": "Torso2", "deg": [1.5, 0, 0], "period": 3.0}]},
-  "sit_out": {"from": "sit", "to": "idle", "dur": 0.5},
-  "lie_in": {"from": "idle", "to": "lie", "dur": 0.8},
-  "lie": {"pose": "lie", "dur": 3.0, "loop": true, "breath": [{"bone": "Torso2", "deg": [1.5, 0, 0], "period": 3.0}]},
-  "lie_out": {"from": "lie", "to": "idle", "dur": 0.7},
-  "sleep_in": {"from": "lie", "to": "sleep", "dur": 1.0},
-  "sleep": {
-   "pose": "sleep",
-   "dur": 4.0,
-   "loop": true,
-   "breath": [{"bone": "Torso2", "deg": [2.5, 0, 0], "period": 4.0}, {"bone": "Head", "deg": [-1.0, 0, 0], "period": 4.0, "phase": 0.25}]
+  "sit_in": {"from": "idle", "to": "sit", "dur": 0.75},
+  "sit": {
+   "pose": "sit", "dur": 3.0, "loop": true,
+   "wave": [
+    {"bone": "Torso2", "deg": [3.75, 0, 0], "period": 3.0},
+    {"bone": "FrontShoulder.*", "deg": [-3.75, 0, 0], "period": 3.0},
+    {"bone": "Neck1", "deg": [-2.5, 0, 0], "period": 3.0},
+    {"bone": "Tail1", "deg": [0, 6, 0], "period": 3.0, "phase": 0.25}
+   ]
   },
-  "sleep_out": {"from": "sleep", "to": "lie", "dur": 0.8}
+  "sit_out": {"from": "sit", "to": "idle", "dur": 0.6},
+  "lie_in": {"from": "idle", "to": "lie", "dur": 1.1},
+  "lie": {
+   "pose": "lie", "dur": 3.0, "loop": true,
+   "wave": [
+    {"bone": "Torso2", "deg": [3.75, 0, 0], "period": 3.0},
+    {"bone": "FrontShoulder.*", "deg": [-3.75, 0, 0], "period": 3.0},
+    {"bone": "Neck1", "deg": [-2.5, 0, 0], "period": 3.0},
+    {"bone": "Tail1", "deg": [0, 6, 0], "period": 3.0, "phase": 0.25}
+   ]
+  },
+  "lie_out": {"from": "lie", "to": "idle", "dur": 0.9},
+  "sleep_in": {"from": "lie", "to": "sleep", "dur": 1.6},
+  "sleep": {
+   "pose": "sleep", "dur": 4.0, "loop": true,
+   "wave": [
+    {"bone": "Torso2", "deg": [3.5, 0, 0], "period": 4.0},
+    {"bone": "FrontShoulder.*", "deg": [-3.5, 0, 0], "period": 4.0},
+    {"bone": "Neck1", "deg": [-2.5, 0, 0], "period": 4.0}
+   ]
+  },
+  "sleep_out": {"from": "sleep", "to": "lie", "dur": 1.2},
+
+  "idle_wag": {
+   "over": "idle", "dur": 2.0, "loop": true,
+   "wave": [
+    {"bone": "Tail1", "deg": [0, 25, 0], "hz": 3},
+    {"bone": "Tail2", "deg": [0, 10, 0], "hz": 3, "phase": -0.1},
+    {"bone": "Tail3", "deg": [0, 6, 0], "hz": 3, "phase": -0.2},
+    {"bone": "Torso2", "deg": [3.75, 0, 0], "hz": 0.5},
+    {"bone": "FrontShoulder.*", "deg": [-3.75, 0, 0], "hz": 0.5}
+   ]
+  },
+  "happy_wag": {
+   "over": "idle", "dur": 1.5,
+   "keys": [[0, 0], [0.12, 1], [0.8, 1], [1, 0]],
+   "overlay": {"Ear1.*": [-10, 0, 0], "Neck1": [-4, 0, 0]},
+   "wave": [
+    {"bone": "Tail1", "deg": [0, 35, 0], "hz": 4},
+    {"bone": "Tail2", "deg": [0, 13, 0], "hz": 4, "phase": -0.1},
+    {"bone": "Tail3", "deg": [0, 8, 0], "hz": 4, "phase": -0.2}
+   ]
+  },
+  "head_tilt": {
+   "over": "idle", "dur": 1.2,
+   "keys": [[0, 0], [0.22, 1], [0.7, 1], [1, 0]],
+   "overlay": {"Neck3": [0, 0, 18], "Neck2": [0, 0, 4], "Ear1.L": [-6, 0, 0], "Ear1.R": [-6, 0, 0]},
+   "lag": {"Ear1.*": 0.06}
+  },
+  "shake": {
+   "over": "idle", "dur": 0.9,
+   "keys": [[0, 0], [0.08, 1], [0.35, 0.75], [1, 0]],
+   "wave": [
+    {"bone": "Back", "deg": [0, 0, 12], "hz": 6},
+    {"bone": "BackShoulder.L", "deg": [0, 0, -12], "hz": 6},
+    {"bone": "BackShoulder.R", "deg": [0, 0, -12], "hz": 6},
+    {"bone": "FrontShoulder.L", "deg": [0, 0, -12], "hz": 6},
+    {"bone": "FrontShoulder.R", "deg": [0, 0, -12], "hz": 6},
+    {"bone": "Neck2", "deg": [0, 0, 8], "hz": 6, "phase": -0.12, "lag": 0.05},
+    {"bone": "Ear1.L", "deg": [0, 0, 20], "hz": 6, "phase": -0.2, "lag": 0.08},
+    {"bone": "Ear1.R", "deg": [0, 0, 20], "hz": 6, "phase": -0.2, "lag": 0.08},
+    {"bone": "Tail1", "deg": [0, 15, 0], "hz": 6, "phase": -0.25, "lag": 0.08}
+   ]
+  },
+  "hop": {
+   "over": "idle", "dur": 0.5, "ground": "flight",
+   "keys": [[0, 0], [0.5, 1], [1, 0]],
+   "lift": 0.06,
+   "overlay": {"FrontUpperLeg.*": [-18, 0, 0], "FrontLowerLeg.*": [20, 0, 0], "BackUpperLeg.*": [12, 0, 0],
+               "Ear1.*": [-14, 0, 0], "Tail1": [-10, 0, 0]},
+   "lag": {"Ear1.*": 0.15, "Tail1": 0.15}
+  },
+  "play_bow": {
+   "over": "idle", "dur": 1.4,
+   "keys": [[0, 0], [0.28, 1], [0.72, 1], [1, 0]],
+   "overlay": {"Back": [26.5, 0, 0], "BackShoulder.*": [-26.5, 0, 0], "FrontShoulder.*": [-26.5, 0, 0],
+               "FrontUpperLeg.*": [40, 0, 0], "FrontLowerLeg.*": [-90, 0, 0],
+               "Neck1": [-40, 0, 0], "Neck3": [-6, 0, 0], "Ear1.*": [-6, 0, 0], "Tail1": [-15, 0, 0]},
+   "lag": {"Neck1": 0.05, "Ear1.*": 0.1, "Tail1": 0.1},
+   "wave": [{"bone": "Tail1", "deg": [0, 22, 0], "hz": 3.5, "lag": 0.1}]
+  },
+  "ear_flick": {
+   "over": "idle", "dur": 0.4,
+   "keys": [[0, 0], [0.2, 1], [0.45, -0.35], [0.7, 0.12], [1, 0]],
+   "overlay": {"Ear1.L": [-25, 0, 8], "Ear2.L": [-10, 0, 0]}
+  },
+  "sniff": {
+   "over": "idle", "dur": 1.5,
+   "keys": [[0, 0], [0.22, 1], [0.78, 1], [1, 0]],
+   "overlay": {"Neck1": [18, 0, 0], "Neck2": [12, 0, 0], "Neck3": [8, 0, 0], "Ear1.*": [6, 0, 0]},
+   "wave": [{"bone": "Neck3", "deg": [3, 0, 0], "hz": 8}]
+  },
+  "look_l": {
+   "over": "idle", "dur": 1.6,
+   "keys": [[0, 0], [0.25, 1], [0.7, 1], [1, 0]],
+   "overlay": {"Neck2": [0, 10, 0], "Neck3": [0, 20, 0], "Ear1.*": [-5, 0, 0]},
+   "lag": {"Neck3": 0.06, "Ear1.*": 0.1}
+  },
+  "look_r": {
+   "over": "idle", "dur": 1.6,
+   "keys": [[0, 0], [0.25, 1], [0.7, 1], [1, 0]],
+   "overlay": {"Neck2": [0, -10, 0], "Neck3": [0, -20, 0], "Ear1.*": [-5, 0, 0]},
+   "lag": {"Neck3": 0.06, "Ear1.*": 0.1}
+  },
+  "yawn": {
+   "over": "idle", "dur": 1.8,
+   "keys": [[0, 0], [0.3, 1], [0.65, 1], [1, 0]],
+   "overlay": {"Neck1": [-10, 0, 0], "Neck2": [-8, 0, 0], "Neck3": [-12, 0, 0], "Ear1.*": [-15, 0, 0],
+               "Torso2": [-4, 0, 0], "FrontShoulder.*": [4, 0, 0]},
+   "lag": {"Neck3": 0.05, "Ear1.*": 0.1}
+  }
  }
 }

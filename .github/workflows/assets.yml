@@ -37,19 +37,45 @@ jobs:
       - name: numpy + usd-core
         run: pip install --disable-pip-version-check numpy usd-core
 
-      - name: Клипы и позы (sit/lie/sleep) → один таймлайн
+      - name: Самопроверка математики клипов (до Blender)
+        run: python tools/assets/build_clips.py tools/assets/source/shiba.glb --selftest
+
+      - name: Клипы и позы (sit/lie/sleep, оверлеи) → один таймлайн
+        id: build
         run: |
           mkdir -p "$OUT"
           python tools/assets/build_clips.py tools/assets/source/shiba.glb \
             --poses tools/assets/poses.json --style tools/assets/style_a.json \
             --out-glb "$OUT/shiba_clips.glb" --out-json "$OUT/clips.json"
 
-      - name: Превью поз (PNG, без GPU)
+      - name: Проверка клипов (швы циклов, пол, все клипы на месте)
         run: |
-          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
-            --only sit_in --only sit --only lie_in --only sleep_in --only sleep --yaw 90 --out "$OUT/preview_side.png"
-          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
-            --only idle --only walk --only eat --only sit --only lie --only sleep --yaw 35 --out "$OUT/preview_3q.png"
+          python tools/assets/build_clips.py "$OUT/shiba_clips.glb" --check "$OUT/clips.json" \
+            --poses tools/assets/poses.json --summary "$GITHUB_STEP_SUMMARY" --report "$OUT/clips_check.json"
+
+      - name: Контактные листы (8 кадров, сбоку и 3/4, PNG без GPU)
+        # и при провале проверки — чтобы было видно, что не так
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          SHEETS=build/contact-sheets; mkdir -p "$SHEETS"
+          sheet() {
+            python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
+              --frames 8 --size 160 --pitch 0 --view side:90 --view 3q:35 "$@"
+          }
+          sheet --only sit_in --only sit_out --only lie_in --only lie_out --only sleep_in --only sleep_out \
+            --only eat --only death --out "$SHEETS/transitions.png"
+          sheet --only idle_wag --only happy_wag --only head_tilt --only shake --only hop --only play_bow \
+            --out "$SHEETS/new_1.png"
+          sheet --only ear_flick --only sniff --only look_l --only look_r --only yawn --out "$SHEETS/new_2.png"
+          ls -l "$SHEETS"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contact-sheets
+          path: build/contact-sheets/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Библиотеки для Blender без экрана
         run: |
@@ -99,7 +125,7 @@ jobs:
           {
             echo "### shiba.usdz"
             echo '```json'
-            python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','world_size_m','triangles','skeletons','animations','problems','warnings')},indent=1))"
+            python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','world_size_m','triangles','skeletons','animations','usd_loop_seams_deg','problems','warnings') if k in r},indent=1))"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
