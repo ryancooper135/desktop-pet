@@ -1,7 +1,7 @@
 {
  "fps": 24,
  "animation": "Clips",
- "duration": 36.75,
+ "duration": 54.083333,
  "note": "start/end - seconds on the single timeline; trim in RealityKit",
  "clips": {
   "idle": {
@@ -36,183 +36,293 @@
   },
   "walk": {
    "start": 10.916667,
-   "end": 11.958333,
+   "end": 12.0,
    "frames": [
     262,
-    287
+    288
    ],
    "loop": true,
    "source": "Walk"
   },
   "gallop": {
-   "start": 12.041667,
-   "end": 12.583333,
+   "start": 12.083333,
+   "end": 12.666667,
    "frames": [
-    289,
-    302
+    290,
+    304
    ],
    "loop": true,
    "source": "Gallop"
   },
   "gallop_jump": {
-   "start": 12.666667,
-   "end": 13.583333,
+   "start": 12.75,
+   "end": 13.666667,
    "frames": [
-    304,
-    326
+    306,
+    328
    ],
    "loop": false,
    "source": "Gallop_Jump"
   },
   "jump_to_idle": {
-   "start": 13.666667,
-   "end": 15.0,
+   "start": 13.75,
+   "end": 15.083333,
    "frames": [
-    328,
-    360
+    330,
+    362
    ],
    "loop": false,
    "source": "Jump_ToIdle"
   },
   "eat": {
-   "start": 15.083333,
-   "end": 17.583333,
+   "start": 15.166667,
+   "end": 17.833333,
    "frames": [
-    362,
-    422
+    364,
+    428
    ],
    "loop": true,
-   "source": "Eating"
+   "source": "AnimalArmature|Eating"
   },
   "attack": {
-   "start": 17.666667,
-   "end": 19.0,
+   "start": 17.916667,
+   "end": 19.25,
    "frames": [
-    424,
-    456
+    430,
+    462
    ],
    "loop": false,
    "source": "Attack"
   },
   "hit_left": {
-   "start": 19.083333,
-   "end": 19.75,
+   "start": 19.333333,
+   "end": 20.0,
    "frames": [
-    458,
-    474
+    464,
+    480
    ],
    "loop": false,
    "source": "Idle_HitReact_Left"
   },
   "hit_right": {
-   "start": 19.833333,
-   "end": 20.5,
+   "start": 20.083333,
+   "end": 20.75,
    "frames": [
-    476,
-    492
+    482,
+    498
    ],
    "loop": false,
    "source": "Idle_HitReact_Right"
   },
   "death": {
-   "start": 20.583333,
-   "end": 21.625,
+   "start": 20.833333,
+   "end": 21.875,
    "frames": [
-    494,
-    519
+    500,
+    525
    ],
    "loop": false,
    "source": "Death"
   },
   "sit_in": {
-   "start": 21.708333,
-   "end": 22.291667,
+   "start": 21.958333,
+   "end": 22.708333,
    "frames": [
-    521,
-    535
+    527,
+    545
    ],
    "loop": false,
    "source": "procedural"
   },
   "sit": {
-   "start": 22.375,
-   "end": 25.375,
+   "start": 22.791667,
+   "end": 25.791667,
    "frames": [
-    537,
-    609
+    547,
+    619
    ],
    "loop": true,
    "source": "procedural"
   },
   "sit_out": {
-   "start": 25.458333,
-   "end": 25.958333,
+   "start": 25.875,
+   "end": 26.458333,
    "frames": [
-    611,
-    623
+    621,
+    635
    ],
    "loop": false,
    "source": "procedural"
   },
   "lie_in": {
-   "start": 26.041667,
-   "end": 26.833333,
+   "start": 26.541667,
+   "end": 27.625,
    "frames": [
-    625,
-    644
+    637,
+    663
    ],
    "loop": false,
    "source": "procedural"
   },
   "lie": {
-   "start": 26.916667,
-   "end": 29.916667,
+   "start": 27.708333,
+   "end": 30.708333,
    "frames": [
-    646,
-    718
+    665,
+    737
    ],
    "loop": true,
    "source": "procedural"
   },
   "lie_out": {
-   "start": 30.0,
-   "end": 30.708333,
+   "start": 30.791667,
+   "end": 31.708333,
    "frames": [
-    720,
-    737
+    739,
+    761
    ],
    "loop": false,
    "source": "procedural"
   },
   "sleep_in": {
-   "start": 30.791667,
-   "end": 31.791667,
+   "start": 31.791667,
+   "end": 33.375,
    "frames": [
-    739,
-    763
+    763,
+    801
    ],
    "loop": false,
    "source": "procedural"
   },
   "sleep": {
-   "start": 31.875,
-   "end": 35.875,
+   "start": 33.458333,
+   "end": 37.458333,
    "frames": [
-    765,
-    861
+    803,
+    899
    ],
    "loop": true,
    "source": "procedural"
   },
   "sleep_out": {
-   "start": 35.958333,
-   "end": 36.75,
+   "start": 37.541667,
+   "end": 38.75,
    "frames": [
-    863,
-    882
+    901,
+    930
    ],
    "loop": false,
    "source": "procedural"
+  },
+  "idle_wag": {
+   "start": 38.833333,
+   "end": 40.833333,
+   "frames": [
+    932,
+    980
+   ],
+   "loop": true,
+   "source": "overlay"
+  },
+  "happy_wag": {
+   "start": 40.916667,
+   "end": 42.416667,
+   "frames": [
+    982,
+    1018
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "head_tilt": {
+   "start": 42.5,
+   "end": 43.708333,
+   "frames": [
+    1020,
+    1049
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "shake": {
+   "start": 43.791667,
+   "end": 44.708333,
+   "frames": [
+    1051,
+    1073
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "hop": {
+   "start": 44.791667,
+   "end": 45.291667,
+   "frames": [
+    1075,
+    1087
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "play_bow": {
+   "start": 45.375,
+   "end": 46.791667,
+   "frames": [
+    1089,
+    1123
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "ear_flick": {
+   "start": 46.875,
+   "end": 47.291667,
+   "frames": [
+    1125,
+    1135
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "sniff": {
+   "start": 47.375,
+   "end": 48.875,
+   "frames": [
+    1137,
+    1173
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "look_l": {
+   "start": 48.958333,
+   "end": 50.541667,
+   "frames": [
+    1175,
+    1213
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "look_r": {
+   "start": 50.625,
+   "end": 52.208333,
+   "frames": [
+    1215,
+    1253
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "yawn": {
+   "start": 52.291667,
+   "end": 54.083333,
+   "frames": [
+    1255,
+    1298
+   ],
+   "loop": false,
+   "source": "overlay"
   }
  }
 }
