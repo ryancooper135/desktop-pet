@@ -35,6 +35,15 @@ enum Catalog {
                 return data
             }
         }
+        #if SWIFT_PACKAGE
+        // Linux-сборка логики (app/Package.swift): бандла с ресурсами нет, читаем файлы из репозитория.
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let inRepo = ["economy.json": "config/economy.json", "lines.json": "content/ru/lines.json"]
+        if let rel = inRepo["\(name).\(ext)"], let data = try? Data(contentsOf: repo.appendingPathComponent(rel)) {
+            return data
+        }
+        #endif
         return nil
     }
 

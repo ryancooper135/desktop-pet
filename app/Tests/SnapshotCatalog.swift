@@ -2,12 +2,17 @@
 // поэтому вью и стор можно переписывать, не трогая WidgetSnapshotTests / StoreTests.
 //
 // Вью берутся из каталога превью (app/Shared/Views/PreviewCatalog.swift), стор — настоящий PetStore.
+// В Linux-сборке логики (app/Package.swift) вью нет: там компилируется только StoreHooks.
 
+import Foundation
+#if canImport(UIKit)
 import SwiftUI
 import UIKit
+#endif
 @testable import Pet
 @preconcurrency import PetCore
 
+#if canImport(UIKit)
 // MARK: - Виджеты и остров
 
 /// Где показывается вью. Размеры в точках, примерно как на iPhone Air (420×912);
@@ -91,6 +96,7 @@ enum SnapshotCatalog {
         previewView(family: family.rawValue, mood: mood.rawValue)
     }
 }
+#endif
 
 // MARK: - Общий стор
 

@@ -1,0 +1,51 @@
+// swift-tools-version:6.0
+// Логика приложения без экрана — для Linux CI (.github/workflows/logic.yml), чтобы не тратить минуты macOS.
+// Приложение собирается через XcodeGen (project.yml), этот файл его не касается.
+// Лежит в app/, потому что SwiftPM не пускает пути целей за пределы папки пакета.
+// Новый файл в Shared без SwiftUI/UIKit/WidgetKit/ActivityKit — допиши его в список ниже.
+
+import PackageDescription
+
+let package = Package(
+    name: "PetLogic",
+    platforms: [.iOS(.v17), .macOS(.v14)],
+    dependencies: [
+        .package(path: "../core/swift"),
+    ],
+    targets: [
+        // Имя «Pet», как у цели приложения: тесты пишут `@testable import Pet` и там, и тут.
+        .target(
+            name: "Pet",
+            // Пакет по пути получает имя папки («swift»), поэтому продукт с явным пакетом:
+            // голое "PetCore" SwiftPM 5.2+ не примет.
+            dependencies: [.product(name: "PetCore", package: "swift")],
+            path: "Shared",
+            sources: [
+                "AppGroup.swift",
+                "Backup.swift",
+                "Catalog.swift",
+                "Clock.swift",
+                "ForecastTools.swift",
+                "Lines.swift",
+                "NotificationPlanner.swift",
+                "Paths.swift",
+                "PetAction.swift",
+                "PetRunner.swift",
+                "PetStore.swift",
+                "Presenter.swift",
+                "SaveFile.swift",
+                "StableHash.swift",
+            ]
+        ),
+        .testTarget(
+            name: "PetTests",
+            dependencies: ["Pet", .product(name: "PetCore", package: "swift")],
+            path: "Tests",
+            sources: [
+                "PetLogicTests.swift",
+                "StoreTests.swift",
+                "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
+            ]
+        ),
+    ]
+)
