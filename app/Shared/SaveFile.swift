@@ -124,6 +124,9 @@ struct SaveFile: Codable, Sendable {
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Шиба"
         // Без питомца файл бессмысленен: пусть это будет ошибкой чтения, а не новым щенком.
         let petJSON = try c.decode(JSONValue.self, forKey: .pet)
+        guard petJSON["t"].double != nil, petJSON["hearts"].double != nil, petJSON["alive"].bool != nil else {
+            throw DecodingError.dataCorruptedError(forKey: .pet, in: c, debugDescription: "питомец без t/hearts/alive")
+        }
         pet = PetState(json: petJSON)
         createdT = try c.decodeIfPresent(Double.self, forKey: .createdT) ?? pet.t
         if let o = try c.decodeIfPresent(JSONValue.self, forKey: .owner) {

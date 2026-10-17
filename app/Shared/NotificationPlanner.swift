@@ -23,7 +23,9 @@ enum NotificationPlanner {
     static func plan(_ f: SaveFile, now: Double) -> [PlannedNote] {
         let r = Catalog.rules
         let o = PetRunner.owner(f, at: now)
-        let lastSent = f.notif.lastSentT ?? f.notif.scheduled.filter { $0 < now }.max()
+        // Уже сработавшее из плана свежее старого lastSentT: берём самое позднее, иначе два в один день.
+        let fired = f.notif.scheduled.filter { $0 <= now }.max()
+        let lastSent = [f.notif.lastSentT, fired].compactMap { $0 }.max()
         let opts = NotifyOpts(horizonH: horizonH, lastOpenT: f.lastSeenT ?? now, lastSentT: lastSent)
         var out: [PlannedNote] = []
         for p in PetEngine.notificationPlan(f.pet, r, o, now: now, opts: opts) where p.at > now {
