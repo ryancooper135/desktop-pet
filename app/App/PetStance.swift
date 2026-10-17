@@ -32,7 +32,7 @@ enum PetStance {
     static func loop(for pose: Pose) -> String {
         switch pose {
         case .happy, .loved: return "idle_2"
-        // Ест три раза (intro или реакция feed), потом довольная стойка.
+        // Ест одним подходом (intro или реакция feed), потом довольная стойка.
         case .eating: return "idle_2"
         case .sleep, .nap: return "sleep"
         case .critical, .tired: return "lie"
@@ -43,9 +43,26 @@ enum PetStance {
         }
     }
 
+    /// Клипы, на которые опираются правила без таблицы: контракт и части eat, которые режет сцена (EatClip).
+    static let defaultClips: Set<String> = Set(PetClipNames.required).union(EatClip.parts)
+
     /// Что сыграть один раз при входе в позу, если реакция этого не сделала.
-    static func intro(for pose: Pose) -> [String] {
-        pose == .eating ? ["eat", "eat", "eat"] : []
+    static func intro(for pose: Pose, available: Set<String> = defaultClips) -> [String] {
+        pose == .eating ? EatClip.meal(chews: EatClip.feedChews, available: available) : []
+    }
+
+    /// Intro при входе в позу после реакции played. Если реакция уже сыграла все его клипы (покормили —
+    /// ядро следом прислало «ест»), второй раз не играем: иначе Шиба поднимал голову и ел второй круг.
+    static func introSteps(for pose: Pose, after played: [String], available: Set<String> = defaultClips) -> [String] {
+        let wanted = pick(Self.intro(for: pose, available: available), available: available)
+        if !wanted.isEmpty && Set(wanted).isSubset(of: Set(played)) { return [] }
+        return wanted
+    }
+
+    /// Поза, которую ядро пришлёт после удачного действия (как Presenter.pose: feed/item → eating).
+    /// Реакция сразу кончается циклом этой позы, а не циклом прежней — на стыке ничего не мелькает.
+    static func poseAfter(reaction kind: String, ok: Bool) -> Pose? {
+        ok && (kind == "feed" || kind == "item") ? .eating : nil
     }
 
     /// Цикл по умолчанию для положения: им заполняем паузу, пока поза ещё не пришла.
@@ -117,7 +134,7 @@ enum PetStance {
     /// Одноразовая реакция телом. Клипы стоя (hit, eat, прыжок) — только из положения stand, иначе был бы телепорт:
     /// если действие поднимает питомца, проигрыватель сначала играет переход, потом реакцию уже стоя.
     static func reaction(kind: String, ok: Bool, stance: Stance, lookX: Float? = nil,
-                         available: Set<String> = Set(PetClipNames.required)) -> [String] {
+                         available: Set<String> = defaultClips) -> [String] {
         if stance == .dead { return [] }
         if !ok {
             return stance == .sleep ? [] : pick(["head_tilt"], available: available)
@@ -140,9 +157,9 @@ enum PetStance {
                 out = fun.first.map { [$0] } ?? ["jump_to_idle"]
             }
         case "feed":
-            if standing { out = ["eat", "eat", "eat"] }
+            if standing { out = EatClip.meal(chews: EatClip.feedChews, available: available) }
         case "item":
-            if standing { out = ["eat"] }
+            if standing { out = EatClip.meal(chews: EatClip.itemChews, available: available) }
         case "wake":
             switch stance {
             case .sleep: out = ["sleep_out", "lie_out"]
