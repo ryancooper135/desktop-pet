@@ -245,6 +245,40 @@ final class WalkTests: XCTestCase {
         XCTAssertNil(PetRunner.peek(f, at: until + 60).outing, "дома ровно к backAt")
     }
 
+    /// Аудит v0.5: виджет, остров и приложение догоняют один и тот же файл по очереди — находка
+    /// засчитывается один раз, а пока Шиба гуляет, любое действие кроме шагов — отказ "away".
+    func testWalkReturnCountedOnceAndActionsWaitForHim() throws {
+        let t = try wMorning()
+        var f = wFile(at: t)
+        XCTAssertTrue(PetRunner.apply(.walk, source: .app, to: &f, now: t).ok)
+        let out = try XCTUnwrap(f.pet.outing)
+
+        let mid = t + 300
+        for (a, src) in [(PetAction.feed("x"), ActionSource.widget), (.item("x"), .island), (.pet, .app),
+                         (.play, .app), (.bath, .control), (.wake, .shortcut), (.walk, .island)] {
+            var g = f
+            let r = PetRunner.apply(a, source: src, to: &g, now: mid)
+            XCTAssertFalse(r.ok, "\(a)")
+            XCTAssertEqual(r.reason, "away", "\(a)")
+            XCTAssertEqual(g.pet.outing, out, "\(a): прогулка не сбилась")
+        }
+        var steps = f
+        XCTAssertTrue(PetRunner.apply(.steps(500), source: .steps, to: &steps, now: mid).ok, "шаги хозяина идут")
+        XCTAssertEqual(steps.pet.outing, out)
+
+        let back = Finds.backAt(out, stateT: f.pet.t)
+        var a = f
+        PetRunner.catchUp(&a, now: back)
+        XCTAssertNil(a.pet.outing)
+        XCTAssertEqual(a.pet.finds[out.find], 1)
+        var b = a
+        PetRunner.catchUp(&b, now: back)
+        PetRunner.catchUp(&b, now: back + 600)
+        XCTAssertEqual(b.pet.finds[out.find], 1, "повторный догон не дублирует находку")
+        XCTAssertEqual(Finds.total(b.pet.finds), 1)
+        XCTAssertEqual(PetRunner.peek(f, at: back + 600).finds, b.pet.finds, "старый снимок виджета — тот же итог")
+    }
+
     // MARK: уведомление «Вернулся!»
 
     /// Файл, где Шиба гуляет с now до until (до ночи питомца, чтобы прогулка не кончилась раньше).

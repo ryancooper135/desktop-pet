@@ -219,6 +219,40 @@ final class SoundTests: XCTestCase {
         return (out, silent)
     }
 
+    /// Аудит v0.5: звуки и сброс с главного потока, пока аудиопоток рендерит, — без NaN, без выхода за
+    /// потолок, и после всего синтезатор затихает (SPSC-кольцо, Atomic-метки).
+    func testPushAndResetWhileRenderingOnAnotherThread() {
+        let core = SynthCore()
+        let cues = Self.allCues
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            for i in 0..<300 {
+                _ = core.push(SoundRecipe.tones(cues[i % cues.count]))
+                if i % 37 == 0 { core.requestReset() }
+                if i % 53 == 0 { core.cancelChoreo() }
+                usleep(100)
+            }
+            done.signal()
+        }
+        let block = 256
+        let buf = UnsafeMutablePointer<Float>.allocate(capacity: block)
+        defer { buf.deallocate() }
+        var peak: Float = 0
+        var bad = 0
+        var finished = false
+        var tail = 0
+        while tail < Int(4 * core.sampleRate) / block {
+            _ = core.render(into: buf, frames: block)
+            for v in UnsafeBufferPointer(start: buf, count: block) {
+                if v.isNaN || v.isInfinite { bad += 1 } else { peak = max(peak, abs(v)) }
+            }
+            if !finished { finished = done.wait(timeout: .now()) == .success } else { tail += 1 }
+        }
+        XCTAssertEqual(bad, 0)
+        XCTAssertLessThanOrEqual(Double(peak), SynthCore.ceiling + 1e-6)
+        XCTAssertTrue(core.render(into: buf, frames: block), "после очереди тишина")
+    }
+
     func testRenderEveryCueIsSaneAndEnds() {
         for cue in Self.allCues {
             let core = SynthCore()
