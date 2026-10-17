@@ -5,6 +5,9 @@ import Foundation
 @preconcurrency import PetCore
 
 enum PetRunner {
+    /// Одинаковый отказ чаще раза в 10 минут в журнал не пишется.
+    static let refusalGap: Double = 600
+
     /// Догнать питомца до now: события по дороге — в журнал (ev.*), потом stepTo.
     /// Часы назад больше чем на 5 минут — не считаем, пишем clock_back (ядро не умеет назад).
     static func catchUp(_ f: inout SaveFile, now: Double) {
@@ -68,7 +71,14 @@ enum PetRunner {
         catchUp(&f, now: now)
         let before = f.pet.needs
         let res = PetEngine.act(&f.pet, Catalog.rules, f.owner, a.core)
-        f.log("act.\(a.kind)", t: f.pet.t, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
+        // Тот же отказ подряд (жмут «Погладить» на перезарядке) не пишем: иначе 200 записей журнала
+        // вытесняют неделю ухода, по которой считаются шерсть и открытки.
+        let repeatRefusal = !res.ok && f.journal.last.map {
+            $0.kind == "act.\(a.kind)" && $0.ok == false && $0.reason == res.reason && f.pet.t - $0.t < refusalGap
+        } == true
+        if !repeatRefusal {
+            f.log("act.\(a.kind)", t: f.pet.t, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
+        }
         // Вкусы: множитель к прибавке шкал и наблюдение (любимое/нелюбимое открывается за K раз).
         if res.ok { Tastes.afterAction(a, before: before, at: f.pet.t, in: &f) }
         f.lastAction = SaveFile.LastAction(kind: a.kind, source: source, t: now, ok: res.ok, reason: res.reason)

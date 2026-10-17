@@ -128,6 +128,23 @@ final class PetRunnerCoverageTests: XCTestCase {
         XCTAssertEqual(e?.action, .steps(1200))
     }
 
+    func testRepeatedRefusalLoggedOnce() {
+        var f = SaveFile.fresh(now: rnT0)
+        let first = PetRunner.apply(.wake, source: .app, to: &f, now: rnT0 + 120)
+        XCTAssertFalse(first.ok)
+        let n = f.journal.count
+        for i in 1...30 {
+            let out = PetRunner.apply(.wake, source: .app, to: &f, now: rnT0 + 120 + Double(i) * 5)
+            XCTAssertEqual(out, first, "отказ по-прежнему возвращается")
+        }
+        XCTAssertEqual(f.journal.count, n, "30 одинаковых отказов подряд — одна запись")
+        XCTAssertEqual(f.lastAction?.ok, false)
+        _ = PetRunner.apply(.wake, source: .app, to: &f, now: rnT0 + 120 + PetRunner.refusalGap + 60)
+        XCTAssertEqual(f.journal.count, n + 1, "через 10 минут тот же отказ пишется снова")
+        _ = PetRunner.apply(.pet, source: .app, to: &f, now: rnT0 + 120 + PetRunner.refusalGap + 70)
+        XCTAssertEqual(f.journal.last?.kind, "act.pet", "другое действие пишется сразу")
+    }
+
     func testFailedWakeIsLoggedButNotSteps() {
         var f = SaveFile.fresh(now: rnT0)
         let out = PetRunner.apply(.wake, source: .island, to: &f, now: rnT0 + 120)
