@@ -1,0 +1,305 @@
+// Экран «Дом» (этап 8): шесть линий улучшений за монеты — ванная, лежанка, кухня, будка, уголок, дворик.
+// В карточке линии: значок, имя, текущий уровень и точки уровней, что даёт сейчас, что даст следующий и кнопка с ценой.
+// Логика — HomeShop и HomeOffer (Shared), тут только вид. Открывается круглой кнопкой с домиком рядом с автоматом
+// и по pet://house. Решения (Вадим может поменять): без монет кнопка не гаснет — пишет «Не хватает N», нажатие
+// качает карточку и объясняет отказ строкой под кнопкой; на максимуме вместо кнопки плашка «Лучший уровень».
+
+import SwiftUI
+@preconcurrency import PetCore
+
+struct HouseScreen: View {
+    @Environment(AppModel.self) private var model
+
+    /// Строка под кнопкой одной линии: отказ или «Готово: Ванна». Гаснет сама.
+    struct Note: Equatable {
+        let id = UUID()
+        let line: HomeLine
+        let text: String
+        let ok: Bool
+    }
+
+    @State private var note: Note?
+    @State private var noteTask: Task<Void, Never>?
+    @State private var shakes: [HomeLine: Int] = [:]
+    @State private var bumps: [HomeLine: Int] = [:]
+
+    static let noteFor: Double = 2.5
+
+    var body: some View {
+        let rows = model.file.map { HomeOffer.rows($0) } ?? []
+        ScrollView {
+            VStack(spacing: 14) {
+                header
+                if rows.isEmpty {
+                    Text("Улучшений пока нет")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.soft)
+                        .padding(.top, 20)
+                }
+                ForEach(rows, id: \.id) { r in
+                    HomeLineCard(row: r,
+                                 note: note?.line == r.id ? note : nil,
+                                 shake: shakes[r.id, default: 0],
+                                 bump: bumps[r.id, default: 0]) { buy(r) }
+                }
+                Text("Дом остаётся, даже если начать заново с новым щенком.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(PetPalette.soft)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            }
+            .padding(20)
+        }
+        .background(PetPalette.bg.ignoresSafeArea())
+        .animation(.snappy, value: note)
+        .onDisappear { noteTask?.cancel() }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("house.screen")
+    }
+
+    private var header: some View {
+        VStack(spacing: 4) {
+            Text("Дом")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(PetPalette.ink)
+            if let coins = model.file?.econ.wallet.coins {
+                Text("🪙 \(coins)")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(PetPalette.soft)
+                    .contentTransition(.numericText(value: Double(coins)))
+                    .animation(.snappy, value: coins)
+                    .accessibilityLabel(Text(EconText.coins(coins)))
+                    .accessibilityIdentifier("house.wallet")
+            }
+        }
+    }
+
+    private func buy(_ r: HomeRow) {
+        model.haptic(.light)
+        guard let res = model.buyHome(r.id) else { return }
+        if let why = HomeOffer.refusal(res) {
+            say(Note(line: r.id, text: why, ok: false))
+            shakes[r.id, default: 0] += 1
+            model.haptic(.warning)
+            SoundKit.shared.play(.refuse)
+        } else {
+            say(Note(line: r.id, text: HomeOffer.bought(res, line: r.id) ?? "Готово", ok: true))
+            bumps[r.id, default: 0] += 1
+            model.haptic(.success)
+            SoundKit.shared.play(.hearts)
+        }
+    }
+
+    private func say(_ n: Note) {
+        note = n
+        noteTask?.cancel()
+        noteTask = Task {
+            try? await Task.sleep(for: .seconds(Self.noteFor))
+            if Task.isCancelled { return }
+            if note?.id == n.id { note = nil }
+        }
+    }
+}
+
+/// Карточка одной линии дома.
+struct HomeLineCard: View {
+    let row: HomeRow
+    let note: HouseScreen.Note?
+    let shake: Int
+    let bump: Int
+    let action: () -> Void
+
+    private static let wiggle: [CGFloat] = [0, -6, 6, -3, 0]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: Self.icon(row.id))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(PetPalette.accent)
+                    .symbolEffect(.bounce, value: bump)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(PetPalette.accent.opacity(0.16)))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.name)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                    Text(row.levelName)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.soft)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                Spacer(minLength: 0)
+                LevelPips(level: row.level, top: row.top)
+            }
+            .accessibilityElement(children: .combine)
+
+            if !row.perks.isEmpty {
+                PerkList(perks: row.perks, icon: "checkmark.circle.fill", color: PetPalette.soft)
+                    .accessibilityLabel(Text("Сейчас: \(row.perks.joined(separator: ", "))"))
+            }
+
+            if let n = row.next {
+                Rectangle()
+                    .fill(PetPalette.soft.opacity(0.2))
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Дальше: \(n.name)")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                    PerkList(perks: n.perks, icon: "plus.circle.fill", color: PetPalette.green)
+                }
+                .accessibilityElement(children: .combine)
+                BuyButton(row: row, next: n, action: action)
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "crown.fill")
+                    Text(HomeOffer.buttonTitle(row))
+                }
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(PetPalette.yellow)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.yellow.opacity(0.14)))
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("house.maxed.\(row.id.rawValue)")
+            }
+
+            if let note {
+                Text(note.text)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(note.ok ? PetPalette.green : PetPalette.red)
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("house.note.\(row.id.rawValue)")
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .phaseAnimator(Self.wiggle, trigger: shake, content: { view, x in
+            view.offset(x: x)
+        }, animation: { _ in
+            .linear(duration: 0.06)
+        })
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("house.line.\(row.id.rawValue)")
+    }
+
+    /// Значок линии (SF Symbols, все есть с iOS 16).
+    static func icon(_ id: HomeLine) -> String {
+        switch id {
+        case .bath: return "bathtub.fill"
+        case .bed: return "bed.double.fill"
+        case .kitchen: return "refrigerator.fill"
+        case .kennel: return "house.fill"
+        case .play: return "teddybear.fill"
+        case .yard: return "tree.fill"
+        }
+    }
+}
+
+/// Точки уровней справа: закрашено столько, сколько куплено.
+struct LevelPips: View {
+    let level: Int
+    let top: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<max(top, 0), id: \.self) { i in
+                Circle()
+                    .fill(i < level ? PetPalette.accent : PetPalette.soft.opacity(0.25))
+                    .frame(width: 9, height: 9)
+            }
+        }
+        .animation(.snappy, value: level)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Уровень \(level) из \(top)"))
+    }
+}
+
+/// Столбик баффов со значком в начале строки.
+struct PerkList: View {
+    let perks: [String]
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(perks, id: \.self) { p in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: icon)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(color)
+                    Text(p)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+}
+
+/// «Купить · 🪙 700». Не по карману — бледная и с «Не хватает N», но нажимается: отказ объясняет строка под ней.
+struct BuyButton: View {
+    let row: HomeRow
+    let next: HomeRow.Next
+    let action: () -> Void
+
+    var body: some View {
+        let title = HomeOffer.buttonTitle(row)
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                Spacer(minLength: 8)
+                Text("🪙 \(next.price)")
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(row.canBuy ? Color.white : PetPalette.ink)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(RoundedRectangle(cornerRadius: 14)
+                .fill(row.canBuy ? PetPalette.accent : PetPalette.soft.opacity(0.18)))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Купить \(next.name), \(EconText.coins(next.price))"))
+        .accessibilityValue(Text(row.canBuy ? "" : title))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("house.buy.\(row.id.rawValue)")
+    }
+}
+
+/// Кнопка «Дом» в ряду над панелью, рядом с автоматом: только значок. Id — open.house.
+struct HouseButton: View {
+    @Environment(AppModel.self) private var model
+    @State private var taps = 0
+
+    var body: some View {
+        Button {
+            taps += 1
+            model.showHouse = true
+        } label: {
+            Image(systemName: "house.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .symbolEffect(.bounce, value: taps)
+                .foregroundStyle(PetPalette.ink)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+        }
+        .buttonStyle(SquishStyle())
+        .glassEffect(.regular.interactive(), in: Circle())
+        .accessibilityLabel(Text("Дом"))
+        .accessibilityHint(Text("Улучшения дома за монеты"))
+        .accessibilityIdentifier("open.house")
+    }
+}

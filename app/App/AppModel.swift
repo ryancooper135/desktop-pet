@@ -33,6 +33,8 @@ final class AppModel {
     var showAlbum = false
     /// Автомат с капсулами.
     var showCapsule = false
+    /// Экран «Дом»: улучшения за монеты.
+    var showHouse = false
 
     // MARK: волна 5: монеты, вкусы, шерсть, открытки
 
@@ -522,7 +524,7 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -530,11 +532,13 @@ final class AppModel {
         case "settings": showSettings = true
         case "album": showAlbum = true
         case "capsule": showCapsule = true
+        case "house": showHouse = true
         default:
             showNeeds = false
             showSettings = false
             showAlbum = false
             showCapsule = false
+            showHouse = false
             postcard = nil
         }
     }
@@ -547,6 +551,20 @@ final class AppModel {
         do {
             let r = try CapsuleMachine.perform(pay: pay)
             if case .success = r { Task { await AppActions.shared.afterChange() } }
+            return r
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return nil
+        }
+    }
+
+    /// Купить следующий уровень линии дома. Купили — снимок, кошелёк и виджеты сразу; отказ экран показывает сам.
+    /// nil — стор не записался.
+    func buyHome(_ id: HomeLine) -> HomeShop.BuyResult? {
+        do {
+            let r = try HomeOffer.perform(id)
+            refresh()
+            if case .ok = r { Task { await AppActions.shared.afterChange() } }
             return r
         } catch {
             show(RefuseText.text("store"), ok: false)

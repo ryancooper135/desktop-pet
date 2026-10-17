@@ -203,6 +203,11 @@ struct HomeScreen: View {
                 .environment(model)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $model.showHouse) {
+            HouseScreen()
+                .environment(model)
+                .presentationDetents([.large])
+        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)

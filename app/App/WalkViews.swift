@@ -4,13 +4,14 @@
 //   в беде ряда нет (там большая «Спасти»), после смерти — тоже;
 // • записка «Ушёл гулять, вернусь в 14:20» — бумажкой на месте Шибы, пока его нет;
 // • альбом — шит, ещё открывается по pet://album;
-// • волна 5: круглая кнопка автомата между «Альбомом» и «Гулять» (pet://capsule), в альбоме — «Вкусы» и «Открытки».
+// • волна 5: круглая кнопка автомата между «Альбомом» и «Гулять» (pet://capsule), в альбоме — «Вкусы» и «Открытки»;
+// • этап 8: рядом с автоматом круглая кнопка «Дом» (pet://house, HouseScreen.swift).
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
 @preconcurrency import PetCore
 
-// MARK: - Ряд «Альбом · Автомат · Гулять»
+// MARK: - Ряд «Альбом · Автомат · Дом · Гулять»
 
 struct WalkRow: View {
     @Environment(AppModel.self) private var model
@@ -21,6 +22,7 @@ struct WalkRow: View {
         HStack(spacing: 8) {
             AlbumButton(total: Finds.total(albumFinds(model.file, at: snap.t)))
             MachineButton()
+            HouseButton()
             Spacer(minLength: 0)
             if let gate {
                 WalkButton(gate: gate)

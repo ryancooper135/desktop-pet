@@ -140,6 +140,13 @@ final class ScreenshotUITests: XCTestCase {
         app.terminate()
     }
 
+    /// Экран «Дом»: шесть линий на стартовых уровнях, кнопки «Купить» и «Не хватает N». Тёмная — чтобы проверить тему.
+    @MainActor
+    func testStates49House() throws {
+        try shootOptional("ui-49-house", env: ["PET_OPEN": "house"], marker: "house.screen")
+        try shootOptional("ui-49-house-dark", env: ["PET_OPEN": "house", "PET_SCHEME": "dark"], marker: "house.screen")
+    }
+
     /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.
     /// scrollIn — контейнер, который листаем вверх, пока маркер не станет видимым.
     @MainActor
