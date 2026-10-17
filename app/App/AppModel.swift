@@ -163,6 +163,7 @@ final class AppModel {
     func act(_ a: PetAction) {
         react(a.kind)
         haptic(.light)
+        SoundKit.shared.play(.button)
         Task { _ = await AppActions.shared.perform(a, source: .app) }
     }
 
@@ -175,6 +176,7 @@ final class AppModel {
         } else {
             react("tap")
             haptic(.light)
+            SoundKit.shared.play(.boop)
         }
     }
 
@@ -183,6 +185,7 @@ final class AppModel {
         guard snap.alive else { return }
         react("tickle")
         haptic(.medium)
+        SoundKit.shared.play(.yip)
     }
 
     /// Мгновенная реакция сцены, до ответа ядра.
@@ -203,6 +206,7 @@ final class AppModel {
 
     /// Ответ ядра на действие из приложения. AppActions.perform зовёт сразу после записи, до виджетов и острова.
     func settle(_ a: PetAction, _ out: ActOutcome, delta: [String: Int]) {
+        SoundKit.shared.settled(kind: a.kind, ok: out.ok)
         if out.ok {
             lastDelta = delta
             haptic(.success)

@@ -8,7 +8,8 @@ import PackageDescription
 
 let package = Package(
     name: "PetLogic",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    // Synchronization.Atomic (Synth.swift) — с iOS 18 / macOS 15; приложение и так на iOS 26, на Linux не важно.
+    platforms: [.iOS(.v18), .macOS(.v15)],
     dependencies: [
         .package(path: "../core/swift"),
     ],
@@ -35,7 +36,9 @@ let package = Package(
                 "PetStore.swift",
                 "Presenter.swift",
                 "SaveFile.swift",
+                "SoundRecipes.swift",
                 "StableHash.swift",
+                "Synth.swift",
             ]
         ),
         .testTarget(
@@ -46,6 +49,7 @@ let package = Package(
                 "PetLogicTests.swift",
                 "StoreTests.swift",
                 "LineRotationTests.swift",
+                "SoundTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),
