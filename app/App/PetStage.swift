@@ -211,6 +211,7 @@ enum PetModel {
                 st.lockUntil = st.clock
                 st.pendingPose = nil
             }
+            deathShift(pet, &st, animated: false)
             pet.components.set(st)
             return
         }
@@ -274,7 +275,29 @@ enum PetModel {
             st.lockUntil = st.busyUntil + 1.5
         }
         st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
+        deathShift(pet, &st, animated: !initial)
         pet.components.set(st)
+    }
+
+    /// Клип death валит собаку на бок, и центр уезжает вбок почти на полроста: замер скина по исходнику
+    /// (tools/assets/source/shiba.glb) — середина рамки с 0 до +1.36 ед. по X модели при росте 3.09.
+    /// Без поправки мёртвый лежит у края экрана головой на мяче. Сдвигаем модель обратно, пока он лежит.
+    static let deathShiftX: Float = -1.36
+
+    static func deathShift(_ pet: Entity, _ st: inout ClipState, animated: Bool) {
+        let want = st.stance == .dead
+        guard want != st.shifted, let body = pet.findEntity(named: bodyName) else { return }
+        let base = st.bodyBase ?? body.position
+        st.bodyBase = base
+        st.shifted = want
+        var t = body.transform
+        t.translation = base + (want ? body.transform.rotation.act(SIMD3<Float>(deathShiftX * body.scale.x, 0, 0)) : .zero)
+        if animated {
+            // Клип падения ~1 с: съезжаем вместе с ним, а не прыжком.
+            body.move(to: t, relativeTo: body.parent, duration: 1.0, timingFunction: .easeInOut)
+        } else {
+            body.transform = t
+        }
     }
 
     /// Кадр режиссёра: часы, отложенная поза, фиджеты в простое.
@@ -412,6 +435,9 @@ struct ClipState: Component {
     var swapEvery = 2
     var reduceMotion = false
     var pendingPose: Pose? = nil
+    /// Положение модели после load(): от него считается сдвиг лёжа на боку (deathShift).
+    var bodyBase: SIMD3<Float>? = nil
+    var shifted = false
 }
 
 /// shiba.clips.json из tools/assets: клипы — куски одной анимации «Clips», границы в секундах.
