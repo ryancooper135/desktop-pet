@@ -360,6 +360,12 @@ final class EconomyTests: XCTestCase {
         XCTAssertEqual(g.econ.paidSeq, 2)
         XCTAssertEqual(g.econ.capsule.pityEpic, 3)
 
+        // econ без paidSeq (битый файл): журнал задним числом не оплачиваем.
+        obj["econ"] = ["wallet": ["coins": 7]]
+        var h = try JSONDecoder().decode(SaveFile.self, from: JSONSerialization.data(withJSONObject: obj))
+        XCTAssertEqual(h.econ.paidSeq, old.seq)
+        XCTAssertTrue(Economy.settle(&h).isEmpty)
+
         // Туда-обратно без потерь.
         var h = SaveFile.fresh(now: eT0)
         h.econ.items["scarf_knit"] = 1

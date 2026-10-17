@@ -156,6 +156,7 @@ struct SaveFile: Codable, Sendable {
         tastes = (try? c.decodeIfPresent(TasteLog.self, forKey: .tastes)) ?? TasteLog()
         // Сейв до экономики: стартовый кошелёк, а уже записанный журнал задним числом не оплачиваем.
         econ = (try? c.decodeIfPresent(Econ.self, forKey: .econ)) ?? Econ.start(paidSeq: seq)
+        if econ.paidSeq < 0 { econ.paidSeq = seq }
         cards = (try? c.decodeIfPresent(PostcardBook.self, forKey: .cards)) ?? PostcardBook()
     }
 

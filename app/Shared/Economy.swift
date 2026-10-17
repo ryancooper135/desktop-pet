@@ -268,7 +268,8 @@ struct Econ: Codable, Hashable, Sendable {
         let cfg = EconomyConfig.shared
         wallet = (try? c.decodeIfPresent(Wallet.self, forKey: .wallet))
             ?? Wallet(coins: cfg.coinsStart, tickets: cfg.ticketsStart, shards: cfg.shardsStart)
-        paidSeq = (try? c.decodeIfPresent(Int.self, forKey: .paidSeq)) ?? 0
+        // Нет номера — помечаем -1, SaveFile подставит текущий seq: битый файл не оплачивает журнал задним числом.
+        paidSeq = (try? c.decodeIfPresent(Int.self, forKey: .paidSeq)) ?? -1
         daily = (try? c.decodeIfPresent(Daily.self, forKey: .daily)) ?? Daily()
         capsule = (try? c.decodeIfPresent(CapsuleState.self, forKey: .capsule))
             ?? CapsuleState(pulls: 0, pityEpic: cfg.capsule.pityStart, pityLegendary: cfg.capsule.pityStart)
