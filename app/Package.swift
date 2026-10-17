@@ -26,6 +26,7 @@ let package = Package(
                 "Catalog.swift",
                 "Clock.swift",
                 "ForecastTools.swift",
+                "LineRotation.swift",
                 "Lines.swift",
                 "NotificationPlanner.swift",
                 "Paths.swift",
@@ -44,6 +45,7 @@ let package = Package(
             sources: [
                 "PetLogicTests.swift",
                 "StoreTests.swift",
+                "LineRotationTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),
