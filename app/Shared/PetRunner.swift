@@ -19,7 +19,10 @@ enum PetRunner {
                 let tail = e.key ?? e.value.map { String($0) } ?? ""
                 f.log(tail.isEmpty ? "ev.\(e.kind.rawValue)" : "ev.\(e.kind.rawValue).\(tail)", t: e.t, key: e.key, value: e.value)
             }
+            let out = f.pet.outing
             PetEngine.stepTo(&f.pet, r, f.owner, now)
+            // Вернулся с находкой — наблюдение вкуса (Tastes).
+            if let w = out, Finds.returned(before: w, after: f.pet) != nil { Tastes.afterWalk(w, at: now, in: &f) }
         }
         // Часовой пояс обновляем после догона: прошлое считалось по старому поясу.
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
@@ -57,8 +60,11 @@ enum PetRunner {
     /// То же без диска: для превью и тестов.
     static func apply(_ a: PetAction, source: ActionSource, to f: inout SaveFile, now: Double) -> ActOutcome {
         catchUp(&f, now: now)
+        let before = f.pet.needs
         let res = PetEngine.act(&f.pet, Catalog.rules, f.owner, a.core)
         f.log("act.\(a.kind)", t: f.pet.t, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
+        // Вкусы: множитель к прибавке шкал и наблюдение (любимое/нелюбимое открывается за K раз).
+        if res.ok { Tastes.afterAction(a, before: before, at: f.pet.t, in: &f) }
         f.lastAction = SaveFile.LastAction(kind: a.kind, source: source, t: now, ok: res.ok, reason: res.reason)
         if case .steps = a, res.ok { f.lastStepsT = now }
         return ActOutcome(ok: res.ok, reason: res.reason)
