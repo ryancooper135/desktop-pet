@@ -129,7 +129,10 @@ struct HomeScreen: View {
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)
         .animation(.snappy, value: snap.wantIcon)
-        .background { HapticsLayer() }
+        .background {
+            HapticsLayer()
+            SoundLayer()
+        }
         .sheet(isPresented: $model.showNeeds) {
             NeedsSheet()
                 .environment(model)
@@ -176,10 +179,11 @@ struct HomeScreen: View {
     private func handle(_ events: [StrokeEvent], at p: CGPoint) {
         for e in events {
             switch e {
-            case .tick:
-                // Каждые 50 pt пути — лёгкий тик и сердечко под пальцем.
+            case .tick(let n):
+                // Каждые 50 pt пути — лёгкий тик, нотка вверх по ладу и сердечко под пальцем.
                 guard model.snap.alive else { continue }
                 model.haptic(.light)
+                SoundKit.shared.strokeTick(n)
                 model.pop("", at: p, symbol: "heart.fill")
             case .stroke:
                 model.act(.pet)

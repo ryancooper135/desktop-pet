@@ -136,6 +136,8 @@ struct SettingsScreen: View {
     @State private var island = true
     @State private var loaded = false
     @State private var confirmStartOver = false
+    /// Звук только на этом телефоне (UserDefaults), по умолчанию включён. Читает SoundKit.
+    @AppStorage(SoundKit.enabledKey) private var sound = true
 
     /// 20:00–23:55 и 00:00–02:00 с шагом 5 минут.
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
@@ -175,6 +177,14 @@ struct SettingsScreen: View {
                     Text("Островок — тёмная область вокруг камеры вверху экрана. Там и на экране блокировки видно питомца и кнопки ухода.")
                 }
 
+                Section {
+                    Toggle("Звук", isOn: $sound)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier("settings.sound")
+                } footer: {
+                    Text("Тихие звуки в одной тональности. В беззвучном режиме телефона их не слышно.")
+                }
+
                 if Self.showDevTools {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }
@@ -209,6 +219,10 @@ struct SettingsScreen: View {
             }
             .onChange(of: bed) { _, m in
                 if loaded, m != model.file?.owner.bedMin { model.setBedtime(minute: m) }
+            }
+            .onChange(of: sound) { _, on in
+                // Выключили — замолчать сразу; включили — короткое «да», чтобы было слышно громкость.
+                if on { SoundKit.shared.play(.ok) } else { SoundKit.shared.stop() }
             }
             .onChange(of: island) { _, on in
                 guard loaded, on != model.file?.island.enabled else { return }

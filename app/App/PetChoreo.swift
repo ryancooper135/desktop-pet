@@ -427,6 +427,7 @@ enum PetChoreo {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
         let present = bowlAtSnout(cs, clock)
         interrupt(&cs, clock)
+        SoundKit.shared.cancelChoreo()
         if cs.petting != nil {
             cs.petting = nil
             relax(pet)
@@ -435,11 +436,13 @@ enum PetChoreo {
         if let w = ChoreoPath.eatWindow(steps, duration: duration) {
             cs.feed = .init(start: clock, eatStart: w.start, eatEnd: w.end, leave: w.end + 0.5, present: present)
             cs.active = true
+            SoundKit.shared.eat(from: w.start, to: w.end)
         }
         if let i = steps.firstIndex(of: "play_bow") {
             let offset = steps[..<i].reduce(0) { $0 + duration($1) }
             cs.play = .init(start: clock + offset, mainLoop: mainLoop)
             cs.active = true
+            SoundKit.shared.ball(after: offset)
             until = clock + offset + ChoreoPath.Play.length
         }
         pet.components.set(cs)
@@ -471,6 +474,7 @@ enum PetChoreo {
     /// Reduce Motion: всё сразу домой, без движения.
     static func stop(_ pet: Entity) {
         guard var cs = pet.components[ChoreoState.self], cs.active else { return }
+        SoundKit.shared.cancelChoreo()
         cs.feed = nil
         cs.play = nil
         if cs.petting != nil {

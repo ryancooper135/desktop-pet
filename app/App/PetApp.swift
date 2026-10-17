@@ -22,9 +22,11 @@ struct PetApp: App {
             case .active:
                 model.becameActive()
                 GuideCenter.shared.becameActive()
+                SoundKit.shared.becameActive()
             case .background:
                 model.wentBackground()
                 GuideCenter.shared.wentBackground()
+                SoundKit.shared.wentBackground()
             default: break
             }
         }
