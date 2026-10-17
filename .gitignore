@@ -13,3 +13,7 @@ probe/Widgets/Widgets.entitlements
 *.log
 .build/
 __pycache__/
+
+# Локальные сборки и рабочие копии агентов
+builds/
+.claude/worktrees/
