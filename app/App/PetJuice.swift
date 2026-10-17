@@ -71,6 +71,13 @@ struct JuiceComponent: Component {
     var swayPhase: Float = 0
     var lie: Float = 0
 
+    // Разворот всей собаки на месте под стойку (пока только сон: боком к камере, иначе сверху-спереди
+    // свернувшаяся собака читается как бесформенный ком). Медленная пружина без перелёта поверх yaw.
+    static let restOmega: Float = 4
+    static let sleepYaw: Float = -0.9   // ≈ -52°: вместе с yaw3q почти профиль, морда влево по экрану
+    var rest: Float = 0, restV: Float = 0
+    var restTarget: Float = 0
+
     var still = false                // Reduce Motion: ни дыхания, ни пружин
     var lastReactionId = 0
 
@@ -84,6 +91,7 @@ struct JuiceComponent: Component {
             hop = 0; hopV = 0
             yaw = 0; yawV = 0
             lean = 0; leanV = 0; leanTarget = 0; wiggle = 0
+            rest = restTarget; restV = 0
             return
         }
         let twoPi = 2 * Float.pi
@@ -96,6 +104,16 @@ struct JuiceComponent: Component {
         (hop, hopV) = PetSpring.step(x: hop, v: hopV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
         (yaw, yawV) = PetSpring.step(x: yaw, v: yawV, target: yawTarget + wiggle, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
         (lean, leanV) = PetSpring.step(x: lean, v: leanV, target: leanTarget, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
+        (rest, restV) = PetSpring.step(x: rest, v: restV, target: restTarget, omega: JuiceComponent.restOmega, zeta: 1, dt: dt)
+        // Докрутили — встаём ровно в цель, чтобы тень перестала переписываться каждый кадр.
+        if abs(rest - restTarget) < 1e-4 && abs(restV) < 1e-3 {
+            rest = restTarget; restV = 0
+        }
+    }
+
+    /// Целевой разворот на месте для стойки: во сне — боком к камере, в остальных (и в смерти на боку) — как есть.
+    static func restYaw(for stance: Stance?) -> Float {
+        stance == .sleep ? sleepYaw : 0
     }
 
     /// Масштаб с сохранением объёма: тянется по y — сужается по x/z.
@@ -108,7 +126,7 @@ struct JuiceComponent: Component {
 
     var lift: Float { max(0, hop) }
 
-    var angle: Float { yaw + (still ? 0 : sway * sin(swayPhase)) }
+    var angle: Float { yaw + rest + (still ? 0 : sway * sin(swayPhase)) }
 }
 
 // MARK: - Системы
@@ -124,6 +142,10 @@ struct JuiceSystem: System {
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
             guard var c = e.components[JuiceComponent.self],
                   let pivot = e.children.first(where: { $0.name == PetModel.pivotName }) else { continue }
+            // Стойка меняется в начале цепочки (drive), так что разворот идёт вместе с lie_in / sleep_in
+            // при засыпании и с sleep_out / lie_out при пробуждении.
+            c.restTarget = JuiceComponent.restYaw(for: e.components[ClipState.self]?.stance)
+            let turned = c.rest != 0
             c.advance(dt)
             pivot.scale = c.scale
             pivot.position = SIMD3<Float>(0, c.lift, 0)
@@ -138,6 +160,12 @@ struct JuiceSystem: System {
                 }
             }
             pivot.orientation = turn
+            // Пятно-тень вытянуто вдоль морды и живёт рядом с обёрткой (не в пивоте) — доворачиваем его
+            // вслед за разворотом. Пишем только пока разворот не нулевой или только что вернулся в 0.
+            if turned || c.rest != 0,
+               let shadow = e.parent?.children.first(where: { $0.name == "blobShadow" }) {
+                shadow.orientation = e.orientation * simd_quatf(angle: c.rest, axis: up)
+            }
             e.components.set(c)
         }
     }
