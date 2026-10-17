@@ -19,6 +19,7 @@ struct WidgetSmallView: View {
             }
             PetFaceView(pose: snap.pose)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) { RareMark(frame: snap.rare) }
             Text(snap.line)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
@@ -37,6 +38,7 @@ struct WidgetMediumView: View {
             ZStack(alignment: .topTrailing) {
                 PetFaceView(pose: snap.pose)
                     .padding(.top, 8)
+                RareMark(frame: snap.rare)
             }
             .frame(maxWidth: 130, maxHeight: .infinity)
 
@@ -61,6 +63,20 @@ struct WidgetMediumView: View {
                 Spacer(minLength: 0)
                 WidgetButtonsRow(snap: snap)
             }
+        }
+    }
+}
+
+/// Метка редкого кадра, пока у пасхалок нет своих поз и клипов.
+struct RareMark: View {
+    var frame: String?
+
+    var body: some View {
+        if frame != nil {
+            Image(systemName: "sparkles")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(PetPalette.yellow)
+                .accessibilityLabel("Редкий момент")
         }
     }
 }

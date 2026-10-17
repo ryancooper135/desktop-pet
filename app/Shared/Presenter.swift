@@ -80,6 +80,8 @@ struct PetSnapshot: Hashable, Sendable {
     var alive: Bool
     var buildDaysLeft: Int?
     var shared: Bool
+    /// Редкий кадр-пасхалка в этом получасе: ключ кадра (frame из lines.json) или nil.
+    var rare: String? = nil
 
     var date: Date { Date(timeIntervalSince1970: t) }
 
@@ -96,6 +98,8 @@ struct PetSnapshot: Hashable, Sendable {
 enum Presenter {
     /// Реакция на действие держится 90 секунд (виджеты и остров). Приложение передаёт своё окно, короче.
     static let reactionWindow: Double = 90
+    /// В каких настроениях можно показать пасхалку (сырые значения Mood). Вкус — за Вадимом.
+    static let rareMoods: Set<String> = ["ok", "sleep", "nap"]
 
     /// Снимок из файла на момент t. upcoming — прогноз от этого же стейта (если уже посчитан для timeline).
     static func make(_ f: SaveFile, at t: Double, upcoming: [ForecastEvent]? = nil,
@@ -131,8 +135,8 @@ enum Presenter {
         let thought = want.map { lines.thought($0) }
 
         // Реплика.
-        let slot = Int(t / 1800)
         let tier = self.tier(t, o)
+        let tz = o.tzOffsetMin
         var keys: [String] = []
         if let reaction { keys.append("react_\(reaction)") }
         if mood == .ok {
@@ -143,8 +147,13 @@ enum Presenter {
             }
         }
         keys.append(mood.rawValue)
-        let line = lines.widget(keys, seed: f.petId, slot: slot, tier: tier)
-        let islandLine = lines.island(keys, seed: f.petId, slot: slot, tier: tier)
+        // Пасхалка: ~1 получас из 20, только без реакции и в спокойном настроении.
+        let sleeping = mood == .sleep || mood == .nap
+        let rare: LineItem? = reaction == nil && rareMoods.contains(mood.rawValue)
+            ? lines.rare(sleeping: sleeping, seed: f.petId, at: t, tzOffsetMin: tz) : nil
+        let line = rare?.text ?? lines.widget(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
+        let islandLine = rare.flatMap { lines.rareIsland($0, sleeping: sleeping, seed: f.petId, at: t, tzOffsetMin: tz) }
+            ?? lines.island(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
 
         // Главное действие.
         let main: MainAct
@@ -167,7 +176,8 @@ enum Presenter {
             hearts: s.hearts, heartsMax: PetEngine.maxHearts(s, r), level: level, main: main,
             timer: timer(s, r, o, at: t, upcoming: upcoming), needs: s.needs, alive: s.alive,
             buildDaysLeft: f.build.map { Int(((($0.expiresT - t) / 86400)).rounded(.up)) },
-            shared: Paths.isShared)
+            shared: Paths.isShared,
+            rare: rare.map { $0.frame ?? "rare" })
     }
 
     static func pose(mood: Mood, reaction: String?, needs: [Need: Double]) -> Pose {
