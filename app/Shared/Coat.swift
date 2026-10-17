@@ -189,7 +189,17 @@ enum Coat {
             }
         }
         anchors.append(Anchor(t: end, v: cleanNow, bath: false, order: anchors.count))
+        if f.createdT >= lead, f.createdT <= end {
+            anchors.append(Anchor(t: f.createdT, v: PetEngine.newPet(r, t: f.createdT).needs[.clean] ?? r.warnLow,
+                                  bath: false, order: -1))
+        }
         anchors.sort { ($0.t, $0.order) < ($1.t, $1.order) }
+        // Первый якорь — ванна или чистота ниже warnLow, а ev.low.clean раньше нет: значит, порог пройден
+        // до начала известной истории, и тогда было не выше warnLow. Иначе назад от якоря вышла бы чистая шерсть.
+        if let a0 = anchors.first, a0.bath || a0.v < r.warnLow {
+            let known = f.journal.count >= SaveFile.journalMax ? max(lead, f.journal.first?.t ?? lead) : lead
+            if known < a0.t { anchors.insert(Anchor(t: known, v: r.warnLow, bath: false, order: -2), at: 0) }
+        }
         pets.sort()
         bathEnds.sort()
 
