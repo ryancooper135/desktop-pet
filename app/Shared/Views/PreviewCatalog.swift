@@ -65,10 +65,32 @@ enum PreviewFixtures {
         return s
     }
 
+    /// Снимок для каталога: как snapshot, плюс таймеры — длинный у сытого («через 9 ч 25 мин»)
+    /// и короткий у критичного (живой отсчёт). В snapshot их нет: его берёт заглушка виджета,
+    /// а там время настоящее, и таймер из прошлого выглядел бы странно.
+    static func catalogSnapshot(_ mood: String) -> PetSnapshot {
+        var s = snapshot(mood)
+        if let fx = timerFixture(mood) {
+            s.timer = NeedTimer(kind: fx.kind, start: s.t, end: s.t + fx.left,
+                                title: Presenter.timerTitle(kind: fx.kind, need: fx.need))
+        }
+        return s
+    }
+
+    /// Таймер фикстуры: вид, шкала и сколько осталось.
+    static func timerFixture(_ mood: String) -> (kind: String, need: String, left: Double)? {
+        switch mood {
+        case "fed": return ("low", "clean", 9 * 3600 + 25 * 60)
+        case "critical": return ("low", "love", 40 * 60)
+        default: return nil
+        }
+    }
+
     /// Остров: тот же снимок плюс кнопки из плана острова.
     static func islandState(_ mood: String) -> PetAttributes.ContentState {
         let (f, t) = file(mood)
-        var st = PetAttributes.ContentState(snapshot(mood))
+        var st = PetAttributes.ContentState(catalogSnapshot(mood))
+        st.timerNeed = timerFixture(mood)?.need
         let pick = IslandPlan.pick(f, at: t)
         st.primary = pick.primary
         st.secondary = pick.secondary
@@ -97,7 +119,14 @@ private struct WidgetFrame<Content: View>: View {
 @MainActor
 func previewView(family: String, mood: String) -> AnyView? {
     guard PreviewFixtures.moods.contains(mood) else { return nil }
-    let snap = PreviewFixtures.snapshot(mood)
+    guard let view = previewBody(family: family, mood: mood) else { return nil }
+    // Таймеры в снимках не тикают: «сейчас» — время фикстуры.
+    return AnyView(view.environment(\.petFrozenNow, PreviewFixtures.file(mood).t))
+}
+
+@MainActor
+private func previewBody(family: String, mood: String) -> AnyView? {
+    let snap = PreviewFixtures.catalogSnapshot(mood)
     let state = PreviewFixtures.islandState(mood)
     let lockBg = Color(hex: 0x2a2320)
     switch family {

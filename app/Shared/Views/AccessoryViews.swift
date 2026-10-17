@@ -1,23 +1,42 @@
 // Виджеты экрана блокировки: circular, rectangular, inline. Один тон: цвет даёт система.
 
 import SwiftUI
+import WidgetKit
 @preconcurrency import PetCore
 
+/// Круглый: одно кольцо сердечек и крупная мордочка внутри. Без значка и подписи —
+/// у системного Gauge они съедали место, и мордочка выходила мелкой.
 struct AccessoryCircularView: View {
     var snap: PetSnapshot
 
     var body: some View {
-        Gauge(value: Swift.min(snap.hearts, snap.heartsMax), in: 0...Swift.max(1, snap.heartsMax)) {
-            Image(systemName: "heart.fill")
-        } currentValueLabel: {
+        let ring: CGFloat = 5
+        ZStack {
+            AccessoryWidgetBackground()
+            Circle()
+                .strokeBorder(HierarchicalShapeStyle.primary.opacity(0.25), lineWidth: ring)
+            Circle()
+                .inset(by: ring / 2)
+                .trim(from: 0, to: CGFloat(Self.fraction(hearts: snap.hearts, max: snap.heartsMax)))
+                .stroke(HierarchicalShapeStyle.primary, style: StrokeStyle(lineWidth: ring, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .widgetAccentable()
             PetFaceView(pose: snap.pose, mono: true)
-                .padding(2)
+                .padding(ring + 4)
         }
-        .gaugeStyle(.accessoryCircular)
+        .accessibilityElement()
         .accessibilityLabel(Text("\(snap.name): \(snap.line)"))
+        .accessibilityValue(Text("Сердечки: \(Int((snap.hearts - 1e-9).rounded(.up))) из \(Int(snap.heartsMax.rounded()))"))
+    }
+
+    /// Доля кольца: сердечки из максимума, 0…1.
+    nonisolated static func fraction(hearts: Double, max: Double) -> Double {
+        guard max > 0 else { return 0 }
+        return Swift.min(1, Swift.max(0, hearts / max))
     }
 }
 
+/// Прямоугольный: мордочка, реплика в две строки, сердечки всегда, таймер — если есть.
 struct AccessoryRectangularView: View {
     var snap: PetSnapshot
 
@@ -30,10 +49,9 @@ struct AccessoryRectangularView: View {
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
+                HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 9, mono: true)
                 if let tm = snap.timer {
-                    NeedTimerView(timer: tm, showTitle: false, mono: true)
-                } else {
-                    HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 9, mono: true)
+                    NeedTimerView(timer: tm, showTitle: false, mono: true, now: snap.t)
                 }
             }
             Spacer(minLength: 0)
@@ -41,13 +59,13 @@ struct AccessoryRectangularView: View {
     }
 }
 
-/// Одна строка над часами: иконка желания (или лапка) и реплика.
+/// Одна строка над часами: иконка желания (или лапка) и короткая реплика.
 struct AccessoryInlineView: View {
     var snap: PetSnapshot
 
     var body: some View {
         Label {
-            Text(snap.line)
+            Text(snap.shortLine)
         } icon: {
             ThoughtBubble.symbol(snap.wantIcon ?? (snap.alive ? "pawprint.fill" : "cloud"))
         }
