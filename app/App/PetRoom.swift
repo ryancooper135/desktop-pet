@@ -172,6 +172,51 @@ enum PetRoom {
         return e
     }
 
+    /// Имя пропа находки в обёртке питомца (PetChoreo ищет его по имени).
+    static let propName = "findProp"
+
+    /// Находка с прогулки — низкополигональная фигурка из примитивов, цвет из Finds. Начало — внизу (кладётся на пол),
+    /// длинная сторона — поперёк морды, как палку несут в зубах. Незнакомый id — шарик цвета «находки».
+    static func findProp(_ id: String) -> Entity {
+        let root = Entity()
+        root.name = propName
+        let color = Finds.find(id)?.color ?? 0xC9B27A
+        func part(_ mesh: MeshResource, _ pos: SIMD3<Float>, scale: SIMD3<Float> = .one, shade: CGFloat = 1) {
+            let e = ModelEntity(mesh: mesh, materials: [matteMaterial(color, shade: shade)])
+            e.position = pos
+            e.scale = scale
+            root.addChild(e)
+        }
+        switch id {
+        case "stick":
+            // Палка поперёк пасти: цилиндр по x и сучок.
+            let r: Float = 0.012
+            part(.generateCylinder(height: 0.16, radius: r), SIMD3<Float>(0, r, 0))
+            root.children.last?.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
+            part(.generateCylinder(height: 0.04, radius: 0.007), SIMD3<Float>(0.04, r + 0.015, 0), shade: 0.85)
+            root.children.last?.orientation = simd_quatf(angle: -0.7, axis: SIMD3<Float>(0, 0, 1))
+        case "cone":
+            part(.generateSphere(radius: 0.035), SIMD3<Float>(0, 0.035, 0), scale: SIMD3<Float>(0.7, 1, 0.7))
+            part(.generateBox(size: 0.012), SIMD3<Float>(0, 0.072, 0), shade: 0.8)
+        case "ball":
+            part(.generateSphere(radius: 0.035), SIMD3<Float>(0, 0.035, 0))
+        case "sock":
+            // Голенище и стопа уголком.
+            part(.generateBox(size: SIMD3<Float>(0.11, 0.03, 0.035)), SIMD3<Float>(0, 0.015, 0))
+            part(.generateBox(size: SIMD3<Float>(0.035, 0.03, 0.05)), SIMD3<Float>(0.0375, 0.015, 0.03), shade: 0.9)
+            part(.generateBox(size: SIMD3<Float>(0.02, 0.031, 0.036)), SIMD3<Float>(-0.05, 0.015, 0), shade: 0.75)
+        case "leaf":
+            part(.generateBox(size: SIMD3<Float>(0.07, 0.004, 0.05)), SIMD3<Float>(0, 0.002, 0))
+            root.children.last?.orientation = simd_quatf(angle: 0.6, axis: SIMD3<Float>(0, 1, 0))
+            part(.generateBox(size: SIMD3<Float>(0.03, 0.004, 0.004)), SIMD3<Float>(0.045, 0.002, 0), shade: 0.7)
+        case "pebble":
+            part(.generateSphere(radius: 0.03), SIMD3<Float>(0, 0.021, 0), scale: SIMD3<Float>(1.2, 0.7, 1))
+        default:
+            part(.generateSphere(radius: 0.03), SIMD3<Float>(0, 0.03, 0))
+        }
+        return root
+    }
+
     /// Матовость: у всех PBR-материалов шероховатость 1, без металла и бликов. Clearcoat не трогаем.
     static func matte(_ root: Entity) {
         if var model = root.components[ModelComponent.self] {

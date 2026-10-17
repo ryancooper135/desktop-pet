@@ -8,7 +8,7 @@ import SwiftUI
 enum PreviewFixtures {
     /// 2026-09-21 14:13 UTC: день, хозяин не спит.
     static let dayT: Double = 1_790_000_000
-    static let moods = ["fed", "hungry", "asleep", "critical"]
+    static let moods = ["fed", "hungry", "asleep", "critical", "walking"]
     static let families = ["small", "medium", "large", "circular", "rectangular", "inline",
                            "islandCompact", "islandExpanded", "lockActivity"]
 
@@ -30,6 +30,10 @@ enum PreviewFixtures {
         case "critical":
             set(&f, food: 0, clean: 15, energy: 20, fun: 10, love: 10)
             f.pet.hearts = 1
+        case "walking":
+            // Гуляет 20 минут, вернётся через 1 ч 10 мин с шишкой.
+            set(&f, food: 70, clean: 65, energy: 60, fun: 80, love: 85)
+            f.pet.outing = Outing(from: t - 20 * 60, until: t + 70 * 60, find: "cone")
         default:
             set(&f, food: 92, clean: 90, energy: 85, fun: 88, love: 95)
         }
@@ -59,6 +63,8 @@ enum PreviewFixtures {
             s.level = 3
             s.urgent = true
             if s.main == .pet { s.main = .feed }
+        case "walking":
+            s.pose = .away
         default:
             s.pose = .happy
         }

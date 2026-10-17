@@ -1,6 +1,7 @@
 // Главный экран v0.1: сцена с Шибой на весь экран, сверху карточка имени, мысль и реплика, снизу тост и стеклянная панель действий.
 // Шкал на главном нет: долгое нажатие на карточку или свайп вверх по питомцу открывает NeedsSheet.
 // Стекло (Liquid Glass) только на панели действий, остальное — непрозрачные «бумажные» плашки.
+// Прогулка (WalkViews.swift): над панелью ряд «Альбом · Гулять», пока гуляет — записка на месте Шибы.
 
 import SwiftUI
 import UIKit
@@ -24,7 +25,9 @@ struct HomeScreen: View {
                          reactionId: model.reaction.id,
                          reactionKind: model.reaction.kind,
                          reactionOk: model.reaction.ok,
-                         lookX: model.lookX)
+                         lookX: model.lookX,
+                         walkHomeId: model.walkHome.id,
+                         walkHomeFind: model.walkHome.find)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .gesture(stageGesture)
@@ -39,6 +42,17 @@ struct HomeScreen: View {
             .accessibilityAction { model.act(.pet) }
             .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
             .accessibilityIdentifier("pet.stage")
+
+            if snap.pose == .away, let note = awayNote {
+                // Записка на месте Шибы, чуть ниже середины сцены: там он обычно стоит.
+                GeometryReader { geo in
+                    AwayNoteCard(text: note)
+                        .position(x: geo.size.width / 2, y: geo.size.height * 0.52)
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
 
             if rescue {
                 RescueVignette()
@@ -108,6 +122,11 @@ struct HomeScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
+                if snap.alive && !rescue {
+                    WalkRow(snap: snap)
+                        .transition(.opacity)
+                }
+
                 if snap.alive {
                     ActionBar(snap: snap)
                 } else {
@@ -129,6 +148,7 @@ struct HomeScreen: View {
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)
         .animation(.snappy, value: snap.wantIcon)
+        .animation(.snappy, value: snap.pose == .away)
         .background {
             HapticsLayer()
             SoundLayer()
@@ -142,10 +162,23 @@ struct HomeScreen: View {
             SettingsScreen()
                 .environment(model)
         }
+        .sheet(isPresented: $model.showAlbum) {
+            AlbumSheet()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
         .confirmationDialog("Начать заново с новым щенком?", isPresented: $confirmStartOver, titleVisibility: .visible) {
             Button("Начать заново", role: .destructive) { model.startOver() }
             Button("Отмена", role: .cancel) {}
         }
+    }
+
+    /// «Ушёл гулять, вернусь в 14:20» по часам хозяина.
+    private var awayNote: String? {
+        guard let f = model.file else { return nil }
+        let t = model.snap.t
+        guard let w = PetRunner.peek(f, at: t).outing else { return nil }
+        return Finds.awayNote(until: w.until, tzOffsetMin: PetRunner.owner(f, at: t).tzOffsetMin)
     }
 
     // MARK: касания по сцене
@@ -271,6 +304,8 @@ struct ActionBar: View {
     @State private var width: CGFloat = 0
 
     private var bathing: Bool { snap.main == .none }
+    /// Гуляет: дома никого, ядро откажет всем кнопкам («Гуляет, скоро вернётся»).
+    private var away: Bool { snap.pose == .away }
 
     var body: some View {
         let nap = snap.pose == .nap
@@ -284,13 +319,13 @@ struct ActionBar: View {
                     ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
                         .frame(width: cell > 0 ? cell : nil)
                 }
-                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
+                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing || away, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing, labelSize: label) { model.act(.pet) }
+                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing || away, labelSize: label) { model.act(.pet) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || snap.pose == .sleep, labelSize: label) { model.act(.play) }
+                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || away || snap.pose == .sleep, labelSize: label) { model.act(.play) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing, labelSize: label) { model.act(.bath) }
+                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing || away, labelSize: label) { model.act(.bath) }
                     .frame(width: cell > 0 ? cell : nil)
                 if lamp {
                     ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {

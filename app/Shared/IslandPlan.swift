@@ -1,14 +1,14 @@
 // Что предложить в острове: одна большая кнопка (самое нужное, что ядро сейчас примет) и максимум одна маленькая.
-// Порядок: смерть → ванна → спасение → ночь → дрёма → желания → «погладить» → «всё хорошо».
+// Порядок: смерть → ванна → прогулка → спасение → ночь → дрёма → желания → «погладить» → «всё хорошо».
 // Ядро решает само (rescue, wants, act); здесь только выбор и проверка, что действие не откажут.
 
 import Foundation
 @preconcurrency import PetCore
 
-/// Кнопка или статус в острове. Статусы (sleep, wait, open, rest) — без действия.
+/// Кнопка или статус в острове. Статусы (sleep, wait, walk, open, rest) — без действия.
 enum IslandAct: String, Codable, CaseIterable, Hashable, Sendable {
     case feed, bath, play, pet, heal, wake
-    case sleep, wait, open, rest
+    case sleep, wait, walk, open, rest
 
     var title: String {
         switch self {
@@ -20,6 +20,7 @@ enum IslandAct: String, Codable, CaseIterable, Hashable, Sendable {
         case .wake: return "Разбудить"
         case .sleep: return "Спит"
         case .wait: return "Моется"
+        case .walk: return "Гуляет"
         case .open: return "Открыть"
         case .rest: return "Всё хорошо"
         }
@@ -35,6 +36,7 @@ enum IslandAct: String, Codable, CaseIterable, Hashable, Sendable {
         case .wake: return "sun.max.fill"
         case .sleep: return "moon.zzz.fill"
         case .wait: return "drop.fill"
+        case .walk: return "figure.walk"
         case .open: return "arrow.up.forward.app.fill"
         case .rest: return "heart.fill"
         }
@@ -48,7 +50,7 @@ enum IslandAct: String, Codable, CaseIterable, Hashable, Sendable {
         case .pet: return .pet
         case .heal: return .item(Catalog.healItem)
         case .wake: return .wake
-        case .sleep, .wait, .open, .rest: return nil
+        case .sleep, .wait, .walk, .open, .rest: return nil
         }
     }
 
@@ -111,6 +113,8 @@ enum IslandPlan {
     static func pick(_ s: PetState, _ r: Rules, _ o: Owner) -> IslandPick {
         guard s.alive else { return IslandPick(primary: .open, secondary: nil) }
         if s.bathUntil != nil { return IslandPick(primary: .wait, secondary: nil) }
+        // Гуляет: ядро откажет всем действиям («away»), остаётся статус с таймером до возвращения.
+        if s.outing != nil { return IslandPick(primary: .walk, secondary: nil) }
 
         func accepted(_ a: IslandAct) -> Bool {
             guard let pa = a.action else { return false }

@@ -359,7 +359,7 @@ final class PetLogicTests: XCTestCase {
         f.pet.outing = Outing(from: t0 - 600, until: t0 + 50 * 60, find: "ball")
         let snap = Presenter.make(f, at: t0)
         XCTAssertEqual(snap.mood, "walking")
-        XCTAssertEqual(snap.pose, .happy)
+        XCTAssertEqual(snap.pose, .away, "Шибы дома нет — сцена и виджет показывают прогулку")
         XCTAssertEqual(snap.main, .open)
         XCTAssertNil(snap.want)
         XCTAssertEqual(snap.timer, NeedTimer(kind: "walk", start: t0 - 600, end: t0 + 50 * 60, title: "Гуляет"))

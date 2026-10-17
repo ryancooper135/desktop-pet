@@ -39,6 +39,23 @@ final class AnimationUITests: XCTestCase {
         try recordAction("act.wake", name: "anim-wake-from-sleep", seed: "nap")
     }
 
+    /// «Гулять» у чистого щенка в полдень: поворот к краю, уход за кадр и пустая комната с запиской.
+    @MainActor
+    func testWalkOutFrames() throws {
+        try recordAction("act.walk", name: "anim-walk-out", count: 24, step: 0.3)
+    }
+
+    /// Возвращение: сид PET_SEED=walk_back — гуляет и вернётся через 12 с после запуска. Сначала пустая
+    /// комната с запиской, потом Шиба входит с шишкой в зубах, кладёт её, радуется, находка тает.
+    @MainActor
+    func testWalkBackFrames() throws {
+        let app = Self.makeApp(seed: "walk_back", noon: true)
+        let stage = try launch(app)
+        let crop = stage.frame
+        let frames = capture(app, crop: crop, count: 36, step: 0.4, since: Date())
+        attachSheet(frames, name: "anim-walk")
+    }
+
     /// Поглаживание пальцем: 4 мазка туда-обратно по сцене, после каждого по 4 кадра.
     @MainActor
     func testStrokeFrames() throws {
@@ -186,7 +203,7 @@ final class AnimationUITests: XCTestCase {
 
     // MARK: - Помощники
 
-    /// Как в ScreenshotUITests, плюс необязательный сид (PET_SEED=nap|critical|bath) и полдень (PET_NOW).
+    /// Как в ScreenshotUITests, плюс необязательный сид (PET_SEED=nap|critical|bath|walk_back) и полдень (PET_NOW).
     @MainActor
     static func makeApp(seed: String? = nil, noon: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()

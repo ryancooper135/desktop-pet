@@ -37,7 +37,7 @@ final class PresenterCoverageTests: XCTestCase {
 
     func testPoseForEveryMood() {
         let expect: [Mood: Pose] = [
-            .dead: .dead, .walking: .happy, .critical: .critical, .bath: .bath, .sleep: .sleep, .nap: .nap,
+            .dead: .dead, .walking: .away, .critical: .critical, .bath: .bath, .sleep: .sleep, .nap: .nap,
             .hungry: .hungry, .smelly: .dirty, .dirty: .dirty, .tired: .tired, .bored: .bored,
             .wants_love: .lonely, .wants_walk: .bored, .sulky: .sulky, .ok: .idle,
         ]

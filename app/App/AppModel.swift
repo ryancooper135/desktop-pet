@@ -28,6 +28,7 @@ final class AppModel {
     private(set) var storeError: String? = nil
     var showNeeds = false
     var showSettings = false
+    var showAlbum = false
 
     // MARK: отклик на касания (juice)
 
@@ -62,6 +63,13 @@ final class AppModel {
     /// Отказы по виду действия (feed, pet, play…): кнопка с этим видом качается.
     private(set) var refusals: [String: Int] = [:]
     private(set) var pops: [Pop] = []
+    /// Вернулся с прогулки при открытом приложении (или пока оно было в фоне): id растёт, сцена приводит
+    /// Шибу с находкой find, экран празднует. Находка к этому моменту уже в альбоме.
+    struct WalkHome: Equatable, Sendable {
+        var id: Int
+        var find: String
+    }
+    private(set) var walkHome = WalkHome(id: 0, find: "")
     /// Как изменились видимые шкалы от последнего удачного действия из приложения: ["food": 12, "love": 8].
     var lastDelta: [String: Int] = [:]
 
@@ -73,6 +81,9 @@ final class AppModel {
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var lookTask: Task<Void, Never>?
     @ObservationIgnored private var poseTask: Task<Void, Never>?
+    /// Прогулка на прошлом взгляде на состояние: по её исчезновению ловим возвращение.
+    @ObservationIgnored private var outing: Outing? = nil
+    @ObservationIgnored private var walkTask: Task<Void, Never>?
 
     init() {
         LaunchSeed.applyOnce()
@@ -83,6 +94,8 @@ final class AppModel {
             // Сначала snap (без значения по умолчанию), потом остальное: у @Observable init-аксессоры.
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             file = f
+            // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
+            outing = (f.seen ?? f.pet).outing
         } catch {
             snap = Presenter.make(SaveFile.fresh(now: now), at: now, reactionWindow: Self.reactionWindow)
             storeError = error.localizedDescription
@@ -141,8 +154,32 @@ final class AppModel {
             guard let f = try PetStore.shared.read() else { return }
             file = f
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
+            noteWalk(PetRunner.peek(f, at: now))
         } catch {
             storeError = error.localizedDescription
+        }
+    }
+
+    /// Прогулка: вернулся — праздник (всплывашка «Принёс шишку!», сердечки, сцена с находкой); гуляет —
+    /// пересчитать снимок ровно к возвращению (тикер ходит раз в 30 с).
+    private func noteWalk(_ s: PetState) {
+        let before = outing
+        outing = s.outing
+        if let find = Finds.returned(before: before, after: s) {
+            walkHome = WalkHome(id: walkHome.id + 1, find: find)
+            haptic(.success)
+            SoundKit.shared.ambient(.yip)
+            pop(Finds.broughtText(find), at: anchor)
+            heartBurst()
+        }
+        guard s.outing != before else { return }
+        walkTask?.cancel()
+        guard let w = s.outing else { return }
+        let wait = Swift.max(0.5, w.until - s.t + 0.5)
+        walkTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            if Task.isCancelled { return }
+            self?.refresh()
         }
     }
 
@@ -315,6 +352,8 @@ final class AppModel {
         case "tired": return "🥱"
         case "bathing": return "🫧"
         case "not_napping": return "👀"
+        case "away": return "🐾"
+        case "too_late": return "🌙"
         default: return "✋"
         }
     }
@@ -372,15 +411,17 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings
+    /// pet://home, pet://needs, pet://settings, pet://album
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
         case "needs": showNeeds = true
         case "settings": showSettings = true
+        case "album": showAlbum = true
         default:
             showNeeds = false
             showSettings = false
+            showAlbum = false
         }
     }
 }
@@ -433,6 +474,10 @@ enum AwayBuilder {
                               cta: "Можно начать заново с новым щенком.", died: true)
         }
 
+        // Сходил погулять: находка уже в альбоме — первой карточкой, это самое приятное.
+        if let b = s.events.last(where: { $0.kind == "back_home" }) {
+            add("back_home", "figure.walk", ["item": Finds.name(b.key ?? "")])
+        }
         if s.sleptH >= 3 {
             add("slept", "moon.zzz")
         } else if s.events.contains(where: { $0.kind == "nap" }) {
@@ -510,7 +555,8 @@ enum AwayBuilder {
 // MARK: - Сиды для тестов и отладки
 
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
-/// PET_SEED=critical|dead|nap|bath — готовое состояние. Срабатывает один раз за запуск.
+/// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
+/// walk_back — вернётся через 12 с при открытом приложении, для раскадровки anim-walk). Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
 
@@ -558,6 +604,13 @@ enum LaunchSeed {
             case "bath":
                 PetRunner.catchUp(&f, now: now)
                 f.pet.bathUntil = now + 10 * 60
+            case "walk", "walk_back":
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                let back = seed == "walk" ? 20 * 60.0 : 12
+                f.pet.outing = Outing(from: now - 40 * 60, until: now + back, find: "cone")
+                f.seen = f.pet
+                f.lastSeenT = now
             default:
                 break
             }

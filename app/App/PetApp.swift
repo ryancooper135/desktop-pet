@@ -59,7 +59,7 @@ struct RootView: View {
         }
         .onChange(of: model.snap.level) { _, _ in guide.check() }
         .onChange(of: model.away == nil) { _, free in if free { guide.check() } }
-        .onChange(of: model.showNeeds || model.showSettings) { _, busy in if !busy { guide.check() } }
+        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum) { _, busy in if !busy { guide.check() } }
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.

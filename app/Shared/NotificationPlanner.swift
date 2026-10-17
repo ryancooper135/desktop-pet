@@ -28,8 +28,14 @@ enum NotificationPlanner {
         let lastSent = [f.notif.lastSentT, fired].compactMap { $0 }.max()
         let opts = NotifyOpts(horizonH: horizonH, lastOpenT: f.lastSeenT ?? now, lastSentT: lastSent)
         var out: [PlannedNote] = []
-        for p in PetEngine.notificationPlan(f.pet, r, o, now: now, opts: opts) where p.at > now {
-            let day = Int((p.at + Double(o.tzOffsetMin) * 60) / 86400)
+        var core = PetEngine.notificationPlan(f.pet, r, o, now: now, opts: opts)
+        if let walk = walkHome(f, now: now, owner: o, lastSent: lastSent, core: core) {
+            // День возвращения отдан «Вернулся!»: мягкие напоминания того дня снимаем, лимит 1 в день цел.
+            core.removeAll { localDay($0.at, o) == localDay(walk.date.timeIntervalSince1970, o) }
+            out.append(walk)
+        }
+        for p in core where p.at > now {
+            let day = localDay(p.at, o)
             var vars: [String: String] = ["item": Catalog.name(Catalog.mainFood)]
             if p.trigger == .miss_you { vars["count"] = "\(max(1, Int(((p.at - (f.lastSeenT ?? now)) / 86400).rounded())))" }
             let text = Lines.shared.notification(p.trigger.rawValue, seed: f.petId, slot: day, vars: vars)
@@ -42,6 +48,38 @@ enum NotificationPlanner {
         out.append(contentsOf: buildNotes(f, now: now))
         out.sort { $0.date < $1.date }
         return Array(out.prefix(maxNotes))
+    }
+
+    /// Местный день (как в ядре): по нему лимит «1 в день» и ротация текстов.
+    static func localDay(_ t: Double, _ o: Owner) -> Int {
+        Int((Double(Int((t / 60).rounded(.down)) + o.tzOffsetMin) / 1440).rounded(.down))
+    }
+
+    /// Не раньше чем через 2 мин: иначе Шиба вернётся раньше, чем система успеет показать.
+    static let walkLeadSec: Double = 120
+
+    /// «Вернулся! Принёс шишку» к концу прогулки (outing.until). Ядро прогулку в план не кладёт — решаем здесь.
+    /// Решение: уведомление идёт в общий лимит «1 в местный день».
+    ///  • возвращение в тихие часы хозяина — не шлём и не переносим на утро (к утру новость старая, Шиба встретит в приложении);
+    ///  • в этот день уже было уведомление (lastSent) — не шлём;
+    ///  • ядро в этот день планирует что-то серьёзнее мягкой нужды (беда, сердечко, L3, последний шанс) — уступаем ему;
+    ///  • иначе «Вернулся!» вытесняет мягкое «голоден/скучаю» того же дня: новость приятнее и всё равно зовёт в приложение.
+    static func walkHome(_ f: SaveFile, now: Double, owner o: Owner, lastSent: Double?,
+                         core: [PlannedNotification]) -> PlannedNote? {
+        let s = PetRunner.peek(f, at: now)
+        guard s.alive, let out = s.outing else { return nil }
+        let at = out.until
+        guard at >= now + walkLeadSec, at <= now + horizonH * 3600 else { return nil }
+        if PetEngine.ownerAsleep(at, o) { return nil }
+        let day = localDay(at, o)
+        if let ls = lastSent, localDay(ls, o) == day { return nil }
+        let soft: Set<String> = ["low", "absent"]
+        if core.contains(where: { localDay($0.at, o) == day && !soft.contains($0.kind) }) { return nil }
+        let text = Lines.shared.notification("walk_home", seed: f.petId, slot: day, vars: ["item": Finds.name(out.find)])
+        return PlannedNote(
+            id: "\(prefix)walk_home.\(Int(at))", date: Date(timeIntervalSince1970: at),
+            title: String(text.title.prefix(LineLimit.notifTitle)), body: text.body,
+            category: "pet.need", priority: 3, trigger: "walk_home")
     }
 
     static func priority(_ t: NotifyTrigger) -> Int {

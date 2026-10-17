@@ -16,6 +16,9 @@ struct PetStage: View {
     var reactionOk: Bool = true
     /// Куда смотреть: −1 — влево, 1 — вправо, nil — прямо.
     var lookX: Float? = nil
+    /// Растёт на каждое возвращение с прогулки (AppModel.walkHome): Шиба входит в кадр с находкой find.
+    var walkHomeId: Int = 0
+    var walkHomeFind: String = ""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -24,6 +27,7 @@ struct PetStage: View {
         let reduceMotion = self.reduceMotion
         let reaction = PetReaction(id: reactionId, kind: reactionKind, ok: reactionOk)
         let lookX = self.lookX
+        let walkHome = (id: walkHomeId, find: walkHomeFind)
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -42,10 +46,15 @@ struct PetStage: View {
             content.add(PetRoom.lights())
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
             PetModel.prime(pet, reactionId: reaction.id)
+            PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
+                           reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         } update: { content in
             guard let stand = content.entities.first(where: { $0.name == PetModel.standName }),
                   let pet = stand.children.first(where: { $0.name == PetModel.petName }) else { return }
+            // Прогулка — до позы: возвращение держит новую позу, пока Шиба не дошёл до дома.
+            PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
+                           reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
         }
         .background(PetPalette.bg)

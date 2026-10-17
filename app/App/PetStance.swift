@@ -25,6 +25,8 @@ enum PetStance {
         case .dirty, .bath: return .sit
         case .dead: return .dead
         case .happy, .loved, .eating, .idle, .bored, .lonely, .sulky, .hungry: return .stand
+        // Уходит и приходит шагом; пока гуляет, тела в комнате нет (PetStage прячет).
+        case .away: return .stand
         }
     }
 
@@ -40,6 +42,7 @@ enum PetStance {
         case .dirty, .bath: return "sit"
         case .dead: return "death"
         case .idle: return "idle"
+        case .away: return "walk"
         }
     }
 

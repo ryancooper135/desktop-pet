@@ -38,6 +38,9 @@ struct WidgetSmallView: View {
             if snap.sleeping && snap.main == .pet && !snap.critical {
                 // Ночью не предлагаем «Погладить»: питомец спит.
                 SleepPill()
+            } else if snap.pose == .away {
+                // Гуляет: кнопки всё равно откажут, вместо них — отсчёт до возвращения.
+                WalkPill(snap: snap, countdown: true)
             } else {
                 WidgetMainButton(snap: snap, compact: false)
             }
@@ -171,8 +174,46 @@ struct SleepPill: View {
     }
 }
 
+/// «Гуляет»: вместо кнопок, пока Шиба на прогулке. countdown — «Гуляет 25:13» (small), иначе «Вернётся в 14:20».
+/// Один тон в tinted-режимах, как SleepPill.
+struct WalkPill: View {
+    var snap: PetSnapshot
+    var countdown: Bool
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    var body: some View {
+        let tinted = renderingMode != .fullColor
+        let style = tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft)
+        Group {
+            if let tm = snap.timer, tm.kind == "walk" {
+                if countdown {
+                    NeedTimerView(timer: tm, now: snap.t)
+                } else {
+                    HStack(spacing: 5) {
+                        Image(systemName: "house.fill")
+                        Text("Вернётся в \(Text(Date(timeIntervalSince1970: tm.end), style: .time))").lineLimit(1)
+                    }
+                }
+            } else {
+                HStack(spacing: 5) {
+                    Image(systemName: "figure.walk")
+                    Text(IslandAct.walk.title).lineLimit(1)
+                }
+            }
+        }
+        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .foregroundStyle(style)
+        .minimumScaleFactor(0.8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Capsule().fill(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary.opacity(0.12)) : AnyShapeStyle(PetPalette.soft.opacity(0.15))))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("widget.walk")
+    }
+}
+
 /// Кнопки medium/large: погладить, покормить и главное действие, если оно другое.
-/// Критично — одна красная «Спасти»; ночью — «Спит» без кнопок.
+/// Критично — одна красная «Спасти»; ночью — «Спит» без кнопок; на прогулке — «Вернётся в…».
 struct WidgetButtonsRow: View {
     var snap: PetSnapshot
 
@@ -183,6 +224,10 @@ struct WidgetButtonsRow: View {
                 Spacer(minLength: 0)
             } else if snap.sleeping && snap.main == .pet {
                 SleepPill()
+                Spacer(minLength: 0)
+            } else if snap.pose == .away {
+                // Отсчёт уже есть выше (NeedTimerView), здесь — во сколько вернётся.
+                WalkPill(snap: snap, countdown: false)
                 Spacer(minLength: 0)
             } else if snap.alive && snap.main != .none {
                 Button(intent: PetIntent(.widget)) { ActChip(icon: "hand.raised.fill", tint: PetPalette.need(.love)) }
