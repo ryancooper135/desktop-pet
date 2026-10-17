@@ -39,7 +39,8 @@
   "diedAt": null,
   "cause": null,
   "outing": null,
-  "finds": {}
+  "finds": {},
+  "pantry": 0
  },
  "steps": [
   {
@@ -78,7 +79,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "level": 0,
    "moods": [],
@@ -183,7 +185,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [],
@@ -264,7 +267,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [
@@ -313,7 +317,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [
@@ -362,7 +367,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [],
@@ -499,7 +505,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [],
@@ -552,7 +559,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [
@@ -607,7 +615,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [
@@ -662,7 +671,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 1,
    "moods": [],
@@ -809,7 +819,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [],
@@ -895,7 +906,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "level": 0,
    "moods": [
@@ -955,7 +967,8 @@
    "diedAt": null,
    "cause": null,
    "outing": null,
-   "finds": {}
+   "finds": {},
+   "pantry": 15
   },
   "horizonH": 72,
   "events": [
@@ -1613,7 +1626,8 @@
    "diedAt": null,
    "cause": null,
    "outing": null,
-   "finds": {}
+   "finds": {},
+   "pantry": 15
   }
  },
  "notify": [
@@ -1652,7 +1666,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "now": 1788247800,
    "opts": {
@@ -1712,7 +1727,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "now": 1788247800,
    "opts": {
@@ -1759,7 +1775,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 15
    },
    "now": 1788480030,
    "opts": {

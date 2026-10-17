@@ -168,6 +168,8 @@ function makeRules(cfg0     , presetName         )        {
                                                            
 
 const STEP = 60;
+/** Сколько сытости автокормушка даёт за раз (как миска корма). */
+const AUTOFEED_PORTION = 20;
 const DH = 1 / 60;
 const CARE         = ['food', 'clean', 'fun', 'love', 'walk'];
 const WATCH         = ['food', 'clean', 'fun', 'love'];
@@ -184,7 +186,7 @@ function newPet(r       , t        )           {
   return {
     t, needs, hearts: r.hearts.max, grace: { starve: 0, dirty: 0, toska: 0 },
     lastChanceH: null, napUntil: null, bathUntil: null, lastHeartLossT: null, cooldowns: {},
-    home, alive: true, diedAt: null, cause: null, outing: null, finds: {},
+    home, alive: true, diedAt: null, cause: null, outing: null, finds: {}, pantry: 0,
   };
 }
 
@@ -280,6 +282,16 @@ function finishWalk(s          , r       ) {
   s.outing = null;
 }
 
+/** Автокормушка кухни (бафф autofeed_below): дома и не в ванне, сытость ниже порога — порция из запаса. */
+function autofeed(s          , r       ) {
+  const below = num(homeBuff(s, r, 'kitchen'), 'autofeed_below');
+  const left = s.pantry ?? 0;
+  if (below <= 0 || left <= 0 || s.outing != null || s.bathUntil !== null || s.needs.food >= below) return;
+  const p = Math.min(left, AUTOFEED_PORTION);
+  s.needs.food = clamp(s.needs.food + p);
+  s.pantry = left - p;
+}
+
 /** Один шаг в 1 минуту (на месте). Снаружи ядра зовите stepTo/advance. */
 function step(s          , r       , o       ) {
   const t = s.t;
@@ -290,6 +302,7 @@ function step(s          , r       , o       ) {
     finishWalk(s, r);
   }
   const wo = s.outing != null ? r.walkOut : null; // гуляет: шкалы по своим множителям, урона и смерти нет
+  autofeed(s, r);
 
   const asleep = ownerAsleep(t, o);
   const night = petNight(t, r, o);
@@ -391,7 +404,10 @@ function act(s          , r       , o       , a        )            {
       if (!e) return { ok: false, reason: 'unknown_item' };
       if (s.bathUntil !== null) return { ok: false, reason: 'bathing' };
       if (cooling(a.item)) return { ok: false, reason: 'cooldown' };
-      if (a.type === 'feed') s.napUntil = null;
+      if (a.type === 'feed') {
+        s.napUntil = null;
+        s.pantry = num(homeBuff(s, r, 'kitchen'), 'storage'); // покормил — заодно пополнил запас на кухне
+      }
       applyEffect(s, e, maxHearts(s, r));
       if (typeof e.cooldown_h === 'number') s.cooldowns[a.item] = t + e.cooldown_h * 3600;
       return { ok: true };
@@ -475,13 +491,13 @@ function moods(s          , r       , o       )           {
 
                                 
             
-                                                                                       
+                                                                                                    
                
                  
  
 
 /** Что уже было до начала наблюдения: от этого считаются новые события прогноза. */
-                                                                                                                          
+                                                                                                                                          
 
 function tracker(s          , r       )          {
   return {
@@ -491,14 +507,19 @@ function tracker(s          , r       )          {
     hc: Math.ceil(s.hearts - 1e-9),
     lc: s.lastChanceH !== null,
     out: s.outing?.find ?? null,
+    pantry: s.pantry ?? 0,
   };
 }
 
-/** После шага: дописать в ev новые события (back_home, low, distress, heart, last_chance, level). */
+/** После шага: дописать в ev новые события (back_home, autofeed, low, distress, heart, last_chance, level). */
 function observe(tr         , s          , r       , ev                 ) {
   // вернулся с прогулки в начале этого шага: время — начало шага (= until), key — находка
   if (tr.out !== null && s.outing == null) ev.push({ t: s.t - STEP, kind: 'back_home', key: tr.out });
   tr.out = s.outing?.find ?? null;
+  // поел из автокормушки в начале этого шага: value — сколько сытости
+  const left = s.pantry ?? 0;
+  if (left < tr.pantry) ev.push({ t: s.t - STEP, kind: 'autofeed', value: tr.pantry - left });
+  tr.pantry = left;
   for (const n of WATCH) if (s.needs[n] < r.warnLow && !tr.low.has(n)) { tr.low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
   for (const d of DISTRESS) {
     const on = r.distress[d].cond(s.needs);

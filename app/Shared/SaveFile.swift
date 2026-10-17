@@ -240,6 +240,7 @@ enum PetCodec {
             // прогулка; в старых сохранениях полей нет — PetState(json:) читает их как «дома, альбом пуст»
             "outing": outing,
             "finds": .object(finds),
+            "pantry": .number(s.pantry),   // запас кухни; в старых сохранениях нет — пусто
         ])
     }
 

@@ -47,6 +47,7 @@ final class VectorTests: XCTestCase {
         near(got.outing?.from, want.outing?.from, "outing.from", ctx)
         near(got.outing?.until, want.outing?.until, "outing.until", ctx)
         XCTAssertEqual(got.finds, want.finds, "\(ctx): finds")
+        near(got.pantry, want.pantry, "pantry", ctx)
     }
 
     func testConfigLoads() throws {

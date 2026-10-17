@@ -653,6 +653,10 @@ enum AwayBuilder {
         if let b = s.events.last(where: { $0.kind == "back_home" }) {
             add("back_home", "figure.walk", ["item": Finds.name(b.key ?? "")])
         }
+        // Кухня с автокормушкой выручила, пока никого не было.
+        if s.events.contains(where: { $0.kind == "autofeed" }) {
+            add("autofed", "fork.knife")
+        }
         if s.sleptH >= 3 {
             add("slept", "moon.zzz")
         } else if s.events.contains(where: { $0.kind == "nap" }) {

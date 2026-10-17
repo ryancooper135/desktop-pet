@@ -93,6 +93,8 @@ final class PetStore: @unchecked Sendable {
             fresh.econ = old.econ.carriedOver()
             // Альбом тоже в death.keep: сохранённые открытки остаются памятью о прошлой собаке.
             fresh.cards = old.cards.carriedOver()
+            // Дом тоже (death.keep "house"): купленные улучшения достаются новому щенку.
+            fresh.pet.home = old.pet.home
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
             // Старый файл целиком остаётся в state.broken-<t>.json.
         }

@@ -29,6 +29,7 @@ public struct PetState: Equatable, Sendable {
     public var cause: Distress?
     public var outing: Outing? = nil          // гуляет: с какого t, до какого и что принесёт; nil — дома
     public var finds: [String: Int] = [:]     // альбом находок с прогулок: id → сколько раз приносил
+    public var pantry: Double = 0             // запас еды на кухне (очки сытости) для автокормушки
 }
 
 /// Прогулка с находкой (care.walk_out).
@@ -51,7 +52,7 @@ public struct ActResult: Equatable, Sendable {
 }
 
 public struct ForecastEvent: Equatable, Sendable {
-    public enum Kind: String, Sendable { case low, distress, heart, last_chance, level, death, back_home }
+    public enum Kind: String, Sendable { case low, distress, heart, last_chance, level, death, back_home, autofeed }
     public let t: Double
     public let kind: Kind
     public let key: String?
@@ -60,6 +61,8 @@ public struct ForecastEvent: Equatable, Sendable {
 
 public enum PetEngine {
     static let STEP: Double = 60
+    /// Сколько сытости автокормушка даёт за раз (как миска корма).
+    public static let AUTOFEED_PORTION: Double = 20
     static let DH: Double = 1.0 / 60.0
     static let CARE: [Need] = [.food, .clean, .fun, .love, .walk]
     static let WATCH: [Need] = [.food, .clean, .fun, .love]
@@ -75,7 +78,7 @@ public enum PetEngine {
         for l in HomeLine.allCases { home[l] = 0 }
         return PetState(t: t, needs: needs, hearts: r.heartsMax, grace: [.starve: 0, .dirty: 0, .toska: 0],
                         lastChanceH: nil, napUntil: nil, bathUntil: nil, lastHeartLossT: nil, cooldowns: [:],
-                        home: home, alive: true, diedAt: nil, cause: nil, outing: nil, finds: [:])
+                        home: home, alive: true, diedAt: nil, cause: nil, outing: nil, finds: [:], pantry: 0)
     }
 
     // MARK: время суток
@@ -166,6 +169,16 @@ public enum PetEngine {
         s.outing = nil
     }
 
+    /// Автокормушка кухни (бафф autofeed_below): дома и не в ванне, сытость ниже порога — порция из запаса.
+    static func autofeed(_ s: inout PetState, _ r: Rules) {
+        let below = num(homeBuff(s, r, .kitchen), "autofeed_below")
+        let left = s.pantry
+        if below <= 0 || left <= 0 || s.outing != nil || s.bathUntil != nil || s.needs[.food]! >= below { return }
+        let p = min(left, AUTOFEED_PORTION)
+        s.needs[.food] = clamp(s.needs[.food]! + p)
+        s.pantry = left - p
+    }
+
     static func step(_ s: inout PetState, _ r: Rules, _ o: Owner) {
         let t = s.t
         if let n = s.napUntil, t >= n { s.napUntil = nil }
@@ -176,6 +189,7 @@ public enum PetEngine {
             finishWalk(&s, r)
         }
         let wo = s.outing != nil ? r.walkOut : nil // гуляет: шкалы по своим множителям, урона и смерти нет
+        autofeed(&s, r)
 
         let asleep = ownerAsleep(t, o)
         let night = petNight(t, r, o)
@@ -279,7 +293,10 @@ public enum PetEngine {
             guard let e = isFeed ? r.food[id] : r.items[id] else { return .no("unknown_item") }
             if s.bathUntil != nil { return .no("bathing") }
             if cooling(id) { return .no("cooldown") }
-            if isFeed { s.napUntil = nil }
+            if isFeed {
+                s.napUntil = nil
+                s.pantry = num(homeBuff(s, r, .kitchen), "storage") // покормил — заодно пополнил запас на кухне
+            }
             applyEffect(&s, e, maxHearts(s, r))
             if case .number(let cd)? = e["cooldown_h"] { s.cooldowns[id] = t + cd * 3600 }
             return .ok
@@ -361,6 +378,7 @@ public enum PetEngine {
         var hc: Double
         var lc: Bool
         var out: String?
+        var pantry: Double
     }
 
     static func tracker(_ s: PetState, _ r: Rules) -> Tracker {
@@ -369,14 +387,18 @@ public enum PetEngine {
                 lvl: level(s, r),
                 hc: (s.hearts - 1e-9).rounded(.up),
                 lc: s.lastChanceH != nil,
-                out: s.outing?.find)
+                out: s.outing?.find,
+                pantry: s.pantry)
     }
 
-    /// После шага: дописать в ev новые события (back_home, low, distress, heart, last_chance, level).
+    /// После шага: дописать в ev новые события (back_home, autofeed, low, distress, heart, last_chance, level).
     static func observe(_ tr: inout Tracker, _ s: PetState, _ r: Rules, _ ev: inout [ForecastEvent]) {
         // вернулся с прогулки в начале этого шага: время — начало шага (= until), key — находка
         if let f = tr.out, s.outing == nil { ev.append(ForecastEvent(t: s.t - STEP, kind: .back_home, key: f, value: nil)) }
         tr.out = s.outing?.find
+        // поел из автокормушки в начале этого шага: value — сколько сытости
+        if s.pantry < tr.pantry { ev.append(ForecastEvent(t: s.t - STEP, kind: .autofeed, key: nil, value: Int(tr.pantry - s.pantry))) }
+        tr.pantry = s.pantry
         for n in WATCH where s.needs[n]! < r.warnLow && !tr.low.contains(n) {
             tr.low.insert(n); ev.append(ForecastEvent(t: s.t, kind: .low, key: n.rawValue, value: nil))
         }
@@ -432,7 +454,8 @@ extension PetState {
                   cause: j["cause"].string.flatMap(Distress.init(rawValue:)),
                   // старые сохранения без прогулки: дома, альбом пуст
                   outing: Self.outingFrom(json: j["outing"]),
-                  finds: j["finds"].object.compactMapValues { $0.double.map { Int($0) } })
+                  finds: j["finds"].object.compactMapValues { $0.double.map { Int($0) } },
+                  pantry: j["pantry"].double ?? 0)
     }
 
     static func outingFrom(json o: JSONValue) -> Outing? {

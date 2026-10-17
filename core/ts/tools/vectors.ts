@@ -104,6 +104,15 @@ const oKiev = defaultOwner(r, 180);
 // 10. поздно для прогулки: до ночи питомца меньше часа
 { const s = startAt(r, 22 + 50 / 60); record('walk_late', o, s, [{ t: s.t, action: { type: 'walk' } }, { t: s.t + 60, action: { type: 'pet' } }], s.t + 10 * H, 2); }
 
+// 13. кухня L3: покормил и ушёл на 3 суток — автокормушка ест из запаса (60 = 3 порции), потом голод
+{ const s = startAt(r, 7.5); s.home.kitchen = 3; record('kitchen3_autofeed', o, s, [
+  { t: s.t, action: { type: 'feed', item: 'stew' } }, { t: s.t + 60, action: { type: 'pet' } },
+], s.t + 3 * 86400, 6); }
+// кухня L2 и обед в ванне: порция ждёт конца мытья
+{ const s = startAt(r, 7.5); s.home.kitchen = 2; s.needs.food = 30; record('kitchen2_bath', o, s, [
+  { t: s.t, action: { type: 'feed', item: 'stew' } }, { t: s.t + 10 * H, action: { type: 'bath' } },
+], s.t + 30 * H, 2); }
+
 // 11–12. пресеты строгости: Swift строит правила по полю preset
 r = makeRules(cfg, 'medium');
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_medium', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }

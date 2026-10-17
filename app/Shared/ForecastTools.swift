@@ -36,6 +36,7 @@ enum ForecastTools {
         case .last_chance: return "Последний шанс"
         case .death: return "Может не дождаться"
         case .back_home: return "Вернётся"
+        case .autofeed: return "Поест из кормушки"
         default: return "Попросит"
         }
     }

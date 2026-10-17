@@ -9,7 +9,7 @@ filter="${2:-}"
 dst="$HOME/petbuild/$(basename "$src")"
 mkdir -p "$dst"
 rsync -a --delete --exclude .git --exclude .build --exclude builds --exclude node_modules \
-  --exclude RESEARCH --exclude refs --exclude build.log --exclude test.log "$src/" "$dst/"
+  --exclude RESEARCH --exclude refs --exclude .claude --exclude build.log --exclude test.log "$src/" "$dst/"
 cd "$dst/app"
 if ! swift build --build-tests >"$dst/build.log" 2>&1; then
   grep -E "error:" "$dst/build.log" | sort -u | head -40

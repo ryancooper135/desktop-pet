@@ -39,7 +39,8 @@
   "diedAt": null,
   "cause": null,
   "outing": null,
-  "finds": {}
+  "finds": {},
+  "pantry": 0
  },
  "steps": [
   {
@@ -101,7 +102,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "level": 1,
    "moods": [
@@ -185,7 +187,8 @@
      "until": 1788266040,
      "find": "cone"
     },
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "level": 0,
    "moods": [
@@ -236,7 +239,8 @@
      "until": 1788266040,
      "find": "cone"
     },
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "level": 0,
    "moods": [
@@ -285,7 +289,8 @@
     "outing": null,
     "finds": {
      "cone": 1
-    }
+    },
+    "pantry": 0
    },
    "level": 0,
    "moods": [],
@@ -332,7 +337,8 @@
     "outing": null,
     "finds": {
      "cone": 1
-    }
+    },
+    "pantry": 0
    },
    "level": 0,
    "moods": [],
@@ -413,7 +419,8 @@
     },
     "finds": {
      "cone": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [
@@ -465,7 +472,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -515,7 +523,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -565,7 +574,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -615,7 +625,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -665,7 +676,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -715,7 +727,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [],
@@ -799,7 +812,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [
@@ -855,7 +869,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "level": 0,
    "moods": [
@@ -911,7 +926,8 @@
    "finds": {
     "cone": 1,
     "ball": 1
-   }
+   },
+   "pantry": 5
   },
   "horizonH": 72,
   "events": [
@@ -1240,7 +1256,8 @@
    "finds": {
     "cone": 1,
     "ball": 1
-   }
+   },
+   "pantry": 5
   }
  },
  "notify": [
@@ -1279,7 +1296,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "now": 1788255000,
    "opts": {
@@ -1339,7 +1357,8 @@
     "diedAt": null,
     "cause": null,
     "outing": null,
-    "finds": {}
+    "finds": {},
+    "pantry": 0
    },
    "now": 1788255000,
    "opts": {
@@ -1393,7 +1412,8 @@
     "finds": {
      "cone": 1,
      "ball": 1
-    }
+    },
+    "pantry": 5
    },
    "now": 1788303630,
    "opts": {
