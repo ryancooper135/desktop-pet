@@ -28,6 +28,9 @@ struct PetAttributes: ActivityAttributes {
         var reactUntil: Double?
         /// Шкала, к которой идёт таймер «low» (food, clean, fun, love…).
         var timerNeed: String?
+        /// Гуляет: когда ядро снимет прогулку (Finds.backAt). После него остров сам показывает «Дома»,
+        /// даже если приложение не успело прислать новое состояние. Не в init: старый JSON и тесты не трогаем.
+        var backAt: Double? = nil
 
         init(pose: Pose, want: String?, wantIcon: String?, line: String, hearts: Double, heartsMax: Double,
              level: Int, main: MainAct, timerStart: Double?, timerEnd: Double?, timerKind: String?, updatedAt: Double,
@@ -77,6 +80,10 @@ struct PetAttributes: ActivityAttributes {
             if live.timer?.kind == "low", let e = ForecastTools.nextLow(events, after: t) {
                 st.timerNeed = IslandPlan.timerNeed(key: e.key)?.rawValue
             }
+            let peek = PetRunner.peek(f, at: t)
+            if peek.alive, let w = peek.outing {
+                st.backAt = Finds.backAt(w, stateT: peek.t)
+            }
             return st
         }
 
@@ -89,9 +96,28 @@ struct PetAttributes: ActivityAttributes {
             return s
         }
 
+        /// Прогулка кончилась, а нового состояния нет: время вышло (staleDate = backAt, с запасом на часы виджета).
+        /// Раннее «устарело» (событие прогноза до возвращения) домой не приводит.
+        func home(stale: Bool, now: Double = Clock.now()) -> Bool {
+            guard let b = backAt else { return false }
+            return now >= b - 1 || (stale && now >= b - Self.homeSlack)
+        }
+
+        /// Запас: ядро снимает прогулку шагом позже until, а staleDate бывает и по until.
+        static let homeSlack: Double = 90
+        static let homeLine = "Дома"
+
         /// stale — система пометила содержимое устаревшим: реакция кончилась, показываем спокойное.
-        func shownPose(stale: Bool) -> Pose { stale ? (calmPose ?? pose) : pose }
-        func shownLine(stale: Bool) -> String { stale ? (calmLine ?? line) : line }
+        /// Вернулся с прогулки без свежего состояния — спокойная поза и «Дома».
+        func shownPose(stale: Bool, now: Double = Clock.now()) -> Pose {
+            if home(stale: stale, now: now) { return .idle }
+            return stale ? (calmPose ?? pose) : pose
+        }
+
+        func shownLine(stale: Bool, now: Double = Clock.now()) -> String {
+            if home(stale: stale, now: now) { return Self.homeLine }
+            return stale ? (calmLine ?? line) : line
+        }
 
         /// То же без времени обновления: сравниваем, есть ли что менять.
         func sameContent(as o: ContentState) -> Bool {

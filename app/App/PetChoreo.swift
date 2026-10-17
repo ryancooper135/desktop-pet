@@ -1006,6 +1006,18 @@ final class PetRig {
         m.jointTransforms = tr
     }
 
+    /// Шерсть перекрасили (PetRoom.applyCoat): открытые и закрытые глаза берут новые материалы.
+    func recolor(_ m: ModelEntity, _ mats: [any Material]) {
+        guard let e = eyes, e === m, mats.count == open.count else { return }
+        open = mats
+        closed = mats
+        for i in 3...5 { closed[i] = mats[0] }
+        if eyesClosed, var model = e.model {
+            model.materials = closed
+            e.model = model
+        }
+    }
+
     func setEyes(closed shut: Bool) {
         guard shut != eyesClosed, let e = eyes, var model = e.model else { return }
         model.materials = shut ? closed : open

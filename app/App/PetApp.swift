@@ -59,7 +59,7 @@ struct RootView: View {
         }
         .onChange(of: model.snap.level) { _, _ in guide.check() }
         .onChange(of: model.away == nil) { _, free in if free { guide.check() } }
-        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum) { _, busy in if !busy { guide.check() } }
+        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum || model.showCapsule || model.postcard != nil) { _, busy in if !busy { guide.check() } }
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.
@@ -71,7 +71,7 @@ struct RootView: View {
 }
 
 /// Крючки только для UI-тестов (Env.isUITest); в обычном запуске всё nil.
-/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings — открыть экран после запуска.
+/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule — открыть экран после запуска.
 enum UITestHooks {
     static var scheme: ColorScheme? {
         guard Env.isUITest else { return nil }
@@ -83,7 +83,7 @@ enum UITestHooks {
     }
 
     static var openURL: URL? {
-        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings"].contains(v) else { return nil }
+        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule"].contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
 }

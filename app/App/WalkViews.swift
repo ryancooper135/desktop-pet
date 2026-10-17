@@ -3,13 +3,14 @@
 // • ряд над панелью действий: слева — «Альбом» со счётчиком находок, справа — «Гулять» с подписью-причиной;
 //   в беде ряда нет (там большая «Спасти»), после смерти — тоже;
 // • записка «Ушёл гулять, вернусь в 14:20» — бумажкой на месте Шибы, пока его нет;
-// • альбом — шит, ещё открывается по pet://album.
+// • альбом — шит, ещё открывается по pet://album;
+// • волна 5: круглая кнопка автомата между «Альбомом» и «Гулять» (pet://capsule), в альбоме — «Вкусы» и «Открытки».
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
 @preconcurrency import PetCore
 
-// MARK: - Ряд «Альбом · Гулять»
+// MARK: - Ряд «Альбом · Автомат · Гулять»
 
 struct WalkRow: View {
     @Environment(AppModel.self) private var model
@@ -19,6 +20,7 @@ struct WalkRow: View {
         let gate = model.file.map { WalkPlan.gate($0, at: snap.t) }
         HStack(spacing: 8) {
             AlbumButton(total: Finds.total(albumFinds(model.file, at: snap.t)))
+            MachineButton()
             Spacer(minLength: 0)
             if let gate {
                 WalkButton(gate: gate)
@@ -131,6 +133,31 @@ struct AlbumButton: View {
     }
 }
 
+/// Автомат с капсулами: только значок, ряд и так тесный. Id — act.capsule.
+struct MachineButton: View {
+    @Environment(AppModel.self) private var model
+    @State private var taps = 0
+
+    var body: some View {
+        Button {
+            taps += 1
+            model.showCapsule = true
+        } label: {
+            Image(systemName: "gift.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .symbolEffect(.bounce, value: taps)
+                .foregroundStyle(PetPalette.ink)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+        }
+        .buttonStyle(SquishStyle())
+        .glassEffect(.regular.interactive(), in: Circle())
+        .accessibilityLabel(Text("Автомат"))
+        .accessibilityHint(Text("Капсулы за билетики и монеты"))
+        .accessibilityIdentifier("act.capsule")
+    }
+}
+
 // MARK: - Записка в пустой комнате
 
 /// Бумажка на месте Шибы, пока он гуляет: «Ушёл гулять, вернусь в 14:20». Чуть набок, с кнопкой-булавкой.
@@ -172,6 +199,8 @@ struct AwayNoteCard: View {
 
 struct AlbumSheet: View {
     @Environment(AppModel.self) private var model
+    /// Открытка из альбома на весь лист (свой sheet: домашний занят альбомом).
+    @State private var opened: Postcard?
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -201,12 +230,179 @@ struct AlbumSheet: View {
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
+                if let f = model.file {
+                    TastesSection(facts: Tastes.album(f), guesses: TasteGuess.list(f))
+                    PostcardsSection(cards: Postcards.album(f), opened: $opened)
+                }
             }
             .padding(20)
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("album.sheet")
+        .sheet(item: $opened) { card in
+            PostcardSheet(card: card, fromAlbum: true)
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+// MARK: - Вкусы в альбоме
+
+/// Вкус в процессе: набрано n согласных наблюдений из needed. Что за вещь и любит ли — не говорим.
+struct TasteGuess: Identifiable, Hashable {
+    let id: String
+    let category: TasteCategory
+    let n: Int
+    let needed: Int
+
+    /// Только любимое и нелюбимое: «нормально» не откроется никогда, полоска к нему врала бы.
+    static func list(_ f: SaveFile) -> [TasteGuess] {
+        f.tastes.seen.compactMap { e -> TasteGuess? in
+            let (k, v) = (e.key, e.value)
+            guard v.r == Taste.love.rawValue || v.r == Taste.dislike.rawValue, f.tastes.opened[k] == nil,
+                  let c = TasteCategory(rawValue: String(k.split(separator: ".").first ?? "")) else { return nil }
+            return TasteGuess(id: k, category: c, n: v.n, needed: Tastes.needed(c))
+        }
+        .sorted { ($1.n, $0.id) < ($0.n, $1.id) }
+    }
+
+    static func title(_ c: TasteCategory) -> String {
+        switch c {
+        case .food: return "Еда"
+        case .toy: return "Игрушка"
+        case .find: return "Находка"
+        }
+    }
+}
+
+/// «Вкусы»: открытые — значок и фраза, в процессе — «???» с полоской. Id — album.tastes.
+struct TastesSection: View {
+    let facts: [TasteFact]
+    let guesses: [TasteGuess]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Вкусы")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(PetPalette.ink)
+                Spacer(minLength: 0)
+                Text("Открыто \(facts.count)")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(PetPalette.soft)
+            }
+            if facts.isEmpty && guesses.isEmpty {
+                Text("Пока загадка. Корми и играй — сам покажет, что любит, а что нет.")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(PetPalette.soft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(facts) { fact in
+                HStack(spacing: 10) {
+                    Text(fact.emoji).font(.system(size: 24))
+                        .frame(width: 36)
+                    Text(fact.text)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Image(systemName: fact.taste == .dislike ? "hand.thumbsdown.fill" : "heart.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(fact.taste == .dislike ? PetPalette.soft : PetPalette.red)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.card))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(fact.text))
+            }
+            ForEach(guesses) { g in
+                HStack(spacing: 10) {
+                    Image(systemName: "questionmark")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(PetPalette.soft.opacity(0.7))
+                        .frame(width: 36)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(TasteGuess.title(g.category)): ???")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(PetPalette.soft)
+                        ProgressView(value: Double(min(g.n, g.needed)), total: Double(max(g.needed, 1)))
+                            .tint(PetPalette.accent)
+                    }
+                    Text("\(min(g.n, g.needed))/\(g.needed)")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(PetPalette.soft)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.card.opacity(0.6)))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("\(TasteGuess.title(g.category)): ещё не ясно"))
+                .accessibilityValue(Text("\(min(g.n, g.needed)) из \(g.needed)"))
+            }
+        }
+        .padding(.top, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("album.tastes")
+    }
+}
+
+// MARK: - Открытки в альбоме
+
+/// «Открытки»: сохранённые, по две в ряд. Тап — на весь лист, удержание — «Удалить». Id — album.postcards.
+struct PostcardsSection: View {
+    @Environment(AppModel.self) private var model
+    let cards: [Postcard]
+    @Binding var opened: Postcard?
+
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Открытки")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(PetPalette.ink)
+                Spacer(minLength: 0)
+                Text("\(cards.count)")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(PetPalette.soft)
+            }
+            if cards.isEmpty {
+                Text("Каждое утро — открытка о вчерашнем дне. Сохраняй, и они будут здесь.")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(PetPalette.soft)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                LazyVGrid(columns: columns, spacing: 14) {
+                    ForEach(cards) { card in
+                        Button {
+                            opened = card
+                        } label: {
+                            PostcardFace(frame: card.frame, compact: true)
+                        }
+                        .buttonStyle(SquishStyle())
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                model.removePostcard(card)
+                            } label: {
+                                Label("Удалить", systemImage: "trash")
+                            }
+                        }
+                        .accessibilityLabel(Text("Открытка: \(card.caption), \(card.frame.date)"))
+                        .accessibilityIdentifier("album.postcard.\(card.id)")
+                    }
+                }
+            }
+        }
+        .padding(.top, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("album.postcards")
     }
 }
 

@@ -8,7 +8,8 @@
 //   ui-1N-tab-N     каждая вкладка TabView, если она есть
 //   ui-2N-<имя>     экраны из списка `screens` ниже (по accessibilityIdentifier)
 //   ui-4N-<имя>     состояния с отдельного запуска (testStates*): критично, смерть, шкалы, «Пока тебя не было»,
-//                   тёмная тема. Состояние задаёт окружение запуска (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
+//                   тёмная тема, автомат, вкусы в альбоме, открытка дня. Состояние задаёт окружение запуска
+//                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -109,6 +110,64 @@ final class ScreenshotUITests: XCTestCase {
     @MainActor
     func testStates45CriticalDark() {
         shootState("ui-45-critical-dark", env: ["PET_SEED": "critical", "PET_SCHEME": "dark"], marker: "act.rescue")
+    }
+
+    // MARK: - Волна 5 (элемента нет — тест пропускается, а не падает)
+
+    /// Автомат с капсулами: цены, полоска гаранта, пустой инвентарь.
+    @MainActor
+    func testStates46Capsule() throws {
+        try shootOptional("ui-46-capsule", env: ["PET_OPEN": "capsule"], marker: "capsule.screen")
+    }
+
+    /// Альбом, раздел «Вкусы»: один открытый вкус и один «???» с полоской.
+    @MainActor
+    func testStates47Tastes() throws {
+        try shootOptional("ui-47-tastes", env: ["PET_SEED": "tastes", "PET_OPEN": "album"], marker: "album.tastes",
+                          scrollIn: "album.sheet")
+    }
+
+    /// «Открытка дня» на главной, потом сам лист открытки.
+    @MainActor
+    func testStates48Postcard() throws {
+        let app = try shootOptional("ui-48-postcard", env: ["PET_SEED": "postcard"], marker: "postcard.card",
+                                    keepRunning: true)
+        app.descendants(matching: .any)["postcard.card"].tap()
+        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+            settle(1.5)
+            snap("ui-48-postcard-sheet")
+        }
+        app.terminate()
+    }
+
+    /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.
+    /// scrollIn — контейнер, который листаем вверх, пока маркер не станет видимым.
+    @MainActor
+    @discardableResult
+    func shootOptional(_ name: String, env: [String: String], marker: String, scrollIn: String? = nil,
+                       keepRunning: Bool = false) throws -> XCUIApplication {
+        let app = Self.makeApp()
+        for (k, v) in env { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let element = app.descendants(matching: .any)[marker]
+        let found = element.waitForExistence(timeout: 20)
+        if found, let scrollIn {
+            let box = app.descendants(matching: .any)[scrollIn]
+            for _ in 0..<4 where !element.isHittable {
+                box.swipeUp()
+                settle(0.5)
+            }
+        }
+        settle(1.5)
+        snap(name)
+        guard found else {
+            app.terminate()
+            throw XCTSkip("\(name): нет элемента \(marker)")
+        }
+        if !keepRunning { app.terminate() }
+        return app
     }
 
     /// Запуск с окружением → ждать маркер → снимок. Снимок делается и без маркера: по нему видно, что пошло не так.

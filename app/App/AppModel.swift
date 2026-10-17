@@ -13,6 +13,8 @@ struct Toast: Identifiable, Equatable, Sendable {
     let id = UUID()
     let text: String
     let ok: Bool
+    /// Значок вместо галочки («🪙» — заработал монеты).
+    var emoji: String? = nil
 }
 
 @MainActor
@@ -29,6 +31,24 @@ final class AppModel {
     var showNeeds = false
     var showSettings = false
     var showAlbum = false
+    /// Автомат с капсулами.
+    var showCapsule = false
+
+    // MARK: волна 5: монеты, вкусы, шерсть, открытки
+
+    /// Реплика поверх snap.line («Моё любимое!» после вкусной еды), гаснет сама.
+    private(set) var sayLine: String? = nil
+    /// Только что открытый вкус: карточка «Вкус открыт!» поверх экрана.
+    var tasteOpened: TasteFact? = nil
+    /// Вид шерсти для сцены. Меняется только при заметной разнице: перекраска материалов не бесплатна.
+    private(set) var coat: CoatLook? = nil
+    /// Открытка дня, которую ещё не сохранили и не выбросили.
+    private(set) var pendingCard: Postcard? = nil
+    /// Открытка на экране (лист). Из альбома — сохранённая.
+    var postcard: Postcard? = nil
+
+    /// Сколько держится карточка открытого вкуса.
+    static let tasteCardFor: Double = 3.5
 
     // MARK: отклик на касания (juice)
 
@@ -86,6 +106,12 @@ final class AppModel {
     @ObservationIgnored private var walkTask: Task<Void, Never>?
     /// К какому возвращению стоит walkTask.
     @ObservationIgnored private var walkAt: Double? = nil
+    @ObservationIgnored private var sayTask: Task<Void, Never>?
+    @ObservationIgnored private var tasteTask: Task<Void, Never>?
+    /// Открытые вкусы на прошлом refresh: новый ключ — карточка «Вкус открыт!». nil — ещё не смотрели.
+    @ObservationIgnored private var knownTastes: Set<String>? = nil
+    /// В какие сутки уже сказали «На сегодня монет хватит» — не чаще раза в день.
+    @ObservationIgnored private var capNoticeDay: Int? = nil
 
     init() {
         LaunchSeed.applyOnce()
@@ -96,6 +122,7 @@ final class AppModel {
             // Сначала snap (без значения по умолчанию), потом остальное: у @Observable init-аксессоры.
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             file = f
+            knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
         } catch {
@@ -157,6 +184,10 @@ final class AppModel {
             file = f
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             noteWalk(PetRunner.peek(f, at: now))
+            noteCoat(Coat.look(f, now: now))
+            noteTastes(f)
+            let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
+            if card != pendingCard { pendingCard = card }
         } catch {
             storeError = error.localizedDescription
         }
@@ -190,6 +221,43 @@ final class AppModel {
             // Ещё гуляет (часы чуть отстали) — следующий refresh поставит таймер заново.
             self?.walkAt = nil
             self?.refresh()
+        }
+    }
+
+    /// Шерсть: перекрашивать сцену только при смене стадии или заметной разнице грязи и блеска.
+    private func noteCoat(_ c: CoatLook) {
+        if let old = coat, old.stage == c.stage, abs(old.dirt - c.dirt) < 0.02, abs(old.shine - c.shine) < 0.02 { return }
+        coat = c
+    }
+
+    /// Вкус открылся (после действия или находки с прогулки) — карточка и реплика.
+    private func noteTastes(_ f: SaveFile) {
+        let keys = Set(f.tastes.opened.keys)
+        defer { knownTastes = keys }
+        guard let known = knownTastes, !keys.isSubset(of: known) else { return }
+        guard let fact = Tastes.album(f).last(where: { !known.contains($0.id) }) else { return }
+        tasteOpened = fact
+        haptic(.success)
+        SoundKit.shared.ambient(.ok)
+        if let line = Tastes.line(Tastes.openLineKey, seed: f.petId, at: Clock.now(), tzOffsetMin: f.owner.tzOffsetMin) {
+            speak(line)
+        }
+        tasteTask?.cancel()
+        tasteTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.tasteCardFor))
+            if Task.isCancelled { return }
+            self?.tasteOpened = nil
+        }
+    }
+
+    /// Реплика Шибы поверх обычной на несколько секунд.
+    func speak(_ text: String, for seconds: Double = 5) {
+        sayLine = text
+        sayTask?.cancel()
+        sayTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            if Task.isCancelled { return }
+            self?.sayLine = nil
         }
     }
 
@@ -260,6 +328,8 @@ final class AppModel {
             haptic(.success)
             popDelta(delta)
             if a == .pet { heartBurst() }
+            noteEarn(a, out)
+            noteTaste(a)
             // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
             poseTask?.cancel()
             poseTask = Task { [weak self] in
@@ -273,6 +343,36 @@ final class AppModel {
             haptic(.warning)
             pop(Self.refuseIcon(out.reason), at: anchor)
         }
+    }
+
+    /// «+5 монет» после действия; «На сегодня монет хватит» — раз в сутки, на действие, упёршееся в потолок.
+    private func noteEarn(_ a: PetAction, _ out: ActOutcome) {
+        let now = Clock.now()
+        if out.coins > 0 {
+            let e = Earning(id: "", kind: a.kind, coins: out.coins, capped: false, t: now)
+            if let text = EconText.toast(e) { show(text, emoji: "🪙") }
+            return
+        }
+        guard let e = file?.econ.lastEarn, e.capped, e.coins == 0, e.kind == a.kind, now - e.t < 10 else { return }
+        let day = Economy.day(now)
+        guard capNoticeDay != day else { return }
+        capNoticeDay = day
+        if let text = EconText.toast(e) { show(text, emoji: "🪙") }
+    }
+
+    /// Вкус еды или игрушки: любимое — сердечки и «Моё любимое!», нелюбимое — сдержанное «😑» и реплика.
+    private func noteTaste(_ a: PetAction) {
+        guard let f = file, let r = Tastes.reaction(for: a, in: f), r.taste == .love || r.taste == .dislike else { return }
+        if r.taste == .love {
+            if a != .pet { heartBurst() }
+        } else {
+            pop("😑", at: anchor)
+            haptic(.light)
+        }
+        // Только что открылся вкус — его реплика важнее.
+        guard tasteOpened == nil, let key = r.lineKey,
+              let line = Tastes.line(key, seed: f.petId, at: Clock.now(), tzOffsetMin: f.owner.tzOffsetMin) else { return }
+        speak(line)
     }
 
     /// Всплывашка в точке сцены; сама исчезает через 0,9 с.
@@ -412,8 +512,8 @@ final class AppModel {
         }
     }
 
-    func show(_ text: String, ok: Bool = true) {
-        toast = Toast(text: text, ok: ok)
+    func show(_ text: String, ok: Bool = true, emoji: String? = nil) {
+        toast = Toast(text: text, ok: ok, emoji: emoji)
         toastTask?.cancel()
         toastTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
@@ -422,18 +522,82 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
         case "needs": showNeeds = true
         case "settings": showSettings = true
         case "album": showAlbum = true
+        case "capsule": showCapsule = true
         default:
             showNeeds = false
             showSettings = false
             showAlbum = false
+            showCapsule = false
+            postcard = nil
         }
+    }
+
+    // MARK: капсула и открытки
+
+    /// Крутка автомата. Снимок не пересчитываем: экран сам зовёт refresh, когда капсула открылась,
+    /// иначе кошелёк и инвентарь выдадут приз раньше анимации. nil — стор не записался.
+    func pullCapsule(_ pay: CapsulePay) -> Result<CapsulePull, CapsuleRefusal>? {
+        do {
+            let r = try CapsuleMachine.perform(pay: pay)
+            if case .success = r { Task { await AppActions.shared.afterChange() } }
+            return r
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return nil
+        }
+    }
+
+    /// «В альбом».
+    func savePostcard(_ c: Postcard) {
+        do {
+            switch try Postcards.save(c.id) {
+            case .saved, .already:
+                haptic(.success)
+                SoundKit.shared.play(.ok)
+                show("Открытка в альбоме")
+            case .expired: show("Открытка уже пропала", ok: false)
+            case .notFound: show("Открытки уже нет", ok: false)
+            case .albumFull: show("Альбом полон: удали старую открытку", ok: false)
+            }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+        postcardChanged()
+    }
+
+    /// «Не надо»: открытка уходит сразу.
+    func discardPostcard(_ c: Postcard) {
+        do {
+            try Postcards.discard(c.id)
+            haptic(.light)
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+        postcardChanged()
+    }
+
+    /// Удалить из альбома.
+    func removePostcard(_ c: Postcard) {
+        do {
+            try Postcards.remove(c.id)
+            haptic(.medium)
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+        postcardChanged()
+    }
+
+    private func postcardChanged() {
+        postcard = nil
+        refresh()
+        Task { await AppActions.shared.afterChange() }
     }
 }
 
@@ -567,7 +731,9 @@ enum AwayBuilder {
 
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
 /// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
-/// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk). Срабатывает один раз за запуск.
+/// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
+/// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера).
+/// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
 
@@ -628,6 +794,23 @@ enum LaunchSeed {
                 }
                 f.seen = f.pet
                 f.lastSeenT = now
+            case "tastes":
+                // Любимая еда открыта, нелюбимая игрушка — на полпути (2 из 3).
+                PetRunner.catchUp(&f, now: now)
+                if let love = Tastes.hidden(petId: f.petId, .food, log: f.tastes).love {
+                    f.tastes.opened[Tastes.key(.food, love)] = TasteLog.Fact(r: Taste.love.rawValue, t: now - 3600)
+                }
+                if let d = Tastes.hidden(petId: f.petId, .toy, log: f.tastes).dislike {
+                    f.tastes.seen[Tastes.key(.toy, d)] = TasteLog.Seen(n: 2, t: now - 3600, r: Taste.dislike.rawValue)
+                }
+            case "postcard":
+                // Открытка «первый день» за вчера, ещё не разобрана: карточка на главной.
+                PetRunner.catchUp(&f, now: now)
+                let tz = f.owner.tzOffsetMin
+                let day = Postcards.day(now, tzOffsetMin: tz) - 1
+                let card = Postcards.make(Moment(kind: .firstDay, t: now - 86400, score: 100),
+                                          day: day, petId: f.petId, tzOffsetMin: tz)
+                if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
             default:
                 break
             }

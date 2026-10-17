@@ -233,6 +233,79 @@ enum PetRoom {
         }
     }
 
+    // MARK: Шерсть (CoatLook)
+
+    /// Цвет грязи, который подмешиваем в шерсть, и предел примеси.
+    static let dirtTint: (r: CGFloat, g: CGFloat, b: CGFloat) = (0.62, 0.5, 0.36)
+    static let dirtMaxMix: CGFloat = 0.5
+
+    /// Исходные (уже матовые) материалы моделей питомца: красим всегда от них, а не от прошлой покраски.
+    private static var coatBase: [Entity.ID: [any Material]] = [:]
+    /// Какой вид шерсти уже стоит на питомце (по корню), чтобы не перекрашивать без нужды.
+    private static var coatShown: [Entity.ID: CoatLook] = [:]
+
+    /// Запомнить исходные материалы. Звать сразу после matte, пока глаза открыты.
+    static func prepareCoat(_ pet: Entity) {
+        if coatBase.count > 64 { coatBase.removeAll() }
+        if coatShown.count > 8 { coatShown.removeAll() }
+        coatShown[pet.id] = nil
+        var queue: [Entity] = [pet]
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            if let m = e as? ModelEntity, let mats = m.model?.materials { coatBase[m.id] = mats }
+            queue += Array(e.children)
+        }
+    }
+
+    /// Блеск и грязь на материалах шерсти. Только когда вид поменялся — не каждый кадр.
+    /// Пушистость и колтуны требуют геометрии — здесь их нет.
+    static func applyCoat(_ look: CoatLook, to pet: Entity) {
+        if coatShown[pet.id] == look { return }
+        coatShown[pet.id] = look
+        let shine = Float(min(max(look.shine, 0), 1))
+        let mix = min(max(CGFloat(look.dirt), 0), 1) * dirtMaxMix
+        var queue: [Entity] = [pet]
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            queue += Array(e.children)
+            guard let m = e as? ModelEntity, let base = coatBase[m.id], var model = m.model,
+                  model.materials.count == base.count else { continue }
+            var mats = base
+            for i in furIndices(base) {
+                guard var pbr = base[i] as? PhysicallyBasedMaterial else { continue }
+                pbr.roughness = .init(floatLiteral: 1 - 0.4 * shine)
+                pbr.specular = .init(floatLiteral: 0.3 * shine)
+                pbr.metallic = .init(floatLiteral: 0)
+                pbr.baseColor = .init(tint: dirtied(pbr.baseColor.tint, mix), texture: pbr.baseColor.texture)
+                mats[i] = pbr
+            }
+            model.materials = mats
+            m.model = model
+            // Глаза моргают подменой материалов — пусть берут новую шерсть.
+            PetRig.rig(for: pet)?.recolor(m, mats)
+        }
+    }
+
+    /// Какие материалы — шерсть. У Шибы из usdz шесть подмножеств: Main и Main_Light; иначе — светлые PBR.
+    private static func furIndices(_ mats: [any Material]) -> [Int] {
+        if mats.count == 6 { return [0, 1] }
+        return mats.indices.filter { i in
+            guard let p = mats[i] as? PhysicallyBasedMaterial else { return false }
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            guard p.baseColor.tint.getRed(&r, green: &g, blue: &b, alpha: &a) else { return false }
+            return r + g + b > 1.2
+        }
+    }
+
+    /// Подмешать грязь: k от 0 до dirtMaxMix.
+    private static func dirtied(_ c: UIColor, _ k: CGFloat) -> UIColor {
+        guard k > 0.001 else { return c }
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard c.getRed(&r, green: &g, blue: &b, alpha: &a) else { return c }
+        let d = dirtTint
+        return UIColor(red: r + (d.r - r) * k, green: g + (d.g - g) * k, blue: b + (d.b - b) * k, alpha: a)
+    }
+
     // MARK: Текстуры (чистые функции, без RealityKit)
 
     /// Шахматка cells×cells двух цветов пола, size×size пикселей. nil — если не создался контекст.
