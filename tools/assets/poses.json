@@ -18,26 +18,29 @@
   "lie": {
    "offset": [0, 0, 0],
    "rot": {
-    "FrontUpperLeg.*": [-80, 0, 0],
-    "FrontLowerLeg.*": [-5, 0, 0],
-    "BackLeg.*": [-55, 0, 6],
-    "BackUpperLeg.*": [75, 0, 0],
-    "BackLowerLeg.*": [-85, 0, 0],
+    "Back": [-14, 0, 0],
+    "Neck1": [12, 0, 0],
+    "FrontUpperLeg.*": [-55, 0, 0],
+    "FrontLowerLeg.*": [0, 0, 0],
+    "FF.*": [15, 0, 0],
+    "BackLeg.*": [-43, 0, 15],
+    "BackUpperLeg.*": [87, 0, 0],
+    "BackLowerLeg.*": [-93, 0, 0],
     "Tail1": [-35, 0, 0],
-    "Back": [4, 0, 0],
-    "Neck1": [-6, 0, 0],
     "FFB.*": [20, 0, 0]
    }
   },
   "sleep": {
    "from": "lie",
    "rot": {
-    "Neck1": [22, 0, 0],
-    "Neck2": [8, 0, 0],
-    "Head": [4, -10, 0],
-    "Ear1.*": [12, 0, 0],
-    "Tail1": [0, -40, 0],
-    "Tail2": [0, -30, 0]
+    "Torso3": [6, 0, 0],
+    "Neck1": [50, 18, 0],
+    "Neck2": [14, 12, 0],
+    "Head": [-36, 12, -8],
+    "Ear1.*": [14, 0, 0],
+    "Tail1": [-10, -60, 0],
+    "Tail2": [40, -30, 0],
+    "Tail3": [30, 0, 0]
    }
   }
  },
@@ -75,9 +78,9 @@
   "sleep": {
    "pose": "sleep", "dur": 4.0, "loop": true,
    "wave": [
-    {"bone": "Torso2", "deg": [3.5, 0, 0], "period": 4.0},
-    {"bone": "FrontShoulder.*", "deg": [-3.5, 0, 0], "period": 4.0},
-    {"bone": "Neck1", "deg": [-2.5, 0, 0], "period": 4.0}
+    {"bone": "Torso2", "deg": [3.0, 0, 0], "period": 4.0},
+    {"bone": "FrontShoulder.*", "deg": [-3.0, 0, 0], "period": 4.0},
+    {"bone": "Neck1", "deg": [-3.0, 0, 0], "period": 4.0}
    ]
   },
   "sleep_out": {"from": "sleep", "to": "lie", "dur": 1.2},
