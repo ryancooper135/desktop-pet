@@ -23,6 +23,42 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertEqual(first?.start ?? -1, 0)
     }
 
+    func testEatWindowWithParts() {
+        let down = 17.0 / 24, up = 23.0 / 24
+        let d: (String) -> Double = { [EatClip.down: down, EatClip.chew: 1.0, EatClip.up: up, "lie_out": 0.92][$0] ?? 0 }
+        let meal = EatClip.meal(chews: EatClip.feedChews, available: PetStance.defaultClips)
+        let w = ChoreoPath.eatWindow(["lie_out"] + meal + ["idle_2"], duration: d)
+        XCTAssertEqual(w?.start ?? -1, 0.92, accuracy: 1e-9)
+        XCTAssertEqual(w?.end ?? -1, 0.92 + down + Double(EatClip.feedChews) + up, accuracy: 1e-9)
+    }
+
+    func testOneFeedingEmptiesBowlOnce() throws {
+        // «Покормить» стоя: опустил голову, жуёт, поднял. Корм от горки до нуля один раз и не досыпается,
+        // к подъёму головы миска уже пустая, потом уходит домой.
+        let up = 23.0 / 24
+        let d: (String) -> Double = { [EatClip.down: 17.0 / 24, EatClip.chew: 1.0, EatClip.up: up][$0] ?? 0 }
+        let meal = PetStance.reaction(kind: "feed", ok: true, stance: .stand)
+        let w = try XCTUnwrap(ChoreoPath.eatWindow(meal, duration: d))
+        let leave = w.end + 0.5
+        func food(_ t: Double) -> Float { ChoreoPath.bowl(t, eatStart: w.start, eatEnd: w.end, leave: leave).food }
+
+        var last = food(0.4)
+        XCTAssertGreaterThan(last, 0.99)
+        var emptied = 0
+        var t = 0.45
+        while t < leave + 0.5 {
+            let f = food(t)
+            XCTAssertLessThanOrEqual(f, last + 1e-6, "корм прибавился на t=\(t)")
+            if last > 0.01 && f <= 0.01 { emptied += 1 }
+            last = f
+            t += 0.05
+        }
+        XCTAssertEqual(emptied, 1)
+        XCTAssertLessThanOrEqual(ChoreoPath.foodDoneBeforeEnd, up, "корм должен кончиться до подъёма головы")
+        XCTAssertLessThan(food(w.end - up), 0.01)
+        XCTAssertGreaterThan(food(w.start + (w.end - w.start) / 2), 0.2, "ест, а не стоит над пустой миской")
+    }
+
     func testBowlTargetUnderSnout() {
         // Под мордой: по оси морды впереди, на полу.
         let s = ChoreoPath.toStand(ChoreoPath.bowlTarget)

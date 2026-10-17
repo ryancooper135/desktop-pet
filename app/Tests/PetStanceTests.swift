@@ -71,7 +71,11 @@ final class PetStanceTests: XCTestCase {
 
     func testReactions() {
         let all = Set(PetClipNames.required + PetClipNames.optional)
-        XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .stand), ["eat", "eat", "eat"])
+        // Покормили — один подход к миске: голова вниз один раз, жуёт, голова вверх один раз.
+        XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .stand),
+                       [EatClip.down] + Array(repeating: EatClip.chew, count: EatClip.feedChews) + [EatClip.up])
+        XCTAssertEqual(PetStance.reaction(kind: "item", ok: true, stance: .stand), [EatClip.down, EatClip.chew, EatClip.up])
+        XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .sit), [])
 
         for _ in 0..<20 {
             let pet = PetStance.reaction(kind: "pet", ok: true, stance: .stand, available: all)
@@ -96,6 +100,90 @@ final class PetStanceTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand), ["jump_to_idle"])
     }
 
+    // MARK: еда одним подходом
+
+    func testEatPartsCoverEatClip() throws {
+        // Границы eat из shiba.clips.json (кадры 364–428 при 24 fps).
+        let start = 15.166667, end = 17.833333
+        let r = try XCTUnwrap(EatClip.ranges(start: start, end: end, fps: 24))
+        XCTAssertEqual(r.map { $0.name }, EatClip.parts)
+        XCTAssertEqual(r[0].start, start, accuracy: 1e-9)
+        XCTAssertEqual(r[r.count - 1].end, end, accuracy: 1e-9)
+        for k in 1..<r.count {
+            XCTAssertEqual(r[k].start, r[k - 1].end, accuracy: 1e-9, "дыра или нахлёст перед \(r[k].name)")
+        }
+        for p in r { XCTAssertLessThan(p.start, p.end, p.name) }
+        // «Жуёт» — ровно секунда (кадры 17→41), её и крутим.
+        XCTAssertEqual(r[1].end - r[1].start, 1.0, accuracy: 1e-6)
+        // Клип короче частей — частей нет, сцена играет целые eat.
+        XCTAssertNil(EatClip.ranges(start: 0, end: 1.0, fps: 24))
+    }
+
+    func testClipTableAddsEatParts() throws {
+        let json = #"{"fps":24,"clips":{"idle":{"start":0,"end":1,"loop":true},"eat":{"start":15.166667,"end":17.833333,"loop":true}}}"#
+        let table = try JSONDecoder().decode(ClipTable.self, from: Data(json.utf8)).addingEatParts()
+        for name in EatClip.parts { XCTAssertNotNil(table.clips[name], name) }
+        XCTAssertEqual(table.clips[EatClip.chew]?.loop, true)
+        XCTAssertEqual(table.clips[EatClip.down]?.loop, false)
+        XCTAssertEqual(table.clips[EatClip.up]?.loop, false)
+        XCTAssertEqual(table.clips[EatClip.down]?.start, 15.166667)
+        XCTAssertEqual(table.clips[EatClip.up]?.end, 17.833333)
+        XCTAssertEqual(table.clips["eat"]?.start, 15.166667, "сам eat не трогаем")
+        // Нет eat — таблица как была.
+        let bare = #"{"fps":24,"clips":{"idle":{"start":0,"end":1,"loop":true}}}"#
+        let noEat = try JSONDecoder().decode(ClipTable.self, from: Data(bare.utf8)).addingEatParts()
+        XCTAssertEqual(Set(noEat.clips.keys), ["idle"])
+    }
+
+    func testMealHeadDownOnce() {
+        let all = PetStance.defaultClips
+        for chews in [1, 3, EatClip.feedChews] {
+            let m = EatClip.meal(chews: chews, available: all)
+            XCTAssertEqual(m.first, EatClip.down, "\(m)")
+            XCTAssertEqual(m.last, EatClip.up, "\(m)")
+            XCTAssertEqual(m.filter { $0 == EatClip.down }.count, 1, "\(m)")
+            XCTAssertEqual(m.filter { $0 == EatClip.up }.count, 1, "\(m)")
+            XCTAssertEqual(m.filter { $0 == EatClip.chew }.count, chews, "\(m)")
+            XCTAssertFalse(m.contains("eat"), "целый eat поднимает голову посреди еды: \(m)")
+        }
+        // Частей нет — целые eat, как раньше (три на «Покормить»).
+        XCTAssertEqual(EatClip.meal(chews: EatClip.feedChews, available: Set(PetClipNames.required)), ["eat", "eat", "eat"])
+        XCTAssertEqual(EatClip.meal(chews: EatClip.itemChews, available: ["eat"]), ["eat"])
+        XCTAssertEqual(EatClip.meal(chews: EatClip.feedChews, available: ["idle"]), [])
+        XCTAssertTrue(EatClip.isEat("eat") && EatClip.isEat(EatClip.chew) && !EatClip.isEat("idle_2"))
+    }
+
+    func testEatingPoseAfterFeedDoesNotEatAgain() {
+        // Покормили, следом ядро присылает позу «ест»: её intro уже сыгран реакцией — второго круга нет.
+        let feed = PetStance.reaction(kind: "feed", ok: true, stance: .stand)
+        XCTAssertFalse(feed.isEmpty)
+        XCTAssertEqual(PetStance.introSteps(for: .eating, after: feed), [])
+        let queue = feed + PetStance.introSteps(for: .eating, after: feed)
+        XCTAssertEqual(queue.filter { $0 == EatClip.down }.count, 1, "голова опускается в миску один раз: \(queue)")
+        XCTAssertEqual(queue.filter { $0 == EatClip.up }.count, 1, "и поднимается один раз: \(queue)")
+        XCTAssertEqual(PetStance.introSteps(for: .eating, after: PetStance.reaction(kind: "item", ok: true, stance: .stand)), [])
+
+        // Без реакции или после другой — поза «ест» со своим подходом к миске.
+        XCTAssertEqual(PetStance.introSteps(for: .eating, after: []), PetStance.intro(for: .eating))
+        XCTAssertEqual(PetStance.introSteps(for: .eating, after: ["hit_left", "happy_wag"]), PetStance.intro(for: .eating))
+        XCTAssertFalse(PetStance.intro(for: .eating).isEmpty)
+        XCTAssertEqual(PetStance.introSteps(for: .idle, after: feed), [])
+
+        // Без частей eat (старый clips.json): три eat реакции тоже покрывают intro.
+        let req = Set(PetClipNames.required)
+        let oldFeed = PetStance.reaction(kind: "feed", ok: true, stance: .stand, available: req)
+        XCTAssertEqual(oldFeed, ["eat", "eat", "eat"])
+        XCTAssertEqual(PetStance.introSteps(for: .eating, after: oldFeed, available: req), [])
+
+        // Реакция сразу кончается циклом позы «ест» и в том же положении — на стыке нечего перезапускать.
+        XCTAssertEqual(PetStance.poseAfter(reaction: "feed", ok: true), .eating)
+        XCTAssertEqual(PetStance.poseAfter(reaction: "item", ok: true), .eating)
+        XCTAssertNil(PetStance.poseAfter(reaction: "feed", ok: false))
+        XCTAssertNil(PetStance.poseAfter(reaction: "pet", ok: true))
+        XCTAssertEqual(PetStance.stance(for: .eating), .stand)
+        XCTAssertEqual(PetStance.endStance(after: feed, from: .stand), .stand)
+    }
+
     // MARK: контракт с shiba.clips.json
 
     func testBundledClipsCoverContract() throws {
@@ -111,6 +199,13 @@ final class PetStanceTests: XCTestCase {
         }
         XCTAssertEqual(table.clips["death"]?.loop, false)
         XCTAssertEqual(table.clips["idle"]?.loop, true)
+        // Части eat сцена режет сама — они в таблице и вместе ровно покрывают eat.
+        let eat = try XCTUnwrap(table.clips["eat"])
+        let parts = try EatClip.parts.map { try XCTUnwrap(table.clips[$0], $0) }
+        XCTAssertEqual(parts[0].start, eat.start, accuracy: 1e-6)
+        XCTAssertEqual(parts[2].end, eat.end, accuracy: 1e-6)
+        XCTAssertEqual(parts[0].end, parts[1].start, accuracy: 1e-6)
+        XCTAssertEqual(parts[1].end, parts[2].start, accuracy: 1e-6)
 
         for a in Stance.allCases {
             for b in Stance.allCases {

@@ -54,14 +54,17 @@ enum ChoreoPath {
     static var bowlTarget: SIMD3<Float> { toWorld(bowlUnderSnout) }
     /// С какой высоты миска падает под морду.
     static let bowlDrop: Float = 0.3
+    /// За сколько секунд до конца еды корм кончается: последние ~0,96 с подхода (eat_up, кадры 41–64 клипа eat)
+    /// Шиба поднимает голову — к этому моменту миска уже пустая. Дальше она только уходит домой, без второй порции.
+    static let foodDoneBeforeEnd: Double = 0.9
 
-    /// Когда идёт еда: от начала шагов до первого eat и до конца подряд идущих eat. Нет eat — nil.
+    /// Когда идёт еда: от начала шагов до первого eat (или его части, EatClip) и до конца подряд идущих. Нет — nil.
     static func eatWindow(_ steps: [String], duration: (String) -> Double) -> (start: Double, end: Double)? {
-        guard let i = steps.firstIndex(of: "eat") else { return nil }
+        guard let i = steps.firstIndex(where: EatClip.isEat) else { return nil }
         let start = steps[..<i].reduce(0) { $0 + duration($1) }
         var end = start
         var j = i
-        while j < steps.count, steps[j] == "eat" {
+        while j < steps.count, EatClip.isEat(steps[j]) {
             end += duration(steps[j])
             j += 1
         }
@@ -81,7 +84,7 @@ enum ChoreoPath {
         let home = BowlPose(position: PetRoom.bowlPos, scale: .one, food: 0)
         let target = bowlTarget
         let eatFrom = eatStart + 0.4
-        let food = 1 - clamp01((t - eatFrom) / max(eatEnd - 0.3 - eatFrom, 0.1))
+        let food = 1 - clamp01((t - eatFrom) / max(eatEnd - foodDoneBeforeEnd - eatFrom, 0.1))
         if t >= leave {
             let k = t - leave
             if k < 0.15 {

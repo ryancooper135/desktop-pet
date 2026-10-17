@@ -236,14 +236,26 @@ enum PetModel {
             let rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
             steps += rc
             reacted = !rc.isEmpty
+            st.reactionSteps = rc
             endStance = PetStance.endStance(after: rc, from: target)
             if endStance != target {
                 // Реакция сменила положение (разбудили, а поза ещё «спит»): стоим так, пока не придёт новая поза.
                 mainLoop = PetStance.restLoop(for: endStance)
+            } else if reacted, let next = PetStance.poseAfter(reaction: r.kind, ok: r.ok),
+                      PetStance.stance(for: next) == endStance {
+                // Покормили: ядро следом пришлёт «ест». Реакция сразу кончается его циклом — когда поза
+                // придёт, перезапускать нечего, и между едой и стойкой не мелькает прежний цикл.
+                mainLoop = PetStance.loop(for: next)
             }
         }
         if poseChanged && !reacted && !initial {
-            steps += PetStance.pick(PetStance.intro(for: pose), available: available)
+            // Поза пришла следом за реакцией, которая уже сыграла её intro (подход к миске после «Покормить»), —
+            // второй круг еды не играем.
+            steps += PetStance.introSteps(for: pose, after: st.reactionSteps, available: available)
+        }
+        if !fresh {
+            // Поза отыграна — следующая такая же поза снова со своим intro.
+            st.reactionSteps = []
         }
 
         if steps.isEmpty && !initial && mainLoop == st.loop && !st.current.hasSuffix("~") {
@@ -435,6 +447,8 @@ struct ClipState: Component {
     var swapEvery = 2
     var reduceMotion = false
     var pendingPose: Pose? = nil
+    /// Клипы последней реакции: поза, пришедшая следом (покормили → «ест»), не повторяет их своим intro.
+    var reactionSteps: [String] = []
     /// Положение модели после load(): от него считается сдвиг лёжа на боку (deathShift).
     var bodyBase: SIMD3<Float>? = nil
     var shifted = false
@@ -453,8 +467,20 @@ struct ClipTable: Decodable, Sendable {
     static let shared: ClipTable? = {
         guard let url = Bundle.main.url(forResource: "shiba.clips", withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(ClipTable.self, from: data)
+        return (try? JSONDecoder().decode(ClipTable.self, from: data))?.addingEatParts()
     }()
+
+    /// Таблица плюс части eat (EatClip): опустил голову / жуёт по кругу / поднял. Своих частей в файле нет —
+    /// режем eat по кадрам EatClip.chewFrom/chewTo. Уже есть или eat слишком короткий — таблица как была.
+    func addingEatParts() -> ClipTable {
+        guard let eat = clips["eat"], !EatClip.parts.contains(where: { clips[$0] != nil }),
+              let ranges = EatClip.ranges(start: eat.start, end: eat.end, fps: fps) else { return self }
+        var out = self
+        for r in ranges {
+            out.clips[r.name] = Clip(start: r.start, end: r.end, loop: r.name == EatClip.chew)
+        }
+        return out
+    }
 }
 
 /// Проигрыватель клипов: вырезает куски из таймлайна «Clips», склеивает в sequence, держит кэш и контроллеры.
