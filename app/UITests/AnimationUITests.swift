@@ -80,7 +80,8 @@ final class AnimationUITests: XCTestCase {
     @MainActor
     func recordAction(_ identifier: String, name: String, seed: String? = nil,
                       count: Int = AnimationUITests.frameCount, step: TimeInterval = AnimationUITests.frameStep) throws {
-        let app = Self.makeApp(seed: seed)
+        // Без сида — полдень по часам симулятора: ночью чистый щенок спит и «Поиграть» выключена.
+        let app = Self.makeApp(seed: seed, noon: seed == nil)
         let stage = try launch(app)
         let button = app.descendants(matching: .any)[identifier]
         guard button.waitForExistence(timeout: 5) else {
@@ -185,14 +186,18 @@ final class AnimationUITests: XCTestCase {
 
     // MARK: - Помощники
 
-    /// Как в ScreenshotUITests, плюс необязательный сид (PET_SEED=nap|critical|bath).
+    /// Как в ScreenshotUITests, плюс необязательный сид (PET_SEED=nap|critical|bath) и полдень (PET_NOW).
     @MainActor
-    static func makeApp(seed: String? = nil) -> XCUIApplication {
+    static func makeApp(seed: String? = nil, noon: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLanguages", "(ru)", "-AppleLocale", "ru_RU", "-uiTesting"]
         app.launchEnvironment["PET_UI_TEST"] = "1"
         app.launchEnvironment["PET_RESET"] = "1"
         if let seed { app.launchEnvironment["PET_SEED"] = seed }
+        if noon {
+            let t = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+            app.launchEnvironment["PET_NOW"] = String(Int(t.timeIntervalSince1970))
+        }
         return app
     }
 
