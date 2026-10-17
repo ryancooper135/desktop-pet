@@ -65,7 +65,9 @@ struct HomeScreen: View {
 
             VStack(spacing: 10) {
                 HStack(alignment: .top, spacing: 10) {
+                    // Карточка забирает ширину первой: иначе ряд с кошельком делит место поровну и «Шиба» ломается по буквам.
                     NameCard(snap: snap)
+                        .layoutPriority(1)
                         .onLongPressGesture { model.showNeeds = true }
                     Spacer(minLength: 0)
                     if let w = model.file?.econ.wallet {
@@ -306,6 +308,8 @@ struct NameCard: View {
                 Text(snap.name)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 13)
                 HStack(spacing: 4) {
                     if critical {
@@ -313,6 +317,8 @@ struct NameCard: View {
                             .accessibilityHidden(true)
                     }
                     Text(snap.levelTitle)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 .font(.system(size: 12, weight: critical ? .heavy : .semibold, design: .rounded))
                 .foregroundStyle(critical ? PetPalette.red : PetPalette.level(snap.level))
@@ -605,6 +611,7 @@ struct WalletChip: View {
             .animation(.snappy, value: coins)
             .animation(.snappy, value: tickets)
         }
+        .fixedSize()
         .buttonStyle(SquishStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Кошелёк: \(EconText.coins(coins)), \(EconText.tickets(tickets))"))
