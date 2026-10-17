@@ -13,6 +13,8 @@ struct PetApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                // Приложение только русское: «через 8 ч 26 мин», а не «8 hrs, 26 min» на английском телефоне.
+                .environment(\.locale, Locale(identifier: "ru_RU"))
                 .onOpenURL { model.open($0) }
         }
         .onChange(of: scenePhase) { _, phase in

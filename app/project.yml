@@ -3,6 +3,7 @@
 # Ядро — локальный пакет ../core/swift (продукт PetCore), тексты — ../content/ru/lines.json.
 name: Pet
 options:
+  developmentLanguage: ru
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -12,7 +13,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1"
+    MARKETING_VERSION: "0.4"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
     CODE_SIGN_STYLE: Manual
@@ -49,6 +50,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: "Питомец"
+        CFBundleDevelopmentRegion: ru
+        CFBundleLocalizations: [ru]
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         ITSAppUsesNonExemptEncryption: false
@@ -86,6 +89,8 @@ targets:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: "Питомец"
+        CFBundleDevelopmentRegion: ru
+        CFBundleLocalizations: [ru]
         CFBundleExecutable: "$(EXECUTABLE_NAME)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
