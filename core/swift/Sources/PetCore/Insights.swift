@@ -310,7 +310,7 @@ extension PetEngine {
                 for e in fe where e.kind != .level {
                     ev.append(AwayEvent(kind: e.kind.rawValue, t: e.t, key: e.key, value: e.value, ok: nil))
                 }
-                if !s.alive { ev.append(AwayEvent(kind: "death", t: s.diedAt!, key: s.cause?.rawValue, value: nil, ok: nil)) }
+                if !s.alive { ev.append(AwayEvent(kind: "death", t: s.diedAt ?? s.t, key: s.cause?.rawValue, value: nil, ok: nil)) }
             }
         }
 

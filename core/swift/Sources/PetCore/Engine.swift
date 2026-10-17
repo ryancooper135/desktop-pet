@@ -339,7 +339,7 @@ public enum PetEngine {
             step(&s, r, o)
             observe(&tr, s, r, &ev)
         }
-        if !s.alive { ev.append(ForecastEvent(t: s.diedAt!, kind: .death, key: s.cause?.rawValue, value: nil)) }
+        if !s.alive { ev.append(ForecastEvent(t: s.diedAt ?? s.t, kind: .death, key: s.cause?.rawValue, value: nil)) }
         return ev
     }
 }

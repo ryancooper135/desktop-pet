@@ -209,7 +209,7 @@ export function awaySummary(prev: PetState, r: Rules, o: Owner, now: number, jou
       if (night || s.napUntil !== null) sleptMin++;
       if (hc() > h0) ev.push({ t: s.t, kind: 'heart_up', value: hc() });
       observe(tr, s, r, ev as unknown as ForecastEvent[]);
-      if (!s.alive) ev.push({ t: s.diedAt!, kind: 'death', key: s.cause ?? undefined });
+      if (!s.alive) ev.push({ t: s.diedAt ?? s.t, kind: 'death', key: s.cause ?? undefined });
     }
   };
   const acts = journal.map((a, i) => ({ a, i })).filter(x => x.a.t >= prev.t && x.a.t <= now)

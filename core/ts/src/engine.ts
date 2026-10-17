@@ -341,6 +341,6 @@ export function forecast(s0: PetState, r: Rules, o: Owner, horizonH = 72): Forec
     step(s, r, o);
     observe(tr, s, r, ev);
   }
-  if (!s.alive) ev.push({ t: s.diedAt!, kind: 'death', key: s.cause ?? undefined });
+  if (!s.alive) ev.push({ t: s.diedAt ?? s.t, kind: 'death', key: s.cause ?? undefined });
   return ev;
 }
