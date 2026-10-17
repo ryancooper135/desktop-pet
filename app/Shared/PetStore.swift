@@ -83,10 +83,17 @@ final class PetStore: @unchecked Sendable {
     func startOver(now: Double = Clock.now()) throws {
         lock.lock(); defer { lock.unlock() }
         let fm = FileManager.default
+        var fresh = SaveFile.fresh(now: now)
+        // Кошелёк, предметы и гарант переживают щенка (death.keep в economy.json). Файл испорчен — из prev.
+        let old = [stateURL, prevURL].lazy
+            .compactMap { try? Data(contentsOf: $0) }
+            .compactMap { try? self.decode($0) }
+            .first
+        if let old { fresh.econ = old.econ.carriedOver() }
         if fm.fileExists(atPath: stateURL.path) {
             try? fm.moveItem(at: stateURL, to: dir.appendingPathComponent("state.broken-\(Int(now)).json"))
         }
-        try writeUnlocked(SaveFile.fresh(now: now), to: stateURL)
+        try writeUnlocked(fresh, to: stateURL)
     }
 
     /// Стереть всё (PET_RESET=1 в UI-тестах).

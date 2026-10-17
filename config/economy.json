@@ -151,7 +151,12 @@
       "sitting_per_day": { "coins": 40, "requires_hearts_ge": 3 },
       "duo_participation": 15, "duo_win": 20, "duo_draw": 10
     },
-    "owner_level_up_coins_x_level": 40
+    "owner_level_up_coins_x_level": 40,
+    "care": {
+      "_note": "монеты за удачное действие ухода (act.<тип> с ok); потолок daily_cap в местные сутки; типа нет — 0",
+      "coins": { "feed": 2, "pet": 1, "play": 3, "bath": 5, "walk": 5 },
+      "daily_cap": 30
+    }
   },
 
   "minigames": {

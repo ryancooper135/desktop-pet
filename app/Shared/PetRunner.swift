@@ -61,7 +61,9 @@ enum PetRunner {
         f.log("act.\(a.kind)", t: f.pet.t, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
         f.lastAction = SaveFile.LastAction(kind: a.kind, source: source, t: now, ok: res.ok, reason: res.reason)
         if case .steps = a, res.ok { f.lastStepsT = now }
-        return ActOutcome(ok: res.ok, reason: res.reason)
+        // Монеты за уход и шаги — по журналу, один раз на запись (Economy.settle).
+        let coins = Economy.settle(&f).reduce(0) { $0 + $1.coins }
+        return ActOutcome(ok: res.ok, reason: res.reason, coins: coins)
     }
 
     /// Лампа: во сколько хозяин ложится. Кратно 5 минутам, 20:00–02:00.

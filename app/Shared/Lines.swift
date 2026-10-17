@@ -43,7 +43,7 @@ struct Lines: Sendable {
         guard let data = Catalog.resource("lines", "json"),
               let j = try? JSONDecoder().decode(JSONValue.self, from: data) else { return .empty }
         var sections: [String: [String: [LineItem]]] = [:]
-        for name in ["notifications", "widget", "island", "away"] {
+        for name in ["notifications", "widget", "island", "away", "ui"] {
             var byKey: [String: [LineItem]] = [:]
             for (key, arr) in j[name].object {
                 byKey[key] = arr.array.compactMap { (it: JSONValue) -> LineItem? in

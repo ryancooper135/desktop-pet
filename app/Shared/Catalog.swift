@@ -47,7 +47,8 @@ enum Catalog {
         return nil
     }
 
-    private static func economy() -> JSONValue? {
+    /// economy.json целиком (читается заново при каждом вызове — кешируют вызывающие, см. EconomyConfig.shared).
+    static func economy() -> JSONValue? {
         guard let data = resource("economy", "json") else { return nil }
         return try? JSONDecoder().decode(JSONValue.self, from: data)
     }
