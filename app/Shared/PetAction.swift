@@ -81,6 +81,8 @@ enum ActionSource: String, Codable, CaseIterable, Sendable {
 struct ActOutcome: Hashable, Sendable {
     let ok: Bool
     let reason: String?
+    /// Сколько монет начислено этим действием (0 — не за что или дневной потолок).
+    var coins = 0
 
     static let storeFailed = ActOutcome(ok: false, reason: "store")
 }

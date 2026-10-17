@@ -24,8 +24,10 @@ let package = Package(
             sources: [
                 "AppGroup.swift",
                 "Backup.swift",
+                "Capsule.swift",
                 "Catalog.swift",
                 "Clock.swift",
+                "Economy.swift",
                 "Finds.swift",
                 "ForecastTools.swift",
                 "IslandPlan.swift",
@@ -55,6 +57,7 @@ let package = Package(
                 "SoundTests.swift",
                 "WalkTests.swift",
                 "TastesTests.swift",
+                "EconomyTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

@@ -971,5 +971,100 @@
       {"id": "a.cta_ok.01", "text": "Всё хорошо. Просто побудь рядом."},
       {"id": "a.cta_ok.02", "text": "Я в порядке. Поиграем, если хочешь."}
     ]
+  },
+  "ui": {
+    "econ_coin_one": [
+      {"id": "u.econ_coin_one.01", "text": "монета"}
+    ],
+    "econ_coin_few": [
+      {"id": "u.econ_coin_few.01", "text": "монеты"}
+    ],
+    "econ_coin_many": [
+      {"id": "u.econ_coin_many.01", "text": "монет"}
+    ],
+    "econ_ticket_one": [
+      {"id": "u.econ_ticket_one.01", "text": "билетик"}
+    ],
+    "econ_ticket_few": [
+      {"id": "u.econ_ticket_few.01", "text": "билетика"}
+    ],
+    "econ_ticket_many": [
+      {"id": "u.econ_ticket_many.01", "text": "билетиков"}
+    ],
+    "econ_shard_one": [
+      {"id": "u.econ_shard_one.01", "text": "клочок"}
+    ],
+    "econ_shard_few": [
+      {"id": "u.econ_shard_few.01", "text": "клочка"}
+    ],
+    "econ_shard_many": [
+      {"id": "u.econ_shard_many.01", "text": "клочков"}
+    ],
+    "econ_earned": [
+      {"id": "u.econ_earned.01", "text": "+{count} {coins}"}
+    ],
+    "econ_cap_reached": [
+      {"id": "u.econ_cap_reached.01", "text": "На сегодня монет за заботу хватит"}
+    ],
+    "econ_not_enough": [
+      {"id": "u.econ_not_enough.01", "text": "Не хватает монет: {count}"}
+    ],
+    "econ_no_tickets": [
+      {"id": "u.econ_no_tickets.01", "text": "Билетиков нет. Можно за монеты"}
+    ],
+    "capsule_pull": [
+      {"id": "u.capsule_pull.01", "text": "Крутить ручку"}
+    ],
+    "capsule_price_coins": [
+      {"id": "u.capsule_price_coins.01", "text": "За монеты: {count}"}
+    ],
+    "capsule_price_ticket": [
+      {"id": "u.capsule_price_ticket.01", "text": "За билетик"}
+    ],
+    "capsule_limit": [
+      {"id": "u.capsule_limit.01", "text": "Автомат устал. Завтра ещё покрутим"}
+    ],
+    "capsule_pity": [
+      {"id": "u.capsule_pity.01", "text": "До эпической: {count}/{total}"}
+    ],
+    "capsule_pity_ready": [
+      {"id": "u.capsule_pity_ready.01", "text": "Следующая — эпическая или лучше"}
+    ],
+    "capsule_got": [
+      {"id": "u.capsule_got.01", "text": "Выпало: {item}"}
+    ],
+    "capsule_new": [
+      {"id": "u.capsule_new.01", "text": "Новинка в коллекции!"}
+    ],
+    "capsule_duplicate": [
+      {"id": "u.capsule_duplicate.01", "text": "Такое уже есть. Клочков: +{count}"}
+    ],
+    "capsule_tap": [
+      {"id": "u.capsule_tap.01", "text": "Тапни, чтобы открыть"}
+    ],
+    "capsule_rarity_common": [
+      {"id": "u.capsule_rarity_common.01", "text": "Обычная"}
+    ],
+    "capsule_rarity_rare": [
+      {"id": "u.capsule_rarity_rare.01", "text": "Редкая"}
+    ],
+    "capsule_rarity_epic": [
+      {"id": "u.capsule_rarity_epic.01", "text": "Эпическая"}
+    ],
+    "capsule_rarity_legendary": [
+      {"id": "u.capsule_rarity_legendary.01", "text": "Легендарная"}
+    ],
+    "capsule_show_common": [
+      {"id": "u.capsule_show_common.01", "text": "Дворовая"}
+    ],
+    "capsule_show_rare": [
+      {"id": "u.capsule_show_rare.01", "text": "Породистая"}
+    ],
+    "capsule_show_epic": [
+      {"id": "u.capsule_show_epic.01", "text": "Выставочная"}
+    ],
+    "capsule_show_legendary": [
+      {"id": "u.capsule_show_legendary.01", "text": "Чемпионская"}
+    ]
   }
 }
