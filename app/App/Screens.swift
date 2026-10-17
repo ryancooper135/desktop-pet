@@ -21,6 +21,13 @@ struct NeedsSheet: View {
             ForEach(VisibleNeeds.all, id: \.self) { n in
                 NeedBar(need: n, value: snap.needs[n] ?? 0)
             }
+            // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift.
+            if let coat = model.coat, snap.alive {
+                Text("Шерсть: \(coat.stage.title)")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(PetPalette.soft)
+                    .accessibilityIdentifier("needs.coat")
+            }
             if let next = nextEvent {
                 Text(next)
                     .font(.system(size: 13, weight: .medium, design: .rounded))

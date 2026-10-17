@@ -1,7 +1,8 @@
 // Главный экран v0.1: сцена с Шибой на весь экран, сверху карточка имени, мысль и реплика, снизу тост и стеклянная панель действий.
 // Шкал на главном нет: долгое нажатие на карточку или свайп вверх по питомцу открывает NeedsSheet.
 // Стекло (Liquid Glass) только на панели действий, остальное — непрозрачные «бумажные» плашки.
-// Прогулка (WalkViews.swift): над панелью ряд «Альбом · Гулять», пока гуляет — записка на месте Шибы.
+// Прогулка (WalkViews.swift): над панелью ряд «Альбом · Автомат · Гулять», пока гуляет — записка на месте Шибы.
+// Волна 5: кошелёк у шестерёнки (тап — автомат), «Открытка дня» под верхним рядом, карточка «Вкус открыт!».
 
 import SwiftUI
 import UIKit
@@ -29,7 +30,8 @@ struct HomeScreen: View {
                          reactionOk: model.reaction.ok,
                          lookX: model.lookX,
                          walkHomeId: model.walkHome.id,
-                         walkHomeFind: model.walkHome.find)
+                         walkHomeFind: model.walkHome.find,
+                         coat: model.coat)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .gesture(stageGesture)
@@ -66,6 +68,9 @@ struct HomeScreen: View {
                     NameCard(snap: snap)
                         .onLongPressGesture { model.showNeeds = true }
                     Spacer(minLength: 0)
+                    if let w = model.file?.econ.wallet {
+                        WalletChip(coins: w.coins, tickets: w.tickets) { model.showCapsule = true }
+                    }
                     Button {
                         model.showSettings = true
                     } label: {
@@ -88,6 +93,10 @@ struct HomeScreen: View {
                     Banner(icon: "square.stack.3d.up.slash",
                            text: "Виджеты не видят сохранение: общая с ними папка не подключилась.")
                 }
+                if let card = model.pendingCard, snap.alive {
+                    PostcardChip { model.postcard = card }
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 // Мысль и реплика — сверху, на стене над питомцем: там иначе пусто, а низ остаётся кнопкам.
                 VStack(spacing: 6) {
@@ -96,7 +105,7 @@ struct HomeScreen: View {
                             .accessibilityIdentifier("pet.thought")
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
-                    Text(snap.line)
+                    Text(model.sayLine ?? snap.line)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
                         .multilineTextAlignment(.center)
@@ -107,6 +116,11 @@ struct HomeScreen: View {
                         .background(RoundedRectangle(cornerRadius: 16).fill(PetPalette.card))
                         .accessibilityIdentifier("pet.line")
                     if let t = snap.timer { NeedTimerView(timer: t) }
+                    if let fact = model.tasteOpened {
+                        TasteOpenedCard(fact: fact)
+                            .onTapGesture { model.tasteOpened = nil }
+                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    }
                 }
                 .padding(.top, 2)
 
@@ -152,6 +166,9 @@ struct HomeScreen: View {
         .animation(.snappy, value: snap.wantIcon)
         .animation(.snappy, value: snap.pose == .away)
         .animation(.snappy, value: noteHeld)
+        .animation(.snappy, value: model.sayLine)
+        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: model.tasteOpened)
+        .animation(.snappy, value: model.pendingCard?.id)
         .onChange(of: snap.pose == .away) { was, now in
             guard now, !was else { return }
             noteHeld = true
@@ -176,6 +193,16 @@ struct HomeScreen: View {
         }
         .sheet(isPresented: $model.showAlbum) {
             AlbumSheet()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $model.showCapsule) {
+            CapsuleScreen()
+                .environment(model)
+                .presentationDetents([.large])
+        }
+        .sheet(item: $model.postcard) { card in
+            PostcardSheet(card: card)
                 .environment(model)
                 .presentationDetents([.medium, .large])
         }
@@ -532,8 +559,12 @@ struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(toast.ok ? PetPalette.green : PetPalette.red)
+            if let emoji = toast.emoji {
+                Text(emoji).font(.system(size: 15))
+            } else {
+                Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundStyle(toast.ok ? PetPalette.green : PetPalette.red)
+            }
             Text(toast.text)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
@@ -543,5 +574,107 @@ struct ToastView: View {
         .background(Capsule().fill(PetPalette.card).shadow(color: .black.opacity(0.12), radius: 8, y: 3))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+// MARK: - Волна 5: кошелёк, открытка, открытый вкус
+
+/// Кошелёк у шестерёнки: «🪙 150 · 🎟 1». Тап — автомат с капсулами.
+struct WalletChip: View {
+    let coins: Int
+    let tickets: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("🪙").font(.system(size: 13))
+                Text("\(coins)")
+                    .contentTransition(.numericText(value: Double(coins)))
+                Text("🎟").font(.system(size: 13))
+                Text("\(tickets)")
+                    .contentTransition(.numericText(value: Double(tickets)))
+            }
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .lineLimit(1)
+            .foregroundStyle(PetPalette.ink)
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(Capsule().fill(PetPalette.card))
+            .animation(.snappy, value: coins)
+            .animation(.snappy, value: tickets)
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Кошелёк: \(EconText.coins(coins)), \(EconText.tickets(tickets))"))
+        .accessibilityHint(Text("Открыть автомат с капсулами"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("open.wallet")
+    }
+}
+
+/// «Открытка дня»: маленькая бумажка под верхним рядом, пока есть несохранённая открытка.
+struct PostcardChip: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "envelope.fill")
+                    .foregroundStyle(PetPalette.accent)
+                Text("Открытка дня")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(PetPalette.ink)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(hex: 0xfff6d8))
+                    .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+            )
+            // Бумага всегда светлая.
+            .environment(\.colorScheme, .light)
+            .rotationEffect(.degrees(-2))
+        }
+        .buttonStyle(SquishStyle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel(Text("Открытка дня"))
+        .accessibilityIdentifier("postcard.card")
+    }
+}
+
+/// «Вкус открыт!»: заметная карточка на пару секунд — значок вещи и строка альбома.
+struct TasteOpenedCard: View {
+    let fact: TasteFact
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(fact.emoji).font(.system(size: 30))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Вкус открыт!")
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundStyle(fact.taste == .dislike ? PetPalette.soft : PetPalette.accent)
+                Text(fact.text)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(PetPalette.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(PetPalette.card)
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(fact.taste == .dislike ? PetPalette.soft.opacity(0.5) : PetPalette.accent, lineWidth: 2)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("taste.opened")
     }
 }

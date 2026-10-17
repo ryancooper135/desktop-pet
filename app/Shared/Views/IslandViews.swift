@@ -28,6 +28,26 @@ extension PetAttributes.ContentState {
 
     /// Заголовок таймера: в ContentState его нет, берём по виду и шкале.
     var islandTimerTitle: String { Presenter.timerTitle(kind: timerKind ?? "", need: timerNeed) }
+
+    /// Большая кнопка с учётом возвращения: вместо «Гуляет» — «Открыть».
+    func shownBigAct(home: Bool) -> IslandAct { home && bigAct == .walk ? .open : bigAct }
+}
+
+/// «Дома» вместо таймера прогулки, когда она уже кончилась.
+struct IslandHomeBadge: View {
+    var size: CGFloat = 12
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "house.fill")
+                .font(.system(size: size - 1, weight: .bold))
+            Text(IslandState.homeLine)
+                .font(.system(size: size, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+        }
+        .foregroundStyle(PetPalette.green)
+        .accessibilityElement(children: .combine)
+    }
 }
 
 /// Слева в свёрнутом острове: мордочка, после действия — короткая реакция.
@@ -45,10 +65,13 @@ struct IslandCompactLeading: View {
 /// Таймер дольше часа («9:25:13») идёт без иконки и цветом шкалы — иначе не влезает и обрезается.
 struct IslandCompactTrailing: View {
     var state: IslandState
+    var stale = false
     @Environment(\.petFrozenNow) private var frozenNow
 
     var body: some View {
-        if let tm = state.timer {
+        if state.home(stale: stale, now: frozenNow ?? Clock.now()) {
+            IslandHomeBadge()
+        } else if let tm = state.timer {
             let long = !Presenter.timerIsLive(remaining: tm.end - (frozenNow ?? state.updatedAt))
             HStack(spacing: 3) {
                 if !long {
@@ -150,7 +173,10 @@ struct IslandExpandedCenter: View {
 /// Строка статуса острова: чего хочет (иконка и слово) и сколько осталось («Испачкается через 9 ч 25 мин»).
 struct IslandStatusRow: View {
     var state: IslandState
+    var stale = false
 
+    /// Вернулся с прогулки без свежего состояния: таймер прогулки уже врёт.
+    var home: Bool { state.home(stale: stale) }
     var hasContent: Bool { state.wantIcon != nil || state.timer != nil }
 
     var body: some View {
@@ -172,7 +198,9 @@ struct IslandStatusRow: View {
                 .padding(.vertical, 4)
                 .background(Capsule().fill(Color.white.opacity(0.12)))
             }
-            if let tm = state.timer {
+            if home {
+                IslandHomeBadge()
+            } else if let tm = state.timer {
                 NeedTimerView(timer: tm, showTitle: state.wantIcon == nil, now: state.updatedAt, title: state.islandTimerTitle)
                     .foregroundStyle(Color.white.opacity(0.75))
             }
@@ -236,13 +264,14 @@ struct IslandSecondaryButton: View {
 /// Низ острова: строка статуса, под ней одна большая кнопка — самое нужное сейчас, рядом максимум одна маленькая.
 struct IslandExpandedBottom: View {
     var state: IslandState
+    var stale = false
 
     var body: some View {
-        let status = IslandStatusRow(state: state)
+        let status = IslandStatusRow(state: state, stale: stale)
         VStack(spacing: 8) {
             if status.hasContent { status }
             HStack(spacing: 10) {
-                IslandPrimaryButton(act: state.bigAct, critical: state.islandCritical)
+                IslandPrimaryButton(act: state.shownBigAct(home: status.home), critical: state.islandCritical)
                 if let small = state.smallAct {
                     IslandSecondaryButton(act: small)
                 }
@@ -275,7 +304,9 @@ struct LockScreenActivityView: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
                 HStack(spacing: 8) {
-                    if let tm = state.timer {
+                    if state.home(stale: stale) {
+                        IslandHomeBadge()
+                    } else if let tm = state.timer {
                         NeedTimerView(timer: tm, now: state.updatedAt, title: state.islandTimerTitle)
                     }
                     Spacer(minLength: 0)

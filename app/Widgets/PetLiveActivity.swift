@@ -11,7 +11,8 @@ struct PetLiveActivity: Widget {
         ActivityConfiguration(for: PetAttributes.self) { context in
             // Устаревшее из-за конца реакции не гасим: это обычная смена мордочки.
             LockScreenActivityView(name: context.attributes.name, state: context.state, stale: context.isStale)
-                .opacity(context.isStale && context.state.reactUntil == nil ? 0.6 : 1)
+                // Прогулка: устаревание = возвращение, вьюха сама покажет «Дома» — не глушим.
+                .opacity(context.isStale && context.state.reactUntil == nil && context.state.backAt == nil ? 0.6 : 1)
                 .activityBackgroundTint(PetPalette.card)
                 .activitySystemActionForegroundColor(PetPalette.ink)
                 .widgetURL(URL(string: "pet://home"))
@@ -27,12 +28,12 @@ struct PetLiveActivity: Widget {
                     IslandExpandedCenter(state: context.state, stale: context.isStale)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    IslandExpandedBottom(state: context.state)
+                    IslandExpandedBottom(state: context.state, stale: context.isStale)
                 }
             } compactLeading: {
                 IslandCompactLeading(state: context.state, stale: context.isStale)
             } compactTrailing: {
-                IslandCompactTrailing(state: context.state)
+                IslandCompactTrailing(state: context.state, stale: context.isStale)
             } minimal: {
                 IslandMinimal(state: context.state, stale: context.isStale)
             }

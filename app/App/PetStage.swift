@@ -19,6 +19,8 @@ struct PetStage: View {
     /// Растёт на каждое возвращение с прогулки (AppModel.walkHome): Шиба входит в кадр с находкой find.
     var walkHomeId: Int = 0
     var walkHomeFind: String = ""
+    /// Вид шерсти (блеск, грязь). nil — как есть. Перекрашиваем только при смене значения.
+    var coat: CoatLook? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -28,12 +30,15 @@ struct PetStage: View {
         let reaction = PetReaction(id: reactionId, kind: reactionKind, ok: reactionOk)
         let lookX = self.lookX
         let walkHome = (id: walkHomeId, find: walkHomeFind)
+        let coat = self.coat
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
             let pet = await PetModel.load()
             pet.name = PetModel.petName
             PetRoom.matte(pet)
+            PetRoom.prepareCoat(pet)
+            if let coat { PetRoom.applyCoat(coat, to: pet) }
             // Подставка с поворотом 3/4: внутри питомец и пятно-тень (пятно не дышит вместе с ним).
             let stand = Entity()
             stand.name = PetModel.standName
@@ -56,6 +61,7 @@ struct PetStage: View {
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
+            if let coat { PetRoom.applyCoat(coat, to: pet) }
         }
         .background(PetPalette.bg)
     }

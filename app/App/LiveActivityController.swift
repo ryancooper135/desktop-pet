@@ -31,8 +31,11 @@ enum LiveActivityController {
         let now = Clock.now()
         let events = ForecastTools.upcoming(f, at: now, horizonH: 12)
         let state = PetAttributes.ContentState.make(f, at: now, events: events)
-        var staleT = ForecastTools.staleDate(PetRunner.peek(f, at: now), events: events, now: now,
+        let peek = PetRunner.peek(f, at: now)
+        var staleT = ForecastTools.staleDate(peek, events: events, now: now,
                                              startedT: f.island.startedT).timeIntervalSince1970
+        // Гуляет: устаревает к настоящему возвращению (ядро снимает прогулку шагом позже until).
+        if let b = state.backAt, b > now, let w = peek.outing, staleT >= w.until - 1 { staleT = max(staleT, b) }
         if let ru = state.reactUntil, ru > now { staleT = min(staleT, ru) }
         let content = ActivityContent(state: state,
                                       staleDate: Date(timeIntervalSince1970: staleT - Clock.offset))
