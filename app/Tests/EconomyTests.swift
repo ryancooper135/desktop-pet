@@ -362,9 +362,9 @@ final class EconomyTests: XCTestCase {
 
         // econ без paidSeq (битый файл): журнал задним числом не оплачиваем.
         obj["econ"] = ["wallet": ["coins": 7]]
-        var h = try JSONDecoder().decode(SaveFile.self, from: JSONSerialization.data(withJSONObject: obj))
-        XCTAssertEqual(h.econ.paidSeq, old.seq)
-        XCTAssertTrue(Economy.settle(&h).isEmpty)
+        var broken = try JSONDecoder().decode(SaveFile.self, from: JSONSerialization.data(withJSONObject: obj))
+        XCTAssertEqual(broken.econ.paidSeq, old.seq)
+        XCTAssertTrue(Economy.settle(&broken).isEmpty)
 
         // Туда-обратно без потерь.
         var h = SaveFile.fresh(now: eT0)
