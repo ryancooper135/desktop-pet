@@ -226,7 +226,7 @@ struct HomeScreen: View {
             switch e {
             case .tick(let n):
                 // Каждые 50 pt пути — лёгкий тик, нотка вверх по ладу и сердечко под пальцем.
-                guard model.snap.alive else { continue }
+                guard model.snap.alive, model.snap.pose != .away else { continue }
                 model.haptic(.light)
                 SoundKit.shared.strokeTick(n)
                 model.pop("", at: p, symbol: "heart.fill")

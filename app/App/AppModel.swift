@@ -173,6 +173,8 @@ final class AppModel {
             SoundKit.shared.ambient(.yip)
             pop(Finds.broughtText(find), at: anchor)
             heartBurst()
+            // Остров и виджет узнают о возвращении только через синк, иначе остров висит на «Гуляет 0:00».
+            Task { await AppActions.shared.afterChange() }
         }
         // Не по сравнению с before: init берёт outing из стора, и на первом refresh прогулка «не меняется» —
         // таймер к возвращению тогда не ставился, и Шиба приходил только с тикером (до 30 с позже).
@@ -215,7 +217,8 @@ final class AppModel {
     /// Тап по питомцу: в беде — самое срочное (как кнопка «Спасти»), иначе только отклик, без ядра.
     /// Погладить — провести пальцем (StrokeTracker): так тап не тратит кулдаун ласки.
     func tapPet() {
-        guard snap.alive else { return }
+        // Ушёл гулять — комната пустая, трогать некого.
+        guard snap.alive, snap.pose != .away else { return }
         if snap.level >= 3, let a = snap.main.action {
             act(a)
         } else {
@@ -227,7 +230,7 @@ final class AppModel {
 
     /// Щекотка: несколько быстрых тапов подряд.
     func tickle() {
-        guard snap.alive else { return }
+        guard snap.alive, snap.pose != .away else { return }
         react("tickle")
         haptic(.medium)
         SoundKit.shared.play(.yip)

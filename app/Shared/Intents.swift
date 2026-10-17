@@ -24,7 +24,9 @@ enum IntentBridge {
     @MainActor
     static func runMain(source: ActionSource) async -> ActOutcome {
         let snap = Presenter.current()
-        guard let a = snap.main.action else { return ActOutcome(ok: false, reason: snap.alive ? "bathing" : "dead") }
+        guard let a = snap.main.action else {
+            return ActOutcome(ok: false, reason: !snap.alive ? "dead" : (snap.pose == .away ? "away" : "bathing"))
+        }
         return await run(a, source: source)
     }
 

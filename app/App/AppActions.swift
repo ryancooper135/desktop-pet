@@ -92,6 +92,7 @@ final class AppActions {
     /// Ушли в фон: уведомления по свежему lastSeenT (от него считается «скучаю»).
     func afterBackground() async {
         WidgetCenter.shared.reloadAllTimelines()
+        await LiveActivityController.sync(PetStore.load(), allowStart: false)
         await NotificationScheduler.reschedule()
     }
 
