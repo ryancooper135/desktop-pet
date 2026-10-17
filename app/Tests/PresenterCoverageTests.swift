@@ -304,9 +304,9 @@ final class ForecastToolsCoverageTests: XCTestCase {
     func testTimelineForDeadPet() {
         var f = SaveFile.fresh(now: pT0)
         f.pet.alive = false
-        let pts = ForecastTools.timeline(f, now: pT0, tzOffsetMin: 0).map(\.t)
-        XCTAssertEqual(pts.first, pT0)
-        XCTAssertLessThanOrEqual(pts.count, 64)
+        let tl = ForecastTools.timeline(f, now: pT0, tzOffsetMin: 0)
+        XCTAssertEqual(tl.count, 1, "после смерти точек нет")
+        XCTAssertEqual(tl.first?.alive, false)
     }
 
     func testStaleDate() {
