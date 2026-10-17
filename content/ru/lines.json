@@ -530,6 +530,27 @@
       {"id": "w.dead.01", "text": "Здесь жил хороший пёс."},
       {"id": "w.dead.02", "text": "Тихо. Альбом памяти внутри."}
     ],
+    "taste_love": [
+      {"id": "w.taste_love.01", "text": "Моё любимое! Ты запомнил?"},
+      {"id": "w.taste_love.02", "text": "Ммм! Вот это я понимаю!"},
+      {"id": "w.taste_love.03", "text": "Хвост сам виляет. Ещё!"},
+      {"id": "w.taste_love.04", "text": "Лучшее, что есть на свете!"}
+    ],
+    "taste_dislike": [
+      {"id": "w.taste_dislike.01", "text": "Фу. Ну ладно, из вежливости."},
+      {"id": "w.taste_dislike.02", "text": "Это не моё. Совсем."},
+      {"id": "w.taste_dislike.03", "text": "Понюхал и отвернулся."}
+    ],
+    "taste_open": [
+      {"id": "w.taste_open.01", "text": "Ты раскусил мой вкус!"},
+      {"id": "w.taste_open.02", "text": "Теперь ты знаешь мой секрет."},
+      {"id": "w.taste_open.03", "text": "Запиши в альбом: это про меня."}
+    ],
+    "taste_find_love": [
+      {"id": "w.taste_find_love.01", "text": "Принёс самое любимое!"},
+      {"id": "w.taste_find_love.02", "text": "Смотри! Моя любимая находка!"},
+      {"id": "w.taste_find_love.03", "text": "Лучшая находка на свете!"}
+    ],
     "rare": [
       {"id": "w.rare.01", "text": "Поймал бабочку. Отпустил. Я добрый.", "frame": "butterfly"},
       {"id": "w.rare.02", "text": "Обнял тапок. Тапок не против.", "frame": "slipper"},
@@ -755,6 +776,22 @@
     ],
     "island_asleep": [
       {"id": "i.island_asleep.01", "text": "Уснул. Разбуди"}
+    ],
+    "taste_love": [
+      {"id": "i.taste_love.01", "text": "Моё любимое!"},
+      {"id": "i.taste_love.02", "text": "Ммм, обожаю!"}
+    ],
+    "taste_dislike": [
+      {"id": "i.taste_dislike.01", "text": "Фу, не моё"},
+      {"id": "i.taste_dislike.02", "text": "Ну такое…"}
+    ],
+    "taste_open": [
+      {"id": "i.taste_open.01", "text": "Ты меня раскусил!"},
+      {"id": "i.taste_open.02", "text": "Вкус открыт!"}
+    ],
+    "taste_find_love": [
+      {"id": "i.taste_find_love.01", "text": "Любимая находка!"},
+      {"id": "i.taste_find_love.02", "text": "Моё сокровище!"}
     ],
     "rare": [
       {"id": "i.rare.01", "text": "Поймал бабочку!", "frame": "butterfly"},
