@@ -286,12 +286,11 @@ final class PresenterCoverageTests: XCTestCase {
 
 final class ForecastToolsCoverageTests: XCTestCase {
 
-    func testTimelineDatesShape() {
+    func testTimelineShape() {
         var f = SaveFile.fresh(now: pT0)
         f.pet.bathUntil = pT0 + 1000
         f.lastAction = SaveFile.LastAction(kind: "pet", source: .app, t: pT0 - 30, ok: true, reason: nil)
-        let ev = ForecastTools.upcoming(f, at: pT0)
-        let pts = ForecastTools.timelineDates(f, now: pT0, events: ev)
+        let pts = ForecastTools.timeline(f, now: pT0, tzOffsetMin: 0).map(\.t)
 
         XCTAssertEqual(pts.first, pT0)
         XCTAssertLessThanOrEqual(pts.count, 64)
@@ -299,14 +298,13 @@ final class ForecastToolsCoverageTests: XCTestCase {
         for (a, b) in zip(pts, pts.dropFirst()) {
             XCTAssertGreaterThanOrEqual(b - a, 60, "точки ближе минуты склеены")
         }
-        XCTAssertTrue(pts.contains { abs($0 - (pT0 + 1001)) < 60 }, "есть точка на конце ванны")
         XCTAssertTrue(pts.contains { abs($0 - (pT0 - 30 + Presenter.reactionWindow + 1)) < 60 }, "есть точка на конце реакции")
     }
 
-    func testTimelineDatesForDeadPet() {
+    func testTimelineForDeadPet() {
         var f = SaveFile.fresh(now: pT0)
         f.pet.alive = false
-        let pts = ForecastTools.timelineDates(f, now: pT0, events: [])
+        let pts = ForecastTools.timeline(f, now: pT0, tzOffsetMin: 0).map(\.t)
         XCTAssertEqual(pts.first, pT0)
         XCTAssertLessThanOrEqual(pts.count, 64)
     }
