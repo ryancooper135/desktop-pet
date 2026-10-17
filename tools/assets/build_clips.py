@@ -683,6 +683,42 @@ def build(args) -> None:
 
 # --- проверка готового GLB ---
 
+POSTURE_LIE_TOL = 3.0  # % роста: таз во сне отличается от lie не больше чем на столько
+POSTURE_LOW = 0.35  # лёжа и во сне таз ниже 0.35 высоты таза в idle (было 23/54 — «попа вверх»)
+POSTURE_REAR_UP = 5.0  # % роста: таз во сне не выше плеч больше чем на столько (иначе «попа вверх»)
+
+
+def check_posture(rig: Rig, tracks: dict, clips: dict, fps: float, floor: float, height: float):
+    """Средняя высота таза/плеч/головы в idle, lie, sleep; сон — лёжа на полу, без поднятого зада."""
+    need = ("BackShoulder.L", "BackShoulder.R", "FrontShoulder.L", "FrontShoulder.R", "Head")
+    if not all(n in clips for n in ("idle", "lie", "sleep")) or not all(b in rig.idx for b in need):
+        return {}, []
+    I = rig.idx
+    out = {}
+    for name in ("idle", "lie", "sleep"):
+        f0, f1 = clips[name]["frames"]
+        acc = np.zeros(3)
+        for f in range(f0, f1 + 1):
+            G = globals_from_local(rig.mats(rig.locals_at(tracks, f / fps)), rig.par)
+            y = lambda b: G[I[b]][1, 3]
+            acc += [(y("BackShoulder.L") + y("BackShoulder.R")) / 2, (y("FrontShoulder.L") + y("FrontShoulder.R")) / 2,
+                    y("Head")]
+        acc = (acc / (f1 - f0 + 1) - floor) / height * 100
+        out[name] = {"hip": float(acc[0]), "shoulder": float(acc[1]), "head": float(acc[2])}
+    idle, lie, sleep = out["idle"], out["lie"], out["sleep"]
+    bad = []
+    if abs(sleep["hip"] - lie["hip"]) > POSTURE_LIE_TOL:
+        bad.append(f"sleep: таз {sleep['hip']:.1f}% не как в lie ({lie['hip']:.1f}%)")
+    for n in ("lie", "sleep"):
+        if out[n]["hip"] > POSTURE_LOW * idle["hip"]:
+            bad.append(f"{n}: таз {out[n]['hip']:.1f}% не ниже {POSTURE_LOW:g}×idle ({idle['hip']:.1f}%)")
+    if sleep["hip"] - sleep["shoulder"] > POSTURE_REAR_UP:
+        bad.append(f"sleep: зад поднят — таз {sleep['hip']:.1f}% выше плеч {sleep['shoulder']:.1f}%")
+    if sleep["head"] >= lie["head"]:
+        bad.append(f"sleep: голова {sleep['head']:.1f}% не ниже, чем в lie ({lie['head']:.1f}%)")
+    return out, bad
+
+
 def check(args) -> int:
     g = Glb.load(args.glb)
     rig = Rig(g)
@@ -733,6 +769,9 @@ def check(args) -> int:
         problems += [f"{name}: {b}" for b in bad]
         rows.append((name, len(frames), (f1 - f0) / fps, c["loop"], seam, miny, hover, mode, "; ".join(bad), move))
 
+    posture, bad_posture = check_posture(rig, tracks, clips, fps, floor, height)
+    problems += bad_posture
+
     lines = ["### Клипы: швы и пол", "",
              f"Рост {height:.3f}, пол {floor:.4f}. Порог: шов ≤ {SEAM_MAX_DEG}° и ≤ {FLOOR_TOL * 100:.1f}% сдвига, min Y ≥ {MIN_Y_FAIL * 100:.0f}% "
              f"(кроме death), snap-клип не выше {HOVER_FAIL * 100:.0f}%.", "",
@@ -741,6 +780,10 @@ def check(args) -> int:
         lines.append(f"| {name} | {dur:.3f} с · {nfr} к{' · loop' if loop else ''} | "
                      f"{'—' if seam is None else f'{seam:.3f}'} | {miny:.2f} | {hover:.2f} | {mode} | "
                      f"{'❌ ' + bad if bad else '✅'} |")
+    if posture:
+        lines += ["", "Посадка тела (средние по клипу, % роста): " + " · ".join(
+            f"{n}: таз {p['hip']:.1f}, плечи {p['shoulder']:.1f}, голова {p['head']:.1f}" for n, p in posture.items())]
+        lines += [f"- ❌ {b}" for b in bad_posture]
     lines += ["", f"**{'FAIL: ' + str(len(problems)) + ' проблем' if problems else 'OK'}**", ""]
     md = "\n".join(lines)
     print(md)
@@ -748,7 +791,7 @@ def check(args) -> int:
         with open(args.summary, "a", encoding="utf-8") as f:
             f.write(md + "\n")
     if args.report:
-        Path(args.report).write_text(json.dumps({"height": height, "floor": floor, "problems": problems, "clips": [
+        Path(args.report).write_text(json.dumps({"height": height, "floor": floor, "problems": problems, "posture_pct": posture, "clips": [
             {"name": r[0], "frames": r[1], "dur": r[2], "loop": r[3], "seam_deg": r[4], "min_y_pct": r[5],
              "max_low_pct": r[6], "ground": r[7], "seam_move_pct": r[9]} for r in rows]}, ensure_ascii=False, indent=1), encoding="utf-8")
     if problems:
