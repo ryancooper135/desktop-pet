@@ -7,6 +7,8 @@
 //   ui-01-main-tree дерево элементов главного экрана (txt) — по нему видно accessibilityIdentifier
 //   ui-1N-tab-N     каждая вкладка TabView, если она есть
 //   ui-2N-<имя>     экраны из списка `screens` ниже (по accessibilityIdentifier)
+//   ui-4N-<имя>     состояния с отдельного запуска (testStates*): критично, смерть, шкалы, «Пока тебя не было»,
+//                   тёмная тема. Состояние задаёт окружение запуска (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -69,6 +71,59 @@ final class ScreenshotUITests: XCTestCase {
         XCUIDevice.shared.press(.home)
         settle(2)
         snap("ui-90-home")
+    }
+
+    // MARK: - Состояния (каждое — с чистого запуска)
+
+    /// Уровень 3 в приложении: красная виньетка, кнопка «Спасти», обводка карточки.
+    @MainActor
+    func testStates40Critical() {
+        shootState("ui-40-critical", env: ["PET_SEED": "critical"], marker: "act.rescue")
+    }
+
+    /// Питомец умер: «Нет с нами» и кнопка «Начать заново» вместо панели.
+    @MainActor
+    func testStates41Dead() {
+        shootState("ui-41-dead", env: ["PET_SEED": "dead"], marker: "act.startOver")
+    }
+
+    /// Шкалы (NeedsSheet) — открываются сами через PET_OPEN, без жеста.
+    @MainActor
+    func testStates42Needs() {
+        shootState("ui-42-needs", env: ["PET_OPEN": "needs"], marker: "needs.sheet")
+    }
+
+    /// «Пока тебя не было» после 9 часов без приложения.
+    @MainActor
+    func testStates43Away() {
+        shootState("ui-43-away", env: ["PET_AWAY_H": "9"], marker: "away.screen")
+    }
+
+    /// Главный экран в тёмной теме.
+    @MainActor
+    func testStates44MainDark() {
+        shootState("ui-44-main-dark", env: ["PET_SCHEME": "dark"], marker: Self.mainMarker)
+    }
+
+    /// Критично в тёмной теме: красное не должно тонуть в тёмном.
+    @MainActor
+    func testStates45CriticalDark() {
+        shootState("ui-45-critical-dark", env: ["PET_SEED": "critical", "PET_SCHEME": "dark"], marker: "act.rescue")
+    }
+
+    /// Запуск с окружением → ждать маркер → снимок. Снимок делается и без маркера: по нему видно, что пошло не так.
+    @MainActor
+    func shootState(_ name: String, env: [String: String], marker: String, settleFor: TimeInterval = 1.5) {
+        let app = Self.makeApp()
+        for (k, v) in env { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let found = app.descendants(matching: .any)[marker].waitForExistence(timeout: 20)
+        settle(settleFor)
+        snap(name)
+        XCTAssertTrue(found, "\(name): нет элемента \(marker)")
+        app.terminate()
     }
 
     // MARK: - Помощники

@@ -223,8 +223,8 @@ final class AppModel {
     }
 
     /// Всплывашка в точке сцены; сама исчезает через 0,9 с.
-    func pop(_ text: String, at point: CGPoint) {
-        let p = Pop(text: text, point: point)
+    func pop(_ text: String, at point: CGPoint, symbol: String? = nil) {
+        let p = Pop(text: text, point: point, symbol: symbol)
         pops.append(p)
         if pops.count > Self.maxPops { pops.removeFirst(pops.count - Self.maxPops) }
         let id = p.id
@@ -488,7 +488,7 @@ enum AwayBuilder {
 // MARK: - Сиды для тестов и отладки
 
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
-/// PET_SEED=critical|nap|bath — готовое состояние. Срабатывает один раз за запуск.
+/// PET_SEED=critical|dead|nap|bath — готовое состояние. Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
 
@@ -517,6 +517,17 @@ enum LaunchSeed {
                 f.pet.needs[.fun] = 10
                 f.pet.needs[.love] = 10
                 f.pet.hearts = 1
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "dead":
+                // Для скриншота экрана «Нет с нами»: умер только что, отчёт «пока не было» не всплывает.
+                PetRunner.catchUp(&f, now: now)
+                f.pet.needs[.food] = 0
+                f.pet.hearts = 0
+                f.pet.lastChanceH = nil
+                f.pet.alive = false
+                f.pet.diedAt = now
+                f.pet.cause = .starve
                 f.seen = f.pet
                 f.lastSeenT = now
             case "nap":

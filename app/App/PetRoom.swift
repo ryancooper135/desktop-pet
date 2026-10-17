@@ -33,7 +33,10 @@ enum PetRoom {
     static let leftWallX: Float = -1.8
     static let rugRadius: Float = 0.45
     /// Миска слева сзади, у морды (за собакой справа её закрывает круп). Мяч справа впереди, у лап.
-    nonisolated static let bowlPos = SIMD3<Float>(-0.38, 0.025, -0.75)
+    /// x = -0.30: при x = -0.38 левый край миски на портретном экране (~0.46) уходил за кадр;
+    /// теперь до края ~35 pt. Проверка — PetRoomFramingTests.
+    nonisolated static let bowlPos = SIMD3<Float>(-0.30, 0.025, -0.75)
+    nonisolated static let bowlRadius: Float = 0.09
     nonisolated static let ballPos = SIMD3<Float>(0.15, 0.05, 0.3)
     /// Пятно-тень чуть выше ковра (верх ковра — 0.004).
     nonisolated static let blobY: Float = 0.006
@@ -106,7 +109,7 @@ enum PetRoom {
         root.addChild(rug)
 
         // Миска и мяч
-        let bowl = ModelEntity(mesh: .generateCylinder(height: 0.05, radius: 0.09),
+        let bowl = ModelEntity(mesh: .generateCylinder(height: 0.05, radius: bowlRadius),
                                materials: [matteMaterial(RoomColors.bowl)])
         bowl.name = "bowl"
         bowl.position = bowlPos

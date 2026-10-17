@@ -1,8 +1,9 @@
-// Главный экран v0.1: сцена с Шибой на весь экран, сверху карточка имени и мысль, снизу стеклянная панель действий.
+// Главный экран v0.1: сцена с Шибой на весь экран, сверху карточка имени, мысль и реплика, снизу тост и стеклянная панель действий.
 // Шкал на главном нет: долгое нажатие на карточку или свайп вверх по питомцу открывает NeedsSheet.
 // Стекло (Liquid Glass) только на панели действий, остальное — непрозрачные «бумажные» плашки.
 
 import SwiftUI
+import UIKit
 @preconcurrency import PetCore
 
 struct HomeScreen: View {
@@ -69,20 +70,16 @@ struct HomeScreen: View {
                 }
                 if !snap.shared {
                     Banner(icon: "square.stack.3d.up.slash",
-                           text: "Виджеты не видят сохранение: общая папка App Group не подключилась.")
+                           text: "Виджеты не видят сохранение: общая с ними папка не подключилась.")
                 }
 
-                if let icon = snap.wantIcon, snap.alive {
-                    ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
-                        .padding(.top, 6)
-                        .accessibilityIdentifier("pet.thought")
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
-                }
-
-                Spacer()
-
+                // Мысль и реплика — сверху, на стене над питомцем: там иначе пусто, а низ остаётся кнопкам.
                 VStack(spacing: 6) {
-                    if let t = snap.timer { NeedTimerView(timer: t) }
+                    if let icon = snap.wantIcon, snap.alive {
+                        ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
+                            .accessibilityIdentifier("pet.thought")
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
                     Text(snap.line)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
@@ -93,6 +90,17 @@ struct HomeScreen: View {
                         .padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 16).fill(PetPalette.card))
                         .accessibilityIdentifier("pet.line")
+                    if let t = snap.timer { NeedTimerView(timer: t) }
+                }
+                .padding(.top, 2)
+
+                Spacer(minLength: 8)
+
+                // Тост — над кнопками, рядом с тем, что его вызвало; карточку имени не закрывает.
+                if let toast = model.toast {
+                    ToastView(toast: toast)
+                        .allowsHitTesting(false)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 if rescue {
@@ -112,20 +120,11 @@ struct HomeScreen: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(PetPalette.accent)
+                    .accessibilityIdentifier("act.startOver")
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-
-            if let toast = model.toast {
-                VStack {
-                    ToastView(toast: toast)
-                        .padding(.top, 60)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    Spacer()
-                }
-                .allowsHitTesting(false)
-            }
         }
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)
@@ -181,7 +180,7 @@ struct HomeScreen: View {
                 // Каждые 50 pt пути — лёгкий тик и сердечко под пальцем.
                 guard model.snap.alive else { continue }
                 model.haptic(.light)
-                model.pop("❤", at: p)
+                model.pop("", at: p, symbol: "heart.fill")
             case .stroke:
                 model.act(.pet)
             case .tap:
@@ -217,8 +216,11 @@ struct HapticsLayer: View {
 }
 
 /// Аватар, имя, сердечки и уровень. Непрозрачная плашка.
+/// Критично (уровень 3+): красная обводка и значок тревоги у подписи — видно сразу, не путается с «голоден».
 struct NameCard: View {
     let snap: PetSnapshot
+
+    private var critical: Bool { snap.alive && snap.level >= 3 }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -229,43 +231,114 @@ struct NameCard: View {
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                 HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 13)
-                Text(snap.levelTitle)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(PetPalette.level(snap.level))
+                HStack(spacing: 4) {
+                    if critical {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .accessibilityHidden(true)
+                    }
+                    Text(snap.levelTitle)
+                }
+                .font(.system(size: 12, weight: critical ? .heavy : .semibold, design: .rounded))
+                .foregroundStyle(critical ? PetPalette.red : PetPalette.level(snap.level))
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .overlay {
+            if critical {
+                RoundedRectangle(cornerRadius: 18).strokeBorder(PetPalette.red, lineWidth: 2)
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text("Долгое нажатие — шкалы"))
     }
 }
 
 /// Нижняя панель действий. Кнопка, которая сейчас откажет, полупрозрачная, но нажимается и объясняет причину тостом.
+/// Все кнопки одной ширины, подписи одним кеглем: кегль подбирается по самой длинной подписи, а не каждой отдельно.
 struct ActionBar: View {
     @Environment(AppModel.self) private var model
     let snap: PetSnapshot
 
+    static let spacing: CGFloat = 8
+    /// Базовый кегль подписи, растёт вместе с Dynamic Type; сверху его ограничивает ширина ячейки.
+    @ScaledMetric(relativeTo: .caption) private var baseLabel: CGFloat = 13
+    @State private var width: CGFloat = 0
+
     private var bathing: Bool { snap.main == .none }
 
     var body: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 10) {
-                if snap.pose == .nap {
-                    ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false) { model.act(.wake) }
+        let nap = snap.pose == .nap
+        let lamp = Self.lampTime(Clock.now())
+        let titles = Self.titles(nap: nap, lamp: lamp)
+        let cell = Self.cellWidth(total: width, count: titles.count)
+        let label = Self.labelSize(titles: titles, cellWidth: cell, maxSize: baseLabel)
+        GlassEffectContainer(spacing: Self.spacing) {
+            HStack(spacing: Self.spacing) {
+                if nap {
+                    ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
+                        .frame(width: cell > 0 ? cell : nil)
                 }
-                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing) { model.act(.feed(Catalog.mainFood)) }
-                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing) { model.act(.pet) }
-                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || snap.pose == .sleep) { model.act(.play) }
-                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing) { model.act(.bath) }
-                if Self.lampTime(Clock.now()) {
-                    ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false) {
+                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
+                    .frame(width: cell > 0 ? cell : nil)
+                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing, labelSize: label) { model.act(.pet) }
+                    .frame(width: cell > 0 ? cell : nil)
+                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || snap.pose == .sleep, labelSize: label) { model.act(.play) }
+                    .frame(width: cell > 0 ? cell : nil)
+                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing, labelSize: label) { model.act(.bath) }
+                    .frame(width: cell > 0 ? cell : nil)
+                if lamp {
+                    ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {
                         model.setBedtime(minute: Self.minuteNow(Clock.now()))
                     }
+                    .frame(width: cell > 0 ? cell : nil)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
+        .background {
+            GeometryReader { g in
+                Color.clear.onChange(of: g.size.width, initial: true) { _, w in width = w }
+            }
+        }
+    }
+
+    /// Подписи кнопок в порядке панели. Должны совпадать с ActButton в body.
+    static func titles(nap: Bool, lamp: Bool) -> [String] {
+        var t: [String] = []
+        if nap { t.append("Разбудить") }
+        t += ["Покормить", "Погладить", "Поиграть", "Помыть"]
+        if lamp { t.append("Отбой") }
+        return t
+    }
+
+    /// Ширина одной ячейки при равном делении панели; 0, пока ширина не измерена.
+    static func cellWidth(total: CGFloat, count: Int) -> CGFloat {
+        guard total > 0, count > 0 else { return 0 }
+        return max(0, (total - spacing * CGFloat(count - 1)) / CGFloat(count))
+    }
+
+    /// Один кегль на все подписи: самый крупный (не больше maxSize), при котором самая длинная влезает в ячейку.
+    /// inset — поля внутри капсулы с каждой стороны. Пока ширина не известна, отдаёт maxSize.
+    static func labelSize(titles: [String], cellWidth: CGFloat, maxSize: CGFloat,
+                          minSize: CGFloat = 9, inset: CGFloat = 5) -> CGFloat {
+        guard cellWidth > 0, !titles.isEmpty else { return maxSize }
+        let room = cellWidth - inset * 2
+        var size = maxSize
+        while size > minSize {
+            let widest = titles.map { labelWidth($0, size: size) }.max() ?? 0
+            if widest <= room { return size }
+            size -= 0.5
+        }
+        return minSize
+    }
+
+    /// Ширина подписи шрифтом кнопки (SF Rounded semibold) при данном кегле.
+    static func labelWidth(_ text: String, size: CGFloat) -> CGFloat {
+        let base = UIFont.systemFont(ofSize: size, weight: .semibold)
+        let font = base.fontDescriptor.withDesign(.rounded).map { UIFont(descriptor: $0, size: size) } ?? base
+        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
     }
 
     /// Лампа видна с 20:00 до 02:00 по местному времени.
@@ -288,15 +361,18 @@ struct ActButton: View {
     let icon: String
     let kind: String
     let dim: Bool
+    /// Кегль подписи: панель задаёт один на все кнопки.
+    let labelSize: CGFloat
     let action: () -> Void
 
     @State private var taps = 0
 
-    init(title: String, icon: String, kind: String, dim: Bool, action: @escaping () -> Void) {
+    init(title: String, icon: String, kind: String, dim: Bool, labelSize: CGFloat = 13, action: @escaping () -> Void) {
         self.title = title
         self.icon = icon
         self.kind = kind
         self.dim = dim
+        self.labelSize = labelSize
         self.action = action
     }
 
@@ -313,11 +389,13 @@ struct ActButton: View {
                     .font(.system(size: 20, weight: .semibold))
                     .symbolEffect(.bounce, value: taps)
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: labelSize, weight: .semibold, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    // Запас на погрешность замера; у всех кнопок одинаковый, так что кегль остаётся общим.
+                    .minimumScaleFactor(0.9)
             }
             .foregroundStyle(PetPalette.ink)
+            .padding(.horizontal, 2)
             .frame(maxWidth: .infinity, minHeight: 56)
             .contentShape(Capsule())
         }
@@ -334,31 +412,46 @@ struct ActButton: View {
     }
 }
 
-/// Уровень 3: тёмная виньетка поверх сцены и одна большая кнопка над панелью. Тап по питомцу делает то же.
+/// Уровень 3: красно-тёмная виньетка поверх сцены и одна большая пульсирующая кнопка над панелью.
+/// Тап по питомцу делает то же. Красный тон отличает «спасай» от простого «голоден» (там виньетки нет).
 struct RescueVignette: View {
+    static let tint = Color(hex: 0x5a1414)
+
     var body: some View {
-        RadialGradient(colors: [.clear, .black.opacity(0.55)], center: .center, startRadius: 120, endRadius: 520)
+        RadialGradient(colors: [.clear, Self.tint.opacity(0.35), Self.tint.opacity(0.7)],
+                       center: .center, startRadius: 110, endRadius: 560)
             .ignoresSafeArea()
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
 struct RescueButton: View {
     let main: MainAct
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: main.icon)
                 Text("Спасти: \(main.title.lowercased())")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .font(.system(size: 19, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: 56)
-            .background(Capsule().fill(PetPalette.red))
+            .background(Capsule().fill(PetPalette.red).shadow(color: PetPalette.red.opacity(0.5), radius: 10, y: 2))
         }
         .buttonStyle(SquishStyle())
+        // Мягкий пульс, пока кнопка на экране; при «Уменьшении движения» стоит на месте.
+        .phaseAnimator(reduceMotion ? [false] : [false, true]) { view, on in
+            view.scaleEffect(on ? 1.03 : 1)
+        } animation: { _ in
+            .easeInOut(duration: 0.8)
+        }
         .accessibilityIdentifier("act.rescue")
         .padding(.horizontal, 16)
     }
