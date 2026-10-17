@@ -367,7 +367,7 @@ extension ChoreoPath {
         /// Скорость шага, м/с: под клип walk, чтобы лапы не скользили. Править по anim-walk.
         static let speed: Float = 0.4
         /// Разворот на месте перед уходом и дома после прихода.
-        static let turnOut = 0.6, turnIn = 0.5
+        static let turnOut = 0.8, turnIn = 0.5
         /// Находка: падает из пасти, лежит перед мордой, подпрыгивает и тает.
         static let dropTime = 0.3, showTime = 1.8, fadeTime = 0.35
         /// Где держит находку и куда кладёт — в осях питомца (морда к +z), начало пропа — внизу.
