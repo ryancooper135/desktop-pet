@@ -12,6 +12,7 @@ enum PetAction: Codable, Hashable, Sendable {
     case bath
     case wake
     case steps(Int)
+    case walk           // прогулка с находкой: уходит на 1–3 ч
 
     var core: Action {
         switch self {
@@ -22,6 +23,7 @@ enum PetAction: Codable, Hashable, Sendable {
         case .bath: return .bath
         case .wake: return .wake
         case .steps(let n): return .steps(n)
+        case .walk: return .walk
         }
     }
 
@@ -34,10 +36,11 @@ enum PetAction: Codable, Hashable, Sendable {
         case .bath: self = .bath
         case .wake: self = .wake
         case .steps(let n): self = .steps(n)
+        case .walk: self = .walk
         }
     }
 
-    /// Тип как в JSON ядра: feed, item, pet, play, bath, steps, wake.
+    /// Тип как в JSON ядра: feed, item, pet, play, bath, steps, wake, walk.
     var kind: String { PetEngine.actionType(core) }
 
     /// Предмет для feed/item.
@@ -63,6 +66,7 @@ enum PetAction: Codable, Hashable, Sendable {
         case "bath": self = .bath
         case "wake": self = .wake
         case "steps": self = .steps(value ?? 0)
+        case "walk": self = .walk
         default: return nil
         }
     }
@@ -92,6 +96,11 @@ enum RefuseText {
         case "tired": return "Сил нет играть, пусть отдохнёт"
         case "not_napping": return "Он и так не спит"
         case "unknown_item": return "Такого у нас нет"
+        case "away": return "Гуляет, скоро вернётся"
+        case "unwell": return "Ему плохо, сначала помоги"
+        case "not_ready": return "Сначала покорми и почисти, сил на прогулку мало"
+        case "too_late": return "Поздно, скоро спать"
+        case "unavailable": return "Гулять пока нельзя"
         case "store": return "Не получилось сохранить"
         default: return "Не вышло"
         }

@@ -7,7 +7,7 @@ import Foundation
 // Ключи совпадают с content/ru/lines.json: желания — thoughts, настроения — widget/island, триггеры — notifications.
 public enum WantKey: String, CaseIterable, Sendable { case food, bath, sleep, play, pet, walk }
 public enum Mood: String, CaseIterable, Sendable {
-    case dead, critical, bath, sleep, nap, hungry, smelly, dirty, tired, bored, wants_love, wants_walk, sulky, ok
+    case dead, walking, critical, bath, sleep, nap, hungry, smelly, dirty, tired, bored, wants_love, wants_walk, sulky, ok
 }
 public enum Daypart: String, CaseIterable, Sendable { case morning, day, evening, night }
 public enum NotifyTrigger: String, CaseIterable, Sendable {
@@ -147,7 +147,7 @@ extension PetEngine {
     /// Желания для пузыря мысли: срочные (идёт беда) первыми, дальше по силе 0..1. Пусто — ничего не хочет.
     public static func wants(_ s0: PetState, _ r: Rules, _ o: Owner, now: Double? = nil) -> [Want] {
         let s = at(s0, r, o, now)
-        if !s.alive { return [] }
+        if !s.alive || s.outing != nil { return [] } // гуляет — дома просить нечего
         let bathing = s.bathUntil != nil, sleeping = sleepingNow(s, r, o)
         let tired = mods(s, r)["refuses_games"] == .flag(true)
         var urgent: [WantKey] = []
@@ -176,6 +176,7 @@ extension PetEngine {
     public static func mood(_ s0: PetState, _ r: Rules, _ o: Owner, now: Double? = nil) -> Mood {
         let s = at(s0, r, o, now)
         if !s.alive { return .dead }
+        if s.outing != nil { return .walking }
         let lv = level(s, r)
         if lv == 3 { return .critical }
         if s.bathUntil != nil { return .bath }
@@ -237,7 +238,7 @@ extension PetEngine {
     public static func rescue(_ s0: PetState, _ r: Rules, _ o: Owner, now: Double? = nil,
                               food: String = "kibble", heal: String = "vitamin") -> Rescue? {
         let s = at(s0, r, o, now)
-        if !s.alive { return nil }
+        if !s.alive || s.outing != nil { return nil } // гуляет: действия не принимаются, спасать некого
         func tryAct(_ a: Action) -> PetState? {
             var c = s
             return act(&c, r, o, a).ok ? c : nil
@@ -352,7 +353,7 @@ extension PetEngine {
         }
     }
 
-    /// Тип действия как в JSON: feed, item, pet, play, bath, steps, wake.
+    /// Тип действия как в JSON: feed, item, pet, play, bath, steps, wake, walk.
     public static func actionType(_ a: Action) -> String {
         switch a {
         case .feed: return "feed"
@@ -362,6 +363,7 @@ extension PetEngine {
         case .bath: return "bath"
         case .steps: return "steps"
         case .wake: return "wake"
+        case .walk: return "walk"
         }
     }
 

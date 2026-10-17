@@ -10,7 +10,7 @@ import type { Action, ForecastEvent, Owner, PetState } from './engine.ts';
 
 // Ключи совпадают с content/ru/lines.json: желания — thoughts, настроения — widget/island, триггеры — notifications, экран — away.
 export type WantKey = 'food' | 'bath' | 'sleep' | 'play' | 'pet' | 'walk';
-export type Mood = 'dead' | 'critical' | 'bath' | 'sleep' | 'nap' | 'hungry' | 'smelly' | 'dirty' | 'tired' | 'bored' | 'wants_love' | 'wants_walk' | 'sulky' | 'ok';
+export type Mood = 'dead' | 'walking' | 'critical' | 'bath' | 'sleep' | 'nap' | 'hungry' | 'smelly' | 'dirty' | 'tired' | 'bored' | 'wants_love' | 'wants_walk' | 'sulky' | 'ok';
 export type Daypart = 'morning' | 'day' | 'evening' | 'night';
 export type Trigger = 'hungry' | 'dirty' | 'smelly' | 'bored' | 'wants_love' | 'unwell' | 'heart_lost' | 'critical' | 'last_chance' | 'miss_you';
 
@@ -47,7 +47,7 @@ export interface Want { key: WantKey; strength: number; urgent: boolean }
 /** Желания для пузыря мысли: срочные (идёт беда) первыми, дальше по силе 0..1. Пусто — ничего не хочет. */
 export function wants(s0: PetState, r: Rules, o: Owner, now?: number): Want[] {
   const s = at(s0, r, o, now);
-  if (!s.alive) return [];
+  if (!s.alive || s.outing != null) return []; // гуляет — дома просить нечего
   const bathing = s.bathUntil !== null, sleeping = sleepingNow(s, r, o);
   const tired = mods(s, r).refuses_games === true;
   const urgent = new Set<WantKey>();
@@ -72,6 +72,7 @@ export function wants(s0: PetState, r: Rules, o: Owner, now?: number): Want[] {
 export function mood(s0: PetState, r: Rules, o: Owner, now?: number): Mood {
   const s = at(s0, r, o, now);
   if (!s.alive) return 'dead';
+  if (s.outing != null) return 'walking';
   const lv = level(s, r);
   if (lv === 3) return 'critical';
   if (s.bathUntil !== null) return 'bath';
@@ -127,7 +128,7 @@ function actionKey(a: Action): WantKey | 'heal' {
  */
 export function rescue(s0: PetState, r: Rules, o: Owner, opts: RescueOpts = {}): Rescue | null {
   const s = at(s0, r, o, opts.now);
-  if (!s.alive) return null;
+  if (!s.alive || s.outing != null) return null; // гуляет: действия не принимаются, спасать некого
   const food = opts.food ?? 'kibble', heal = opts.heal ?? 'vitamin';
   const fill = (a: Action): Action => (a.type === 'feed' ? { type: 'feed', item: food } : a);
   const tryAct = (a: Action) => { const c = clone(s); return act(c, r, o, a).ok ? c : null; };

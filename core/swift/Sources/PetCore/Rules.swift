@@ -50,6 +50,16 @@ public struct DistressRule {
     public let hoursPerHeart: Double
 }
 
+/// Прогулка с находкой: care.walk_out.
+public struct WalkOut {
+    public let minMin: Int, maxMin: Int          // длительность от и до, минуты
+    public let requires: Cond                    // шкалы, с которыми можно отпустить
+    public let decayX: [String: Double]          // множители убывания шкал вне дома, нет ключа — 1
+    public let energyX: Double                   // множитель дневной усталости вне дома
+    public let onReturn: Effect                  // что прибавить при возвращении
+    public let finds: [String]                   // id находок, порядок важен для выбора
+}
+
 public struct Rules {
     public let needs: [Need: [String: Double]]
     public let cross: [(cond: Cond, then: Effect)]
@@ -66,6 +76,8 @@ public struct Rules {
     public let warnLow: Double
     /// Пресет строгости из care.hearts.presets; nil — в конфиге нет пресетов.
     public let preset: String?
+    /// Прогулка с находкой (care.walk_out); nil — в конфиге нет, прогулка недоступна.
+    public let walkOut: WalkOut?
 
     public func need(_ n: Need, _ key: String) -> Double { needs[n]?[key] ?? 0 }
 
@@ -147,6 +159,21 @@ public struct Rules {
         var home: [HomeLine: [Effect]] = [:]
         for l in HomeLine.allCases { home[l] = cfg["home_upgrades"][l.rawValue]["levels"].array.map { effect($0["buff"]) } }
         self.home = home
+
+        let w = care["walk_out"]
+        if w.isNull {
+            walkOut = nil
+        } else {
+            let mm = w["minutes"].array.compactMap(\.double)
+            guard mm.count == 2 else { throw RulesError.missing("walk_out.minutes") }
+            var dx: [String: Double] = [:]
+            for (k, v) in w["decay_x"].object where !k.hasPrefix("_") { if let d = v.double { dx[k] = d } }
+            let finds = w["finds"].array.compactMap { $0["id"].string }
+            guard !finds.isEmpty else { throw RulesError.missing("walk_out.finds") }
+            walkOut = WalkOut(minMin: Int(mm[0]), maxMin: Int(mm[1]), requires: try Cond(w["requires"].string ?? ""),
+                              decayX: dx, energyX: w["energy_decay_x"].double ?? 1,
+                              onReturn: effect(w["on_return"]), finds: finds)
+        }
     }
 
     /// Конфиг с наложенным пресетом строгости (по умолчанию care.hearts.preset). Без пресетов — как есть.

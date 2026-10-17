@@ -30,7 +30,28 @@ const HOME_LINES = ['bath', 'bed', 'kitchen', 'kennel', 'play', 'yard']         
                                    
                   
                                                                                                 
+                                                                                                            
  
+
+/** Прогулка с находкой: care.walk_out. */
+                          
+                                                               
+                 
+                                                                    
+                                                                                    
+                                                                       
+                                                                
+                                                                       
+ 
+
+function walkOut(w     )                 {
+  if (!w) return null;
+  return {
+    minMin: w.minutes[0], maxMin: w.minutes[1], requires: compileCond(w.requires),
+    decayX: numbers(w.decay_x)                          , energyX: w.energy_decay_x ?? 1,
+    onReturn: numbers(w.on_return), finds: w.finds.map((f     ) => f.id),
+  };
+}
 
 const COND_PART = /^\s*(\w+)\s*(<=|>=|==|<|>)\s*(-?\d+(?:\.\d+)?)\s*$/;
 
@@ -121,6 +142,7 @@ function makeRules(cfg0     , presetName         )        {
     food, items, home,
     warnLow: cfg.levels?.warn_low ?? 30,
     preset,
+    walkOut: walkOut(care.walk_out),
   };
 }
 
@@ -129,6 +151,21 @@ function makeRules(cfg0     , presetName         )        {
 // «посчитать сразу до T» и «посчитать по кускам до T» дают одно и то же.
 // Порядок операций с плавающей точкой должен совпадать со Swift-версией (core/swift):
 // общие тест-векторы в core/vectors сверяют обе.
+
+/** Прогулка с находкой (care.walk_out). */
+                                                                     
+
+                    
+                                  
+                                  
+                   
+                    
+                    
+                                    
+                    
+                     
+
+                                                           
 
 const STEP = 60;
 const DH = 1 / 60;
@@ -147,7 +184,7 @@ function newPet(r       , t        )           {
   return {
     t, needs, hearts: r.hearts.max, grace: { starve: 0, dirty: 0, toska: 0 },
     lastChanceH: null, napUntil: null, bathUntil: null, lastHeartLossT: null, cooldowns: {},
-    home, alive: true, diedAt: null, cause: null,
+    home, alive: true, diedAt: null, cause: null, outing: null, finds: {},
   };
 }
 
@@ -215,11 +252,44 @@ function finishBath(s          , r       ) {
   s.bathUntil = null;
 }
 
+// ---------- прогулка ----------
+
+/** FNV-1a 32 бит по ASCII-строке: одинаково в TS и Swift, без Math.random. */
+function fnv32(str        )         {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/** Сколько прогулок уже было: сумма альбома находок. */
+function walksDone(s          )         {
+  let n = 0;
+  for (const k of Object.keys(s.finds ?? {})) n += s.finds[k];
+  return n;
+}
+
+/** Вернуться с прогулки: прибавка шкал и находка в альбом. */
+function finishWalk(s          , r       ) {
+  const o = s.outing ;
+  if (r.walkOut) applyEffect(s, r.walkOut.onReturn, maxHearts(s, r));
+  if (!s.finds) s.finds = {};
+  s.finds[o.find] = (s.finds[o.find] ?? 0) + 1;
+  s.outing = null;
+}
+
 /** Один шаг в 1 минуту (на месте). Снаружи ядра зовите stepTo/advance. */
 function step(s          , r       , o       ) {
   const t = s.t;
   if (s.napUntil !== null && t >= s.napUntil) s.napUntil = null;
   if (s.bathUntil !== null && t >= s.bathUntil) finishBath(s, r);
+  // прогулка кончается в until; раньше — если наступила ночь питомца или вдруг беда
+  if (s.outing != null && (t >= s.outing.until || r.walkOut === null || petNight(t, r, o) || DISTRESS.some(d => r.distress[d].cond(s.needs)))) {
+    finishWalk(s, r);
+  }
+  const wo = s.outing != null ? r.walkOut : null; // гуляет: шкалы по своим множителям, урона и смерти нет
 
   const asleep = ownerAsleep(t, o);
   const night = petNight(t, r, o);
@@ -227,7 +297,7 @@ function step(s          , r       , o       ) {
     s.needs.love = clamp(s.needs.love + num(homeBuff(s, r, 'bed'), 'love_on_wake'));
   }
   const en = r.needs.energy;
-  if (!night && s.napUntil === null && s.bathUntil === null && s.needs.energy < en.nap_below) {
+  if (!night && wo === null && s.napUntil === null && s.bathUntil === null && s.needs.energy < en.nap_below) {
     s.napUntil = t + en.nap_minutes * 60;
   }
   const sleeping = night || s.napUntil !== null;
@@ -242,11 +312,12 @@ function step(s          , r       , o       ) {
     const rate = sleeping ? c.night_per_h : c.day_per_h;
     let k = x(md, n + '_decay_x');
     if (n === 'food' && night) k = k * x(md, 'night_food_decay_x');
+    if (wo !== null) k = k * (wo.decayX[n] ?? 1);
     s.needs[n] = clamp(s.needs[n] - rate * k * DH);
   }
   if (night) s.needs.energy = clamp(s.needs.energy + en.night_regen_per_h * x(md, 'night_energy_regen_x') * x(md, 'sleep_regen_x') * DH);
   else if (s.napUntil !== null) s.needs.energy = clamp(s.needs.energy + en.nap_regen_per_h * DH);
-  else s.needs.energy = clamp(s.needs.energy - en.day_per_h * x(md, 'energy_decay_x') * DH);
+  else s.needs.energy = clamp(s.needs.energy - en.day_per_h * x(md, 'energy_decay_x') * (wo !== null ? wo.energyX : 1) * DH);
   s.needs.look = clamp(s.needs.look - r.needs.look.per_day / 24 * DH);
 
   // сердца: урон и «льготы» копятся только в бодрые часы хозяина
@@ -256,7 +327,7 @@ function step(s          , r       , o       ) {
   DISTRESS.forEach((d, i) => {
     if (!active[i]) { s.grace[d] = 0; return; }
     anyActive = true;
-    if (asleep) return;
+    if (asleep || wo !== null) return;
     s.grace[d] = s.grace[d] + DH;
     const rd = r.distress[d];
     if (s.grace[d] > rd.graceH) dmg = dmg + DH / rd.hoursPerHeart;
@@ -275,7 +346,7 @@ function step(s          , r       , o       ) {
   if (s.hearts > 1) s.lastChanceH = null;
   else {
     if (s.lastChanceH === null) s.lastChanceH = h.lastChanceH;
-    if (!asleep && anyActive) {
+    if (!asleep && wo === null && anyActive) {
       s.lastChanceH = s.lastChanceH - DH;
       const sinceWake = (localMin(t, o) - o.wakeMin + 1440) % 1440;
       if (s.lastChanceH <= 0 && sinceWake >= h.noDeathAfterWakeH * 60) {
@@ -308,6 +379,8 @@ function applyEffect(s          , e        , maxH        ) {
 /** Действие в момент s.t (сначала досчитай stepTo). Меняет s на месте. */
 function act(s          , r       , o       , a        )            {
   if (!s.alive) return { ok: false, reason: 'dead' };
+  // гуляет: дома никого, принимаются только шаги хозяина
+  if (s.outing != null && a.type !== 'steps') return { ok: false, reason: 'away' };
   const t = s.t;
   const md = mods(s, r);
   const cooling = (k        ) => s.cooldowns[k] !== undefined && s.cooldowns[k] > t;
@@ -352,6 +425,21 @@ function act(s          , r       , o       , a        )            {
       s.napUntil = null;
       return { ok: true };
     }
+    case 'walk': {
+      const w = r.walkOut;
+      if (w === null) return { ok: false, reason: 'unavailable' };
+      if (s.bathUntil !== null) return { ok: false, reason: 'bathing' };
+      if (s.napUntil !== null || petNight(t, r, o)) return { ok: false, reason: 'asleep' };
+      if (level(s, r) === 3 || DISTRESS.some(d => r.distress[d].cond(s.needs))) return { ok: false, reason: 'unwell' };
+      if (!w.requires(s.needs)) return { ok: false, reason: 'not_ready' };
+      // длительность и находка — от минуты старта и числа прошлых прогулок
+      const m = Math.floor(t / 60), n = walksDone(s);
+      let dur = w.minMin + fnv32(`walk:${m}:${n}`) % (w.maxMin - w.minMin + 1);
+      for (let k = 1; k <= dur; k++) if (petNight(t + k * 60, r, o)) { dur = k; break; }
+      if (dur < w.minMin) return { ok: false, reason: 'too_late' };
+      s.outing = { from: t, until: t + dur * 60, find: w.finds[fnv32(`find:${m}:${n}`) % w.finds.length] };
+      return { ok: true };
+    }
   }
 }
 
@@ -370,6 +458,7 @@ function level(s          , r       )         {
 function moods(s          , r       , o       )           {
   if (!s.alive) return ['dead'];
   const out           = [];
+  if (s.outing != null) out.push('walking');
   if (s.bathUntil !== null) out.push('bath');
   if (petNight(s.t, r, o)) out.push('sleep');
   else if (s.napUntil !== null) out.push('nap');
@@ -386,13 +475,13 @@ function moods(s          , r       , o       )           {
 
                                 
             
-                                                                         
+                                                                                       
                
                  
  
 
 /** Что уже было до начала наблюдения: от этого считаются новые события прогноза. */
-                                                                                                      
+                                                                                                                          
 
 function tracker(s          , r       )          {
   return {
@@ -401,11 +490,15 @@ function tracker(s          , r       )          {
     lvl: level(s, r),
     hc: Math.ceil(s.hearts - 1e-9),
     lc: s.lastChanceH !== null,
+    out: s.outing?.find ?? null,
   };
 }
 
-/** После шага: дописать в ev новые события (low, distress, heart, last_chance, level). */
+/** После шага: дописать в ev новые события (back_home, low, distress, heart, last_chance, level). */
 function observe(tr         , s          , r       , ev                 ) {
+  // вернулся с прогулки в начале этого шага: время — начало шага (= until), key — находка
+  if (tr.out !== null && s.outing == null) ev.push({ t: s.t - STEP, kind: 'back_home', key: tr.out });
+  tr.out = s.outing?.find ?? null;
   for (const n of WATCH) if (s.needs[n] < r.warnLow && !tr.low.has(n)) { tr.low.add(n); ev.push({ t: s.t, kind: 'low', key: n }); }
   for (const d of DISTRESS) {
     const on = r.distress[d].cond(s.needs);
@@ -431,7 +524,7 @@ function forecast(s0          , r       , o       , horizonH = 72)              
     step(s, r, o);
     observe(tr, s, r, ev);
   }
-  if (!s.alive) ev.push({ t: s.diedAt , kind: 'death', key: s.cause ?? undefined });
+  if (!s.alive) ev.push({ t: s.diedAt ?? s.t, kind: 'death', key: s.cause ?? undefined });
   return ev;
 }
 
@@ -443,7 +536,7 @@ function forecast(s0          , r       , o       , horizonH = 72)              
 
 // Ключи совпадают с content/ru/lines.json: желания — thoughts, настроения — widget/island, триггеры — notifications, экран — away.
                                                                           
-                                                                                                                                                                     
+                                                                                                                                                                                 
                                                               
                                                                                                                                                  
 
@@ -480,7 +573,7 @@ const sleepingNow = (s          , r       , o       ) => petNight(s.t, r, o) || 
 /** Желания для пузыря мысли: срочные (идёт беда) первыми, дальше по силе 0..1. Пусто — ничего не хочет. */
 function wants(s0          , r       , o       , now         )         {
   const s = at(s0, r, o, now);
-  if (!s.alive) return [];
+  if (!s.alive || s.outing != null) return []; // гуляет — дома просить нечего
   const bathing = s.bathUntil !== null, sleeping = sleepingNow(s, r, o);
   const tired = mods(s, r).refuses_games === true;
   const urgent = new Set         ();
@@ -505,6 +598,7 @@ function wants(s0          , r       , o       , now         )         {
 function mood(s0          , r       , o       , now         )       {
   const s = at(s0, r, o, now);
   if (!s.alive) return 'dead';
+  if (s.outing != null) return 'walking';
   const lv = level(s, r);
   if (lv === 3) return 'critical';
   if (s.bathUntil !== null) return 'bath';
@@ -560,7 +654,7 @@ function actionKey(a        )                   {
  */
 function rescue(s0          , r       , o       , opts             = {})                {
   const s = at(s0, r, o, opts.now);
-  if (!s.alive) return null;
+  if (!s.alive || s.outing != null) return null; // гуляет: действия не принимаются, спасать некого
   const food = opts.food ?? 'kibble', heal = opts.heal ?? 'vitamin';
   const fill = (a        )         => (a.type === 'feed' ? { type: 'feed', item: food } : a);
   const tryAct = (a        ) => { const c = clone(s); return act(c, r, o, a).ok ? c : null; };
@@ -642,7 +736,7 @@ function awaySummary(prev          , r       , o       , now        , journal   
       if (night || s.napUntil !== null) sleptMin++;
       if (hc() > h0) ev.push({ t: s.t, kind: 'heart_up', value: hc() });
       observe(tr, s, r, ev                              );
-      if (!s.alive) ev.push({ t: s.diedAt , kind: 'death', key: s.cause ?? undefined });
+      if (!s.alive) ev.push({ t: s.diedAt ?? s.t, kind: 'death', key: s.cause ?? undefined });
     }
   };
   const acts = journal.map((a, i) => ({ a, i })).filter(x => x.a.t >= prev.t && x.a.t <= now)

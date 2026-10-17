@@ -27,6 +27,27 @@ export interface Rules {
   home: Record<HomeLine, Effect[]>;
   warnLow: number;
   preset: string | null;  // пресет строгости из care.hearts.presets, null — конфиг без пресетов
+  walkOut: WalkOut | null; // прогулка с находкой (care.walk_out), null — в конфиге нет, прогулка недоступна
+}
+
+/** Прогулка с находкой: care.walk_out. */
+export interface WalkOut {
+  minMin: number;               // длительность от и до, минуты
+  maxMin: number;
+  requires: Cond;               // шкалы, с которыми можно отпустить
+  decayX: Record<string, number>; // множители убывания шкал вне дома, нет ключа — 1
+  energyX: number;              // множитель дневной усталости вне дома
+  onReturn: Effect;             // что прибавить при возвращении
+  finds: string[];              // id находок, порядок важен для выбора
+}
+
+function walkOut(w: any): WalkOut | null {
+  if (!w) return null;
+  return {
+    minMin: w.minutes[0], maxMin: w.minutes[1], requires: compileCond(w.requires),
+    decayX: numbers(w.decay_x) as Record<string, number>, energyX: w.energy_decay_x ?? 1,
+    onReturn: numbers(w.on_return), finds: w.finds.map((f: any) => f.id),
+  };
 }
 
 const COND_PART = /^\s*(\w+)\s*(<=|>=|==|<|>)\s*(-?\d+(?:\.\d+)?)\s*$/;
@@ -118,5 +139,6 @@ export function makeRules(cfg0: any, presetName?: string): Rules {
     food, items, home,
     warnLow: cfg.levels?.warn_low ?? 30,
     preset,
+    walkOut: walkOut(care.walk_out),
   };
 }

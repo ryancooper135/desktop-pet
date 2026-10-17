@@ -10,7 +10,7 @@ import { T0, startAt } from '../src/scenarios.ts';
 const r = makeRules(JSON.parse(readFileSync(new URL('../../../config/economy.json', import.meta.url), 'utf8')));
 const o = defaultOwner(r);
 const H = 3600, D = 86400;
-const MOODS = ['dead', 'critical', 'bath', 'sleep', 'nap', 'hungry', 'smelly', 'dirty', 'tired', 'bored', 'wants_love', 'wants_walk', 'sulky', 'ok'];
+const MOODS = ['dead', 'walking', 'critical', 'bath', 'sleep', 'nap', 'hungry', 'smelly', 'dirty', 'tired', 'bored', 'wants_love', 'wants_walk', 'sulky', 'ok'];
 const lines = JSON.parse(readFileSync(new URL('../../../content/ru/lines.json', import.meta.url), 'utf8'));
 
 test('желания: сила 0..1, срочные первыми, без игр во сне и в ванне', () => {

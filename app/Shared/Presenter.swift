@@ -54,7 +54,7 @@ enum MainAct: String, Codable, CaseIterable, Hashable, Sendable {
 
 /// Таймер под питомцем: ванна, дрёма или «проголодается через…».
 struct NeedTimer: Codable, Hashable, Sendable {
-    let kind: String     // bath | nap | low
+    let kind: String     // bath | nap | walk | low
     let start: Double
     let end: Double
     let title: String
@@ -170,6 +170,8 @@ enum Presenter {
             main = .open
         } else if s.bathUntil != nil {
             main = .none
+        } else if s.outing != nil {
+            main = .open        // гуляет: действия не принимаются, только открыть приложение
         } else if let rs = PetEngine.rescue(s, r, o, now: t, food: Catalog.mainFood, heal: Catalog.healItem) {
             main = MainAct(rawValue: rs.key == "food" ? "feed" : rs.key) ?? .pet
         } else if s.napUntil != nil {
@@ -198,6 +200,8 @@ enum Presenter {
         }
         switch mood {
         case .dead: return .dead
+        // Своей позы прогулки пока нет (PetStance в app/App перебирает Pose): довольный, сцену «ушёл» рисует UI.
+        case .walking: return .happy
         case .critical: return .critical
         case .bath: return .bath
         case .sleep: return .sleep
@@ -232,6 +236,9 @@ enum Presenter {
         if let n = s.napUntil, n > t {
             return NeedTimer(kind: "nap", start: t, end: n, title: "Дремлет")
         }
+        if let w = s.outing, w.until > t {
+            return NeedTimer(kind: "walk", start: w.from, end: w.until, title: "Гуляет")
+        }
         guard s.alive, let e = ForecastTools.nextLow(upcoming ?? ForecastTools.upcoming(s, at: t, horizonH: 12, owner: o), after: t),
               e.t - t <= 12 * 3600 else { return nil }
         return NeedTimer(kind: "low", start: t, end: e.t, title: ForecastTools.title(e))
@@ -264,7 +271,7 @@ enum Presenter {
         return "\(h) ч \(m) мин"
     }
 
-    /// Нужда наступит («через») или занятие кончится («ещё»: ванна, дрёма).
+    /// Нужда наступит («через») или занятие кончится («ещё»: ванна, дрёма, прогулка).
     static func timerPrefix(kind: String) -> String { kind == "low" ? "через" : "ещё" }
 
     /// Тикать секундами или писать часы и минуты.
@@ -282,6 +289,7 @@ enum Presenter {
         switch kind {
         case "bath": return "Моется"
         case "nap": return "Дремлет"
+        case "walk": return "Гуляет"
         default:
             switch need {
             case "food": return "Проголодается"

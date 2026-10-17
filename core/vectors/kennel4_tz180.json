@@ -37,7 +37,9 @@
   },
   "alive": true,
   "diedAt": null,
-  "cause": null
+  "cause": null,
+  "outing": null,
+  "finds": {}
  },
  "steps": [
   {
@@ -74,7 +76,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 0,
    "moods": [],
@@ -123,7 +127,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 0,
    "moods": [
@@ -186,7 +192,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 1,
    "moods": [
@@ -254,7 +262,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -329,7 +339,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -410,7 +422,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -487,7 +501,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -568,7 +584,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -649,7 +667,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -730,7 +750,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -807,7 +829,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 2,
    "moods": [
@@ -888,7 +912,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 3,
    "moods": [
@@ -970,7 +996,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 3,
    "moods": [
@@ -1052,7 +1080,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 3,
    "moods": [
@@ -1130,7 +1160,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 3,
    "moods": [
@@ -1212,7 +1244,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "level": 3,
    "moods": [
@@ -1294,7 +1328,9 @@
    },
    "alive": true,
    "diedAt": null,
-   "cause": null
+   "cause": null,
+   "outing": null,
+   "finds": {}
   },
   "horizonH": 72,
   "events": [
@@ -1462,7 +1498,9 @@
    },
    "alive": true,
    "diedAt": null,
-   "cause": null
+   "cause": null,
+   "outing": null,
+   "finds": {}
   }
  },
  "notify": [
@@ -1499,7 +1537,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "now": 1788271200,
    "opts": {
@@ -1557,7 +1597,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "now": 1788271200,
    "opts": {
@@ -1611,7 +1653,9 @@
     },
     "alive": true,
     "diedAt": null,
-    "cause": null
+    "cause": null,
+    "outing": null,
+    "finds": {}
    },
    "now": 1788595230,
    "opts": {
