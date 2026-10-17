@@ -64,6 +64,8 @@ struct SaveFile: Codable, Sendable {
     var island = IslandInfo()
     var flags = Flags()
     var notif = NotifInfo()
+    /// Открытки дня: ждущие решения и альбом (Postcards.swift).
+    var cards = PostcardBook()
     /// Метка для теста «записал приложением — прочитал как виджет».
     var debugMarker: Double?
 
@@ -112,6 +114,7 @@ struct SaveFile: Codable, Sendable {
     enum CodingKeys: String, CodingKey {
         case v, rev, petId, deviceId, seq, name, createdT, owner, pet, seen, lastSeenT, lastStepsT, lastAction
         case journal, outbox, build, island, flags, notif, debugMarker
+        case cards
     }
 
     init(from decoder: Decoder) throws {
@@ -145,6 +148,7 @@ struct SaveFile: Codable, Sendable {
         flags = (try? c.decodeIfPresent(Flags.self, forKey: .flags)) ?? Flags()
         notif = (try? c.decodeIfPresent(NotifInfo.self, forKey: .notif)) ?? NotifInfo()
         debugMarker = try c.decodeIfPresent(Double.self, forKey: .debugMarker)
+        cards = (try? c.decodeIfPresent(PostcardBook.self, forKey: .cards)) ?? PostcardBook()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -169,6 +173,7 @@ struct SaveFile: Codable, Sendable {
         try c.encode(flags, forKey: .flags)
         try c.encode(notif, forKey: .notif)
         try c.encodeIfPresent(debugMarker, forKey: .debugMarker)
+        try c.encode(cards, forKey: .cards)
     }
 }
 
