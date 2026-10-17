@@ -64,14 +64,20 @@ public struct Rules {
     public let items: [String: Effect]
     public let home: [HomeLine: [Effect]]
     public let warnLow: Double
+    /// Пресет строгости из care.hearts.presets; nil — в конфиге нет пресетов.
+    public let preset: String?
 
     public func need(_ n: Need, _ key: String) -> Double { needs[n]?[key] ?? 0 }
 
-    public init(data: Data) throws {
-        try self.init(json: JSONDecoder().decode(JSONValue.self, from: data))
+    /// preset: nil — пресет по умолчанию из care.hearts.preset.
+    public init(data: Data, preset: String? = nil) throws {
+        try self.init(json: JSONDecoder().decode(JSONValue.self, from: data), preset: preset)
     }
 
-    public init(json cfg: JSONValue) throws {
+    public init(json raw: JSONValue, preset presetName: String? = nil) throws {
+        let applied = try Self.applyPreset(raw, presetName)
+        let cfg = applied.cfg
+        preset = applied.preset
         func num(_ v: JSONValue, _ what: String) throws -> Double {
             guard let d = v.double else { throw RulesError.missing(what) }
             return d
@@ -141,5 +147,21 @@ public struct Rules {
         var home: [HomeLine: [Effect]] = [:]
         for l in HomeLine.allCases { home[l] = cfg["home_upgrades"][l.rawValue]["levels"].array.map { effect($0["buff"]) } }
         self.home = home
+    }
+
+    /// Конфиг с наложенным пресетом строгости (по умолчанию care.hearts.preset). Без пресетов — как есть.
+    /// Порт withPreset из core/ts/src/rules.ts.
+    public static func applyPreset(_ cfg: JSONValue, _ name: String?) throws -> (cfg: JSONValue, preset: String?) {
+        let h = cfg["care"]["hearts"]
+        guard let picked = name ?? h["preset"].string else { return (cfg, nil) }
+        let patch = h["presets"][picked]
+        guard !picked.hasPrefix("_"), case .object(_) = patch else {
+            throw RulesError.missing("care.hearts.presets.\(picked)")
+        }
+        var care = cfg["care"].object
+        care["hearts"] = h.merged(with: patch)
+        var root = cfg.object
+        root["care"] = .object(care)
+        return (.object(root), picked)
     }
 }

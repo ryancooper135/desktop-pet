@@ -26,6 +26,7 @@ export interface Rules {
   items: Record<string, Effect>;
   home: Record<HomeLine, Effect[]>;
   warnLow: number;
+  preset: string | null;  // пресет строгости из care.hearts.presets, null — конфиг без пресетов
 }
 
 const COND_PART = /^\s*(\w+)\s*(<=|>=|==|<|>)\s*(-?\d+(?:\.\d+)?)\s*$/;
@@ -57,7 +58,35 @@ function numbers(o: any): Effect {
   return out;
 }
 
-export function makeRules(cfg: any): Rules {
+// ---------- пресеты строгости смерти (care.hearts.presets) ----------
+
+/** Глубокое слияние: объекты по ключам, остальное заменяется; ключи с «_» — пометки, пропускаются. */
+function mergePatch(base: any, patch: any): any {
+  const obj = (v: any) => typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!obj(base) || !obj(patch)) return patch;
+  const out = { ...base };
+  for (const k of Object.keys(patch)) if (!k.startsWith('_')) out[k] = mergePatch(base[k], patch[k]);
+  return out;
+}
+
+/** Имена пресетов строгости из конфига: strict, medium, soft. */
+export function presetNames(cfg: any): string[] {
+  return Object.keys(cfg.care?.hearts?.presets ?? {}).filter(k => !k.startsWith('_'));
+}
+
+/** Конфиг с наложенным пресетом (по умолчанию care.hearts.preset). Без пресетов в конфиге — как есть. */
+export function withPreset(cfg: any, preset?: string): { cfg: any; preset: string | null } {
+  const h = cfg.care.hearts;
+  const name = preset ?? h.preset ?? null;
+  if (name === null) return { cfg, preset: null };
+  // как в Swift: только собственный ключ-объект (не toString из прототипа и не строка)
+  const patch = h.presets && Object.hasOwn(h.presets, name) ? h.presets[name] : undefined;
+  if (name.startsWith('_') || typeof patch !== 'object' || patch === null || Array.isArray(patch)) throw new Error(`нет пресета строгости: ${name}`);
+  return { cfg: { ...cfg, care: { ...cfg.care, hearts: mergePatch(h, patch) } }, preset: name };
+}
+
+export function makeRules(cfg0: any, presetName?: string): Rules {
+  const { cfg, preset } = withPreset(cfg0, presetName);
   const care = cfg.care, h = care.hearts;
   const distress = {} as Rules['distress'];
   for (const d of DISTRESS) {
@@ -88,5 +117,6 @@ export function makeRules(cfg: any): Rules {
     play: { funGain: cfg.minigames.fun_gain, energyCost: cfg.minigames.energy_cost },
     food, items, home,
     warnLow: cfg.levels?.warn_low ?? 30,
+    preset,
   };
 }

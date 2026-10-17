@@ -36,3 +36,13 @@ public enum JSONValue: Codable, Equatable {
     public var object: [String: JSONValue] { if case .object(let o) = self { return o }; return [:] }
     public var isNull: Bool { self == .null }
 }
+
+extension JSONValue {
+    /// Наложить заплатку (пресет): объекты сливаются по ключам, остальное заменяется, ключи с "_" пропускаются.
+    /// Порт mergePatch из core/ts/src/rules.ts.
+    public func merged(with patch: JSONValue) -> JSONValue {
+        guard case .object(var out) = self, case .object(let p) = patch else { return patch }
+        for (k, v) in p where !k.hasPrefix("_") { out[k] = (out[k] ?? .null).merged(with: v) }
+        return .object(out)
+    }
+}

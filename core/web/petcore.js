@@ -29,6 +29,7 @@ const HOME_LINES = ['bath', 'bed', 'kitchen', 'kennel', 'play', 'yard']         
                                 
                                    
                   
+                                                                                                
  
 
 const COND_PART = /^\s*(\w+)\s*(<=|>=|==|<|>)\s*(-?\d+(?:\.\d+)?)\s*$/;
@@ -60,7 +61,35 @@ function numbers(o     )         {
   return out;
 }
 
-function makeRules(cfg     )        {
+// ---------- пресеты строгости смерти (care.hearts.presets) ----------
+
+/** Глубокое слияние: объекты по ключам, остальное заменяется; ключи с «_» — пометки, пропускаются. */
+function mergePatch(base     , patch     )      {
+  const obj = (v     ) => typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!obj(base) || !obj(patch)) return patch;
+  const out = { ...base };
+  for (const k of Object.keys(patch)) if (!k.startsWith('_')) out[k] = mergePatch(base[k], patch[k]);
+  return out;
+}
+
+/** Имена пресетов строгости из конфига: strict, medium, soft. */
+function presetNames(cfg     )           {
+  return Object.keys(cfg.care?.hearts?.presets ?? {}).filter(k => !k.startsWith('_'));
+}
+
+/** Конфиг с наложенным пресетом (по умолчанию care.hearts.preset). Без пресетов в конфиге — как есть. */
+function withPreset(cfg     , preset         )                                      {
+  const h = cfg.care.hearts;
+  const name = preset ?? h.preset ?? null;
+  if (name === null) return { cfg, preset: null };
+  // как в Swift: только собственный ключ-объект (не toString из прототипа и не строка)
+  const patch = h.presets && Object.hasOwn(h.presets, name) ? h.presets[name] : undefined;
+  if (name.startsWith('_') || typeof patch !== 'object' || patch === null || Array.isArray(patch)) throw new Error(`нет пресета строгости: ${name}`);
+  return { cfg: { ...cfg, care: { ...cfg.care, hearts: mergePatch(h, patch) } }, preset: name };
+}
+
+function makeRules(cfg0     , presetName         )        {
+  const { cfg, preset } = withPreset(cfg0, presetName);
   const care = cfg.care, h = care.hearts;
   const distress = {}                     ;
   for (const d of DISTRESS) {
@@ -90,7 +119,8 @@ function makeRules(cfg     )        {
     petCooldownMin: care.cooldowns_min.pet,
     play: { funGain: cfg.minigames.fun_gain, energyCost: cfg.minigames.energy_cost },
     food, items, home,
-    warnLow: 30,
+    warnLow: cfg.levels?.warn_low ?? 30,
+    preset,
   };
 }
 
@@ -409,6 +439,8 @@ function forecast(s0          , r       , o       , horizonH = 72)              
 // кнопка «Спасти» и план локальных уведомлений. Всё считается из состояния ядра и не меняет баланс.
 // Swift-порт — core/swift/Sources/PetCore/Insights.swift, сверка по общим векторам core/vectors.
 // Имена верхнего уровня не должны совпадать с engine.ts и rules.ts: бандл склеивает их в одну область.
+
+
 // Ключи совпадают с content/ru/lines.json: желания — thoughts, настроения — widget/island, триггеры — notifications, экран — away.
                                                                           
                                                                                                                                                                      
@@ -706,5 +738,5 @@ function notificationPlan(s0          , r       , o       , now        , opts   
   return [...byDay.values()].sort((a, b) => a.at - b.at).map(({ sev, ...p }) => p);
 }
 
-g.PetCore = { NEEDS, DISTRESS, HOME_LINES, compileCond, makeRules, defaultOwner, newPet, clone, localMin, ownerAsleep, petNight, mods, maxHearts, stepTo, advance, act, level, moods, forecast, WANT_SPECS, wants, mood, daypart, rescue, awaySummary, notificationPlan };
+g.PetCore = { NEEDS, DISTRESS, HOME_LINES, compileCond, makeRules, presetNames, withPreset, defaultOwner, newPet, clone, localMin, ownerAsleep, petNight, mods, maxHearts, stepTo, advance, act, level, moods, forecast, WANT_SPECS, wants, mood, daypart, rescue, awaySummary, notificationPlan };
 })(typeof window !== 'undefined' ? window : globalThis);

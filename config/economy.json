@@ -45,6 +45,31 @@
       },
       "night_damage_x": 0.0,
       "last_heart": { "timer_h_awake": 8, "no_death_first_h_after_wake": 3 },
+      "preset": "strict",
+      "presets": {
+        "_note": "Строгость смерти. Пресет накладывается на care.hearts: объекты сливаются по ключам, числа и строки заменяются, ключи с «_» — пометки. strict = значения выше как есть. Условие «clean < 0» не бывает никогда: грязь не беда, только мухи и запах. Сравнение по образам игроков — RESEARCH/12-balance-options.md. Выбор за Вадимом.",
+        "strict": { "_name": "Строго" },
+        "medium": {
+          "_name": "Средне",
+          "regen_requires_all_ge": 15,
+          "distress": {
+            "dirty": { "grace_h_awake": 24, "hours_per_heart": 48 },
+            "toska": { "grace_h_awake": 12, "hours_per_heart": 36 }
+          },
+          "last_heart": { "timer_h_awake": 12 }
+        },
+        "soft": {
+          "_name": "Мягко",
+          "regen_per_h_awake": 0.125,
+          "regen_requires_all_ge": 15,
+          "distress": {
+            "starve": { "grace_h_awake": 4, "hours_per_heart": 8 },
+            "dirty":  { "when": "clean < 0" },
+            "toska":  { "grace_h_awake": 24, "hours_per_heart": 72 }
+          },
+          "last_heart": { "timer_h_awake": 16 }
+        }
+      },
       "warnings": {
         "L1": { "name": "Просит",   "color": "#E8B931", "when": "any(food,clean,fun,love) < 30", "notify_max_per_day": 3, "night": false },
         "L2": { "name": "Плохо",    "color": "#E8743B", "when": "distress active || heart lost in last 12h", "notify_every_h": 4, "notify_max_per_day": 3, "night": false, "friends_see": true, "friends_see_exact_hearts": true },
