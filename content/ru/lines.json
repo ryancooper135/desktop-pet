@@ -530,6 +530,29 @@
       {"id": "w.dead.01", "text": "Здесь жил хороший пёс."},
       {"id": "w.dead.02", "text": "Тихо. Альбом памяти внутри."}
     ],
+    "coat_matted": [
+      {"id": "w.coat_matted.01", "text": "Шерсть в колтунах. Расчешешь?"},
+      {"id": "w.coat_matted.02", "text": "Я как старый коврик. Помой меня."},
+      {"id": "w.coat_matted.03", "text": "Колтун на колтуне. Чешется."},
+      {"id": "w.coat_matted.04", "text": "Ванна и щётка меня спасут."}
+    ],
+    "coat_shaggy": [
+      {"id": "w.coat_shaggy.01", "text": "Я лохматый. Но всё ещё милый."},
+      {"id": "w.coat_shaggy.02", "text": "Шерсть торчит во все стороны."},
+      {"id": "w.coat_shaggy.03", "text": "Немного растрёпан. Погладишь?"},
+      {"id": "w.coat_shaggy.04", "text": "Пора бы в ванну, да?"}
+    ],
+    "coat_normal": [
+      {"id": "w.coat_normal.01", "text": "Шерсть в порядке. Почти."},
+      {"id": "w.coat_normal.02", "text": "Обычный я. Пушистый в меру."},
+      {"id": "w.coat_normal.03", "text": "Чистенький. Можно чесать."}
+    ],
+    "coat_sleek": [
+      {"id": "w.coat_sleek.01", "text": "Шерсть блестит. Я красавчик."},
+      {"id": "w.coat_sleek.02", "text": "Гладкий, как шёлк. Потрогай!"},
+      {"id": "w.coat_sleek.03", "text": "Сияю. Это всё твой уход."},
+      {"id": "w.coat_sleek.04", "text": "Пушистый и чистый. Обнимай."}
+    ],
     "rare": [
       {"id": "w.rare.01", "text": "Поймал бабочку. Отпустил. Я добрый.", "frame": "butterfly"},
       {"id": "w.rare.02", "text": "Обнял тапок. Тапок не против.", "frame": "slipper"},
@@ -755,6 +778,22 @@
     ],
     "island_asleep": [
       {"id": "i.island_asleep.01", "text": "Уснул. Разбуди"}
+    ],
+    "coat_matted": [
+      {"id": "i.coat_matted.01", "text": "Весь в колтунах"},
+      {"id": "i.coat_matted.02", "text": "Расчеши меня"}
+    ],
+    "coat_shaggy": [
+      {"id": "i.coat_shaggy.01", "text": "Я лохматый"},
+      {"id": "i.coat_shaggy.02", "text": "Растрёпан"}
+    ],
+    "coat_normal": [
+      {"id": "i.coat_normal.01", "text": "Шерсть в порядке"},
+      {"id": "i.coat_normal.02", "text": "Пушистый в меру"}
+    ],
+    "coat_sleek": [
+      {"id": "i.coat_sleek.01", "text": "Шерсть блестит"},
+      {"id": "i.coat_sleek.02", "text": "Гладкий как шёлк"}
     ],
     "rare": [
       {"id": "i.rare.01", "text": "Поймал бабочку!", "frame": "butterfly"},
