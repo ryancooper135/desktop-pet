@@ -1,5 +1,6 @@
 // swift-tools-version:6.0
 // Логика приложения без экрана — для Linux CI (.github/workflows/logic.yml), чтобы не тратить минуты macOS.
+// У себя то же самое: wsl -e bash /mnt/c/Users/ryanc/desktop-pet/tools/wsl-test.sh (Swift 6.2 в WSL).
 // Приложение собирается через XcodeGen (project.yml), этот файл его не касается.
 // Лежит в app/, потому что SwiftPM не пускает пути целей за пределы папки пакета.
 // Новый файл в Shared без SwiftUI/UIKit/WidgetKit/ActivityKit — допиши его в список ниже.
@@ -30,6 +31,7 @@ let package = Package(
                 "Coat.swift",
                 "Economy.swift",
                 "Finds.swift",
+                "Guides.swift",
                 "ForecastTools.swift",
                 "IslandPlan.swift",
                 "LineRotation.swift",
@@ -63,6 +65,14 @@ let package = Package(
                 "CoatTests.swift",
                 "PostcardsTests.swift",
                 "Wave5SeamTests.swift",
+                "PetRunnerCoverageTests.swift",
+                "SaveFileCoverageTests.swift",
+                "PetStoreRecoveryTests.swift",
+                "NotificationPlannerCoverageTests.swift",
+                "PresenterCoverageTests.swift",
+                "CatalogHashTests.swift",
+                "TimelineTests.swift",
+                "GuideTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),
