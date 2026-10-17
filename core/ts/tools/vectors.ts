@@ -88,8 +88,23 @@ const oKiev = defaultOwner(r, 180);
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 6, sc.visits, sc.opts); record('careless2', o, s, res.log, res.state.diedAt ?? T0 + 6 * 86400, 12); }
 // 8. один заход «до максимума» в 12:00, дом стартовый
 { const sc = scenario('full1_noon'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, sc.visits, sc.opts); record('full1_noon', o, s, res.log, T0 + 4 * 86400, 12); }
+// 9. прогулка с находкой: отказы (мало шкал, ванна, away), шаги на прогулке, три прогулки (последняя обрезана ночью)
+{
+  const s = startAt(r, 9.5); s.needs.clean = 25;
+  const t = s.t + 17;
+  const A = (dt: number, action: Action): TimedAction => ({ t: t + dt, action });
+  const W: Action = { type: 'walk' };
+  record('walk_find', o, s, [
+    A(0, W), A(60, { type: 'bath' }), A(120, W), A(H + 120, W), A(H + 180, { type: 'feed', item: 'stew' }),
+    A(H + 240, { type: 'steps', count: 800 }), A(H + 300, { type: 'pet' }),
+    A(5 * H, { type: 'feed', item: 'stew' }), A(5 * H + 60, { type: 'pet' }), A(5 * H + 120, W),
+    A(12.85 * H, { type: 'feed', item: 'cake' }), A(12.85 * H + 60, W), A(12.85 * H + 120, { type: 'feed', item: 'cake' }),
+  ], t + 13.5 * H, 1); // конец на третьей прогулке: в прогнозе возвращение к ночи (back_home)
+}
+// 10. поздно для прогулки: до ночи питомца меньше часа
+{ const s = startAt(r, 22 + 50 / 60); record('walk_late', o, s, [{ t: s.t, action: { type: 'walk' } }, { t: s.t + 60, action: { type: 'pet' } }], s.t + 10 * H, 2); }
 
-// 9–10. пресеты строгости: Swift строит правила по полю preset
+// 11–12. пресеты строгости: Swift строит правила по полю preset
 r = makeRules(cfg, 'medium');
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_medium', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }
 r = makeRules(cfg, 'soft');

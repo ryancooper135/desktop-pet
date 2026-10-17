@@ -27,10 +27,20 @@ public struct PetState: Equatable, Sendable {
     public var alive: Bool
     public var diedAt: Double?
     public var cause: Distress?
+    public var outing: Outing? = nil          // гуляет: с какого t, до какого и что принесёт; nil — дома
+    public var finds: [String: Int] = [:]     // альбом находок с прогулок: id → сколько раз приносил
+}
+
+/// Прогулка с находкой (care.walk_out).
+public struct Outing: Equatable, Sendable {
+    public var from: Double
+    public var until: Double
+    public var find: String
+    public init(from: Double, until: Double, find: String) { self.from = from; self.until = until; self.find = find }
 }
 
 public enum Action: Equatable, Sendable {
-    case feed(String), item(String), pet, play, bath, steps(Int), wake
+    case feed(String), item(String), pet, play, bath, steps(Int), wake, walk
 }
 
 public struct ActResult: Equatable, Sendable {
@@ -41,7 +51,7 @@ public struct ActResult: Equatable, Sendable {
 }
 
 public struct ForecastEvent: Equatable, Sendable {
-    public enum Kind: String, Sendable { case low, distress, heart, last_chance, level, death }
+    public enum Kind: String, Sendable { case low, distress, heart, last_chance, level, death, back_home }
     public let t: Double
     public let kind: Kind
     public let key: String?
@@ -65,7 +75,7 @@ public enum PetEngine {
         for l in HomeLine.allCases { home[l] = 0 }
         return PetState(t: t, needs: needs, hearts: r.heartsMax, grace: [.starve: 0, .dirty: 0, .toska: 0],
                         lastChanceH: nil, napUntil: nil, bathUntil: nil, lastHeartLossT: nil, cooldowns: [:],
-                        home: home, alive: true, diedAt: nil, cause: nil)
+                        home: home, alive: true, diedAt: nil, cause: nil, outing: nil, finds: [:])
     }
 
     // MARK: время суток
@@ -131,17 +141,48 @@ public enum PetEngine {
         s.bathUntil = nil
     }
 
+    // MARK: прогулка
+
+    /// FNV-1a 32 бит по ASCII-строке: одинаково в TS и Swift, без случайности.
+    static func fnv32(_ str: String) -> UInt32 {
+        var h: UInt32 = 0x811c9dc5
+        for c in str.utf8 {
+            h ^= UInt32(c)
+            h = h &* 0x01000193
+        }
+        return h
+    }
+
+    /// Сколько прогулок уже было: сумма альбома находок.
+    public static func walksDone(_ s: PetState) -> Int {
+        s.finds.values.reduce(0, +)
+    }
+
+    /// Вернуться с прогулки: прибавка шкал и находка в альбом.
+    static func finishWalk(_ s: inout PetState, _ r: Rules) {
+        guard let w = s.outing else { return }
+        if let wo = r.walkOut { applyEffect(&s, wo.onReturn, maxHearts(s, r)) }
+        s.finds[w.find, default: 0] += 1
+        s.outing = nil
+    }
+
     static func step(_ s: inout PetState, _ r: Rules, _ o: Owner) {
         let t = s.t
         if let n = s.napUntil, t >= n { s.napUntil = nil }
         if let b = s.bathUntil, t >= b { finishBath(&s, r) }
+        // прогулка кончается в until; раньше — если наступила ночь питомца или вдруг беда
+        if let w = s.outing, t >= w.until || r.walkOut == nil || petNight(t, r, o)
+            || Distress.allCases.contains(where: { r.distress[$0]!.cond(s.needs) }) {
+            finishWalk(&s, r)
+        }
+        let wo = s.outing != nil ? r.walkOut : nil // гуляет: шкалы по своим множителям, урона и смерти нет
 
         let asleep = ownerAsleep(t, o)
         let night = petNight(t, r, o)
         if !night && petNight(t - STEP, r, o) {
             s.needs[.love] = clamp(s.needs[.love]! + num(homeBuff(s, r, .bed), "love_on_wake"))
         }
-        if !night && s.napUntil == nil && s.bathUntil == nil && s.needs[.energy]! < r.need(.energy, "nap_below") {
+        if !night && wo == nil && s.napUntil == nil && s.bathUntil == nil && s.needs[.energy]! < r.need(.energy, "nap_below") {
             s.napUntil = t + r.need(.energy, "nap_minutes") * 60
         }
         let sleeping = night || s.napUntil != nil
@@ -155,6 +196,7 @@ public enum PetEngine {
             let rate = sleeping ? r.need(n, "night_per_h") : r.need(n, "day_per_h")
             var k = x(md, n.rawValue + "_decay_x")
             if n == .food && night { k = k * x(md, "night_food_decay_x") }
+            if let wo { k = k * (wo.decayX[n.rawValue] ?? 1) }
             s.needs[n] = clamp(s.needs[n]! - rate * k * DH)
         }
         if night {
@@ -162,7 +204,7 @@ public enum PetEngine {
         } else if s.napUntil != nil {
             s.needs[.energy] = clamp(s.needs[.energy]! + r.need(.energy, "nap_regen_per_h") * DH)
         } else {
-            s.needs[.energy] = clamp(s.needs[.energy]! - r.need(.energy, "day_per_h") * x(md, "energy_decay_x") * DH)
+            s.needs[.energy] = clamp(s.needs[.energy]! - r.need(.energy, "day_per_h") * x(md, "energy_decay_x") * (wo?.energyX ?? 1) * DH)
         }
         s.needs[.look] = clamp(s.needs[.look]! - r.need(.look, "per_day") / 24 * DH)
 
@@ -172,7 +214,7 @@ public enum PetEngine {
         for (i, d) in Distress.allCases.enumerated() {
             if !active[i] { s.grace[d] = 0; continue }
             anyActive = true
-            if asleep { continue }
+            if asleep || wo != nil { continue }
             s.grace[d] = s.grace[d]! + DH
             let rd = r.distress[d]!
             if s.grace[d]! > rd.graceH { dmg = dmg + DH / rd.hoursPerHeart }
@@ -191,7 +233,7 @@ public enum PetEngine {
         if s.hearts > 1 { s.lastChanceH = nil }
         else {
             if s.lastChanceH == nil { s.lastChanceH = r.lastChanceH }
-            if !asleep && anyActive {
+            if !asleep && wo == nil && anyActive {
                 s.lastChanceH = s.lastChanceH! - DH
                 let sinceWake = (localMin(t, o) - o.wakeMin + 1440) % 1440
                 if s.lastChanceH! <= 0 && Double(sinceWake) >= r.noDeathAfterWakeH * 60 {
@@ -225,6 +267,8 @@ public enum PetEngine {
     /// Действие в момент s.t (сначала досчитай stepTo).
     public static func act(_ s: inout PetState, _ r: Rules, _ o: Owner, _ a: Action) -> ActResult {
         if !s.alive { return .no("dead") }
+        // гуляет: дома никого, принимаются только шаги хозяина
+        if s.outing != nil { if case .steps = a {} else { return .no("away") } }
         let t = s.t
         let md = mods(s, r)
         func cooling(_ k: String) -> Bool { if let c = s.cooldowns[k] { return c > t }; return false }
@@ -263,6 +307,21 @@ public enum PetEngine {
             if s.napUntil == nil { return .no("not_napping") }
             s.napUntil = nil
             return .ok
+        case .walk:
+            guard let w = r.walkOut else { return .no("unavailable") }
+            if s.bathUntil != nil { return .no("bathing") }
+            if s.napUntil != nil || petNight(t, r, o) { return .no("asleep") }
+            if level(s, r) == 3 || Distress.allCases.contains(where: { r.distress[$0]!.cond(s.needs) }) { return .no("unwell") }
+            if !w.requires(s.needs) { return .no("not_ready") }
+            // длительность и находка — от минуты старта и числа прошлых прогулок
+            let m = Int((t / 60).rounded(.down)), n = walksDone(s)
+            var dur = w.minMin + Int(fnv32("walk:\(m):\(n)") % UInt32(w.maxMin - w.minMin + 1))
+            if dur >= 1 {
+                for k in 1...dur where petNight(t + Double(k) * 60, r, o) { dur = k; break }
+            }
+            if dur < w.minMin { return .no("too_late") }
+            s.outing = Outing(from: t, until: t + Double(dur) * 60, find: w.finds[Int(fnv32("find:\(m):\(n)") % UInt32(w.finds.count))])
+            return .ok
         }
     }
 
@@ -281,6 +340,7 @@ public enum PetEngine {
     public static func moods(_ s: PetState, _ r: Rules, _ o: Owner) -> [String] {
         if !s.alive { return ["dead"] }
         var out: [String] = []
+        if s.outing != nil { out.append("walking") }
         if s.bathUntil != nil { out.append("bath") }
         if petNight(s.t, r, o) { out.append("sleep") } else if s.napUntil != nil { out.append("nap") }
         if level(s, r) == 3 { out.append("critical") }
@@ -300,6 +360,7 @@ public enum PetEngine {
         var lvl: Int
         var hc: Double
         var lc: Bool
+        var out: String?
     }
 
     static func tracker(_ s: PetState, _ r: Rules) -> Tracker {
@@ -307,11 +368,15 @@ public enum PetEngine {
                 dist: Set(Distress.allCases.filter { r.distress[$0]!.cond(s.needs) }),
                 lvl: level(s, r),
                 hc: (s.hearts - 1e-9).rounded(.up),
-                lc: s.lastChanceH != nil)
+                lc: s.lastChanceH != nil,
+                out: s.outing?.find)
     }
 
-    /// После шага: дописать в ev новые события (low, distress, heart, last_chance, level).
+    /// После шага: дописать в ev новые события (back_home, low, distress, heart, last_chance, level).
     static func observe(_ tr: inout Tracker, _ s: PetState, _ r: Rules, _ ev: inout [ForecastEvent]) {
+        // вернулся с прогулки в начале этого шага: время — начало шага (= until), key — находка
+        if let f = tr.out, s.outing == nil { ev.append(ForecastEvent(t: s.t - STEP, kind: .back_home, key: f, value: nil)) }
+        tr.out = s.outing?.find
         for n in WATCH where s.needs[n]! < r.warnLow && !tr.low.contains(n) {
             tr.low.insert(n); ev.append(ForecastEvent(t: s.t, kind: .low, key: n.rawValue, value: nil))
         }
@@ -364,7 +429,15 @@ extension PetState {
                   lastChanceH: j["lastChanceH"].double, napUntil: j["napUntil"].double, bathUntil: j["bathUntil"].double,
                   lastHeartLossT: j["lastHeartLossT"].double, cooldowns: j["cooldowns"].object.compactMapValues(\.double),
                   home: home, alive: j["alive"].bool ?? false, diedAt: j["diedAt"].double,
-                  cause: j["cause"].string.flatMap(Distress.init(rawValue:)))
+                  cause: j["cause"].string.flatMap(Distress.init(rawValue:)),
+                  // старые сохранения без прогулки: дома, альбом пуст
+                  outing: Self.outingFrom(json: j["outing"]),
+                  finds: j["finds"].object.compactMapValues { $0.double.map { Int($0) } })
+    }
+
+    static func outingFrom(json o: JSONValue) -> Outing? {
+        guard let from = o["from"].double, let until = o["until"].double, let find = o["find"].string else { return nil }
+        return Outing(from: from, until: until, find: find)
     }
 }
 
@@ -378,6 +451,7 @@ extension Action {
         case "bath": self = .bath
         case "steps": self = .steps(Int(j["count"].double ?? 0))
         case "wake": self = .wake
+        case "walk": self = .walk
         default: return nil
         }
     }

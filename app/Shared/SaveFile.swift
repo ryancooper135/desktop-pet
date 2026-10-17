@@ -202,6 +202,11 @@ enum PetCodec {
         for (l, v) in s.home { home[l.rawValue] = .number(Double(v)) }
         var cooldowns: [String: JSONValue] = [:]
         for (k, v) in s.cooldowns { cooldowns[k] = .number(v) }
+        var finds: [String: JSONValue] = [:]
+        for (k, v) in s.finds { finds[k] = .number(Double(v)) }
+        let outing: JSONValue = s.outing.map {
+            .object(["from": .number($0.from), "until": .number($0.until), "find": .string($0.find)])
+        } ?? .null
         return .object([
             "t": .number(s.t),
             "needs": .object(needs),
@@ -216,6 +221,9 @@ enum PetCodec {
             "alive": .bool(s.alive),
             "diedAt": num(s.diedAt),
             "cause": s.cause.map { .string($0.rawValue) } ?? .null,
+            // прогулка; в старых сохранениях полей нет — PetState(json:) читает их как «дома, альбом пуст»
+            "outing": outing,
+            "finds": .object(finds),
         ])
     }
 

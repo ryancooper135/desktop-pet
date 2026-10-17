@@ -35,6 +35,7 @@ enum ForecastTools {
             }
         case .last_chance: return "Последний шанс"
         case .death: return "Может не дождаться"
+        case .back_home: return "Вернётся"
         default: return "Попросит"
         }
     }
@@ -188,10 +189,11 @@ enum ForecastTools {
         return min(cap, max(now + Budget.minReload, last.t))
     }
 
-    /// Когда содержимое острова устареет: ближайшее из конца ванны, следующего события прогноза, startedT + 8 ч.
+    /// Когда содержимое острова устареет: ближайшее из конца ванны или прогулки, следующего события прогноза, startedT + 8 ч.
     static func staleDate(_ s: PetState, events: [ForecastEvent], now: Double, startedT: Double?) -> Date {
         var c: [Double] = [now + 8 * 3600]
         if let b = s.bathUntil, b > now { c.append(b) }
+        if let w = s.outing?.until, w > now { c.append(w) }
         if let e = events.first(where: { $0.t > now }) { c.append(e.t) }
         if let st = startedT { c.append(st + 8 * 3600) }
         return Date(timeIntervalSince1970: c.min() ?? now + 3600)

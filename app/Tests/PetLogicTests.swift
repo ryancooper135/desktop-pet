@@ -330,6 +330,59 @@ final class PetLogicTests: XCTestCase {
         XCTAssertThrowsError(try decodeFile(data), "без питомца файл — ошибка, а не новый щенок")
     }
 
+    // MARK: прогулка с находкой
+
+    func testSaveFileKeepsOutingAndFinds() throws {
+        var f = freshFile()
+        f.pet.outing = Outing(from: t0, until: t0 + 90 * 60, find: "stick")
+        f.pet.finds = ["cone": 2, "stick": 1]
+        let d = try decodeFile(encodeFile(f))
+        XCTAssertEqual(d.pet.outing, f.pet.outing)
+        XCTAssertEqual(d.pet.finds, f.pet.finds)
+    }
+
+    func testOldSaveWithoutWalkFieldsDecodes() throws {
+        let f = freshFile()
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encodeFile(f)) as? [String: Any])
+        var pet = try XCTUnwrap(obj["pet"] as? [String: Any])
+        pet.removeValue(forKey: "outing")
+        pet.removeValue(forKey: "finds")
+        obj["pet"] = pet
+        let d = try decodeFile(JSONSerialization.data(withJSONObject: obj))
+        XCTAssertNil(d.pet.outing, "старое сохранение — питомец дома")
+        XCTAssertTrue(d.pet.finds.isEmpty)
+        XCTAssertEqual(d.pet.hearts, f.pet.hearts)
+    }
+
+    func testWalkingSnapshotShowsTimerAndOpensApp() {
+        var f = freshFile()
+        f.pet.outing = Outing(from: t0 - 600, until: t0 + 50 * 60, find: "ball")
+        let snap = Presenter.make(f, at: t0)
+        XCTAssertEqual(snap.mood, "walking")
+        XCTAssertEqual(snap.pose, .happy)
+        XCTAssertEqual(snap.main, .open)
+        XCTAssertNil(snap.want)
+        XCTAssertEqual(snap.timer, NeedTimer(kind: "walk", start: t0 - 600, end: t0 + 50 * 60, title: "Гуляет"))
+        XCTAssertEqual(Presenter.timerTitle(kind: "walk", need: nil), "Гуляет")
+        XCTAssertEqual(Presenter.timerPhrase(kind: "walk", title: "Гуляет", remaining: 50 * 60), "Гуляет ещё 50 мин")
+        let back = ForecastTools.upcoming(f.pet, at: t0).first { $0.kind == .back_home }
+        XCTAssertEqual(back?.t, t0 + 50 * 60, "возвращение есть в прогнозе")
+        XCTAssertEqual(back?.key, "ball")
+        XCTAssertEqual(back.map { ForecastTools.title($0) }, "Вернётся")
+        let stale = ForecastTools.staleDate(f.pet, events: [], now: t0, startedT: nil)
+        XCTAssertEqual(stale.timeIntervalSince1970, t0 + 50 * 60)
+    }
+
+    func testWalkActionRoundTrip() {
+        XCTAssertEqual(PetAction(.walk), .walk)
+        XCTAssertEqual(PetAction.walk.core, .walk)
+        XCTAssertEqual(PetAction.walk.kind, "walk")
+        XCTAssertEqual(PetAction(kind: "walk", key: nil, value: nil), .walk)
+        XCTAssertNotEqual(RefuseText.text("away"), RefuseText.text(nil))
+        XCTAssertNotEqual(RefuseText.text("too_late"), RefuseText.text(nil))
+        XCTAssertNotEqual(RefuseText.text("not_ready"), RefuseText.text(nil))
+    }
+
     func testJournalTrimmedTo200() {
         var f = freshFile()
         for i in 0..<250 { f.log("act.pet", t: t0 + Double(i), source: .app, ok: true) }

@@ -1,0 +1,1424 @@
+{
+ "name": "walk_find",
+ "owner": {
+  "bedMin": 1410,
+  "wakeMin": 450,
+  "tzOffsetMin": 0
+ },
+ "start": {
+  "t": 1788255000,
+  "needs": {
+   "food": 80,
+   "clean": 25,
+   "energy": 80,
+   "fun": 80,
+   "love": 80,
+   "walk": 80,
+   "look": 5
+  },
+  "hearts": 5,
+  "grace": {
+   "starve": 0,
+   "dirty": 0,
+   "toska": 0
+  },
+  "lastChanceH": null,
+  "napUntil": null,
+  "bathUntil": null,
+  "lastHeartLossT": null,
+  "cooldowns": {},
+  "home": {
+   "bath": 0,
+   "bed": 0,
+   "kitchen": 0,
+   "kennel": 0,
+   "play": 0,
+   "yard": 0
+  },
+  "alive": true,
+  "diedAt": null,
+  "cause": null,
+  "outing": null,
+  "finds": {}
+ },
+ "steps": [
+  {
+   "t": 1788255017,
+   "do": {
+    "type": "walk"
+   },
+   "ok": false,
+   "reason": "not_ready"
+  },
+  {
+   "t": 1788255077,
+   "do": {
+    "type": "bath"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788255137,
+   "do": {
+    "type": "walk"
+   },
+   "ok": false,
+   "reason": "bathing"
+  },
+  {
+   "t": 1788258600,
+   "expect": {
+    "t": 1788258600,
+    "needs": {
+     "food": 75.00000000000028,
+     "clean": 22.49999999999993,
+     "energy": 76.49999999999977,
+     "fun": 73.3954999999999,
+     "love": 76.00000000000023,
+     "walk": 77.00000000000017,
+     "look": 4.750000000000014
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": 1788258660,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {}
+   },
+   "level": 1,
+   "moods": [
+    "bath",
+    "dirty"
+   ],
+   "mood": "bath",
+   "daypart": "morning",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788258737,
+   "do": {
+    "type": "walk"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788258797,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": false,
+   "reason": "away"
+  },
+  {
+   "t": 1788258857,
+   "do": {
+    "type": "steps",
+    "count": 800
+   },
+   "ok": true
+  },
+  {
+   "t": 1788258917,
+   "do": {
+    "type": "pet"
+   },
+   "ok": false,
+   "reason": "away"
+  },
+  {
+   "t": 1788262200,
+   "expect": {
+    "t": 1788262200,
+    "needs": {
+     "food": 67.58333333333363,
+     "clean": 95.12500000000027,
+     "energy": 71.30833333333277,
+     "fun": 73.1999999999999,
+     "love": 75.8666666666669,
+     "walk": 86.90000000000018,
+     "look": 4.500000000000028
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788258720,
+     "until": 1788266040,
+     "find": "cone"
+    },
+    "finds": {}
+   },
+   "level": 0,
+   "moods": [
+    "walking"
+   ],
+   "mood": "walking",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788265800,
+   "expect": {
+    "t": 1788265800,
+    "needs": {
+     "food": 60.08333333333363,
+     "clean": 90.12500000000055,
+     "energy": 66.05833333333243,
+     "fun": 73.1999999999999,
+     "love": 75.8666666666669,
+     "walk": 86.90000000000018,
+     "look": 4.250000000000043
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788258720,
+     "until": 1788266040,
+     "find": "cone"
+    },
+    "finds": {}
+   },
+   "level": 0,
+   "moods": [
+    "walking"
+   ],
+   "mood": "walking",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788269400,
+   "expect": {
+    "t": 1788269400,
+    "needs": {
+     "food": 54.91666666666683,
+     "clean": 87.45833333333364,
+     "energy": 62.44166666666572,
+     "fun": 78.44000000000025,
+     "love": 72.13333333333378,
+     "walk": 97.20000000000016,
+     "look": 4.000000000000057
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788273000,
+   "expect": {
+    "t": 1788273000,
+    "needs": {
+     "food": 49.916666666666686,
+     "clean": 84.95833333333336,
+     "energy": 58.94166666666592,
+     "fun": 72.93500000000061,
+     "love": 68.13333333333401,
+     "walk": 94.20000000000033,
+     "look": 3.7500000000000444
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "food",
+     "strength": 0.0016666666666662877,
+     "urgent": false
+    }
+   ],
+   "rescue": null
+  },
+  {
+   "t": 1788273017,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788273077,
+   "do": {
+    "type": "pet"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788273137,
+   "do": {
+    "type": "walk"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788276600,
+   "expect": {
+    "t": 1788276600,
+    "needs": {
+     "food": 77.50000000000003,
+     "clean": 80.04166666666696,
+     "energy": 53.74999999999934,
+     "fun": 75.75000000000063,
+     "love": 80.00000000000068,
+     "walk": 94.10000000000034,
+     "look": 3.500000000000032
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788273120,
+     "until": 1788279900,
+     "find": "ball"
+    },
+    "finds": {
+     "cone": 1
+    }
+   },
+   "level": 0,
+   "moods": [
+    "walking"
+   ],
+   "mood": "walking",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788280200,
+   "expect": {
+    "t": 1788280200,
+    "needs": {
+     "food": 70.20833333333339,
+     "clean": 75.25000000000053,
+     "energy": 48.64583333333277,
+     "fun": 85.32500000000066,
+     "love": 79.66666666666737,
+     "walk": 99.75000000000001,
+     "look": 3.2500000000000195
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788283800,
+   "expect": {
+    "t": 1788283800,
+    "needs": {
+     "food": 65.20833333333367,
+     "clean": 72.75000000000024,
+     "energy": 45.145833333332966,
+     "fun": 80.22500000000103,
+     "love": 75.6666666666676,
+     "walk": 96.75000000000018,
+     "look": 3.000000000000007
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788287400,
+   "expect": {
+    "t": 1788287400,
+    "needs": {
+     "food": 60.20833333333363,
+     "clean": 70.24999999999996,
+     "energy": 41.645833333333165,
+     "fun": 75.1250000000014,
+     "love": 71.66666666666782,
+     "walk": 93.75000000000036,
+     "look": 2.7499999999999947
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788291000,
+   "expect": {
+    "t": 1788291000,
+    "needs": {
+     "food": 55.208333333333485,
+     "clean": 67.74999999999967,
+     "energy": 38.145833333333364,
+     "fun": 69.51500000000176,
+     "love": 67.66666666666805,
+     "walk": 90.75000000000053,
+     "look": 2.4999999999999822
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "day",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788294600,
+   "expect": {
+    "t": 1788294600,
+    "needs": {
+     "food": 50.20833333333334,
+     "clean": 65.24999999999939,
+     "energy": 34.64583333333356,
+     "fun": 63.51500000000207,
+     "love": 63.66666666666824,
+     "walk": 87.7500000000007,
+     "look": 2.24999999999997
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "evening",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788298200,
+   "expect": {
+    "t": 1788298200,
+    "needs": {
+     "food": 45.2083333333332,
+     "clean": 62.749999999999325,
+     "energy": 31.14583333333371,
+     "fun": 57.51500000000198,
+     "love": 59.66666666666804,
+     "walk": 84.75000000000087,
+     "look": 1.9999999999999576
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [],
+   "mood": "ok",
+   "daypart": "evening",
+   "wants": [
+    {
+     "key": "food",
+     "strength": 0.09583333333333599,
+     "urgent": false
+    }
+   ],
+   "rescue": null
+  },
+  {
+   "t": 1788301277,
+   "do": {
+    "type": "feed",
+    "item": "cake"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788301337,
+   "do": {
+    "type": "walk"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788301397,
+   "do": {
+    "type": "feed",
+    "item": "cake"
+   },
+   "ok": false,
+   "reason": "away"
+  },
+  {
+   "t": 1788301800,
+   "expect": {
+    "t": 1788301800,
+    "needs": {
+     "food": 84.87499999999976,
+     "clean": 59.916666666666096,
+     "energy": 37.41250000000038,
+     "fun": 82.31500000000192,
+     "love": 66.20000000000121,
+     "walk": 82.15000000000101,
+     "look": 1.7499999999999585
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788301320,
+     "until": 1788306300,
+     "find": "stick"
+    },
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [
+    "walking"
+   ],
+   "mood": "walking",
+   "daypart": "evening",
+   "wants": [],
+   "rescue": null
+  },
+  {
+   "t": 1788303617,
+   "expect": {
+    "t": 1788303600,
+    "needs": {
+     "food": 81.12499999999976,
+     "clean": 57.416666666666025,
+     "energy": 34.78750000000042,
+     "fun": 82.31500000000192,
+     "love": 66.20000000000121,
+     "walk": 82.15000000000101,
+     "look": 1.624999999999959
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788301320,
+     "until": 1788306300,
+     "find": "stick"
+    },
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "level": 0,
+   "moods": [
+    "walking"
+   ],
+   "mood": "walking",
+   "daypart": "evening",
+   "wants": [],
+   "rescue": null
+  }
+ ],
+ "forecast": {
+  "from": {
+   "t": 1788303600,
+   "needs": {
+    "food": 81.12499999999976,
+    "clean": 57.416666666666025,
+    "energy": 34.78750000000042,
+    "fun": 82.31500000000192,
+    "love": 66.20000000000121,
+    "walk": 82.15000000000101,
+    "look": 1.624999999999959
+   },
+   "hearts": 5,
+   "grace": {
+    "starve": 0,
+    "dirty": 0,
+    "toska": 0
+   },
+   "lastChanceH": null,
+   "napUntil": null,
+   "bathUntil": null,
+   "lastHeartLossT": null,
+   "cooldowns": {
+    "pet": 1788273240
+   },
+   "home": {
+    "bath": 0,
+    "bed": 0,
+    "kitchen": 0,
+    "kennel": 0,
+    "play": 0,
+    "yard": 0
+   },
+   "alive": true,
+   "diedAt": null,
+   "cause": null,
+   "outing": {
+    "from": 1788301320,
+    "until": 1788306300,
+    "find": "stick"
+   },
+   "finds": {
+    "cone": 1,
+    "ball": 1
+   }
+  },
+  "horizonH": 72,
+  "events": [
+   {
+    "t": 1788306300,
+    "kind": "back_home",
+    "key": "stick"
+   },
+   {
+    "t": 1788365220,
+    "kind": "low",
+    "key": "food"
+   },
+   {
+    "t": 1788365220,
+    "kind": "level",
+    "value": 1
+   },
+   {
+    "t": 1788366360,
+    "kind": "low",
+    "key": "love"
+   },
+   {
+    "t": 1788367140,
+    "kind": "low",
+    "key": "clean"
+   },
+   {
+    "t": 1788371940,
+    "kind": "low",
+    "key": "fun"
+   },
+   {
+    "t": 1788384360,
+    "kind": "distress",
+    "key": "toska"
+   },
+   {
+    "t": 1788384360,
+    "kind": "level",
+    "value": 2
+   },
+   {
+    "t": 1788386820,
+    "kind": "distress",
+    "key": "starve"
+   },
+   {
+    "t": 1788422640,
+    "kind": "distress",
+    "key": "dirty"
+   },
+   {
+    "t": 1788440820,
+    "kind": "heart",
+    "value": 4
+   },
+   {
+    "t": 1788454500,
+    "kind": "heart",
+    "value": 3
+   },
+   {
+    "t": 1788466080,
+    "kind": "heart",
+    "value": 2
+   },
+   {
+    "t": 1788466080,
+    "kind": "level",
+    "value": 3
+   },
+   {
+    "t": 1788477660,
+    "kind": "heart",
+    "value": 1
+   },
+   {
+    "t": 1788477660,
+    "kind": "last_chance"
+   },
+   {
+    "t": 1788535260,
+    "kind": "death",
+    "key": "starve"
+   }
+  ]
+ },
+ "away": {
+  "now": 1788303617,
+  "journal": [
+   {
+    "t": 1788255017,
+    "action": {
+     "type": "walk"
+    }
+   },
+   {
+    "t": 1788255077,
+    "action": {
+     "type": "bath"
+    }
+   },
+   {
+    "t": 1788255137,
+    "action": {
+     "type": "walk"
+    }
+   },
+   {
+    "t": 1788258737,
+    "action": {
+     "type": "walk"
+    }
+   },
+   {
+    "t": 1788258797,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788258857,
+    "action": {
+     "type": "steps",
+     "count": 800
+    }
+   },
+   {
+    "t": 1788258917,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788273017,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788273077,
+    "action": {
+     "type": "pet"
+    }
+   },
+   {
+    "t": 1788273137,
+    "action": {
+     "type": "walk"
+    }
+   },
+   {
+    "t": 1788301277,
+    "action": {
+     "type": "feed",
+     "item": "cake"
+    }
+   },
+   {
+    "t": 1788301337,
+    "action": {
+     "type": "walk"
+    }
+   },
+   {
+    "t": 1788301397,
+    "action": {
+     "type": "feed",
+     "item": "cake"
+    }
+   }
+  ],
+  "from": 1788255000,
+  "to": 1788303617,
+  "awayH": 13.504722222222222,
+  "show": true,
+  "greet": "welcome",
+  "cta": "cta_ok",
+  "sleptH": 0,
+  "heartsFrom": 5,
+  "heartsTo": 5,
+  "needs": {
+   "food": 1.1249999999997584,
+   "clean": 32.416666666666025,
+   "energy": -45.21249999999958,
+   "fun": 2.315000000001916,
+   "love": -13.79999999999879,
+   "walk": 2.1500000000010147,
+   "look": -3.375000000000041
+  },
+  "events": [
+   {
+    "t": 1788255000,
+    "kind": "act",
+    "key": "walk",
+    "ok": false
+   },
+   {
+    "t": 1788255060,
+    "kind": "act",
+    "key": "bath",
+    "ok": true
+   },
+   {
+    "t": 1788255120,
+    "kind": "act",
+    "key": "walk",
+    "ok": false
+   },
+   {
+    "t": 1788258720,
+    "kind": "act",
+    "key": "walk",
+    "ok": true
+   },
+   {
+    "t": 1788258780,
+    "kind": "act",
+    "key": "feed",
+    "ok": false
+   },
+   {
+    "t": 1788258840,
+    "kind": "act",
+    "key": "steps",
+    "ok": true
+   },
+   {
+    "t": 1788258900,
+    "kind": "act",
+    "key": "pet",
+    "ok": false
+   },
+   {
+    "t": 1788266040,
+    "kind": "back_home",
+    "key": "cone"
+   },
+   {
+    "t": 1788273000,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788273060,
+    "kind": "act",
+    "key": "pet",
+    "ok": true
+   },
+   {
+    "t": 1788273120,
+    "kind": "act",
+    "key": "walk",
+    "ok": true
+   },
+   {
+    "t": 1788279900,
+    "kind": "back_home",
+    "key": "ball"
+   },
+   {
+    "t": 1788301260,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788301320,
+    "kind": "act",
+    "key": "walk",
+    "ok": true
+   },
+   {
+    "t": 1788301380,
+    "kind": "act",
+    "key": "feed",
+    "ok": false
+   }
+  ],
+  "died": false,
+  "state": {
+   "t": 1788303600,
+   "needs": {
+    "food": 81.12499999999976,
+    "clean": 57.416666666666025,
+    "energy": 34.78750000000042,
+    "fun": 82.31500000000192,
+    "love": 66.20000000000121,
+    "walk": 82.15000000000101,
+    "look": 1.624999999999959
+   },
+   "hearts": 5,
+   "grace": {
+    "starve": 0,
+    "dirty": 0,
+    "toska": 0
+   },
+   "lastChanceH": null,
+   "napUntil": null,
+   "bathUntil": null,
+   "lastHeartLossT": null,
+   "cooldowns": {
+    "pet": 1788273240
+   },
+   "home": {
+    "bath": 0,
+    "bed": 0,
+    "kitchen": 0,
+    "kennel": 0,
+    "play": 0,
+    "yard": 0
+   },
+   "alive": true,
+   "diedAt": null,
+   "cause": null,
+   "outing": {
+    "from": 1788301320,
+    "until": 1788306300,
+    "find": "stick"
+   },
+   "finds": {
+    "cone": 1,
+    "ball": 1
+   }
+  }
+ },
+ "notify": [
+  {
+   "from": {
+    "t": 1788255000,
+    "needs": {
+     "food": 80,
+     "clean": 25,
+     "energy": 80,
+     "fun": 80,
+     "love": 80,
+     "walk": 80,
+     "look": 5
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {}
+   },
+   "now": 1788255000,
+   "opts": {
+    "horizonH": 336
+   },
+   "plan": [
+    {
+     "at": 1788276600,
+     "trigger": "smelly",
+     "kind": "distress",
+     "key": "dirty"
+    },
+    {
+     "at": 1788383640,
+     "trigger": "critical",
+     "kind": "level"
+    },
+    {
+     "at": 1788424020,
+     "trigger": "last_chance",
+     "kind": "last_chance"
+    }
+   ]
+  },
+  {
+   "from": {
+    "t": 1788255000,
+    "needs": {
+     "food": 80,
+     "clean": 25,
+     "energy": 80,
+     "fun": 80,
+     "love": 80,
+     "walk": 80,
+     "look": 5
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {}
+   },
+   "now": 1788255000,
+   "opts": {
+    "horizonH": 336,
+    "lastOpenT": 1788039000,
+    "lastSentT": 1788251400
+   },
+   "plan": []
+  },
+  {
+   "from": {
+    "t": 1788303600,
+    "needs": {
+     "food": 81.12499999999976,
+     "clean": 57.416666666666025,
+     "energy": 34.78750000000042,
+     "fun": 82.31500000000192,
+     "love": 66.20000000000121,
+     "walk": 82.15000000000101,
+     "look": 1.624999999999959
+    },
+    "hearts": 5,
+    "grace": {
+     "starve": 0,
+     "dirty": 0,
+     "toska": 0
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": null,
+    "cooldowns": {
+     "pet": 1788273240
+    },
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": {
+     "from": 1788301320,
+     "until": 1788306300,
+     "find": "stick"
+    },
+    "finds": {
+     "cone": 1,
+     "ball": 1
+    }
+   },
+   "now": 1788303630,
+   "opts": {
+    "horizonH": 72,
+    "quietFromMin": 1320,
+    "quietToMin": 540
+   },
+   "plan": [
+    {
+     "at": 1788384360,
+     "trigger": "unwell",
+     "kind": "distress",
+     "key": "toska"
+    },
+    {
+     "at": 1788466080,
+     "trigger": "critical",
+     "kind": "level"
+    },
+    {
+     "at": 1788512400,
+     "trigger": "last_chance",
+     "kind": "last_chance"
+    }
+   ]
+  }
+ ]
+}
