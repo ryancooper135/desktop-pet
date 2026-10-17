@@ -19,7 +19,7 @@ struct PetApp: App {
             switch phase {
             case .active:
                 model.becameActive()
-                GuideCenter.shared.check()
+                GuideCenter.shared.becameActive()
             case .background:
                 model.wentBackground()
                 GuideCenter.shared.wentBackground()

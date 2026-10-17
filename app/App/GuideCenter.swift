@@ -18,6 +18,10 @@ final class GuideCenter {
     @ObservationIgnored private var widgetDue = false
     @ObservationIgnored private var forcedShown = false
     @ObservationIgnored private var pending: Task<Void, Never>?
+    /// Когда сработает отложенная проверка: более ранняя не перебивает позднюю (паузу после кормёжки).
+    @ObservationIgnored private var dueAt: ContinuousClock.Instant?
+    /// В фоне ничего не показываем: иначе подсказка встанет поверх «Пока тебя не было» при возвращении.
+    @ObservationIgnored private var active = true
 
     static let forced: GuideKind? = Env.value("PET_GUIDE").flatMap { GuideKind(rawValue: $0) }
 
@@ -25,13 +29,23 @@ final class GuideCenter {
 
     /// Проверить, не пора ли что-то показать. Пауза — чтобы не столкнуться с другими экранами при активации.
     func check(after delay: Double = 0.8) {
-        guard !Env.isTesting || Self.forced != nil else { return }
+        guard active, !Env.isTesting || Self.forced != nil else { return }
+        let soon = ContinuousClock.now + .seconds(delay)
+        let at = dueAt.map { max($0, soon) } ?? soon
+        dueAt = at
         pending?.cancel()
         pending = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
+            try? await Task.sleep(until: at, clock: .continuous)
             guard !Task.isCancelled else { return }
+            self?.dueAt = nil
             await self?.evaluate()
         }
+    }
+
+    /// Приложение снова на экране (scenePhase .active).
+    func becameActive() {
+        active = true
+        check()
     }
 
     /// Удачная кормёжка в приложении (из AppActions.perform).
@@ -55,12 +69,14 @@ final class GuideCenter {
     /// Ушли в фон: подсказку убираем, чтобы по возвращении не мешать «Пока тебя не было» и ссылкам из виджета.
     /// Непрочитанные правила покажутся снова при следующем входе.
     func wentBackground() {
+        active = false
         pending?.cancel()
+        dueAt = nil
         sheet = nil
     }
 
     private func screenFree(_ model: AppModel) -> Bool {
-        sheet == nil && model.away == nil && !model.showNeeds && !model.showSettings && model.storeError == nil
+        active && sheet == nil && model.away == nil && !model.showNeeds && !model.showSettings && model.storeError == nil
     }
 
     private func evaluate() async {
