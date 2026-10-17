@@ -137,7 +137,7 @@ function fillUp(s: PetState, r: Rules, o: Owner, pet: (t: number, a: Action) => 
 export function ignoreUntilDeath(r: Rules, o: Owner, s: PetState, maxH = 200): number | null {
   const start = s.t;
   stepTo(s, r, o, start + maxH * H);
-  return s.alive ? null : (s.diedAt! - start) / H;
+  return s.alive ? null : ((s.diedAt ?? s.t) - start) / H;
 }
 
 // ---------- именованные сценарии для balance.ts, векторов и тестов ----------
