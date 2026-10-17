@@ -1,6 +1,8 @@
 // Live Activity без пушей: запускает и обновляет только процесс приложения
 // (в том числе когда его будит LiveActivityIntent из виджета, острова или контрола).
 // Система живёт с активностью до 8 часов, поэтому через 7 часов перезапускаем её сами.
+// Реакция на действие в острове: staleDate = её конец (вьюхи переключаются сами), и, пока процесс жив,
+// через столько же досылаем спокойное состояние.
 
 @preconcurrency import ActivityKit
 import Foundation
@@ -13,6 +15,7 @@ enum LiveActivityController {
 
     private static var lastPush: PetAttributes.ContentState?
     private static var lastPushT: Double = 0
+    private static var calmTask: Task<Void, Never>?
 
     static var systemEnabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
 
@@ -26,13 +29,13 @@ enum LiveActivityController {
             return
         }
         let now = Clock.now()
-        let snap = Presenter.make(f, at: now)
-        let state = PetAttributes.ContentState(snap)
         let events = ForecastTools.upcoming(f, at: now, horizonH: 12)
-        let stale = ForecastTools.staleDate(PetRunner.peek(f, at: now), events: events, now: now,
-                                            startedT: f.island.startedT)
+        let state = PetAttributes.ContentState.make(f, at: now, events: events)
+        var staleT = ForecastTools.staleDate(PetRunner.peek(f, at: now), events: events, now: now,
+                                             startedT: f.island.startedT).timeIntervalSince1970
+        if let ru = state.reactUntil, ru > now { staleT = min(staleT, ru) }
         let content = ActivityContent(state: state,
-                                      staleDate: Date(timeIntervalSince1970: stale.timeIntervalSince1970 - Clock.offset))
+                                      staleDate: Date(timeIntervalSince1970: staleT - Clock.offset))
 
         let tooOld = f.island.startedT.map { now - $0 > restartAfter } ?? true
         if running.isEmpty || (tooOld && allowStart) {
@@ -47,6 +50,7 @@ enum LiveActivityController {
                 }
                 lastPush = state
                 lastPushT = now
+                scheduleCalm(state.reactUntil, now: now)
             } catch {
                 // Не разрешено или запуск из фона не дали — попробуем при следующем входе.
             }
@@ -57,9 +61,26 @@ enum LiveActivityController {
         for a in running { await a.update(content) }
         lastPush = state
         lastPushT = now
+        scheduleCalm(state.reactUntil, now: now)
+    }
+
+    /// После реакции — обновить остров спокойным состоянием (если процесс к тому времени ещё жив).
+    private static func scheduleCalm(_ until: Double?, now: Double) {
+        calmTask?.cancel()
+        calmTask = nil
+        guard let until, until > now else { return }
+        let wait = until - now + 0.5
+        calmTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled else { return }
+            calmTask = nil
+            await sync(PetStore.load(), allowStart: false, force: true)
+        }
     }
 
     static func endAll() async {
+        calmTask?.cancel()
+        calmTask = nil
         for a in Activity<PetAttributes>.activities {
             await a.end(nil, dismissalPolicy: .immediate)
         }

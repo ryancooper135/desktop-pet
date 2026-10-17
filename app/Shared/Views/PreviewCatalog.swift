@@ -64,6 +64,17 @@ enum PreviewFixtures {
         }
         return s
     }
+
+    /// Остров: тот же снимок плюс кнопки из плана острова.
+    static func islandState(_ mood: String) -> PetAttributes.ContentState {
+        let (f, t) = file(mood)
+        var st = PetAttributes.ContentState(snapshot(mood))
+        let pick = IslandPlan.pick(f, at: t)
+        st.primary = pick.primary
+        st.secondary = pick.secondary
+        if mood == "critical" && st.primary == .pet { st.primary = .feed }
+        return st
+    }
 }
 
 /// Рамка размера виджета и фон, как на домашнем экране.
@@ -87,7 +98,7 @@ private struct WidgetFrame<Content: View>: View {
 func previewView(family: String, mood: String) -> AnyView? {
     guard PreviewFixtures.moods.contains(mood) else { return nil }
     let snap = PreviewFixtures.snapshot(mood)
-    let state = PetAttributes.ContentState(snap)
+    let state = PreviewFixtures.islandState(mood)
     let lockBg = Color(hex: 0x2a2320)
     switch family {
     case "small":
