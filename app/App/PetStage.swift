@@ -146,11 +146,13 @@ enum PetModel {
             default: c.sway = 0.07; c.lie = 0
             }
         }
-        if let x = lookX, pose != .dead {
-            c.yawTarget = min(max(x, -1), 1) * 0.35
-        } else {
-            c.yawTarget = 0
-        }
+        // Взгляд: телом чуть-чуть, остальное — шея и голова (PetFace). Мёртвый не смотрит.
+        let look: Float = pose == .dead ? 0 : min(max(lookX ?? 0, -1), 1)
+        c.yawTarget = look * (hasClips ? 0.15 : 0.35)
+        var face = pet.components[PetFace.self] ?? PetFace()
+        face.target = look * PetFace.limit
+        face.still = reduceMotion
+        pet.components.set(face)
         c.still = reduceMotion
         if reduceMotion { c.amount = 0; c.targetAmount = 0 }
         if let r = reaction, r.id != c.lastReactionId {
@@ -199,6 +201,7 @@ enum PetModel {
 
         if reduceMotion {
             // Без переходов и реакций: сразу статичная поза на последнем кадре цикла.
+            PetChoreo.stop(pet)
             if poseChanged {
                 ClipPlayer.still(loop, on: pet)
                 st.current = key
@@ -259,6 +262,11 @@ enum PetModel {
         st.loop = mainLoop
         st.busyUntil = st.clock + busy
         st.lockUntil = fresh ? st.busyUntil : st.clock
+        // Миска под мордой на время eat, мяч и пробежка после play_bow: игра держит питомца дольше клипов.
+        if let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop) {
+            st.busyUntil = max(st.busyUntil, until)
+            st.lockUntil = max(st.lockUntil, until)
+        }
         if endStance != target {
             // Через полторы секунды без новой позы — вернуться в прежнюю переходом.
             st.current = "~settle"

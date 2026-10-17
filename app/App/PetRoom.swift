@@ -21,7 +21,7 @@ enum PetRoom {
     static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
 
     /// Поворот обёртки питомца по Y для вида 3/4: морда влево к камере, к камере повёрнут левый бок собаки.
-    static let yaw3q: Float = -0.55
+    nonisolated static let yaw3q: Float = -0.55
 
     // MARK: Комната
 
@@ -33,10 +33,10 @@ enum PetRoom {
     static let leftWallX: Float = -1.8
     static let rugRadius: Float = 0.45
     /// Миска слева сзади, у морды (за собакой справа её закрывает круп). Мяч справа впереди, у лап.
-    static let bowlPos = SIMD3<Float>(-0.38, 0.025, -0.75)
-    static let ballPos = SIMD3<Float>(0.15, 0.05, 0.3)
+    nonisolated static let bowlPos = SIMD3<Float>(-0.38, 0.025, -0.75)
+    nonisolated static let ballPos = SIMD3<Float>(0.15, 0.05, 0.3)
     /// Пятно-тень чуть выше ковра (верх ковра — 0.004).
-    static let blobY: Float = 0.006
+    nonisolated static let blobY: Float = 0.006
     /// Ширина (x) и длина (z, вдоль морды) пятна; край градиента прозрачный, поэтому длиннее собаки.
     static let blobWidth: Float = 0.34
     static let blobDepth: Float = 0.7
@@ -110,6 +110,13 @@ enum PetRoom {
                                materials: [matteMaterial(RoomColors.bowl)])
         bowl.name = "bowl"
         bowl.position = bowlPos
+        // Горка корма: видна, только пока миска стоит под мордой (PetChoreo).
+        let food = ModelEntity(mesh: .generateSphere(radius: 0.07), materials: [matteMaterial(RoomColors.food)])
+        food.name = "food"
+        food.position = SIMD3<Float>(0, 0.025, 0)
+        food.scale = SIMD3<Float>(1, 0.45, 1)
+        food.isEnabled = false
+        bowl.addChild(food)
         root.addChild(bowl)
 
         let ball = ModelEntity(mesh: .generateSphere(radius: 0.05), materials: [matteMaterial(RoomColors.ball)])
@@ -254,4 +261,5 @@ enum RoomColors {
     static let rug: UInt32 = 0xe9b8a8
     static let bowl: UInt32 = 0xd9534f
     static let ball: UInt32 = 0xf2c94c
+    static let food: UInt32 = 0x9c5b34
 }

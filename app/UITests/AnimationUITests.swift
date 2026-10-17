@@ -22,13 +22,13 @@ final class AnimationUITests: XCTestCase {
     // MARK: - Действия
 
     @MainActor
-    func testFeedFrames() throws { try recordAction("act.feed", name: "anim-feed") }
+    func testFeedFrames() throws { try recordAction("act.feed", name: "anim-feed", count: 24, step: 0.4) }
 
     @MainActor
     func testPetFrames() throws { try recordAction("act.pet", name: "anim-pet") }
 
     @MainActor
-    func testPlayFrames() throws { try recordAction("act.play", name: "anim-play") }
+    func testPlayFrames() throws { try recordAction("act.play", name: "anim-play", count: 24, step: 0.3) }
 
     @MainActor
     func testWakeFrames() throws { try recordAction("act.wake", name: "anim-wake") }
@@ -78,7 +78,8 @@ final class AnimationUITests: XCTestCase {
     }
 
     @MainActor
-    func recordAction(_ identifier: String, name: String, seed: String? = nil) throws {
+    func recordAction(_ identifier: String, name: String, seed: String? = nil,
+                      count: Int = AnimationUITests.frameCount, step: TimeInterval = AnimationUITests.frameStep) throws {
         let app = Self.makeApp(seed: seed)
         let stage = try launch(app)
         let button = app.descendants(matching: .any)[identifier]
@@ -91,7 +92,7 @@ final class AnimationUITests: XCTestCase {
         let crop = stage.frame
         let start = Date()
         button.tap()
-        let frames = capture(app, crop: crop, count: Self.frameCount, step: Self.frameStep, since: start)
+        let frames = capture(app, crop: crop, count: count, step: step, since: start)
         attachSheet(frames, name: name)
     }
 

@@ -135,8 +135,9 @@ enum PetStance {
             }
         case "play":
             if standing {
-                let fun = pick(["hop", "play_bow"], available: available)
-                out = fun.randomElement().map { [$0] } ?? ["jump_to_idle"]
+                // play_bow запускает игру с мячом (PetChoreo); без него — прыжок.
+                let fun = pick(["play_bow", "hop"], available: available)
+                out = fun.first.map { [$0] } ?? ["jump_to_idle"]
             }
         case "feed":
             if standing { out = ["eat", "eat", "eat"] }

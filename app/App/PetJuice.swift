@@ -135,6 +135,9 @@ struct JuiceSystem: System {
         ClipState.registerComponent()
         JuiceSystem.registerSystem()
         IdleDirectorSystem.registerSystem()
+        ChoreoState.registerComponent()
+        PetFace.registerComponent()
+        PetActSystem.registerSystem()
     }
 }
 
