@@ -1,6 +1,6 @@
 // Виджет «Шиба»: домашний экран (small, medium, large) и экран блокировки (circular, rectangular, inline).
 // Timeline на 24 ч вперёд: картинка в каждой точке посчитана ядром заранее, приложение не нужно.
-// Точки — ForecastTools.timelineDates (каждые 30 минут, события прогноза, ночь, конец ванны и реакции).
+// Точки — ForecastTools.timeline: сетка 30 мин / 1 ч / ночью 2 ч, события прогноза и точные минуты смены позы.
 
 import SwiftUI
 import WidgetKit
@@ -32,31 +32,27 @@ struct PetTimelineProvider: TimelineProvider {
         completion(Self.timeline(now: Clock.now()))
     }
 
-    /// Сам расчёт отдельно: его же зовут тесты и отладочный экран.
+    /// Сам расчёт — ForecastTools.timeline (в Shared, его зовут тесты). Здесь только даты и relevance.
     static func timeline(now: Double, file: SaveFile = PetStore.load()) -> Timeline<PetEntry> {
-        let events = ForecastTools.upcoming(file, at: now, horizonH: 24)
-        let dates = ForecastTools.timelineDates(file, now: now, events: events)
-        // Двигаем копию стейта по точкам по порядку: каждый шаг — только от прошлой точки.
-        var cur = file
+        let snaps = ForecastTools.timeline(file, now: now)
         var entries: [PetEntry] = []
-        for t in dates {
-            cur.pet = PetRunner.peek(cur, at: t)
-            let snap = Presenter.make(file: cur, pet: cur.pet, owner: PetRunner.owner(cur, at: t), at: t,
-                                      upcoming: events.filter { $0.t >= t })
-            entries.append(PetEntry(date: Date(timeIntervalSince1970: t - Clock.offset), snap: snap,
-                                    relevance: relevance(snap)))
+        for (i, snap) in snaps.enumerated() {
+            // Relevance держится до следующей точки: ночью точки реже.
+            let next = i + 1 < snaps.count ? snaps[i + 1].t : snap.t + 1800
+            entries.append(PetEntry(date: Date(timeIntervalSince1970: snap.t - Clock.offset), snap: snap,
+                                    relevance: relevance(snap, duration: max(60, next - snap.t))))
         }
         if entries.isEmpty {
-            let snap = Presenter.make(file, at: now, upcoming: events)
+            let snap = Presenter.make(file, at: now)
             entries = [PetEntry(date: Date(timeIntervalSince1970: now - Clock.offset), snap: snap, relevance: relevance(snap))]
         }
-        // Через 12 ч попросим новый timeline; приложение и интенты перезагружают его раньше.
-        let next = Date(timeIntervalSince1970: now - Clock.offset + 12 * 3600)
+        // Новый timeline — когда точки кончатся, но не позже 12 ч; приложение и интенты перезагружают его раньше.
+        let next = Date(timeIntervalSince1970: ForecastTools.reloadT(snaps, now: now) - Clock.offset)
         return Timeline(entries: entries, policy: .after(next))
     }
 
     /// Smart Stack поднимает виджет, когда питомцу плохо.
-    static func relevance(_ s: PetSnapshot) -> TimelineEntryRelevance? {
+    static func relevance(_ s: PetSnapshot, duration: Double = 1800) -> TimelineEntryRelevance? {
         guard s.alive else { return TimelineEntryRelevance(score: 0) }
         let score: Float
         switch s.level {
@@ -65,7 +61,7 @@ struct PetTimelineProvider: TimelineProvider {
         case 2: score = 0.8
         default: score = 1
         }
-        return TimelineEntryRelevance(score: score, duration: 1800)
+        return TimelineEntryRelevance(score: score, duration: duration)
     }
 }
 
