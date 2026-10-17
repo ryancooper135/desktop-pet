@@ -10,6 +10,8 @@ import UIKit
 struct HomeScreen: View {
     @Environment(AppModel.self) private var model
     @State private var confirmStartOver = false
+    /// Записка ждёт, пока Шиба уйдёт за край кадра (при открытии во время прогулки — сразу).
+    @State private var noteHeld = false
     /// Состояние жеста по сцене. В коробке: точки пальца не перерисовывают экран.
     @State private var touch = TouchBox()
 
@@ -43,7 +45,7 @@ struct HomeScreen: View {
             .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
             .accessibilityIdentifier("pet.stage")
 
-            if snap.pose == .away, let note = awayNote {
+            if snap.pose == .away, !noteHeld, let note = awayNote {
                 // Записка на месте Шибы, чуть ниже середины сцены: там он обычно стоит.
                 GeometryReader { geo in
                     AwayNoteCard(text: note)
@@ -149,6 +151,16 @@ struct HomeScreen: View {
         .animation(.snappy, value: rescue)
         .animation(.snappy, value: snap.wantIcon)
         .animation(.snappy, value: snap.pose == .away)
+        .animation(.snappy, value: noteHeld)
+        .onChange(of: snap.pose == .away) { was, now in
+            guard now, !was else { return }
+            noteHeld = true
+            Task {
+                // Переход в стойку (~0.5 с) + уход; с запасом, чтобы записка не легла на уходящего Шибу.
+                try? await Task.sleep(for: .seconds(ChoreoPath.Walk.outLength + 0.8))
+                noteHeld = false
+            }
+        }
         .background {
             HapticsLayer()
             SoundLayer()

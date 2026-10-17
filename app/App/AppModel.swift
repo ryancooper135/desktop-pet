@@ -84,6 +84,8 @@ final class AppModel {
     /// Прогулка на прошлом взгляде на состояние: по её исчезновению ловим возвращение.
     @ObservationIgnored private var outing: Outing? = nil
     @ObservationIgnored private var walkTask: Task<Void, Never>?
+    /// К какому возвращению стоит walkTask.
+    @ObservationIgnored private var walkAt: Double? = nil
 
     init() {
         LaunchSeed.applyOnce()
@@ -172,13 +174,18 @@ final class AppModel {
             pop(Finds.broughtText(find), at: anchor)
             heartBurst()
         }
-        guard s.outing != before else { return }
+        // Не по сравнению с before: init берёт outing из стора, и на первом refresh прогулка «не меняется» —
+        // таймер к возвращению тогда не ставился, и Шиба приходил только с тикером (до 30 с позже).
+        guard s.outing?.until != walkAt else { return }
         walkTask?.cancel()
+        walkAt = s.outing?.until
         guard let w = s.outing else { return }
         let wait = Swift.max(0.5, w.until - s.t + 0.5)
         walkTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(wait))
             if Task.isCancelled { return }
+            // Ещё гуляет (часы чуть отстали) — следующий refresh поставит таймер заново.
+            self?.walkAt = nil
             self?.refresh()
         }
     }
