@@ -56,5 +56,30 @@ struct RootView: View {
         .onChange(of: model.snap.level) { _, _ in guide.check() }
         .onChange(of: model.away == nil) { _, free in if free { guide.check() } }
         .onChange(of: model.showNeeds || model.showSettings) { _, busy in if !busy { guide.check() } }
+        .preferredColorScheme(UITestHooks.scheme)
+        .task {
+            // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.
+            guard let url = UITestHooks.openURL else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            model.open(url)
+        }
+    }
+}
+
+/// Крючки только для UI-тестов (Env.isUITest); в обычном запуске всё nil.
+/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings — открыть экран после запуска.
+enum UITestHooks {
+    static var scheme: ColorScheme? {
+        guard Env.isUITest else { return nil }
+        switch Env.value("PET_SCHEME") {
+        case "dark": return .dark
+        case "light": return .light
+        default: return nil
+        }
+    }
+
+    static var openURL: URL? {
+        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings"].contains(v) else { return nil }
+        return URL(string: "pet://\(v)")
     }
 }

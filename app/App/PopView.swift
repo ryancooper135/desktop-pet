@@ -7,11 +7,14 @@ struct Pop: Identifiable, Equatable, Sendable {
     let id: UUID
     let text: String
     let point: CGPoint
+    /// SF Symbol вместо (или после) текста: сердечко ласки рисуется символом, а не эмодзи.
+    let symbol: String?
 
-    init(text: String, point: CGPoint) {
+    init(text: String, point: CGPoint, symbol: String? = nil) {
         id = UUID()
         self.text = text
         self.point = point
+        self.symbol = symbol
     }
 }
 
@@ -25,8 +28,15 @@ struct PopView: View {
     @State private var gone = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Текст и символ одной строкой; символ красится тем же цветом, что и цифра.
+    private var label: Text {
+        guard let symbol = pop.symbol else { return Text(pop.text) }
+        let icon = Image(systemName: symbol)
+        return pop.text.isEmpty ? Text(icon) : Text("\(pop.text) \(icon)")
+    }
+
     var body: some View {
-        Text(pop.text)
+        label
             .font(.system(size: 20, weight: .heavy, design: .rounded))
             .foregroundStyle(PetPalette.red)
             .shadow(color: .white.opacity(0.8), radius: 2)

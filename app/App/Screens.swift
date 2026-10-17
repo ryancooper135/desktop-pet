@@ -30,6 +30,8 @@ struct NeedsSheet: View {
         }
         .padding(20)
         .background(PetPalette.bg.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("needs.sheet")
     }
 
     /// «Проголодается в 18:00» — ближайшее событие прогноза на сутки.
@@ -120,6 +122,8 @@ struct AwayScreen: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PetPalette.bg.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("away.screen")
     }
 }
 
@@ -136,7 +140,17 @@ struct SettingsScreen: View {
     /// 20:00–23:55 и 00:00–02:00 с шагом 5 минут.
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
 
+    /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
+    static var showDevTools: Bool {
+        #if DEBUG
+        return !Env.isUITest
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
+        let name = model.snap.name
         NavigationStack {
             Form {
                 Section {
@@ -145,26 +159,39 @@ struct SettingsScreen: View {
                             Text(Self.hm(m)).tag(m)
                         }
                     }
+                    .listRowBackground(PetPalette.card)
                 } header: {
                     Text("Лампа")
                 } footer: {
-                    Text("Через 15 минут после этого времени Шиба тоже ляжет спать.")
+                    Text("Через 15 минут после этого времени \(name) тоже ляжет спать.")
                 }
 
                 Section {
-                    Toggle("Шиба в острове", isOn: $island)
+                    Toggle("\(name) в островке", isOn: $island)
+                        .listRowBackground(PetPalette.card)
+                } header: {
+                    Text("Островок")
                 } footer: {
-                    Text("Live Activity: питомец в Dynamic Island и на экране блокировки, с кнопками.")
+                    Text("Островок — тёмная область вокруг камеры вверху экрана. Там и на экране блокировки видно питомца и кнопки ухода.")
                 }
 
-                Section("Для разработки") {
-                    NavigationLink("Каталог превью") { PreviewCatalogScreen() }
+                if Self.showDevTools {
+                    Section("Для разработки") {
+                        NavigationLink("Каталог превью") { PreviewCatalogScreen() }
+                            .listRowBackground(PetPalette.card)
+                    }
                 }
 
                 Section {
                     Button("Начать заново", role: .destructive) { confirmStartOver = true }
+                        .listRowBackground(PetPalette.card)
                 }
             }
+            // Тёплая «бумага» приложения вместо системного серого фона списка.
+            .scrollContentBackground(.hidden)
+            .background(PetPalette.bg.ignoresSafeArea())
+            .tint(PetPalette.accent)
+            .toolbarBackground(PetPalette.bg, for: .navigationBar)
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -196,6 +223,7 @@ struct SettingsScreen: View {
                 Button("Отмена", role: .cancel) {}
             }
         }
+        .presentationBackground(PetPalette.bg)
     }
 
     static func hm(_ m: Int) -> String {
