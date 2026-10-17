@@ -67,7 +67,7 @@ struct AccessoryInlineView: View {
         Label {
             Text(snap.shortLine)
         } icon: {
-            ThoughtBubble.symbol(snap.wantIcon ?? (snap.alive ? "pawprint.fill" : "cloud"))
+            ThoughtBubble.symbol(snap.wantIcon ?? (snap.pose == .away ? "figure.walk" : (snap.alive ? "pawprint.fill" : "cloud")))
         }
     }
 }

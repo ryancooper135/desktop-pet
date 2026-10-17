@@ -1,4 +1,5 @@
-// Траектории хореографии: миска под мордой на время еды, мяч и пробежка в «Поиграть», взгляд за мячом.
+// Траектории хореографии: миска под мордой на время еды, мяч и пробежка в «Поиграть», взгляд за мячом,
+// уход на прогулку и возвращение с находкой.
 // Чистая математика ChoreoPath, без сцены.
 
 import Foundation
@@ -356,5 +357,113 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand, available: all), ["play_bow"])
         let hopOnly: Set<String> = Set(PetClipNames.required).union(["hop"])
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand, available: hopOnly), ["hop"])
+    }
+
+    // MARK: прогулка
+
+    typealias W = ChoreoPath.Walk
+
+    /// За краем Шиба весь — и мордой к краю (уходит), и мордой к дому (возвращается) — на любом айфоне.
+    @MainActor
+    func testWalkExitOffFrame() {
+        for aspect in Self.portraitAspects {
+            for yaw in [W.yawOut, W.yawIn] {
+                for p in petCorners(ChoreoPath.PetPose(position: W.offstage, yaw: yaw)) {
+                    XCTAssertGreaterThan(ndcX(p, aspect: aspect), 1.02, "виден у края, yaw=\(yaw), aspect=\(aspect)")
+                }
+            }
+            // Находка в зубах тоже не торчит из-за края.
+            let f = SIMD3<Float>(sin(W.yawIn), 0, cos(W.yawIn))
+            let prop = W.offstage + f * W.carry.z + SIMD3<Float>(0, W.carry.y, 0)
+            XCTAssertGreaterThan(ndcX(prop, aspect: aspect), 1.02)
+        }
+        // Точка разворота перед уходом — в кадре при любом повороте.
+        let a = ChoreoPath.playArea
+        XCTAssertTrue(near(a.clamp(W.turnAt, inset: ChoreoPath.petReachMax), W.turnAt, 1e-4))
+    }
+
+    /// Уход: из дома в 3/4, разворот через «лицом к камере», дальше только вправо и без рывков, в конце — за краем.
+    func testWalkOutPath() {
+        let start = ChoreoPath.walkOut(0)
+        XCTAssertTrue(near(start.position, .zero))
+        XCTAssertEqual(start.yaw, PetRoom.yaw3q, accuracy: 1e-5)
+        XCTAssertLessThan(PetRoom.yaw3q, 0)
+        XCTAssertGreaterThan(W.yawOut, 0, "поворот к краю — через морду к камере (yaw 0), не через спину")
+        let end = ChoreoPath.walkOut(W.outLength)
+        XCTAssertTrue(near(end.position, W.offstage))
+        var prev = start
+        var u = 0.01
+        while u <= W.outLength + 1e-9 {
+            let p = ChoreoPath.walkOut(u)
+            XCTAssertLessThan(simd_distance(p.position, prev.position), 1.5 * W.speed * 0.01 * 1.05 + 1e-4, "рывок, u=\(u)")
+            XCTAssertLessThan(abs(p.yaw - prev.yaw), 0.08, "крутанулся, u=\(u)")
+            if u > W.turnOut { XCTAssertGreaterThanOrEqual(p.position.x, prev.position.x - 1e-5, "попятился, u=\(u)") }
+            XCTAssertGreaterThanOrEqual(p.position.z, ChoreoPath.playArea.farZ)
+            XCTAssertLessThanOrEqual(p.position.z, ChoreoPath.playArea.nearZ)
+            prev = p
+            u += 0.01
+        }
+    }
+
+    /// Возвращение: из-за края домой с торможением, дома — снова в 3/4.
+    func testWalkInPath() {
+        let start = ChoreoPath.walkIn(0)
+        XCTAssertTrue(near(start.position, W.offstage))
+        XCTAssertEqual(start.yaw, W.yawIn, accuracy: 1e-5)
+        let home = ChoreoPath.walkIn(W.inWalk + W.turnIn)
+        XCTAssertTrue(near(home.position, .zero))
+        XCTAssertEqual(home.yaw, PetRoom.yaw3q, accuracy: 1e-5)
+        XCTAssertEqual(ChoreoPath.walkIn(W.inLength), home)
+        var prev = start
+        var u = 0.01
+        while u <= W.inLength + 1e-9 {
+            let p = ChoreoPath.walkIn(u)
+            XCTAssertLessThan(simd_distance(p.position, prev.position), 1.5 * W.speed * 0.01 * 1.05 + 1e-4, "рывок, u=\(u)")
+            XCTAssertLessThan(abs(p.yaw - prev.yaw), 0.08, "крутанулся, u=\(u)")
+            XCTAssertLessThanOrEqual(p.position.x, prev.position.x + 1e-5, "попятился, u=\(u)")
+            prev = p
+            u += 0.01
+        }
+        // Мяч по пути не задевает: проходит позади него.
+        let ball = PetRoom.ballPos
+        u = 0
+        while u <= W.inWalk {
+            let p = ChoreoPath.walkIn(u).position
+            XCTAssertGreaterThan(ball.z - p.z, ChoreoPath.petHalfWidth + ChoreoPath.Play.ballRadius, "u=\(u)")
+            u += 0.05
+        }
+    }
+
+    /// Прогулку отменили на полпути: возвращение начинается с той же дальности от дома.
+    func testWalkInStart() {
+        XCTAssertEqual(ChoreoPath.walkInStart(from: W.offstage), 0, accuracy: 1e-3)
+        XCTAssertEqual(ChoreoPath.walkInStart(from: .zero), W.inWalk, accuracy: 1e-3)
+        let mid = ChoreoPath.walkOut(W.turnOut + W.outWalk * 0.6).position
+        let u = ChoreoPath.walkInStart(from: mid)
+        XCTAssertGreaterThan(u, 0)
+        XCTAssertLessThan(u, W.inWalk)
+        XCTAssertEqual(simd_length(ChoreoPath.walkIn(u).position), simd_length(SIMD3<Float>(mid.x, 0, mid.z)), accuracy: 2e-3)
+    }
+
+    /// Находка: в зубах до прихода, падает перед мордой, лежит, тает и уходит; масштаб не 0 (RealityKit).
+    func testWalkProp() {
+        XCTAssertEqual(ChoreoPath.walkProp(0)?.position, W.carry)
+        XCTAssertEqual(ChoreoPath.walkProp(W.dropAt - 0.01)?.position, W.carry)
+        XCTAssertEqual(ChoreoPath.walkProp(W.dropAt + W.dropTime + 0.1)?.position, W.dropped)
+        XCTAssertGreaterThan(W.dropped.z, W.carry.z - 0.01, "кладёт перед собой, а не под лапы")
+        XCTAssertNil(ChoreoPath.walkProp(W.inLength + 0.01))
+        var u = 0.0
+        var prev = W.carry
+        while u < W.inLength {
+            guard let p = ChoreoPath.walkProp(u) else { return XCTFail("пропала раньше конца, u=\(u)") }
+            XCTAssertGreaterThan(p.scale, 0)
+            XCTAssertLessThanOrEqual(p.scale, 1)
+            XCTAssertGreaterThanOrEqual(p.position.y, 0)
+            XCTAssertLessThan(simd_distance(p.position, prev), 0.05, "скачок, u=\(u)")
+            prev = p.position
+            u += 0.01
+        }
+        // Дома держит позу, пока находка не ушла: режиссёр ставит следующую позу не раньше прихода.
+        XCTAssertGreaterThan(W.inLength, W.inWalk + W.turnIn)
     }
 }

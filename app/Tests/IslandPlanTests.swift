@@ -165,7 +165,7 @@ final class IslandPlanTests: XCTestCase {
             XCTAssertFalse(a.title.isEmpty)
             XCTAssertFalse(a.icon.isEmpty)
         }
-        for a in [IslandAct.sleep, .wait, .open, .rest] { XCTAssertNil(a.action, a.rawValue) }
+        for a in [IslandAct.sleep, .wait, .walk, .open, .rest] { XCTAssertNil(a.action, a.rawValue) }
         XCTAssertEqual(IslandAct.feed.action, .feed(Catalog.mainFood))
         XCTAssertEqual(IslandAct.heal.action, .item(Catalog.healItem))
         XCTAssertEqual(IslandAct(rescueKey: "food"), .feed)

@@ -76,7 +76,7 @@ final class GuideCenter {
     }
 
     private func screenFree(_ model: AppModel) -> Bool {
-        active && sheet == nil && model.away == nil && !model.showNeeds && !model.showSettings && model.storeError == nil
+        active && sheet == nil && model.away == nil && !model.showNeeds && !model.showSettings && !model.showAlbum && model.storeError == nil
     }
 
     private func evaluate() async {

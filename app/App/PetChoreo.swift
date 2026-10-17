@@ -1,4 +1,5 @@
-// Хореография сцены: миска под мордой на время еды, мяч в «Поиграть», взгляд головой и моргание.
+// Хореография сцены: миска под мордой на время еды, мяч в «Поиграть», уход на прогулку и возвращение
+// с находкой, взгляд головой и моргание.
 // ChoreoPath — чистые траектории без RealityKit (их покрывает PetChoreoTests). PetChoreo ведёт их по часам
 // ClipState: двигает обёртку питомца с пятном-тенью, миску и мяч и ставит клипы на границах отрезков игры.
 // PetRig поворачивает шею и голову к взгляду (кости Neck3 и Head) и моргает подменой материалов глаз.
@@ -349,6 +350,102 @@ enum ChoreoPath {
     }
 }
 
+extension ChoreoPath {
+    // MARK: прогулка
+
+    /// «Гулять»: Шиба на месте разворачивается через «лицом к камере», чуть отходя назад (иначе морда задела бы мяч),
+    /// и уходит шагом за правый край кадра; комната пустеет (PetChoreo прячет тело и пятно, на месте — записка).
+    /// Возвращается оттуда же с находкой в зубах, дома встаёт в 3/4, кладёт находку перед собой и виляет хвостом;
+    /// находка подпрыгивает и тает — «ушла в альбом». Время u — от начала ухода (после перехода в стойку)
+    /// или от начала возвращения. Числа — на глаз, сверять по раскадровке anim-walk.
+    enum Walk {
+        /// Где разворачивается перед уходом: назад от мяча, чтобы морда при повороте его не задела.
+        static let turnAt = SIMD3<Float>(0.02, 0, -0.16)
+        /// Точка за правым краем кадра: Шиба там целиком за краем playArea (testWalkExitOffFrame).
+        static let offstage = SIMD3<Float>(0.95, 0, -0.15)
+        /// Скорость шага, м/с: под клип walk, чтобы лапы не скользили. Править по anim-walk.
+        static let speed: Float = 0.4
+        /// Разворот на месте перед уходом и дома после прихода.
+        static let turnOut = 0.6, turnIn = 0.5
+        /// Находка: падает из пасти, лежит перед мордой, подпрыгивает и тает.
+        static let dropTime = 0.3, showTime = 1.8, fadeTime = 0.35
+        /// Где держит находку и куда кладёт — в осях питомца (морда к +z), начало пропа — внизу.
+        /// Пасть у Шибы ~0.25 м над полом и ~0.3 м вперёд от центра (как миска под мордой при еде).
+        /// Проп не привязан к кости головы: при кивках может чуть разойтись с пастью — сверять по anim-walk.
+        static let carry = SIMD3<Float>(0, 0.235, 0.30)
+        static let dropped = SIMD3<Float>(0, PetRoom.blobY, 0.36)
+
+        static var outWalk: Double { Double(simd_length(offstage - turnAt) / speed) }
+        static var inWalk: Double { Double(simd_length(offstage) / speed) }
+        static var outLength: Double { turnOut + outWalk }
+        static var dropAt: Double { inWalk + turnIn }
+        static var inLength: Double { dropAt + dropTime + showTime + fadeTime }
+        static var yawOut: Float { ChoreoPath.yaw(toward: offstage - turnAt) }
+        static var yawIn: Float { ChoreoPath.yaw(toward: -offstage) }
+    }
+
+    /// Разгон с места: 0 → 1, скорость в начале 0, в конце 1.5 — уходит за край, не тормозя.
+    static func accel(_ x: Double) -> Float { let t = clamp01(x); return t * t * (3 - t) / 2 }
+
+    /// Уход: разворот через «лицом к камере» с шагом назад к turnAt, потом шаг к offstage с разгоном.
+    static func walkOut(_ u: Double) -> PetPose {
+        typealias W = Walk
+        let y0 = PetRoom.yaw3q
+        if u < W.turnOut {
+            let s = smooth(u / W.turnOut)
+            return PetPose(position: W.turnAt * s, yaw: y0 + (W.yawOut - y0) * s)
+        }
+        return PetPose(position: W.turnAt + (W.offstage - W.turnAt) * accel((u - W.turnOut) / W.outWalk), yaw: W.yawOut)
+    }
+
+    /// Возвращение: из-за края домой с торможением (мордой влево, мяч остаётся сбоку), дома — в 3/4.
+    static func walkIn(_ u: Double) -> PetPose {
+        typealias W = Walk
+        let y0 = PetRoom.yaw3q
+        if u < W.inWalk {
+            let s = 1 - accel(1 - u / W.inWalk)
+            return PetPose(position: W.offstage * (1 - s), yaw: W.yawIn)
+        }
+        return PetPose(position: .zero, yaw: W.yawIn + (y0 - W.yawIn) * smooth((u - W.inWalk) / W.turnIn))
+    }
+
+    /// С какого u возвращения начать, если Шиба ещё не скрылся (прогулку отменили на полпути):
+    /// точка на пути домой на том же расстоянии от дома.
+    static func walkInStart(from p: SIMD3<Float>) -> Double {
+        let q = min(max(simd_length(SIMD3<Float>(p.x, 0, p.z)) / simd_length(Walk.offstage), 0), 1)
+        // accel(1 - u/inWalk) = q, accel монотонна — делим пополам.
+        var lo = 0.0, hi = 1.0
+        for _ in 0..<30 {
+            let mid = (lo + hi) / 2
+            if accel(mid) < q { lo = mid } else { hi = mid }
+        }
+        return (1 - lo) * Walk.inWalk
+    }
+
+    struct PropPose: Equatable {
+        /// В осях питомца.
+        var position: SIMD3<Float>
+        var scale: Float
+    }
+
+    /// Находка в момент u возвращения: в пасти → падает перед мордой → лежит → подпрыгивает и тает. nil — уже в альбоме.
+    static func walkProp(_ u: Double) -> PropPose? {
+        typealias W = Walk
+        let d = u - W.dropAt
+        if d < 0 { return PropPose(position: W.carry, scale: 1) }
+        if d < W.dropTime {
+            return PropPose(position: W.carry + (W.dropped - W.carry) * easeIn(d / W.dropTime), scale: 1)
+        }
+        let f = d - W.dropTime - W.showTime
+        if f < 0 { return PropPose(position: W.dropped, scale: 1) }
+        if f < W.fadeTime {
+            let k = f / W.fadeTime
+            return PropPose(position: W.dropped + SIMD3<Float>(0, 0.12 * easeOut(k), 0), scale: max(1 - easeIn(k), 0.001))
+        }
+        return nil
+    }
+}
+
 // MARK: - Компоненты
 
 /// Что сейчас ведёт хореография. Часы — ClipState.clock.
@@ -376,9 +473,26 @@ struct ChoreoState: Component {
         var side: Float
     }
 
+    struct Walk {
+        /// true — уходит, false — возвращается.
+        var out: Bool
+        /// Часы на начале ухода (после перехода в стойку) или возвращения.
+        var start: Double
+        /// Находка в зубах (id); пусто — без находки.
+        var find: String
+        /// Виляние хвостом дома уже поставлено.
+        var cued = false
+    }
+
     var feed: Feed?
     var play: Play?
     var petting: Petting?
+    var walk: Walk?
+    /// Гуляет: тело и пятно спрятаны, комната пустая.
+    var hidden = false
+    /// Последнее возвращение, которое сцена уже видела (AppModel.walkHome.id), как lastReactionId у реакций.
+    var walkHomeId = 0
+    var walkPrimed = false
     var active = false
     /// Переход к новой траектории (начало игры, отмена) из того, что стояло, за PetChoreo.blend.
     var blendStart: Double = -100
@@ -427,6 +541,14 @@ enum PetChoreo {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
         let present = bowlAtSnout(cs, clock)
         interrupt(&cs, clock)
+        if let w = cs.walk, !w.out, clock - w.start < ChoreoPath.Walk.inWalk {
+            // Новое действие, пока идёт домой: находка сразу «в альбоме», Шиба плавно домой.
+            // Дома (поза после прихода) находка доигрывает сама.
+            cs.walk = nil
+            removeProp(pet)
+            snapshot(&cs, clock)
+            cs.active = true
+        }
         if cs.petting != nil {
             cs.petting = nil
             relax(pet)
@@ -473,6 +595,10 @@ enum PetChoreo {
         guard var cs = pet.components[ChoreoState.self], cs.active else { return }
         cs.feed = nil
         cs.play = nil
+        if cs.walk != nil {
+            cs.walk = nil
+            removeProp(pet)
+        }
         if cs.petting != nil {
             cs.petting = nil
             relax(pet)
@@ -558,6 +684,28 @@ enum PetChoreo {
             ball = ChoreoPath.ball(u)
             look = ChoreoPath.look(u, limit: PetFace.limit)
             cs.play = u >= ChoreoPath.Play.length ? nil : p
+        } else if var w = cs.walk {
+            let u = now - w.start
+            if w.out {
+                pose = ChoreoPath.walkOut(max(u, 0))
+                if u >= ChoreoPath.Walk.outLength {
+                    // Ушёл за край: комната пустая до возвращения.
+                    cs.walk = nil
+                    cs.hidden = true
+                    setHidden(pet, true)
+                }
+            } else {
+                pose = ChoreoPath.walkIn(u)
+                if !w.cued && u >= ChoreoPath.Walk.inWalk {
+                    // Дома: виляет хвостом, пока кладёт находку; новую позу потом поставит режиссёр (lockUntil).
+                    w.cued = true
+                    let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
+                    ClipPlayer.play(PetStance.pick(["happy_wag"], available: available), then: "idle", on: pet,
+                                    transition: 0.2, randomSpeed: false, initial: false)
+                }
+                placeProp(pet, ChoreoPath.walkProp(u))
+                cs.walk = u >= ChoreoPath.Walk.inLength ? nil : w
+            }
         }
 
         var bliss = false
@@ -586,10 +734,143 @@ enum PetChoreo {
             face.bliss = bliss
             pet.components.set(face)
         }
-        if cs.feed == nil && cs.play == nil && cs.petting == nil && k >= 1 {
+        if cs.feed == nil && cs.play == nil && cs.petting == nil && cs.walk == nil && k >= 1 {
             cs.active = false
         }
         pet.components.set(cs)
+    }
+
+    // MARK: прогулка
+
+    /// Прогулка по позе и счётчику возвращений (AppModel.walkHome). Вызывать до PetModel.apply: возвращение
+    /// держит новую позу (lockUntil), пока Шиба не дойдёт до дома, потом её ставит режиссёр (pendingPose).
+    /// Сразу, без шага: первый вызов (открыли экран — гуляет, значит комната пустая; вернулся, пока приложение
+    /// было закрыто, — просто стоит дома), Reduce Motion, заглушка без клипов и смерть (instant).
+    static func walk(_ pet: Entity, away: Bool, instant: Bool, homeId: Int, find: String, reduceMotion: Bool) {
+        var cs = pet.components[ChoreoState.self] ?? ChoreoState()
+        let fresh = cs.walkPrimed && homeId != cs.walkHomeId
+        let first = !cs.walkPrimed
+        cs.walkPrimed = true
+        cs.walkHomeId = homeId
+        guard var st = pet.components[ClipState.self], ClipTable.shared != nil,
+              !reduceMotion, !first, !instant else {
+            if cs.walk != nil {
+                cs.walk = nil
+                removeProp(pet)
+            }
+            if cs.hidden != away {
+                cs.hidden = away
+                cs.pos = .zero
+                cs.yaw = PetRoom.yaw3q
+                cs.blendStart = -100
+                place(pet, cs, pet.scene?.findEntity(named: "room"))
+            }
+            setHidden(pet, away)
+            pet.components.set(cs)
+            return
+        }
+        let now = st.clock
+
+        if away {
+            // Уже ушёл или уходит.
+            guard !cs.hidden, cs.walk?.out != true else {
+                pet.components.set(cs)
+                return
+            }
+            // Уход — после перехода в стойку (его сыграет drive) и после идущей реакции.
+            let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
+            let path = PetStance.pick(PetStance.path(from: st.stance, to: .stand), available: available)
+            let start = max(now, st.lockUntil) + path.reduce(0) { $0 + duration($1) }
+            interrupt(&cs, now)
+            if cs.petting != nil {
+                cs.petting = nil
+                relax(pet)
+            }
+            if cs.walk != nil { removeProp(pet) }
+            snapshot(&cs, now)
+            cs.walk = .init(out: true, start: start, find: "")
+            cs.active = true
+            pet.components.set(cs)
+            return
+        }
+
+        if let w = cs.walk, w.out, now - w.start < ChoreoPath.Walk.turnOut {
+            // Прогулку отменили до первого шага (ночь, беда): просто домой.
+            cs.walk = nil
+            snapshot(&cs, now)
+            cs.active = true
+            pet.components.set(cs)
+            return
+        }
+        guard cs.hidden || cs.walk?.out == true else {
+            // Уже дома или идёт домой: находку, пришедшую чуть позже позы, всё равно дать в зубы.
+            if fresh, !find.isEmpty, var w = cs.walk, !w.out, w.find.isEmpty {
+                w.find = find
+                cs.walk = w
+                addProp(pet, find)
+            }
+            pet.components.set(cs)
+            return
+        }
+
+        // Возвращение: из-за края (или с полпути), шагом, с находкой в зубах.
+        var start = now
+        if cs.hidden {
+            cs.pos = ChoreoPath.Walk.offstage
+            cs.yaw = ChoreoPath.Walk.yawIn
+            cs.blendStart = -100
+        } else {
+            start = now - ChoreoPath.walkInStart(from: cs.pos)
+            snapshot(&cs, now)
+        }
+        cs.hidden = false
+        setHidden(pet, false)
+        let item = fresh ? find : ""
+        removeProp(pet)
+        if !item.isEmpty { addProp(pet, item) }
+        cs.walk = .init(out: false, start: start, find: item)
+        cs.active = true
+        place(pet, cs, pet.scene?.findEntity(named: "room"))
+        pet.components.set(cs)
+
+        ClipPlayer.play([], then: "walk", on: pet, transition: 0.2, randomSpeed: false, initial: false)
+        let wag = PetStance.pick(["happy_wag"], available: Set(ClipTable.shared?.clips.keys.map { $0 } ?? []))
+        let home = start + ChoreoPath.Walk.inWalk
+        let hold = home + max(ChoreoPath.Walk.turnIn, wag.reduce(0) { $0 + duration($1) })
+        st.current = "~walk"
+        st.stance = .stand
+        st.loop = "walk"
+        st.reactionSteps = []
+        st.busyUntil = hold
+        st.lockUntil = hold
+        st.nextFidgetAt = hold + Double.random(in: 15...25)
+        pet.components.set(st)
+    }
+
+    /// Гуляет: прячем тело (обёртку с дыханием) и пятно-тень; сама обёртка остаётся — её часы и системы идут.
+    static func setHidden(_ pet: Entity, _ hidden: Bool) {
+        pet.findEntity(named: PetModel.pivotName)?.isEnabled = !hidden
+        pet.parent?.children.first(where: { $0.name == "blobShadow" })?.isEnabled = !hidden
+    }
+
+    static func addProp(_ pet: Entity, _ find: String) {
+        let prop = PetRoom.findProp(find)
+        prop.position = ChoreoPath.Walk.carry
+        pet.addChild(prop)
+    }
+
+    static func removeProp(_ pet: Entity) {
+        pet.children.first(where: { $0.name == PetRoom.propName })?.removeFromParent()
+    }
+
+    static func placeProp(_ pet: Entity, _ p: ChoreoPath.PropPose?) {
+        guard let prop = pet.children.first(where: { $0.name == PetRoom.propName }) else { return }
+        guard let p else {
+            prop.removeFromParent()
+            return
+        }
+        prop.position = p.position
+        prop.scale = SIMD3<Float>(repeating: p.scale)
     }
 
     /// Обёртка питомца и пятно-тень (оба в подставке) и мяч (в комнате).

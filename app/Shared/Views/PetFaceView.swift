@@ -18,7 +18,7 @@ struct UnitPath: Shape {
 struct FaceExpression: Hashable, Sendable {
     enum Eyes: Hashable, Sendable { case open, wide, happy, closed, sleepy, sad, aside }
     enum Mouth: Hashable, Sendable { case smile, open, tongue, flat, frown, small }
-    enum Extra: Hashable, Sendable { case none, zzz, heart, bubbles, dirt, sweat, halo, crumbs, cloud }
+    enum Extra: Hashable, Sendable { case none, zzz, heart, bubbles, dirt, sweat, halo, crumbs, cloud, walk }
 
     var eyes: Eyes
     var mouth: Mouth
@@ -43,6 +43,8 @@ struct FaceExpression: Hashable, Sendable {
         case .sulky: return .init(eyes: .aside, mouth: .frown, blush: false, extra: .cloud, brows: true)
         case .critical: return .init(eyes: .sad, mouth: .frown, blush: false, extra: .sweat, brows: true)
         case .dead: return .init(eyes: .closed, mouth: .small, blush: false, extra: .halo)
+        // Гуляет: мордочка бледная («дома его нет»), поверх — значок прогулки.
+        case .away: return .init(eyes: .happy, mouth: .tongue, blush: false, extra: .walk)
         }
     }
 }
@@ -53,6 +55,8 @@ struct PetFaceView: View {
     var mono: Bool = false
 
     private var ex: FaceExpression { FaceExpression.of(pose) }
+    /// Насколько бледнеет мордочка, пока Шиба гуляет. Работает и в mono (прозрачность, не цвет).
+    static let awayFade: Double = 0.3
 
     var body: some View {
         GeometryReader { geo in
@@ -71,6 +75,7 @@ struct PetFaceView: View {
                     .blendMode(mono ? .destinationOut : .normal)
                 }
                 .compositingGroup()
+                .opacity(pose == .away ? Self.awayFade : 1)
                 if ex.blush && !mono { blush }
                 extra(side: side)
             }
@@ -281,6 +286,16 @@ struct PetFaceView: View {
                 .font(.system(size: 14 * u))
                 .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft.opacity(0.8)))
                 .offset(x: 36 * u, y: -38 * u)
+        case .walk:
+            ZStack {
+                Image(systemName: "figure.walk")
+                    .font(.system(size: 46 * u, weight: .semibold))
+                    .offset(x: 4 * u, y: 4 * u)
+                Image(systemName: "pawprint.fill")
+                    .font(.system(size: 13 * u))
+                    .offset(x: 36 * u, y: -36 * u)
+            }
+            .foregroundStyle(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.nose))
         }
     }
 
@@ -317,6 +332,7 @@ struct PetFaceView: View {
         case .sulky: return "Шиба обиделся"
         case .critical: return "Шибе очень плохо"
         case .dead: return "Шибы больше нет"
+        case .away: return "Шиба ушёл гулять"
         }
     }
 }

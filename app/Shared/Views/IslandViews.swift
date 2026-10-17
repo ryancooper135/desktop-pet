@@ -17,7 +17,7 @@ extension IslandAct {
         case .pet: return PetPalette.need(.love)
         case .heal: return PetPalette.red
         case .wake: return PetPalette.yellow
-        case .sleep, .wait, .open, .rest: return PetPalette.soft
+        case .sleep, .wait, .walk, .open, .rest: return PetPalette.soft
         }
     }
 }

@@ -59,6 +59,7 @@ enum SnapshotMood: String, CaseIterable, Sendable {
     case hungry    // голодный
     case asleep    // спит ночью
     case critical  // критично: мало сердец
+    case walking   // ушёл гулять: «Гуляет» и отсчёт до возвращения
 }
 
 struct SnapshotCase {

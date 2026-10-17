@@ -7,6 +7,8 @@ import Foundation
 /// Поза и выражение мордочки.
 enum Pose: String, Codable, CaseIterable, Hashable, Sendable {
     case happy, idle, eating, loved, sleep, nap, bath, hungry, dirty, tired, bored, lonely, sulky, critical, dead
+    /// Ушёл гулять: в комнате пусто, мордочка — значок прогулки.
+    case away
 }
 
 /// Главная кнопка: одно самое полезное действие сейчас.
@@ -200,8 +202,8 @@ enum Presenter {
         }
         switch mood {
         case .dead: return .dead
-        // Своей позы прогулки пока нет (PetStance в app/App перебирает Pose): довольный, сцену «ушёл» рисует UI.
-        case .walking: return .happy
+        // Гуляет: Шибы дома нет. Сцена уводит его за край, виджет и остров показывают «Гуляет» с таймером.
+        case .walking: return .away
         case .critical: return .critical
         case .bath: return .bath
         case .sleep: return .sleep

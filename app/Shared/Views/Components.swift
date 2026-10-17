@@ -143,6 +143,7 @@ struct NeedTimerView: View {
         switch kind {
         case "bath": return "drop.fill"
         case "nap": return "moon.zzz.fill"
+        case "walk": return "figure.walk"
         default: return "clock"
         }
     }
