@@ -45,7 +45,7 @@ final class AnimationUITests: XCTestCase {
         try recordAction("act.walk", name: "anim-walk-out", count: 24, step: 0.3)
     }
 
-    /// Возвращение: сид PET_SEED=walk_back — гуляет и вернётся через 12 с после запуска. Сначала пустая
+    /// Возвращение: сид PET_SEED=walk_back — гуляет и вернётся через 6 с после запуска. Сначала пустая
     /// комната с запиской, потом Шиба входит с шишкой в зубах, кладёт её, радуется, находка тает.
     @MainActor
     func testWalkBackFrames() throws {

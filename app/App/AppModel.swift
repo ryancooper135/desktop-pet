@@ -180,7 +180,11 @@ final class AppModel {
         walkTask?.cancel()
         walkAt = s.outing?.until
         guard let w = s.outing else { return }
-        let wait = Swift.max(0.5, w.until - s.t + 0.5)
+        // Ядро идёт шагами по 60 с (PetEngine.STEP) от s.t: прогулка снимается на первом шаге с t ≥ until,
+        // а шаг засчитывается, только когда прошёл целиком, — возвращение видно через 60–120 с после until.
+        let step = 60.0
+        let k = Swift.max(0, ((w.until - s.t) / step).rounded(.up))
+        let wait = Swift.max(0.5, s.t + (k + 1) * step - Clock.now() + 0.3)
         walkTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(wait))
             if Task.isCancelled { return }
@@ -563,7 +567,7 @@ enum AwayBuilder {
 
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
 /// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
-/// walk_back — вернётся через 12 с при открытом приложении, для раскадровки anim-walk). Срабатывает один раз за запуск.
+/// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk). Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
 
@@ -614,8 +618,14 @@ enum LaunchSeed {
             case "walk", "walk_back":
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
-                let back = seed == "walk" ? 20 * 60.0 : 12
-                f.pet.outing = Outing(from: now - 40 * 60, until: now + back, find: "cone")
+                if seed == "walk" {
+                    f.pet.outing = Outing(from: now - 40 * 60, until: now + 20 * 60, find: "cone")
+                } else {
+                    // Ядро снимает прогулку на шаге в 60 с, засчитанном целиком: состояние «состарено» на 54 с,
+                    // и шаг с t ≥ until закончится через 6 с после запуска.
+                    f.pet.t = now - 54
+                    f.pet.outing = Outing(from: now - 40 * 60, until: f.pet.t, find: "cone")
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             default:
