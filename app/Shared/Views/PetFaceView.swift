@@ -62,10 +62,10 @@ struct PetFaceView: View {
                 ZStack {
                     head
                     ZStack {
-                        eyes
+                        eyes(u: side / 100)
                         nose
-                        mouth
-                        if ex.brows { brows }
+                        mouth(u: side / 100)
+                        if ex.brows { brows(u: side / 100) }
                     }
                     .compositingGroup()
                     .blendMode(mono ? .destinationOut : .normal)
@@ -130,13 +130,17 @@ struct PetFaceView: View {
 
     // MARK: глаза
 
-    @ViewBuilder private var eyes: some View {
+    /// Толщина линии: задана в сетке 100×100, на экране — пропорционально размеру, но не тоньше 1 pt.
+    /// Раньше была в точках экрана: на 24-pt острове черты расплывались, на 150-pt виджете — ниточки.
+    nonisolated static func strokeWidth(_ base: CGFloat, side: CGFloat) -> CGFloat { Swift.max(1, base * side / 100) }
+
+    @ViewBuilder private func eyes(u: CGFloat) -> some View {
         ForEach([36.0, 64.0], id: \.self) { x in
-            eye(x: x)
+            eye(x: x, u: u)
         }
     }
 
-    @ViewBuilder private func eye(x: Double) -> some View {
+    @ViewBuilder private func eye(x: Double, u: CGFloat) -> some View {
         let y = 54.0
         switch ex.eyes {
         case .open, .wide, .sad, .aside:
@@ -154,25 +158,25 @@ struct PetFaceView: View {
         case .happy:
             UnitPath(unit: Self.arc(from: CGPoint(x: x - 5.5, y: y + 1.5), to: CGPoint(x: x + 5.5, y: y + 1.5),
                                     control: CGPoint(x: x, y: y - 7)))
-                .stroke(inkColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(inkColor, style: StrokeStyle(lineWidth: Self.strokeWidth(3, side: u * 100), lineCap: .round))
         case .closed:
             UnitPath(unit: Self.arc(from: CGPoint(x: x - 5.5, y: y), to: CGPoint(x: x + 5.5, y: y),
                                     control: CGPoint(x: x, y: y + 5.5)))
-                .stroke(inkColor, style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+                .stroke(inkColor, style: StrokeStyle(lineWidth: Self.strokeWidth(2.6, side: u * 100), lineCap: .round))
         case .sleepy:
             UnitPath(unit: Path(ellipseIn: CGRect(x: x - 5, y: y - 1, width: 10, height: 6))).fill(inkColor)
             UnitPath(unit: Self.line(CGPoint(x: x - 6.5, y: y - 1), CGPoint(x: x + 6.5, y: y - 1)))
-                .stroke(mono ? AnyShapeStyle(Color.black) : furColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(mono ? AnyShapeStyle(Color.black) : furColor, style: StrokeStyle(lineWidth: Self.strokeWidth(4, side: u * 100), lineCap: .round))
                 .blendMode(mono ? .destinationOut : .normal)
         }
     }
 
-    private var brows: some View {
+    private func brows(u: CGFloat) -> some View {
         ZStack {
             UnitPath(unit: Self.line(CGPoint(x: 30, y: 42), CGPoint(x: 40, y: 45)))
-                .stroke(inkColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(inkColor.opacity(0.7), style: StrokeStyle(lineWidth: Self.strokeWidth(2, side: u * 100), lineCap: .round))
             UnitPath(unit: Self.line(CGPoint(x: 70, y: 42), CGPoint(x: 60, y: 45)))
-                .stroke(inkColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .stroke(inkColor.opacity(0.7), style: StrokeStyle(lineWidth: Self.strokeWidth(2, side: u * 100), lineCap: .round))
         }
     }
 
@@ -182,8 +186,8 @@ struct PetFaceView: View {
         UnitPath(unit: Path(roundedRect: CGRect(x: 44.5, y: 61, width: 11, height: 7.5), cornerRadius: 3.6)).fill(inkColor)
     }
 
-    @ViewBuilder private var mouth: some View {
-        let stroke = StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round)
+    @ViewBuilder private func mouth(u: CGFloat) -> some View {
+        let stroke = StrokeStyle(lineWidth: Self.strokeWidth(2.2, side: u * 100), lineCap: .round, lineJoin: .round)
         switch ex.mouth {
         case .smile, .tongue:
             if ex.mouth == .tongue && !mono {
@@ -243,9 +247,9 @@ struct PetFaceView: View {
                 .offset(x: 34 * u, y: -36 * u)
         case .bubbles:
             ZStack {
-                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: 1.5 * u).frame(width: 10 * u).offset(x: -34 * u, y: -34 * u)
-                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: 1.5 * u).frame(width: 14 * u).offset(x: 36 * u, y: -38 * u)
-                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: 1.5 * u).frame(width: 7 * u).offset(x: 42 * u, y: -22 * u)
+                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: Swift.max(1, 1.5 * u)).frame(width: 10 * u).offset(x: -34 * u, y: -34 * u)
+                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: Swift.max(1, 1.5 * u)).frame(width: 14 * u).offset(x: 36 * u, y: -38 * u)
+                Circle().stroke(Color(hex: 0x6f9fd8), lineWidth: Swift.max(1, 1.5 * u)).frame(width: 7 * u).offset(x: 42 * u, y: -22 * u)
             }
             .opacity(mono ? 0.6 : 1)
         case .dirt:
@@ -262,7 +266,7 @@ struct PetFaceView: View {
                 .offset(x: 36 * u, y: -14 * u)
         case .halo:
             Ellipse()
-                .stroke(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.yellow), lineWidth: 2.5 * u)
+                .stroke(mono ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.yellow), lineWidth: Swift.max(1, 2.5 * u))
                 .frame(width: 34 * u, height: 9 * u)
                 .offset(y: -44 * u)
         case .crumbs:

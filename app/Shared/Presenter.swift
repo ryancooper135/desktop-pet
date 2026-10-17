@@ -85,6 +85,15 @@ struct PetSnapshot: Hashable, Sendable {
 
     var date: Date { Date(timeIntervalSince1970: t) }
 
+    /// Критично и ещё жив: виджеты и остров красят главную кнопку в красный «Спасти».
+    var critical: Bool { Presenter.isCritical(level: level, alive: alive) }
+
+    /// Спит ночью (не дрёма): гладить и кормить с виджета не предлагаем.
+    var sleeping: Bool { alive && mood == "sleep" }
+
+    /// Реплика для тесных мест (маленький виджет): своя, если короткая, иначе короткая островная.
+    var shortLine: String { Presenter.shortLine(line, island: islandLine) }
+
     var levelTitle: String {
         switch level {
         case 0: return "Всё хорошо"
@@ -228,6 +237,65 @@ enum Presenter {
         return NeedTimer(kind: "low", start: t, end: e.t, title: ForecastTools.title(e))
     }
 
+    // MARK: общие подписи для виджетов, острова и Siri (одно состояние — одни слова везде)
+
+    /// Подпись красной кнопки в критичном состоянии. Вкус — за Вадимом.
+    static let rescueTitle = "Спасти"
+    /// Статус спящего питомца — как у острова (IslandAct.sleep).
+    static let sleepTitle = "Спит"
+    /// Меньше этого таймер тикает секундами («25:13»), больше — «через 9 ч 25 мин».
+    static let liveCountdownBelow: Double = 3600
+    /// Реплика длиннее — маленький виджет берёт короткую островную.
+    static let shortLineMax = 24
+
+    static func isCritical(level: Int, alive: Bool) -> Bool { alive && level >= 3 }
+
+    static func shortLine(_ line: String, island: String) -> String {
+        line.count <= shortLineMax || island.isEmpty ? line : island
+    }
+
+    /// Секунды до конца → «9 ч 25 мин», «40 мин», «2 ч». Минуты вниз, но меньше минуты — «1 мин».
+    static func remainingText(_ seconds: Double) -> String {
+        guard seconds > 0 else { return "0 мин" }
+        let total = seconds < 60 ? 1 : Int((seconds / 60).rounded(.down))
+        let h = total / 60, m = total % 60
+        if h == 0 { return "\(m) мин" }
+        if m == 0 { return "\(h) ч" }
+        return "\(h) ч \(m) мин"
+    }
+
+    /// Нужда наступит («через») или занятие кончится («ещё»: ванна, дрёма).
+    static func timerPrefix(kind: String) -> String { kind == "low" ? "через" : "ещё" }
+
+    /// Тикать секундами или писать часы и минуты.
+    static func timerIsLive(remaining: Double) -> Bool { remaining < liveCountdownBelow }
+
+    /// Таймер одной строкой: «Испачкается через 9 ч 25 мин», «Моется ещё 4 мин». Пустой title — без него.
+    static func timerPhrase(kind: String, title: String, remaining: Double) -> String {
+        let tail = "\(timerPrefix(kind: kind)) \(remainingText(remaining))"
+        return title.isEmpty ? tail : "\(title) \(tail)"
+    }
+
+    /// Заголовок таймера, когда известна только шкала (остров: в ContentState нет title).
+    /// Те же слова, что ForecastTools.title для событий low/distress.
+    static func timerTitle(kind: String, need: String?) -> String {
+        switch kind {
+        case "bath": return "Моется"
+        case "nap": return "Дремлет"
+        default:
+            switch need {
+            case "food": return "Проголодается"
+            case "clean": return "Испачкается"
+            case "fun": return "Заскучает"
+            case "love": return "Затоскует"
+            default: return "Попросит"
+            }
+        }
+    }
+
+    /// Шкала на нуле: её подсвечиваем красным.
+    static func needEmpty(_ value: Double) -> Bool { value < 1 }
+
     // MARK: для «Команд» и Siri
 
     static func statusText(at t: Double = Clock.now()) -> String {
@@ -238,6 +306,9 @@ enum Presenter {
         let h = Int((snap.hearts - 1e-9).rounded(.up))
         parts.append("Сердечки: \(h) из \(Int(snap.heartsMax)).")
         if let w = snap.wantText { parts.append("Хочет: \(w).") }
+        if let tm = snap.timer, tm.end > t {
+            parts.append(timerPhrase(kind: tm.kind, title: tm.title, remaining: tm.end - t) + ".")
+        }
         return parts.joined(separator: " ")
     }
 
