@@ -469,6 +469,23 @@ final class PetLogicTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: broken.path), "старый файл не стёрт, а отложен")
     }
 
+    func testRepeatedRefusalLoggedOnce() {
+        var f = SaveFile.fresh(now: t0)
+        let first = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120)
+        XCTAssertFalse(first.ok)
+        let n = f.journal.count
+        for i in 1...30 {
+            let out = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + Double(i) * 5)
+            XCTAssertEqual(out, first, "отказ по-прежнему возвращается")
+        }
+        XCTAssertEqual(f.journal.count, n, "30 одинаковых отказов подряд — одна запись")
+        XCTAssertEqual(f.lastAction?.ok, false)
+        _ = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 60)
+        XCTAssertEqual(f.journal.count, n + 1, "через 10 минут тот же отказ пишется снова")
+        _ = PetRunner.apply(.pet, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 70)
+        XCTAssertEqual(f.journal.last?.kind, "act.pet", "другое действие пишется сразу")
+    }
+
     func testPerformWritesJournalAndLastAction() throws {
         let dir = StoreHooks.makeTempStoreDir("pet-logic")
         defer { StoreHooks.removeTempStore(dir) }
