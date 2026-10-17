@@ -144,9 +144,15 @@ enum PetStance {
         switch kind {
         case "pet":
             if standing {
-                let left: Bool
-                if let x = lookX, x != 0 { left = x < 0 } else { left = Bool.random() }
-                out = [left ? "hit_left" : "hit_right", "happy_wag"]
+                // Ласка, а не удар: наклон головы к руке и виляние хвостом. Наклон телом, зажмуривание
+                // и виляние задом кладёт поверх PetChoreo.petting. Без этих клипов — старый «тычок» с той стороны,
+                // где рука.
+                out = pick(["head_tilt", "happy_wag"], available: available)
+                if out.isEmpty {
+                    let left: Bool
+                    if let x = lookX, x != 0 { left = x < 0 } else { left = Bool.random() }
+                    out = [left ? "hit_left" : "hit_right"]
+                }
             } else {
                 out = ["ear_flick"]
             }

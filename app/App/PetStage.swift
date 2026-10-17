@@ -232,8 +232,13 @@ enum PetModel {
         var mainLoop = loop
         var endStance = target
         var reacted = false
+        var petting: (offset: Double, length: Double)?
         if fresh, let r = reaction {
             let rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
+            if r.kind == "pet" && r.ok && target == .stand && !rc.isEmpty {
+                let offset = steps.reduce(0) { $0 + PetChoreo.duration($1) }
+                petting = (offset, rc.reduce(0) { $0 + PetChoreo.duration($1) })
+            }
             steps += rc
             reacted = !rc.isEmpty
             st.reactionSteps = rc
@@ -279,6 +284,12 @@ enum PetModel {
         if let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop) {
             st.busyUntil = max(st.busyUntil, until)
             st.lockUntil = max(st.lockUntil, until)
+        }
+        if let p = petting, endStance == .stand {
+            // Гладят: клонится к руке (с той стороны, куда смотрит), жмурится, виляет. Сторона руки — по lookX.
+            let side: Float
+            if let x = lookX, x != 0 { side = x < 0 ? -1 : 1 } else { side = Bool.random() ? -1 : 1 }
+            PetChoreo.petting(pet, clock: st.clock + p.offset, length: p.length, side: side)
         }
         if endStance != target {
             // Через полторы секунды без новой позы — вернуться в прежнюю переходом.

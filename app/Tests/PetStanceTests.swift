@@ -77,15 +77,22 @@ final class PetStanceTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "item", ok: true, stance: .stand), [EatClip.down, EatClip.chew, EatClip.up])
         XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .sit), [])
 
-        for _ in 0..<20 {
-            let pet = PetStance.reaction(kind: "pet", ok: true, stance: .stand, available: all)
-            XCTAssertTrue(pet.first == "hit_left" || pet.first == "hit_right", "\(pet)")
+        // Погладили стоя: наклон головы к руке и виляние хвостом, без удара — с какой стороны ни гладь.
+        for x: Float? in [nil, -1, 0, 1] {
+            XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: x, available: all),
+                           ["head_tilt", "happy_wag"])
         }
-        // Без optional-клипов happy_wag выпадает, удар остаётся.
-        let petRequired = PetStance.reaction(kind: "pet", ok: true, stance: .stand)
+        // Есть только виляние — одно виляние.
+        let wagOnly = Set(PetClipNames.required).union(["happy_wag"])
+        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, available: wagOnly), ["happy_wag"])
+        // Без optional-клипов — запасной «тычок» с той стороны, где рука.
+        let required = Set(PetClipNames.required)
+        let petRequired = PetStance.reaction(kind: "pet", ok: true, stance: .stand, available: required)
         XCTAssertTrue(petRequired == ["hit_left"] || petRequired == ["hit_right"], "\(petRequired)")
-        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: -1).first, "hit_left")
-        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: 1).first, "hit_right")
+        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: -1, available: required), ["hit_left"])
+        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: 1, available: required), ["hit_right"])
+        // Сидя и лёжа — только ухо.
+        XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .sit, available: all), ["ear_flick"])
 
         // Отказ во сне — без движения; мёртвый не реагирует.
         XCTAssertEqual(PetStance.reaction(kind: "feed", ok: false, stance: .sleep, available: all), [])

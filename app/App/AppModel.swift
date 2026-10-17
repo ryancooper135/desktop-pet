@@ -207,6 +207,7 @@ final class AppModel {
             lastDelta = delta
             haptic(.success)
             popDelta(delta)
+            if a == .pet { heartBurst() }
             // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
             poseTask?.cancel()
             poseTask = Task { [weak self] in
@@ -253,6 +254,23 @@ final class AppModel {
             if Task.isCancelled { return }
             self?.lookX = nil
             self?.popAnchor = nil
+        }
+    }
+
+    /// Погладили и ядро приняло: три сердечка веером вокруг точки, одно за другим.
+    private func heartBurst() {
+        let base = anchor
+        let spots: [(dx: CGFloat, dy: CGFloat)] = [(-34, -10), (30, -24), (-6, -44)]
+        for (i, s) in spots.enumerated() {
+            let p = CGPoint(x: base.x + s.dx, y: base.y + s.dy)
+            if i == 0 {
+                pop("", at: p, symbol: "heart.fill")
+                continue
+            }
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(120 * i))
+                self?.pop("", at: p, symbol: "heart.fill")
+            }
         }
     }
 

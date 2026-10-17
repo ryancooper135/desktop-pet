@@ -61,6 +61,10 @@ struct JuiceComponent: Component {
     var hop: Float = 0, hopV: Float = 0         // подскок по y, метры
     var yaw: Float = 0, yawV: Float = 0
     var yawTarget: Float = 0
+    // Ласка (PetChoreo.petting): крен к руке вокруг мировой горизонтали к камере и виляние задом добавкой к цели yaw.
+    var lean: Float = 0, leanV: Float = 0
+    var leanTarget: Float = 0
+    var wiggle: Float = 0
 
     // Только заглушка без скелета: покачивание и «лёг» приплющиванием.
     var sway: Float = 0
@@ -79,6 +83,7 @@ struct JuiceComponent: Component {
             squash = 0; squashV = 0
             hop = 0; hopV = 0
             yaw = 0; yawV = 0
+            lean = 0; leanV = 0; leanTarget = 0; wiggle = 0
             return
         }
         let twoPi = 2 * Float.pi
@@ -89,7 +94,8 @@ struct JuiceComponent: Component {
         let w = JuiceComponent.omega
         (squash, squashV) = PetSpring.step(x: squash, v: squashV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
         (hop, hopV) = PetSpring.step(x: hop, v: hopV, target: 0, omega: w, zeta: JuiceComponent.squashZeta, dt: dt)
-        (yaw, yawV) = PetSpring.step(x: yaw, v: yawV, target: yawTarget, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
+        (yaw, yawV) = PetSpring.step(x: yaw, v: yawV, target: yawTarget + wiggle, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
+        (lean, leanV) = PetSpring.step(x: lean, v: leanV, target: leanTarget, omega: w, zeta: JuiceComponent.yawZeta, dt: dt)
     }
 
     /// Масштаб с сохранением объёма: тянется по y — сужается по x/z.
@@ -121,7 +127,17 @@ struct JuiceSystem: System {
             c.advance(dt)
             pivot.scale = c.scale
             pivot.position = SIMD3<Float>(0, c.lift, 0)
-            pivot.orientation = simd_quatf(angle: c.angle, axis: SIMD3<Float>(0, 1, 0))
+            let up = SIMD3<Float>(0, 1, 0)
+            var turn = simd_quatf(angle: c.angle, axis: up)
+            if abs(c.lean) > 1e-4 {
+                // Крен вокруг горизонтали «от камеры» (мировая -z) в осях обёртки: + — макушка вправо по экрану.
+                var axis = e.convert(direction: SIMD3<Float>(0, 0, -1), from: nil)
+                axis.y = 0
+                if simd_length(axis) > 1e-4 {
+                    turn = simd_quatf(angle: c.lean, axis: simd_normalize(axis)) * turn
+                }
+            }
+            pivot.orientation = turn
             e.components.set(c)
         }
     }
