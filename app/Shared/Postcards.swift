@@ -134,6 +134,14 @@ struct PostcardBook: Codable, Hashable, Sendable {
     func card(_ id: String) -> Postcard? {
         album.first { $0.id == id } ?? pending.first { $0.id == id }
     }
+
+    /// Что переходит к новому питомцу (PetStore.startOver, economy.json death.keep: "album"): сохранённые
+    /// открытки остаются, несохранённые и отметка разобранного дня — нет (новый питомец начинает свои дни).
+    func carriedOver() -> PostcardBook {
+        var b = PostcardBook()
+        b.album = album
+        return b
+    }
 }
 
 /// Элемент массива, который не валит весь массив, если сам не разобрался.
@@ -475,11 +483,24 @@ enum Postcards {
 
     /// Открытки последних 7 дней (и сохранённые, и нет), свежие первыми. Ничего не пишет:
     /// досчитывает копию, так что виджет и экран видят открытку и до первой записи после полуночи.
+    /// Если есть неразобранный прошедший день, копию сначала догоняем (PetRunner.catchUp): иначе события
+    /// между pet.t и полуночью (возвращение с прогулки и т.п.) ещё не в журнале, и виджет показал бы
+    /// не ту открытку (или никакой), что запишется при следующем открытии.
     static func active(_ f: SaveFile, now: Double) -> [Postcard] {
         var g = f
+        if hasUnsettledDay(g, now: now) { PetRunner.catchUp(&g, now: now) }
         refresh(&g, now: now)
         let live = g.cards.pending + g.cards.album.filter { $0.expiresT > now }
         return live.sorted { $0.day > $1.day }
+    }
+
+    /// Есть ли прошедший местный день, за который refresh ещё не выдавал открытку (пояс — как в catchUp).
+    static func hasUnsettledDay(_ f: SaveFile, now: Double) -> Bool {
+        let tz = Clock.tzOffsetMin(at: now)
+        let today = day(now, tzOffsetMin: tz)
+        var from = max(day(f.createdT, tzOffsetMin: tz), today - lifeDays)
+        if let done = f.cards.doneDay { from = max(from, done + 1) }
+        return from < today
     }
 
     /// Самая свежая живая открытка.

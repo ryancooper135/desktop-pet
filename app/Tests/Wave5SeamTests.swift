@@ -136,7 +136,7 @@ final class Wave5SeamTests: XCTestCase {
                 PetRunner.applyBuild(&f, expires: Date(timeIntervalSince1970: t + 86400), now: t)
                 XCTAssertEqual(f.journal.last?.kind, "sign_pause")
             }
-            if i == 7 { _ = Capsule.pull(&f, pay: .ticket, now: t) }
+            if i == 7 { _ = CapsuleMachine.pull(&f, pay: .ticket, now: t) }
             let now = i == 9 ? t - 3600 : t   // часы назад на час
             let out = PetRunner.apply(i.isMultiple(of: 2) ? .pet : .play, source: .app, to: &f, now: now)
             paid += out.coins
@@ -194,7 +194,7 @@ final class Wave5SeamTests: XCTestCase {
     func testRoundTripWithEconTastesAndCards() throws {
         var f = sFile()
         Economy.grant(&f, coins: 77, tickets: 2, shards: 5)
-        _ = Capsule.pull(&f, pay: .ticket, now: sT0)
+        _ = CapsuleMachine.pull(&f, pay: .ticket, now: sT0)
         let love = try XCTUnwrap(Tastes.hidden(petId: f.petId, .food).love)
         for i in 0..<Tastes.needed(.food) { Tastes.observe(.food, love, at: sT0 + Double(i) * Tastes.gap, in: &f) }
         f.cards.pending = [sCard(day: 20_300, saved: false)]

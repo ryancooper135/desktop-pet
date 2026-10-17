@@ -182,14 +182,14 @@ final class EconomyTests: XCTestCase {
     func testCapsuleRollIsDeterministic() {
         let cfg = EconomyConfig.shared
         for i in 0..<50 {
-            let a = Capsule.roll(petId: "pet-A", index: i, pityEpic: 0, pityLegendary: 0, cfg)
-            let b = Capsule.roll(petId: "pet-A", index: i, pityEpic: 0, pityLegendary: 0, cfg)
+            let a = CapsuleMachine.roll(petId: "pet-A", index: i, pityEpic: 0, pityLegendary: 0, cfg)
+            let b = CapsuleMachine.roll(petId: "pet-A", index: i, pityEpic: 0, pityLegendary: 0, cfg)
             XCTAssertEqual(a.rarity, b.rarity)
-            XCTAssertEqual(Capsule.item(petId: "pet-A", index: i, rarity: a.rarity, cfg),
-                           Capsule.item(petId: "pet-A", index: i, rarity: a.rarity, cfg))
+            XCTAssertEqual(CapsuleMachine.item(petId: "pet-A", index: i, rarity: a.rarity, cfg),
+                           CapsuleMachine.item(petId: "pet-A", index: i, rarity: a.rarity, cfg))
         }
-        let seqA = (0..<50).map { Capsule.rawRarity(petId: "pet-A", index: $0, cfg) }
-        let seqB = (0..<50).map { Capsule.rawRarity(petId: "pet-B", index: $0, cfg) }
+        let seqA = (0..<50).map { CapsuleMachine.rawRarity(petId: "pet-A", index: $0, cfg) }
+        let seqB = (0..<50).map { CapsuleMachine.rawRarity(petId: "pet-B", index: $0, cfg) }
         XCTAssertNotEqual(seqA, seqB, "у другого щенка своя последовательность")
 
         // Два файла одного щенка крутят одинаково.
@@ -197,8 +197,8 @@ final class EconomyTests: XCTestCase {
         f.econ.wallet.tickets = 30
         var g = f
         for _ in 0..<30 {
-            let a = try? Capsule.pull(&f, pay: .ticket, now: eT0, cfg).get()
-            let b = try? Capsule.pull(&g, pay: .ticket, now: eT0, cfg).get()
+            let a = try? CapsuleMachine.pull(&f, pay: .ticket, now: eT0, cfg).get()
+            let b = try? CapsuleMachine.pull(&g, pay: .ticket, now: eT0, cfg).get()
             XCTAssertNotNil(a)
             XCTAssertEqual(a, b)
         }
@@ -208,7 +208,7 @@ final class EconomyTests: XCTestCase {
     func testRarityDistributionMatchesWeights() {
         let cfg = EconomyConfig.shared
         var count: [Rarity: Int] = [:]
-        for i in 0..<10_000 { count[Capsule.rawRarity(petId: "dist-pet", index: i, cfg), default: 0] += 1 }
+        for i in 0..<10_000 { count[CapsuleMachine.rawRarity(petId: "dist-pet", index: i, cfg), default: 0] += 1 }
         // 70 / 22 / 7 / 1 %, допуск около 4 сигм.
         XCTAssertTrue((6800...7200).contains(count[.common, default: 0]), "\(count)")
         XCTAssertTrue((2030...2370).contains(count[.rare, default: 0]), "\(count)")
@@ -227,7 +227,7 @@ final class EconomyTests: XCTestCase {
         f.econ.wallet.tickets = 100
         var got: [(Rarity, Bool)] = []
         for _ in 0..<60 {
-            let p = try Capsule.pull(&f, pay: .ticket, now: eT0, cfg).get()
+            let p = try CapsuleMachine.pull(&f, pay: .ticket, now: eT0, cfg).get()
             got.append((p.rarity, p.forced))
         }
         for (i, (r, forced)) in got.enumerated() {
@@ -253,24 +253,24 @@ final class EconomyTests: XCTestCase {
         var g = SaveFile.fresh(now: eT0)
         g.econ = Econ.start(cfg3, paidSeq: 0)
         g.econ.wallet.tickets = 20
-        let first = (0..<12).map { _ in (try? Capsule.pull(&g, pay: .ticket, now: eT0, cfg3).get())?.rarity }
+        let first = (0..<12).map { _ in (try? CapsuleMachine.pull(&g, pay: .ticket, now: eT0, cfg3).get())?.rarity }
         XCTAssertEqual(first.prefix(11).compactMap { $0 }, Array(repeating: .common, count: 11))
         XCTAssertEqual(first.last, .epic)
     }
 
     func testPityScale() {
         var f = SaveFile.fresh(now: eT0)
-        var o = Capsule.offer(f, at: eT0)
+        var o = CapsuleMachine.offer(f, at: eT0)
         XCTAssertEqual(o.pityCount, 3)
         XCTAssertEqual(o.pityTotal, 15)
         XCTAssertEqual(o.pityLeft, 12)
         XCTAssertEqual(o.pityProgress, 3.0 / 14.0, accuracy: 1e-9)
         f.econ.capsule.pityEpic = 14
-        o = Capsule.offer(f, at: eT0)
+        o = CapsuleMachine.offer(f, at: eT0)
         XCTAssertEqual(o.pityProgress, 1, "полная шкала — следующая точно эпическая")
         XCTAssertEqual(o.pityLeft, 1)
         f.econ.capsule.pityEpic = 40
-        XCTAssertEqual(Capsule.offer(f, at: eT0).pityProgress, 1, "не больше 1")
+        XCTAssertEqual(CapsuleMachine.offer(f, at: eT0).pityProgress, 1, "не больше 1")
     }
 
     func testDuplicateBecomesShards() throws {
@@ -283,31 +283,31 @@ final class EconomyTests: XCTestCase {
         }
         var f = SaveFile.fresh(now: eT0)
         f.econ.wallet.tickets = 2
-        let a = try Capsule.pull(&f, pay: .ticket, now: eT0, cfg).get()
+        let a = try CapsuleMachine.pull(&f, pay: .ticket, now: eT0, cfg).get()
         XCTAssertFalse(a.duplicate)
         XCTAssertEqual(f.econ.items["only_common"], 1)
-        let b = try Capsule.pull(&f, pay: .ticket, now: eT0 + 1, cfg).get()
+        let b = try CapsuleMachine.pull(&f, pay: .ticket, now: eT0 + 1, cfg).get()
         XCTAssertTrue(b.duplicate)
         XCTAssertEqual(b.shards, 5)
         XCTAssertEqual(f.econ.wallet.shards, 5)
         XCTAssertEqual(f.econ.items.count, 1)
         XCTAssertEqual(f.journal.last?.kind, "capsule")
         XCTAssertEqual(f.journal.last?.key, "only_common")
-        XCTAssertEqual(Capsule.inventory(f, cfg).map(\.id), ["only_common"])
+        XCTAssertEqual(CapsuleMachine.inventory(f, cfg).map(\.id), ["only_common"])
     }
 
     func testNotEnoughCoinsAndNoTickets() {
         var f = SaveFile.fresh(now: eT0)
         f.econ.wallet = Econ.Wallet(coins: 100, tickets: 0, shards: 0)
         let before = f
-        let byCoins = Capsule.pull(&f, pay: .coins, now: eT0)
-        let byTicket = Capsule.pull(&f, pay: .ticket, now: eT0)
+        let byCoins = CapsuleMachine.pull(&f, pay: .coins, now: eT0)
+        let byTicket = CapsuleMachine.pull(&f, pay: .ticket, now: eT0)
         XCTAssertEqual(byCoins.failure, .notEnoughCoins(need: 20))
         XCTAssertEqual(byTicket.failure, .noTickets)
         XCTAssertEqual(f.econ.wallet, before.econ.wallet, "отказ ничего не списал")
         XCTAssertEqual(f.econ.capsule, before.econ.capsule)
         XCTAssertEqual(f.seq, before.seq, "и в журнал не попал")
-        XCTAssertFalse(Capsule.offer(f, at: eT0).canPayCoins)
+        XCTAssertFalse(CapsuleMachine.offer(f, at: eT0).canPayCoins)
         XCTAssertEqual(EconText.notEnough(need: 20), "Не хватает монет: 20")
 
         XCTAssertFalse(Economy.spend(&f, coins: 101))
@@ -322,20 +322,20 @@ final class EconomyTests: XCTestCase {
         f.econ.wallet.coins = 100_000
         var prices: [Int] = []
         for i in 0..<10 {
-            XCTAssertEqual(Capsule.offer(f, at: t + Double(i)).coinPrice, 120 + 40 * i)
-            prices.append(try Capsule.pull(&f, pay: .coins, now: t + Double(i)).get().price)
+            XCTAssertEqual(CapsuleMachine.offer(f, at: t + Double(i)).coinPrice, 120 + 40 * i)
+            prices.append(try CapsuleMachine.pull(&f, pay: .coins, now: t + Double(i)).get().price)
         }
         XCTAssertEqual(prices, (0..<10).map { 120 + 40 * $0 })
         XCTAssertEqual(f.econ.wallet.coins, 100_000 - prices.reduce(0, +))
-        XCTAssertEqual(Capsule.offer(f, at: t + 20).coinPullsLeft, 0)
-        let over = Capsule.pull(&f, pay: .coins, now: t + 20)
+        XCTAssertEqual(CapsuleMachine.offer(f, at: t + 20).coinPullsLeft, 0)
+        let over = CapsuleMachine.pull(&f, pay: .coins, now: t + 20)
         XCTAssertEqual(over.failure, .dailyLimit)
         // Билетик лимитом на монеты не ограничен.
-        let byTicket = Capsule.pull(&f, pay: .ticket, now: t + 30)
+        let byTicket = CapsuleMachine.pull(&f, pay: .ticket, now: t + 30)
         XCTAssertNil(byTicket.failure)
         // Назавтра цена снова 120.
-        XCTAssertEqual(Capsule.offer(f, at: t + 86400).coinPrice, 120)
-        let tomorrow = try Capsule.pull(&f, pay: .coins, now: t + 86400).get()
+        XCTAssertEqual(CapsuleMachine.offer(f, at: t + 86400).coinPrice, 120)
+        let tomorrow = try CapsuleMachine.pull(&f, pay: .coins, now: t + 86400).get()
         XCTAssertEqual(tomorrow.price, 120)
     }
 
@@ -395,12 +395,12 @@ final class EconomyTests: XCTestCase {
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
         try store.startOver(now: eT0)
-        let p = try Capsule.perform(pay: .ticket, store: store, now: eT0).get()
+        let p = try CapsuleMachine.perform(pay: .ticket, store: store, now: eT0).get()
         let f = try XCTUnwrap(store.read())
         XCTAssertEqual(f.econ.wallet.tickets, 0)
         XCTAssertEqual(f.econ.capsule.pulls, 1)
         XCTAssertEqual(f.econ.items[p.item.id], 1)
-        let again = try Capsule.perform(pay: .ticket, store: store, now: eT0)
+        let again = try CapsuleMachine.perform(pay: .ticket, store: store, now: eT0)
         XCTAssertEqual(again.failure, .noTickets)
     }
 

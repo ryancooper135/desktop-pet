@@ -89,7 +89,13 @@ final class PetStore: @unchecked Sendable {
             .compactMap { try? Data(contentsOf: $0) }
             .compactMap { try? self.decode($0) }
             .first
-        if let old { fresh.econ = old.econ.carriedOver() }
+        if let old {
+            fresh.econ = old.econ.carriedOver()
+            // Альбом тоже в death.keep: сохранённые открытки остаются памятью о прошлой собаке.
+            fresh.cards = old.cards.carriedOver()
+            // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
+            // Старый файл целиком остаётся в state.broken-<t>.json.
+        }
         if fm.fileExists(atPath: stateURL.path) {
             try? fm.moveItem(at: stateURL, to: dir.appendingPathComponent("state.broken-\(Int(now)).json"))
         }

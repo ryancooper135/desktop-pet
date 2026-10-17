@@ -8,34 +8,38 @@ enum PetRunner {
     /// Догнать питомца до now: события по дороге — в журнал (ev.*), потом stepTo.
     /// Часы назад больше чем на 5 минут — не считаем, пишем clock_back (ядро не умеет назад).
     static func catchUp(_ f: inout SaveFile, now: Double) {
-        let r = Catalog.rules
         if f.pet.t - now > 300 {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return
         }
-        if now - f.pet.t >= 60 && f.pet.alive {
-            let horizon = (now - f.pet.t) / 3600
-            for e in PetEngine.forecast(f.pet, r, f.owner, horizonH: horizon) where e.t <= now && e.kind != .level {
-                let tail = e.key ?? e.value.map { String($0) } ?? ""
-                f.log(tail.isEmpty ? "ev.\(e.kind.rawValue)" : "ev.\(e.kind.rawValue).\(tail)", t: e.t, key: e.key, value: e.value)
-            }
-            let out = f.pet.outing
-            PetEngine.stepTo(&f.pet, r, f.owner, now)
-            // Вернулся с находкой — наблюдение вкуса (Tastes).
-            if let w = out, Finds.returned(before: w, after: f.pet) != nil { Tastes.afterWalk(w, at: now, in: &f) }
-        }
+        if now - f.pet.t >= 60 && f.pet.alive { advance(&f, to: now) }
         // Часовой пояс обновляем после догона: прошлое считалось по старому поясу.
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.
         Postcards.refresh(&f, now: now)
     }
 
+    /// Шаг ядра до t с записью событий по дороге (ev.*) и наблюдением вкуса, если пёс вернулся с находкой.
+    /// Общий для catchUp и applyBuild: иначе прогулка, закончившаяся до конца подписи, терялась для Tastes/Postcards.
+    private static func advance(_ f: inout SaveFile, to t: Double) {
+        let r = Catalog.rules
+        let horizon = (t - f.pet.t) / 3600
+        for e in PetEngine.forecast(f.pet, r, f.owner, horizonH: horizon) where e.t <= t && e.kind != .level {
+            let tail = e.key ?? e.value.map { String($0) } ?? ""
+            f.log(tail.isEmpty ? "ev.\(e.kind.rawValue)" : "ev.\(e.kind.rawValue).\(tail)", t: e.t, key: e.key, value: e.value)
+        }
+        let out = f.pet.outing
+        PetEngine.stepTo(&f.pet, r, f.owner, t)
+        // Вернулся с находкой — наблюдение вкуса (Tastes).
+        if let w = out, Finds.returned(before: w, after: f.pet) != nil { Tastes.afterWalk(w, at: t, in: &f) }
+    }
+
     /// Срок подписи (build_age). Если прошлая сборка истекла и приложение какое-то время не открывалось,
     /// это время питомцу прощается (sign_pause): хозяин не виноват, что подпись кончилась.
     static func applyBuild(_ f: inout SaveFile, expires: Date?, now: Double) {
         if let old = f.build, old.expiresT < now, f.pet.t < now, f.pet.alive {
-            let r = Catalog.rules
-            if f.pet.t < old.expiresT { PetEngine.stepTo(&f.pet, r, f.owner, old.expiresT) }
+            // До конца подписи — обычный догон (события, возвращение с прогулки, вкус), а не голый stepTo.
+            if f.pet.t < old.expiresT { advance(&f, to: old.expiresT) }
             let pauseH = (now - f.pet.t) / 3600
             if pauseH > 1 {
                 f.pet.t = now

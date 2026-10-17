@@ -49,7 +49,7 @@ struct CapsulePull: Hashable, Sendable {
     let pityProgress: Double  // шкала после крутки
 }
 
-enum Capsule {
+enum CapsuleMachine {
     /// Цена следующей крутки за монеты на момент t.
     static func coinPrice(_ f: SaveFile, at t: Double, _ cfg: EconomyConfig = .shared) -> Int {
         cfg.capsule.priceCoins + cfg.capsule.coinsStep * coinPullsToday(f, at: t)
