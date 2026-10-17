@@ -1,6 +1,7 @@
 // Реплики из content/ru/lines.json. Правила выбора — content/README.md:
 // кандидаты текущего tier плюс строки без tier; строки с подстановкой, для которой нет значения, пропускаются;
-// выбор стабильный и без истории: ротация пула по LineRotation (seed:раздел:ключ), без повторов 7 дней.
+// выбор стабильный и без истории: ротация пула по LineRotation (seed:раздел:ключ), строки без tier — без повторов 7 дней,
+// строки tier 2–3 выходят на ходах строк tier 1.
 // Виджет и остров — по времени (ход 4–24 ч от размера пула), уведомления — по дню, лента — по часу.
 
 import Foundation
@@ -62,18 +63,34 @@ struct Lines: Sendable {
 
     // MARK: выбор
 
-    /// Одна строка на момент t или nil, если подходящих нет. Строка держится весь ход (4–24 ч — по размеру пула)
-    /// и не повторяется 7 дней. vars — значения для {item}, {count}, {steps}, {friend}.
+    /// Одна строка на момент t или nil, если подходящих нет. Строка держится весь ход (4–24 ч — по размеру пула),
+    /// строка без tier не повторяется 7 дней. vars — значения для {item}, {count}, {steps}, {friend}.
     func pick(_ section: String, _ key: String, seed: String, at t: Double, tzOffsetMin: Int = 0, tier: Int? = nil,
               vars: [String: String] = [:], maxLen: Int? = nil) -> LineItem? {
         guard let all = sections[section]?[key], !all.isEmpty else { return nil }
-        let plan = LineRotation.plan(count: all.count, slack: Self.slack(all))
+        let own = Self.owners(all)
+        let plan = Self.plan(all)
         let pos = LineRotation.slot(t, tzOffsetMin: tzOffsetMin, periodHours: plan.periodHours)
-        // Недоступная на этом ходу строка уступает ход предыдущей доступной: строку видно подряд, а не вразнобой.
+        let rs = Self.rotationSeed(seed, section, key)
         let ok = eligible(all, tier: tier, vars: vars, maxLen: maxLen)
-        guard let i = LineRotation.walk(count: all.count, seed: Self.rotationSeed(seed, section, key), position: pos,
-                                        block: plan.block, eligible: ok) else { return nil }
-        return Self.filled(all[i], vars)
+        let i = own[LineRotation.at(count: own.count, seed: rs, position: pos, block: plan.block)]
+        if ok[i] { return Self.filled(all[i], vars) }
+        // Ход строки tier 1 вечером — строка текущего tier, по кругу своих. Не прошлая строка:
+        // та вернулась бы через пару часов.
+        if let tier {
+            let same = all.indices.filter { ok[$0] && all[$0].tier == tier }
+            if !same.isEmpty {
+                let k = LineRotation.at(count: same.count, seed: StableRandom.mix(rs ^ UInt64(truncatingIfNeeded: tier)),
+                                        position: pos, block: 1)
+                return Self.filled(all[same[k]], vars)
+            }
+        }
+        // Иначе (подстановки, длина) ход уступает предыдущей доступной строке.
+        guard let j = LineRotation.walk(count: own.count, seed: rs, position: pos, block: plan.block,
+                                        eligible: own.map { ok[$0] }) else {
+            return all.indices.first(where: { ok[$0] }).map { Self.filled(all[$0], vars) }
+        }
+        return Self.filled(all[own[j]], vars)
     }
 
     /// То же по номеру слота (уведомления — день, лента — час). События дискретные, удерживать строку нельзя,
@@ -124,6 +141,19 @@ struct Lines: Sendable {
             if short.contains(true) { ok = short }
         }
         return ok
+    }
+
+    /// Строки, которые владеют ходами: без tier и tier 1. Строки эскалации (tier 2–3) выходят только на ходах
+    /// строк tier 1, пока тех не видно, — поэтому в ключе со строками tier 2–3 нужны и строки tier 1.
+    static func owners(_ all: [LineItem]) -> [Int] {
+        let day = all.indices.filter { (all[$0].tier ?? 1) <= 1 }
+        return day.isEmpty ? Array(all.indices) : day
+    }
+
+    /// Длина хода и ширина блока для пула.
+    static func plan(_ all: [LineItem]) -> (periodHours: Int, block: Int) {
+        let own = owners(all)
+        return LineRotation.plan(count: own.count, slack: slack(own.map { all[$0] }))
     }
 
     /// Сколько строк пула могут оказаться недоступны (tier или подстановки) — запас в плане ротации.

@@ -29,7 +29,7 @@ enum LineRotation {
     // MARK: план ротации
 
     /// Длина хода (часы) и ширина блока для пула из count строк, из которых slack могут быть недоступны
-    /// (tier, подстановки) — их ходы «удерживают» предыдущую строку.
+    /// (tier 1, подстановки): их ход может занять строка эскалации или предыдущая строка.
     static func plan(count: Int, slack: Int) -> (periodHours: Int, block: Int) {
         for p in periodsHours {
             let gap = (windowHours + p - 1) / p + 1 + slack

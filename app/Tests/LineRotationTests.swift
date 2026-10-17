@@ -87,27 +87,27 @@ final class LineRotationTests: XCTestCase {
         var checked = 0
         for section in ["widget", "island"] {
             for (key, all) in lines.sections[section] ?? [:] where !key.hasPrefix("rare") {
-                let slack = Lines.slack(all)
-                let plan = LineRotation.plan(count: all.count, slack: slack)
-                // Мелкие пулы неделю не держат: у них цикл n дней (проверено ниже отдельно).
-                guard all.count >= (LineRotation.windowHours + 23) / 24 + 1 + slack else { continue }
-                let hold = Double((slack + 1) * plan.periodHours) * 3600
+                let own = Lines.owners(all)
+                // Мелкие пулы неделю не держат: у них цикл n дней.
+                guard own.count >= (LineRotation.windowHours + 23) / 24 + 1 + Lines.slack(own.map { all[$0] }) else { continue }
                 for (seed, tz, bed) in [("pet", 0, 23 * 60), ("Шиба-42", 180, 22 * 60), ("abc", -300, 30)] {
                     let owner = Owner(bedMin: bed, wakeMin: 8 * 60, tzOffsetMin: tz)
-                    var seen: [String: (start: Double, last: Double)] = [:]
+                    // Строка без tier, вернувшаяся после другой, — не раньше чем через неделю с прошлого показа.
+                    // Строки эскалации (tier 2–3) выходят на ходах строк tier 1 и могут повторяться чаще.
+                    var last: [String: Double] = [:]
+                    var prev: String?
                     var t = t0
                     while t < t0 + 35 * 86400 {
                         let tier = Presenter.tier(t, owner)
                         guard let it = lines.pick(section, key, seed: seed, at: t, tzOffsetMin: tz, tier: tier) else {
                             XCTFail("\(section).\(key): пусто"); break
                         }
-                        if let g = seen[it.id], t - g.start > hold {
-                            XCTAssertGreaterThanOrEqual(t - g.last, week,
-                                "\(section).\(key) \(it.id) seed=\(seed) tz=\(tz): повтор через \((t - g.last) / 3600) ч")
-                            seen[it.id] = (t, t)
-                        } else {
-                            seen[it.id] = (seen[it.id]?.start ?? t, t)
+                        if it.id != prev, it.tier == nil, let g = last[it.id] {
+                            XCTAssertGreaterThanOrEqual(t - g, week,
+                                "\(section).\(key) \(it.id) seed=\(seed) tz=\(tz): повтор через \((t - g) / 3600) ч")
                         }
+                        last[it.id] = t
+                        prev = it.id
                         t += step
                     }
                 }
@@ -115,6 +115,15 @@ final class LineRotationTests: XCTestCase {
             }
         }
         XCTAssertGreaterThanOrEqual(checked, 12, "проверены основные пулы виджета и острова")
+    }
+
+    func testEscalationPoolsHaveTierOneLines() throws {
+        let lines = try realLines()
+        for section in ["widget", "island"] {
+            for (key, all) in lines.sections[section] ?? [:] where all.contains(where: { ($0.tier ?? 1) > 1 }) {
+                XCTAssertTrue(all.contains { $0.tier == 1 }, "\(section).\(key): строкам tier 2–3 нужны ходы строк tier 1")
+            }
+        }
     }
 
     func testCommonWidgetPoolsAreBigEnough() throws {
@@ -147,7 +156,7 @@ final class LineRotationTests: XCTestCase {
         let a = lines.widget(["ok"], seed: "pet", at: t0, tzOffsetMin: 120)
         XCTAssertEqual(a, lines.widget(["ok"], seed: "pet", at: t0, tzOffsetMin: 120))
         let all = lines.sections["widget"]?["ok"] ?? []
-        let p = LineRotation.plan(count: all.count, slack: Lines.slack(all)).periodHours
+        let p = Lines.plan(all).periodHours
         let start = Double(LineRotation.slot(t0, tzOffsetMin: 0, periodHours: p) * p * 3600)
         let first = lines.widget(["ok"], seed: "pet", at: start)
         XCTAssertEqual(first, lines.widget(["ok"], seed: "pet", at: start + Double(p) * 3600 - 60), "строка держится весь ход")
