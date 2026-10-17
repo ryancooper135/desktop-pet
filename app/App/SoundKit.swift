@@ -27,6 +27,9 @@ final class SoundKit {
     private var idleTask: Task<Void, Never>?
     /// Приложение в фоне: новые звуки не поднимают движок.
     private var suspended = false
+    /// Когда приложение вернулось из фона (см. ambient).
+    private var wokeAt: ContinuousClock.Instant?
+    static let wakeQuiet: Duration = .seconds(2)
 
     // MARK: что звучит
 
@@ -67,6 +70,14 @@ final class SoundKit {
 
     func becameActive() {
         suspended = false
+        wokeAt = ContinuousClock.now
+    }
+
+    /// Звук от смены состояния, а не от касания (сердца, смерть, новый щенок). Первые секунды после
+    /// возврата из фона молчит: снимок догоняет время вдали, и это не событие «сейчас».
+    func ambient(_ cue: SoundCue) {
+        if let wokeAt, ContinuousClock.now - wokeAt < Self.wakeQuiet { return }
+        play(cue)
     }
 
     func wentBackground() {
@@ -105,6 +116,8 @@ final class SoundKit {
         } catch {
             return false
         }
+        // Движок был, но его остановила система (звонок, Siri) — недоигранное в очереди уже не к месту.
+        if engine != nil { core.requestReset() }
         let e = engine ?? makeEngine()
         engine = e
         do {
@@ -172,13 +185,13 @@ struct SoundLayer: View {
                 // С нуля — это новый щенок после смерти: там звучит hello.
                 guard model.snap.alive, old > 0 else { return }
                 if new > old {
-                    SoundKit.shared.play(.hearts)
+                    SoundKit.shared.ambient(.hearts)
                 } else if new < old {
-                    SoundKit.shared.play(.heartLost)
+                    SoundKit.shared.ambient(.heartLost)
                 }
             }
             .onChange(of: model.snap.alive) { _, alive in
-                SoundKit.shared.play(alive ? .hello : .death)
+                SoundKit.shared.ambient(alive ? .hello : .death)
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
