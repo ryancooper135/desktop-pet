@@ -27,7 +27,6 @@ let package = Package(
                 "Capsule.swift",
                 "Catalog.swift",
                 "Clock.swift",
-                "ShadowProbe.swift",
                 "Coat.swift",
                 "Economy.swift",
                 "Finds.swift",
