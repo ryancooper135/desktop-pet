@@ -238,8 +238,11 @@ enum Presenter {
         if let n = s.napUntil, n > t {
             return NeedTimer(kind: "nap", start: t, end: n, title: "Дремлет")
         }
-        if let w = s.outing, w.until > t {
-            return NeedTimer(kind: "walk", start: w.from, end: w.until, title: "Гуляет")
+        // until уже прошёл, а ядро снимет прогулку только на следующем шаге — до него тоже «Гуляет»,
+        // иначе на минуту выскакивает таймер голода при пустой комнате.
+        if let w = s.outing {
+            let end = w.until > t ? w.until : Finds.backAt(w, stateT: s.t)
+            if end > t { return NeedTimer(kind: "walk", start: w.from, end: end, title: "Гуляет") }
         }
         guard s.alive, let e = ForecastTools.nextLow(upcoming ?? ForecastTools.upcoming(s, at: t, horizonH: 12, owner: o), after: t),
               e.t - t <= 12 * 3600 else { return nil }

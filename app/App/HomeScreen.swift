@@ -190,7 +190,7 @@ struct HomeScreen: View {
         guard let f = model.file else { return nil }
         let t = model.snap.t
         guard let w = PetRunner.peek(f, at: t).outing else { return nil }
-        return Finds.awayNote(until: w.until, tzOffsetMin: PetRunner.owner(f, at: t).tzOffsetMin)
+        return Finds.awayNote(until: w.until, tzOffsetMin: PetRunner.owner(f, at: t).tzOffsetMin, now: t)
     }
 
     // MARK: касания по сцене

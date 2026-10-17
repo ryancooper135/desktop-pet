@@ -219,6 +219,32 @@ final class WalkTests: XCTestCase {
         for n in [Need.food, .clean, .energy, .fun, .love] { XCTAssertNotEqual(WalkPlan.todoWord(n), "позаботиться") }
     }
 
+    /// Между until и шагом ядра, который снимает прогулку (до минуты), комната пустая — и подписи
+    /// не врут: таймер «Гуляет» до backAt, записка и кнопка «вот-вот», а не время из прошлого.
+    func testLateWalkStaysConsistentUntilCoreStep() throws {
+        let t = try wMorning()
+        let until = t + 600
+        let f = walking(now: t, until: until)
+        let late = until + 30
+        let s = PetRunner.peek(f, at: late)
+        let w = try XCTUnwrap(s.outing, "ядро ещё не дошло до шага с t ≥ until")
+        XCTAssertEqual(Finds.backAt(w, stateT: s.t), until + 60)
+        XCTAssertEqual(Finds.backAt(w, stateT: t), until + 60, "сетка шагов та же с любого места")
+
+        let snap = Presenter.make(f, at: late)
+        XCTAssertEqual(snap.pose, .away)
+        XCTAssertEqual(snap.timer?.kind, "walk")
+        XCTAssertEqual(snap.timer?.end, until + 60)
+
+        let o = PetRunner.owner(f, at: late)
+        XCTAssertEqual(Finds.awayNote(until: w.until, tzOffsetMin: o.tzOffsetMin, now: late), "Ушёл гулять, вот-вот вернусь")
+        XCTAssertEqual(Finds.awayNote(until: w.until, tzOffsetMin: o.tzOffsetMin, now: t),
+                       "Ушёл гулять, вернусь в \(Finds.clock(until, tzOffsetMin: o.tzOffsetMin))")
+        XCTAssertEqual(WalkPlan.gate(f, at: late).hint, "вот-вот вернётся")
+
+        XCTAssertNil(PetRunner.peek(f, at: until + 60).outing, "дома ровно к backAt")
+    }
+
     // MARK: уведомление «Вернулся!»
 
     /// Файл, где Шиба гуляет с now до until (до ночи питомца, чтобы прогулка не кончилась раньше).

@@ -52,9 +52,20 @@ enum Finds {
     /// Сколько разных находок уже есть из известных.
     static func kinds(_ finds: [String: Int]) -> Int { all.filter { (finds[$0.id] ?? 0) > 0 }.count }
 
-    /// Подпись записки в пустой комнате: «Ушёл гулять, вернусь в 14:20».
-    static func awayNote(until: Double, tzOffsetMin: Int) -> String {
-        "Ушёл гулять, вернусь в \(clock(until, tzOffsetMin: tzOffsetMin))"
+    /// Подпись записки в пустой комнате: «Ушёл гулять, вернусь в 14:20». Время уже прошло, а Шиба ещё
+    /// в пути (см. backAt) — «вот-вот вернусь», а не час из прошлого.
+    static func awayNote(until: Double, tzOffsetMin: Int, now: Double? = nil) -> String {
+        if let now, until <= now { return "Ушёл гулять, вот-вот вернусь" }
+        return "Ушёл гулять, вернусь в \(clock(until, tzOffsetMin: tzOffsetMin))"
+    }
+
+    /// Когда прогулка на самом деле снимется. Ядро идёт шагами по 60 с (PetEngine.STEP) от s.t, снимает
+    /// прогулку в начале первого шага с t ≥ until, а шаг засчитывается, только когда прошёл целиком:
+    /// дома Шиба на шаг позже until. stateT — s.t досчитанного стейта (сетка шагов идёт от него).
+    static func backAt(_ w: Outing, stateT: Double) -> Double {
+        let step = 60.0
+        let k = max(0, ((w.until - stateT) / step).rounded(.up))
+        return stateT + (k + 1) * step
     }
 
     /// «14:20» по местному сдвигу (минуты к UTC), без DateFormatter: одинаково на Linux и в тестах.
@@ -101,9 +112,10 @@ enum WalkPlan {
     /// s — стейт, уже досчитанный до нужного момента (s.t).
     static func gate(_ s: PetState, _ r: Rules, _ o: Owner) -> WalkGate {
         if let w = s.outing, s.alive {
-            let at = Finds.clock(w.until, tzOffsetMin: o.tzOffsetMin)
-            return WalkGate(ok: false, reason: "away", hint: "вернётся в \(at)",
-                            toast: Finds.awayNote(until: w.until, tzOffsetMin: o.tzOffsetMin), until: w.until)
+            let late = w.until <= s.t
+            let hint = late ? "вот-вот вернётся" : "вернётся в \(Finds.clock(w.until, tzOffsetMin: o.tzOffsetMin))"
+            return WalkGate(ok: false, reason: "away", hint: hint,
+                            toast: Finds.awayNote(until: w.until, tzOffsetMin: o.tzOffsetMin, now: s.t), until: w.until)
         }
         var c = s
         let res = PetEngine.act(&c, r, o, .walk)

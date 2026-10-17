@@ -180,11 +180,8 @@ final class AppModel {
         walkTask?.cancel()
         walkAt = s.outing?.until
         guard let w = s.outing else { return }
-        // Ядро идёт шагами по 60 с (PetEngine.STEP) от s.t: прогулка снимается на первом шаге с t ≥ until,
-        // а шаг засчитывается, только когда прошёл целиком, — возвращение видно через 60–120 с после until.
-        let step = 60.0
-        let k = Swift.max(0, ((w.until - s.t) / step).rounded(.up))
-        let wait = Swift.max(0.5, s.t + (k + 1) * step - Clock.now() + 0.3)
+        // Ядро снимает прогулку шагом позже until (Finds.backAt) — ждём именно этот шаг.
+        let wait = Swift.max(0.5, Finds.backAt(w, stateT: s.t) - Clock.now() + 0.3)
         walkTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(wait))
             if Task.isCancelled { return }
