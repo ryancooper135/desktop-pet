@@ -113,30 +113,87 @@ enum ChoreoPath {
         return BowlPose(position: target, scale: SIMD3<Float>(1 + 0.1 * s, 1 - 0.2 * s, 1 + 0.1 * s), food: food)
     }
 
+    // MARK: площадка в кадре
+
+    /// Часть пола, где всё, что стоит на полу (от пола до макушки, 0…0.42 м), целиком в кадре.
+    /// Трапеция по z между ближним и дальним краем; x на краях — где точка уходит за |NDC x| = 0.95
+    /// (тот же запас ~10 pt, что у миски в HomeLayoutTests). Посчитано для камеры PetRoom (FOV 32°,
+    /// глаз (0.06, 0.78, 2.4), цель (-0.02, 0.2, 0)) и самого узкого портрета 390/844 — iPhone Air 420/912 шире.
+    /// Край кадра на полу при такой камере — прямая, поэтому между краями линейно. Тронули камеру, рост
+    /// или узкий портрет — пересчитать: PetChoreoTests.testPlayStaysInFrame проецирует путь через саму камеру.
+    struct Area: Sendable {
+        var nearZ: Float, nearMinX: Float, nearMaxX: Float
+        var farZ: Float, farMinX: Float, farMaxX: Float
+
+        func xRange(_ z: Float) -> (min: Float, max: Float) {
+            let t = (nearZ - z) / (nearZ - farZ)
+            return (nearMinX + (farMinX - nearMinX) * t, nearMaxX + (farMaxX - nearMaxX) * t)
+        }
+
+        /// Точка в площадку: z между краями, x не ближе inset к боковому краю (уже не влезает — середина).
+        func clamp(_ p: SIMD3<Float>, inset: Float) -> SIMD3<Float> {
+            var q = p
+            q.z = min(max(p.z, farZ), nearZ)
+            let r = xRange(q.z)
+            let lo = r.min + inset, hi = r.max - inset
+            q.x = lo <= hi ? min(max(p.x, lo), hi) : (r.min + r.max) / 2
+            return q
+        }
+    }
+
+    static let playArea = Area(nearZ: 0.35, nearMinX: -0.27, nearMaxX: 0.25,
+                               farZ: -1.0, farMinX: -0.48, farMaxX: 0.37)
+
+    /// Пятно Шибы на полу от центра: полудлина (морда…хвост) и полуширина. По мешу shiba.usdz после нормировки
+    /// на рост 0.42 — 0.53 × 0.15 м, с запасом под шаг лап, хвост и поворот головы.
+    static let petHalfLength: Float = 0.29
+    static let petHalfWidth: Float = 0.09
+
+    /// Насколько Шиба при повороте yaw выступает по x от своего центра.
+    static func petReach(yaw: Float) -> Float { abs(sin(yaw)) * petHalfLength + abs(cos(yaw)) * petHalfWidth }
+    /// Запас при любом повороте — полудиагональ пятна. Точки, где Шиба разворачивается, ставим с ним.
+    static var petReachMax: Float { (petHalfLength * petHalfLength + petHalfWidth * petHalfWidth).squareRoot() }
+
     // MARK: игра
 
     /// «Поиграть», время u — от начала play_bow. Мяч уходит вправо назад дугой с затухающими отскоками,
-    /// Шиба разворачивается, бежит, прыгает на мяч, возвращается на место и виляет хвостом; мяч катится домой.
-    /// Тайминги подобраны в 2D-симуляции: мяч и тело (капсула) не пересекаются нигде, кроме прыжка.
+    /// Шиба ещё на поклоне разворачивается за ним через «лицом к камере», отходя чуть назад к середине кадра,
+    /// бежит, прыгает на мяч, разворачивается и идёт на место; мяч катится домой справа от него, Шиба
+    /// дома виляет хвостом мордой к камере и в конце встаёт в 3/4. Все точки пути — в playArea с запасом
+    /// на размер (pet/ball их ещё и прижимают в каждом кадре), чтобы на узком портрете ничего не резалось.
+    /// Тайминги подобраны в симуляции: мяч и тело (капсула) не пересекаются нигде, кроме прыжка.
     enum Play {
         static let kick = 1.15, fly = 1.4
-        static let turn0 = 1.85, turn1 = 2.3, run1 = 2.8, pounce1 = 3.3, back0 = 3.8, walk1 = 4.7
+        /// turn0 — конец play_bow (1.42 с): сразу разворот за мячом.
+        static let turn0 = 1.4, turn1 = 2.3, run1 = 2.8, pounce1 = 3.3, back0 = 3.8, walk1 = 4.7
         /// Мяч катится домой через ballDelay после разворота, за ballBack.
-        static let ballDelay = 0.5, ballBack = 1.4
+        static let ballDelay = 0.3, ballBack = 1.6
+        /// Последние faceHome секунд игры дома: от «мордой к камере» в 3/4. Раньше нельзя — мимо зада катится мяч.
+        static let faceHome = 0.5
         /// Игра занимает питомца: вернулся и повилял хвостом.
         static let length = walk1 + 1.5
         static let ballRadius: Float = 0.05
         static var ballHome: SIMD3<Float> { PetRoom.ballPos }
-        static let ballFar = SIMD3<Float>(0.24, 0.05, -0.45)
-        static let ballCurve = SIMD3<Float>(0.34, 0.05, 0.05)
+        /// Где Шиба разворачивается за мячом: чуть назад и к середине кадра, там помещается боком.
+        static var turnAt: SIMD3<Float> { playArea.clamp(SIMD3<Float>(-0.04, 0, -0.30), inset: petReachMax) }
+        /// Куда улетает мяч: вглубь, правее середины.
+        static var ballFar: SIMD3<Float> { playArea.clamp(SIMD3<Float>(0.08, 0.05, -0.88), inset: ballRadius) }
+        /// Опоры дуг полёта и возврата: справа, в обход зада Шибы (зазор > 0.13 м).
+        static let flyCurve = SIMD3<Float>(0.34, 0.05, -0.10)
+        static let backCurve = SIMD3<Float>(0.30, 0.05, -0.35)
         /// Отскоки в полёте: длительность и высота.
         static let bounces: [(Double, Float)] = [(0.5, 0.16), (0.32, 0.07), (0.2, 0.025)]
 
-        static var runDir: SIMD3<Float> { simd_normalize(SIMD3<Float>(ballFar.x, 0, ballFar.z)) }
-        /// Где Шиба останавливается перед мячом.
-        static var runTo: SIMD3<Float> { SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30 }
+        static var runDir: SIMD3<Float> {
+            let d = ballFar - turnAt
+            return simd_normalize(SIMD3<Float>(d.x, 0, d.z))
+        }
+        /// Где Шиба останавливается перед мячом (там же разворачивается обратно).
+        static var runTo: SIMD3<Float> {
+            playArea.clamp(SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30, inset: petReachMax)
+        }
         /// Куда мяч откатывается от прыжка.
-        static var knockTo: SIMD3<Float> { ballFar + runDir * 0.08 }
+        static var knockTo: SIMD3<Float> { playArea.clamp(ballFar + runDir * 0.08, inset: ballRadius) }
         static var yawRun: Float { yaw(toward: runDir) }
         static var yawBack: Float { yaw(toward: -runTo) }
 
@@ -163,16 +220,26 @@ enum ChoreoPath {
         var yaw: Float
     }
 
+    /// Шиба в момент u игры, прижатый к playArea с запасом на свой размер при этом повороте.
     static func pet(_ u: Double) -> PetPose {
+        var p = petPath(u)
+        p.position = playArea.clamp(p.position, inset: petReach(yaw: p.yaw))
+        p.position.y = 0
+        return p
+    }
+
+    static func petPath(_ u: Double) -> PetPose {
         typealias P = Play
         let y0 = PetRoom.yaw3q
         if u < P.turn0 { return PetPose(position: .zero, yaw: y0) }
         if u < P.turn1 {
-            // Через «лицом к камере», не спиной.
-            return PetPose(position: .zero, yaw: y0 + (P.yawRun - y0) * smooth((u - P.turn0) / (P.turn1 - P.turn0)))
+            // Через «лицом к камере», не спиной; заодно отходит к turnAt, где боком влезает в кадр.
+            let s = smooth((u - P.turn0) / (P.turn1 - P.turn0))
+            return PetPose(position: P.turnAt * s, yaw: y0 + (P.yawRun - y0) * s)
         }
         if u < P.run1 {
-            return PetPose(position: P.runTo * smooth((u - P.turn1) / (P.run1 - P.turn1)), yaw: P.yawRun)
+            return PetPose(position: P.turnAt + (P.runTo - P.turnAt) * smooth((u - P.turn1) / (P.run1 - P.turn1)),
+                           yaw: P.yawRun)
         }
         if u < P.pounce1 { return PetPose(position: P.runTo, yaw: P.yawRun) }
         if u < P.back0 {
@@ -181,10 +248,11 @@ enum ChoreoPath {
         }
         if u < P.walk1 {
             let s = smooth((u - P.back0) / (P.walk1 - P.back0))
-            let y = P.yawBack + (y0 - P.yawBack) * smooth((u - P.walk1 + 0.3) / 0.3)
-            return PetPose(position: P.runTo * (1 - s), yaw: y)
+            return PetPose(position: P.runTo * (1 - s), yaw: P.yawBack)
         }
-        return PetPose(position: .zero, yaw: y0)
+        // Дома мордой к камере, пока справа катится мяч; в конце — в 3/4.
+        let k = smooth((u - (P.length - P.faceHome)) / P.faceHome)
+        return PetPose(position: .zero, yaw: P.yawBack + (y0 - P.yawBack) * k)
     }
 
     /// Высота отскока над полом через t после удара.
@@ -200,12 +268,17 @@ enum ChoreoPath {
         return 0
     }
 
+    /// Мяч в момент u игры, прижатый к playArea.
     static func ball(_ u: Double) -> SIMD3<Float> {
+        playArea.clamp(ballPath(u), inset: Play.ballRadius)
+    }
+
+    static func ballPath(_ u: Double) -> SIMD3<Float> {
         typealias P = Play
         let r = P.ballRadius
         if u < P.kick { return P.ballHome }
         if u < P.kick + P.fly {
-            var p = bezier(P.ballHome, P.ballCurve, P.ballFar, easeOut((u - P.kick) / P.fly))
+            var p = bezier(P.ballHome, P.flyCurve, P.ballFar, easeOut((u - P.kick) / P.fly))
             p.y = r + bounce(u - P.kick)
             return p
         }
@@ -220,7 +293,7 @@ enum ChoreoPath {
         let b0 = P.back0 + P.ballDelay
         if u < b0 { return P.knockTo }
         if u < b0 + P.ballBack {
-            var p = bezier(P.knockTo, P.ballCurve, P.ballHome, easeOut((u - b0) / P.ballBack))
+            var p = bezier(P.knockTo, P.backCurve, P.ballHome, easeOut((u - b0) / P.ballBack))
             p.y = r
             return p
         }
@@ -233,6 +306,46 @@ enum ChoreoPath {
         let p = pet(u)
         let d = ball(u) - p.position
         return min(max(wrap(yaw(toward: d) - p.yaw), -limit), limit)
+    }
+
+    // MARK: ласка
+
+    /// «Погладить» стоя: поверх клипов (head_tilt, happy_wag) Шиба тянется к руке — клонится вбок к пальцу,
+    /// жмурится и виляет задом (поворот по y туда-сюда). Время t — от начала реакции, length — длина её клипов.
+    enum Petting {
+        /// Наклон к руке, радианы (~8°: макушка уходит на ~6 см).
+        static let lean: Float = 0.14
+        /// Виляние задом: размах цели поворота, радианы, и частота. Пружина yaw (omega 14) на 2,6 Гц
+        /// отдаёт примерно половину размаха — на экране ~±5°.
+        static let wiggle: Float = 0.16
+        static let wiggleHz: Float = 2.6
+        /// Наклон набирается за leanIn и уходит за leanOut до конца.
+        static let leanIn = 0.35, leanOut = 0.45
+        /// Глаза закрыты с eyesFrom и до eyesBeforeEnd до конца: сначала увидел руку, в конце открыл глаза.
+        static let eyesFrom = 0.25, eyesBeforeEnd = 0.4
+        /// Короче — не успеет ни зажмуриться, ни наклониться.
+        static let minLength = 1.5
+    }
+
+    struct PettingPose: Equatable {
+        /// Крен к руке, радианы: + — макушка вправо по экрану.
+        var lean: Float
+        /// Добавка к цели поворота по y, радианы.
+        var wiggle: Float
+        var eyesClosed: Bool
+
+        static let rest = PettingPose(lean: 0, wiggle: 0, eyesClosed: false)
+    }
+
+    /// side — где рука: -1 слева, +1 справа по экрану.
+    static func petting(_ t: Double, length: Double, side: Float) -> PettingPose {
+        typealias P = Petting
+        guard t >= 0, t < length else { return .rest }
+        let env = smooth(t / P.leanIn) * (1 - smooth((t - (length - P.leanOut)) / P.leanOut))
+        let s: Float = side < 0 ? -1 : 1
+        let wig = P.wiggle * env * sin(2 * .pi * P.wiggleHz * Float(t))
+        return PettingPose(lean: s * P.lean * env, wiggle: wig,
+                           eyesClosed: t >= P.eyesFrom && t < length - P.eyesBeforeEnd)
     }
 }
 
@@ -256,8 +369,16 @@ struct ChoreoState: Component {
         var cue = 0
     }
 
+    struct Petting {
+        var start: Double
+        var length: Double
+        /// Где рука: -1 слева, +1 справа по экрану.
+        var side: Float
+    }
+
     var feed: Feed?
     var play: Play?
+    var petting: Petting?
     var active = false
     /// Переход к новой траектории (начало игры, отмена) из того, что стояло, за PetChoreo.blend.
     var blendStart: Double = -100
@@ -282,6 +403,8 @@ struct PetFace: Component {
     var time: Double = 0
     var nextBlink: Double = 2.5
     var blinkUntil: Double = 0
+    /// Гладят: глаза закрыты от удовольствия. Пишет PetChoreo.step.
+    var bliss = false
     /// Reduce Motion: голова сразу на месте, без моргания.
     var still = false
 }
@@ -304,6 +427,10 @@ enum PetChoreo {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
         let present = bowlAtSnout(cs, clock)
         interrupt(&cs, clock)
+        if cs.petting != nil {
+            cs.petting = nil
+            relax(pet)
+        }
         var until: Double?
         if let w = ChoreoPath.eatWindow(steps, duration: duration) {
             cs.feed = .init(start: clock, eatStart: w.start, eatEnd: w.end, leave: w.end + 0.5, present: present)
@@ -319,11 +446,37 @@ enum PetChoreo {
         return until
     }
 
+    /// Гладят стоя: поверх клипов реакции наклон к руке, виляние и закрытые глаза на length секунд.
+    /// Вызывать после begin (begin снимает прошлую ласку).
+    static func petting(_ pet: Entity, clock: Double, length: Double, side: Float) {
+        var cs = pet.components[ChoreoState.self] ?? ChoreoState()
+        cs.petting = .init(start: clock, length: max(length, ChoreoPath.Petting.minLength), side: side)
+        cs.active = true
+        pet.components.set(cs)
+    }
+
+    /// Снять ласку: наклон и виляние к нулю (пружиной), глаза снова моргают.
+    static func relax(_ pet: Entity) {
+        if var j = pet.components[JuiceComponent.self] {
+            j.leanTarget = 0
+            j.wiggle = 0
+            pet.components.set(j)
+        }
+        if var face = pet.components[PetFace.self], face.bliss {
+            face.bliss = false
+            pet.components.set(face)
+        }
+    }
+
     /// Reduce Motion: всё сразу домой, без движения.
     static func stop(_ pet: Entity) {
         guard var cs = pet.components[ChoreoState.self], cs.active else { return }
         cs.feed = nil
         cs.play = nil
+        if cs.petting != nil {
+            cs.petting = nil
+            relax(pet)
+        }
         cs.active = false
         cs.pos = .zero
         cs.yaw = PetRoom.yaw3q
@@ -407,16 +560,33 @@ enum PetChoreo {
             cs.play = u >= ChoreoPath.Play.length ? nil : p
         }
 
+        var bliss = false
+        if let g = cs.petting {
+            let t = now - g.start
+            let pp = ChoreoPath.petting(t, length: g.length, side: g.side)
+            if var j = pet.components[JuiceComponent.self] {
+                j.leanTarget = pp.lean
+                j.wiggle = pp.wiggle
+                pet.components.set(j)
+            }
+            bliss = pp.eyesClosed
+            if t >= g.length {
+                cs.petting = nil
+                relax(pet)
+            }
+        }
+
         let k = ChoreoPath.smooth((now - cs.blendStart) / blend)
         cs.pos = cs.fromPos + (pose.position - cs.fromPos) * k
         cs.yaw = cs.fromYaw + (pose.yaw - cs.fromYaw) * k
         cs.ball = cs.fromBall + (ball - cs.fromBall) * k
         place(pet, cs, room)
-        if var face = pet.components[PetFace.self], face.follow != look {
+        if var face = pet.components[PetFace.self], face.follow != look || face.bliss != bliss {
             face.follow = look
+            face.bliss = bliss
             pet.components.set(face)
         }
-        if cs.feed == nil && cs.play == nil && k >= 1 {
+        if cs.feed == nil && cs.play == nil && cs.petting == nil && k >= 1 {
             cs.active = false
         }
         pet.components.set(cs)
@@ -589,6 +759,9 @@ final class PetRig {
         var shut = false
         let st = pet.components[ClipState.self]
         if let st, st.stance == .sleep, st.clock >= st.busyUntil - 0.4 {
+            shut = true
+        } else if face.bliss {
+            // Гладят — жмурится от удовольствия.
             shut = true
         } else if !face.still {
             if face.time >= face.nextBlink {

@@ -212,6 +212,145 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertNil(cues.last?.loop)
     }
 
+    // MARK: игра в кадре
+
+    /// Те же портретные экраны, что в HomeLayoutTests: самый узкий — 390×844.
+    private static let portraitAspects: [Float] = [390.0 / 844.0, 420.0 / 912.0, 440.0 / 956.0]
+    /// Высота Шибы до макушки, метры.
+    private static let petHeight: Float = 0.42
+
+    /// x в NDC (-1…1) для точки мира при камере PetRoom; FOV вертикальный.
+    @MainActor
+    private func ndcX(_ p: SIMD3<Float>, aspect: Float) -> Float {
+        let eye = PetRoom.cameraEye
+        let f = simd_normalize(PetRoom.cameraTarget - eye)
+        let r = simd_normalize(simd_cross(f, SIMD3<Float>(0, 1, 0)))
+        let d = p - eye
+        let depth = simd_dot(d, f)
+        let half = tan(PetRoom.cameraFov * .pi / 180 / 2)
+        return simd_dot(d, r) / (depth * half * aspect)
+    }
+
+    /// Углы коробки собаки (длина ±petHalfLength вдоль морды, ширина ±petHalfWidth) от пола до макушки.
+    private func petCorners(_ p: ChoreoPath.PetPose) -> [SIMD3<Float>] {
+        let f = SIMD3<Float>(sin(p.yaw), 0, cos(p.yaw))
+        let s = SIMD3<Float>(f.z, 0, -f.x)
+        var out: [SIMD3<Float>] = []
+        for a in [-ChoreoPath.petHalfLength, ChoreoPath.petHalfLength] {
+            for b in [-ChoreoPath.petHalfWidth, ChoreoPath.petHalfWidth] {
+                for y in [0, Self.petHeight] {
+                    out.append(p.position + f * a + s * b + SIMD3<Float>(0, y, 0))
+                }
+            }
+        }
+        return out
+    }
+
+    private func ballCorners(_ c: SIMD3<Float>) -> [SIMD3<Float>] {
+        let r = P.ballRadius
+        var out: [SIMD3<Float>] = []
+        for dx in [-r, r] { for dy in [-r, r] { for dz in [-r, r] { out.append(c + SIMD3<Float>(dx, dy, dz)) } } }
+        return out
+    }
+
+    /// Площадка ChoreoPath.playArea сверена с камерой: её края от пола до макушки — в пределах |x| ≤ 0.95.
+    /// Сменили камеру — этот тест скажет пересчитать площадку.
+    @MainActor
+    func testPlayAreaMatchesCamera() {
+        let a = ChoreoPath.playArea
+        for aspect in Self.portraitAspects {
+            for z in stride(from: a.farZ, through: a.nearZ, by: 0.05) {
+                let r = a.xRange(z)
+                for y in [0, Self.petHeight] {
+                    XCTAssertLessThanOrEqual(abs(ndcX(SIMD3<Float>(r.min, y, z), aspect: aspect)), 0.951, "z=\(z)")
+                    XCTAssertLessThanOrEqual(abs(ndcX(SIMD3<Float>(r.max, y, z), aspect: aspect)), 0.951, "z=\(z)")
+                }
+            }
+        }
+        // Внутри площадки clamp ничего не меняет, снаружи — возвращает на край.
+        let inside = SIMD3<Float>(0, 0, -0.3)
+        XCTAssertTrue(near(a.clamp(inside, inset: 0.1), inside, 1e-6))
+        let out = a.clamp(SIMD3<Float>(2, 0, -5), inset: 0.1)
+        XCTAssertEqual(out.z, a.farZ, accuracy: 1e-6)
+        XCTAssertEqual(out.x, a.farMaxX - 0.1, accuracy: 1e-6)
+        XCTAssertTrue(near(a.clamp(out, inset: 0.1), out, 1e-6))
+    }
+
+    /// Вся игра — и собака целиком, и мяч — внутри портретного кадра на любом айфоне, с запасом до края.
+    @MainActor
+    func testPlayStaysInFrame() {
+        for aspect in Self.portraitAspects {
+            var u = 0.0
+            while u <= P.length + 1e-9 {
+                for p in petCorners(ChoreoPath.pet(u)) {
+                    XCTAssertLessThan(abs(ndcX(p, aspect: aspect)), 0.95, "собака за краем, u=\(u), aspect=\(aspect)")
+                }
+                for p in ballCorners(ChoreoPath.ball(u)) {
+                    XCTAssertLessThan(abs(ndcX(p, aspect: aspect)), 0.95, "мяч за краем, u=\(u), aspect=\(aspect)")
+                }
+                u += 0.01
+            }
+        }
+    }
+
+    /// Центры собаки и мяча не выходят за площадку с отступом под их размер.
+    func testPlayCentersInsideArea() {
+        let a = ChoreoPath.playArea
+        var u = 0.0
+        while u <= P.length + 1e-9 {
+            let p = ChoreoPath.pet(u)
+            let r = a.xRange(p.position.z)
+            let reach = ChoreoPath.petReach(yaw: p.yaw)
+            XCTAssertGreaterThanOrEqual(p.position.x, r.min + reach - 1e-4, "u=\(u)")
+            XCTAssertLessThanOrEqual(p.position.x, r.max - reach + 1e-4, "u=\(u)")
+            let b = ChoreoPath.ball(u)
+            let rb = a.xRange(b.z)
+            XCTAssertGreaterThanOrEqual(b.x, rb.min + P.ballRadius - 1e-4, "u=\(u)")
+            XCTAssertLessThanOrEqual(b.x, rb.max - P.ballRadius + 1e-4, "u=\(u)")
+            XCTAssertGreaterThanOrEqual(b.z, a.farZ - 1e-4)
+            XCTAssertLessThanOrEqual(b.z, a.nearZ + 1e-4)
+            u += 0.01
+        }
+    }
+
+    // MARK: ласка
+
+    func testPettingEnvelope() {
+        let len = 2.7
+        // Вне реакции — покой.
+        XCTAssertEqual(ChoreoPath.petting(-0.1, length: len, side: 1), .rest)
+        XCTAssertEqual(ChoreoPath.petting(len, length: len, side: 1), .rest)
+        let start = ChoreoPath.petting(0, length: len, side: 1)
+        XCTAssertEqual(start.lean, 0, accuracy: 1e-6)
+        XCTAssertEqual(start.wiggle, 0, accuracy: 1e-6)
+        XCTAssertFalse(start.eyesClosed)
+        // К концу всё гаснет плавно.
+        let late = ChoreoPath.petting(len - 0.01, length: len, side: 1)
+        XCTAssertLessThan(abs(late.lean), 0.01)
+        XCTAssertFalse(late.eyesClosed)
+        // В середине: клонится к руке, жмурится, виляет.
+        let mid = len / 2
+        let right = ChoreoPath.petting(mid, length: len, side: 1)
+        let left = ChoreoPath.petting(mid, length: len, side: -1)
+        XCTAssertEqual(right.lean, ChoreoPath.Petting.lean, accuracy: 1e-4)
+        XCTAssertEqual(left.lean, -ChoreoPath.Petting.lean, accuracy: 1e-4)
+        XCTAssertTrue(right.eyesClosed)
+        XCTAssertTrue(left.eyesClosed)
+        var maxWiggle: Float = 0
+        var t = 0.0
+        var prev = ChoreoPath.petting(0, length: len, side: 1)
+        while t < len {
+            let p = ChoreoPath.petting(t, length: len, side: 1)
+            maxWiggle = max(maxWiggle, abs(p.wiggle))
+            XCTAssertLessThanOrEqual(abs(p.lean), ChoreoPath.Petting.lean + 1e-6)
+            XCTAssertLessThan(abs(p.lean - prev.lean), 0.02, "t=\(t)")
+            prev = p
+            t += 0.01
+        }
+        XCTAssertGreaterThan(maxWiggle, ChoreoPath.Petting.wiggle * 0.8)
+        XCTAssertLessThanOrEqual(maxWiggle, ChoreoPath.Petting.wiggle + 1e-6)
+    }
+
     func testPlayReactionStartsBallGame() {
         let all: Set<String> = Set(PetClipNames.required).union(["hop", "play_bow"])
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand, available: all), ["play_bow"])
