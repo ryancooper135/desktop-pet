@@ -17,8 +17,12 @@ struct PetApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: model.becameActive()
-            case .background: model.wentBackground()
+            case .active:
+                model.becameActive()
+                GuideCenter.shared.becameActive()
+            case .background:
+                model.wentBackground()
+                GuideCenter.shared.wentBackground()
             default: break
             }
         }
@@ -27,6 +31,7 @@ struct PetApp: App {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @State private var guide = GuideCenter.shared
 
     var body: some View {
         @Bindable var model = model
@@ -41,5 +46,15 @@ struct RootView: View {
             AwayScreen(report: report)
                 .environment(model)
         }
+        // Подсказки «Правила» и «Виджет и остров» (GuideCenter): ждут, пока экран свободен.
+        .sheet(item: $guide.sheet, onDismiss: { guide.check() }) { kind in
+            switch kind {
+            case .rules: RulesScreen(onDone: { guide.ackRules() }).environment(model)
+            case .widget: WidgetGuideSheet(onDone: { guide.close() }).environment(model)
+            }
+        }
+        .onChange(of: model.snap.level) { _, _ in guide.check() }
+        .onChange(of: model.away == nil) { _, free in if free { guide.check() } }
+        .onChange(of: model.showNeeds || model.showSettings) { _, busy in if !busy { guide.check() } }
     }
 }

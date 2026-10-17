@@ -40,6 +40,7 @@ final class AppActions {
         // Разрешение на уведомления спрашиваем не на старте, а после первой удачной кормёжки.
         if out.ok, case .feed = a, source == .app {
             await NotificationScheduler.requestOnce()
+            GuideCenter.shared.fedOK()
         }
         return out
     }
