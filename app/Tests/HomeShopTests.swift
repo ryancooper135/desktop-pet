@@ -31,6 +31,7 @@ final class HomeShopTests: XCTestCase {
         let bath = try! XCTUnwrap(HomeShop.line(.bath))
         XCTAssertEqual(bath.levels.map(\.price), [0, 700, 1800, 4000])
         XCTAssertEqual(bath.levels[1].buff["bath_min"]?.double, 40)
+        XCTAssertEqual(HomeShop.line(.kitchen)?.levels[1].buff["autofeed_below"]?.double, 10, "холодильник тоже кормит сам — иначе покупка пустая")
         XCTAssertEqual(HomeShop.line(.kitchen)?.levels[2].buff["autofeed_below"]?.double, 15)
     }
 
@@ -130,7 +131,8 @@ final class HomeShopTests: XCTestCase {
         let bath1 = HomeShop.line(.bath)!.levels[1].buff
         XCTAssertEqual(HomeShop.perks(bath1), ["Мытьё 40 мин", "Пачкается на 10% медленнее"])
         let kitchen = HomeShop.line(.kitchen)!.levels
-        XCTAssertEqual(HomeShop.perks(kitchen[1].buff), [], "холодильник без кормушки ядру пока ничего не даёт")
+        XCTAssertEqual(HomeShop.perks(kitchen[1].buff), ["Запас еды: 15", "Сам ест из запаса, когда сытость ниже 10"])
+        XCTAssertEqual(HomeShop.perks(["storage": .number(15)]), [], "запас без кормушки ядро не тратит — не обещаем")
         XCTAssertEqual(HomeShop.perks(kitchen[2].buff),
                        ["Запас еды: 30", "Сам ест из запаса, когда сытость ниже 15"])
         let k3 = HomeShop.perks(kitchen[3].buff)

@@ -43,11 +43,12 @@ final class HomeOfferTests: XCTestCase {
         XCTAssertTrue(play.canBuy)
     }
 
-    func testKitchenFridgeSaysNoPerks() {
+    func testKitchenFridgeFeedsItself() {
         let k = HomeOffer.rows(oFile(coins: 0)).first { $0.id == .kitchen }!
         XCTAssertEqual(k.levelName, "Миска")
         XCTAssertEqual(k.next?.name, "Холодильник")
-        XCTAssertEqual(k.next?.perks, [HomeOffer.noPerks], "запас без кормушки ядро не тратит — не обещаем")
+        XCTAssertEqual(k.next?.perks, ["Запас еды: 15", "Сам ест из запаса, когда сытость ниже 10"],
+                       "с 18.10 холодильник тоже кормит сам — пустых покупок нет")
     }
 
     func testRowAfterBuyAndAtTop() {

@@ -254,7 +254,7 @@
       { "name": "Королевская перина",  "price": 3500, "buff": { "sleep_regen_x": 1.45, "night_food_decay_x": 0.7, "love_on_wake": 5 } } ] },
     "kitchen": { "name": "Кухня",          "levels": [
       { "name": "Миска",               "price": 0,    "buff": { "storage": 5 } },
-      { "name": "Холодильник",         "price": 600,  "buff": { "storage": 15 } },
+      { "name": "Холодильник",         "price": 600,  "buff": { "storage": 15, "autofeed_below": 10 } },
       { "name": "Холодильник с автокормушкой", "price": 1700, "buff": { "storage": 30, "autofeed_below": 15 } },
       { "name": "Кухня шефа",          "price": 3500, "buff": { "storage": 60, "autofeed_below": 25, "food_price_x": 0.9, "cooking": true } } ] },
     "kennel":  { "name": "Будка",          "levels": [
