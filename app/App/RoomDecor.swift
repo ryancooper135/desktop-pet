@@ -100,12 +100,12 @@ enum RoomDecor {
         if level >= 2 {
             // Бункер на холодильнике: прозрачный низ не сделать матовым — корм видно сверху.
             let top = h
-            part(cyl(0.06, 0.042), C.hopper, [cx - 0.01, top + 0.03, cz], in: g)
-            part(cyl(0.004, 0.036), DecorColors.kibble, [cx - 0.01, top + 0.061, cz], in: g)
-            part(cyl(0.008, 0.045), C.steel, [cx - 0.01, top + 0.064, cz], in: g, shade: 0.9)
+            part(cyl(0.06, 0.042), C.hopper, [cx - 0.03, top + 0.03, cz], in: g)
+            part(cyl(0.004, 0.036), DecorColors.kibble, [cx - 0.03, top + 0.061, cz], in: g)
+            part(cyl(0.016, 0.045), C.steel, [cx - 0.03, top + 0.008, cz], in: g, shade: 0.9)
             // Трубка вправо и вниз к лотку на полу.
             let tx = r.maxX - 0.02
-            part(box(tx - (cx + 0.03), 0.012, 0.012), C.steel, [(cx + 0.03 + tx) / 2, top + 0.02, front - 0.02], in: g)
+            part(box(tx - (cx + 0.01), 0.012, 0.012), C.steel, [(cx + 0.01 + tx) / 2, top + 0.02, front - 0.02], in: g)
             part(cyl(top + 0.01, 0.006), C.steel, [tx, (top + 0.02) / 2 + 0.01, front - 0.02], in: g)
             part(cyl(0.014, 0.02), C.tray, [tx, 0.007, front - 0.02], in: g)
             part(ball(0.014), DecorColors.kibble, [tx, 0.012, front - 0.02], in: g, scale: [1, 0.4, 1])
@@ -128,8 +128,8 @@ enum RoomDecor {
                 part(cyl(0.008, 0.014), lid, [jx, base + 0.044, wallZ + 0.03], in: g)
             }
             // Колпак шефа на холодильнике — сразу ясно, чья кухня.
-            part(cyl(0.03, 0.022), C.white, [cx + 0.045, h + 0.015, cz + 0.02], in: g)
-            part(ball(0.03), C.white, [cx + 0.045, h + 0.04, cz + 0.02], in: g, scale: [1, 0.6, 1])
+            part(cyl(0.03, 0.022), C.white, [cx + 0.05, h + 0.015, cz + 0.02], in: g)
+            part(ball(0.03), C.white, [cx + 0.05, h + 0.04, cz + 0.02], in: g, scale: [1, 0.6, 1])
         }
         return g
     }

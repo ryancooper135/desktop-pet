@@ -110,10 +110,11 @@ enum RoomPlan {
     static let backWallZ: Float = -1.4
     static let wallFront: Float = backWallZ + 0.02
 
-    /// Кухня: холодильник в заднем левом углу кадра, за миской. Левее -0.58 — уже за краем экрана.
-    static let kitchen = Rect(x: -0.58...(-0.36), z: (wallFront)...(-1.18))
+    /// Кухня: холодильник в заднем левом углу кадра, за миской. Левее -0.54 его режет край экрана,
+    /// правее -0.33 трубка кормушки уходит за морду.
+    static let kitchen = Rect(x: -0.53...(-0.33), z: (wallFront)...(-1.18))
     /// Полка кухни шефа — на стене над холодильником, левее облачка с репликой.
-    static let kitchenShelf = WallRect(minX: -0.58, maxX: -0.36, minY: 0.44, maxY: 0.54)
+    static let kitchenShelf = WallRect(minX: -0.53, maxX: -0.36, minY: 0.44, maxY: 0.54)
     /// Ванна: задний правый угол, правее хвоста. Правее 0.42 режет край экрана.
     static let bath = Rect(x: 0.19...0.42, z: (wallFront)...(-1.18))
     /// Полотенце спа на стене над ванной.
@@ -129,8 +130,9 @@ enum RoomPlan {
     /// Вещи низкие: выше playMaxHeight закроют мяч и лапы. Справа корзина, в середине туннель или батут,
     /// слева горка.
     static let playBasket = Rect(x: 0.10...0.24, z: 0.50...0.60)
-    static let playCenter = Rect(x: -0.10...0.04, z: 0.50...0.60)
-    static let playSlide = Rect(x: -0.26...(-0.15), z: 0.50...0.60)
+    static let playCenter = Rect(x: -0.085...0.055, z: 0.50...0.60)
+    /// Левее -0.235 площадку горки режет край экрана.
+    static let playSlide = Rect(x: -0.235...(-0.125), z: 0.50...0.60)
     /// Предел высоты предметов перед ковром.
     static let playMaxHeight: Float = 0.07
 
