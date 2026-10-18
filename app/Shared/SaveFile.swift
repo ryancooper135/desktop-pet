@@ -87,6 +87,9 @@ struct SaveFile: Codable, Sendable {
     /// Настройка «Комната вечером» (RoomEveningMode.rawValue). nil — по умолчанию (RoomEveningMode.standard);
     /// верхним уровнем: старый сейв без поля читается как раньше, nil в файл не пишется.
     var roomEvening: String?
+    /// Надето (Wear.swift): место (head/neck/back) → id предмета из капсулы. Пустое в файл не пишется,
+    /// новому щенку переходит вместе с предметами.
+    var worn: [String: String] = [:]
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -137,6 +140,7 @@ struct SaveFile: Codable, Sendable {
         case cards, shots
         case catchBest, catchDay, catchCoins, catchGames
         case roomEvening
+        case worn
     }
 
     init(from decoder: Decoder) throws {
@@ -183,6 +187,7 @@ struct SaveFile: Codable, Sendable {
         catchCoins = (try? c.decodeIfPresent(Int.self, forKey: .catchCoins)) ?? 0
         catchGames = (try? c.decodeIfPresent(Int.self, forKey: .catchGames)) ?? 0
         roomEvening = try? c.decodeIfPresent(String.self, forKey: .roomEvening)
+        worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -218,6 +223,7 @@ struct SaveFile: Codable, Sendable {
         if catchCoins != 0 { try c.encode(catchCoins, forKey: .catchCoins) }
         if catchGames != 0 { try c.encode(catchGames, forKey: .catchGames) }
         try c.encodeIfPresent(roomEvening, forKey: .roomEvening)
+        if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
     }
 }
 

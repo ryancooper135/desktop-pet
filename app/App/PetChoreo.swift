@@ -1115,6 +1115,7 @@ struct PetActSystem: System {
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
             PetChoreo.step(e)
             PetRig.step(e, dt: dt)
+            PetWear.step(e)
         }
     }
 }

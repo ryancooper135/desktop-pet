@@ -169,27 +169,62 @@ struct CapsuleScreen: View {
                     .foregroundStyle(PetPalette.soft)
             }
             ForEach(items, id: \.id) { it in
+                let slot = Wear.info(it.id)?.slot
+                let on = slot.map { model.worn[$0] == it.id } ?? false
                 HStack(spacing: 10) {
-                    Circle()
-                        .fill(rarityColor(it.rarity))
-                        .frame(width: 12, height: 12)
-                    Text(it.name)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(PetPalette.ink)
-                    Spacer(minLength: 0)
-                    Text(EconText.rarityName(it.rarity))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(rarityColor(it.rarity))
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(rarityColor(it.rarity))
+                            .frame(width: 12, height: 12)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(it.name)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(PetPalette.ink)
+                            if let slot {
+                                Text(on ? "надето" : slot.place)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(on ? PetPalette.accent : PetPalette.soft)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Text(EconText.rarityName(it.rarity))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(rarityColor(it.rarity))
+                    }
+                    .accessibilityElement(children: .combine)
+                    if slot != nil { wearButton(it, on: on) }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(RoundedRectangle(cornerRadius: 12).fill(PetPalette.card))
-                .accessibilityElement(children: .combine)
+                .overlay {
+                    if on { RoundedRectangle(cornerRadius: 12).strokeBorder(PetPalette.accent.opacity(0.55), lineWidth: 1.5) }
+                }
+                .accessibilityElement(children: .contain)
             }
         }
         .padding(.top, 6)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("capsule.inventory")
+    }
+
+    /// «Надеть» — залитая акцентом, «Снять» — обводка: надетое видно по кнопке издалека.
+    private func wearButton(_ it: CapsuleItem, on: Bool) -> some View {
+        Button {
+            model.wear(it.id)
+        } label: {
+            Text(on ? "Снять" : "Надеть")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .foregroundStyle(on ? PetPalette.accent : .white)
+                .padding(.horizontal, 12)
+                .frame(minWidth: 78, minHeight: 32)
+                .background(Capsule().fill(on ? PetPalette.card : PetPalette.accent))
+                .overlay { Capsule().strokeBorder(PetPalette.accent, lineWidth: on ? 1.5 : 0) }
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityLabel(Text(on ? "Снять «\(it.name)»" : "Надеть «\(it.name)»"))
+        .accessibilityIdentifier("wear.\(it.id)")
     }
 
     private var ballLabel: String {

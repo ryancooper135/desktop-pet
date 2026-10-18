@@ -58,6 +58,8 @@ final class AppModel {
     private(set) var homeLevels = RoomPlan.Levels()
     /// Свет комнаты: «Комната вечером» и сон хозяина (RoomLighting). Меняется только при правке, не на каждый тик.
     private(set) var roomSchedule = RoomSchedule.standard
+    /// Надетое на собаке (Wear.worn): сцена вешает на кости только при смене.
+    private(set) var worn: [WearSlot: String] = [:]
     /// Открытка дня, которую ещё не сохранили и не выбросили.
     private(set) var pendingCard: Postcard? = nil
     /// Открытка на экране (лист). Из альбома — сохранённая.
@@ -140,6 +142,7 @@ final class AppModel {
             file = f
             homeLevels = RoomPlan.levels(f)
             roomSchedule = f.roomSchedule
+            worn = Wear.worn(f)
             knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
@@ -209,6 +212,8 @@ final class AppModel {
             if home != homeLevels { homeLevels = home }
             let schedule = f.roomSchedule
             if schedule != roomSchedule { roomSchedule = schedule }
+            let w = Wear.worn(f)
+            if w != worn { worn = w }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
         } catch {
@@ -756,6 +761,34 @@ final class AppModel {
         }
     }
 
+    /// «Надеть» / «Снять» в коллекции. Тот же предмет на месте — снять, иначе надеть (прежнее с этого места снимается).
+    func wear(_ id: String) {
+        do {
+            let r = try Wear.perform(id)
+            refresh()
+            let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
+            switch r {
+            case .success(.put(_, let replaced)):
+                haptic(.success)
+                SoundKit.shared.play(.ok)
+                if let replaced, let old = EconomyConfig.shared.capsule.itemsById[replaced]?.name {
+                    show("Надели «\(name)» вместо «\(old)»", emoji: "👕")
+                } else {
+                    show("Надели «\(name)»", emoji: "👕")
+                }
+                Task { await AppActions.shared.afterChange() }
+            case .success(.tookOff):
+                haptic(.light)
+                show("Сняли «\(name)»")
+                Task { await AppActions.shared.afterChange() }
+            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
+            case .failure(.notWearable): show("Это не надевается", ok: false)
+            }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+    }
+
     /// Купить следующий уровень линии дома. Купили — снимок, кошелёк и виджеты сразу; отказ экран показывает сам.
     /// nil — стор не записался.
     func buyHome(_ id: HomeLine) -> HomeShop.BuyResult? {
@@ -997,7 +1030,8 @@ enum AwayBuilder {
 /// room_max — все линии дома на верхнем уровне, room_mid — уровни 1–2 вперемешку, для снимков комнаты;
 /// house_rich — все линии дома на базе и 50 000 монет: в HouseUITests покупка проходит с первого нажатия;
 /// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки;
-/// brush — сытый бодрый щенок со свалявшейся шерстью, для снимков расчёсывания).
+/// brush — сытый бодрый щенок со свалявшейся шерстью, для снимков расчёсывания;
+/// wear — в коллекции шапочка, бантик, бандана, шарф, плащ и миска, надеты шапочка, шарф и плащ (ui-61/62)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1139,6 +1173,16 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.pet.needs[.look] = 0
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "wear":
+                // Надетое на собаке (PetWear) и кнопки «Надеть/Снять» в коллекции. Миска — не надевается.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+                for id in ["leaf_hat", "bow_blue", "bandana_red", "scarf_knit", "cape_champion", "bowl_plain"] {
+                    f.econ.items[id] = 1
+                }
+                for id in ["leaf_hat", "scarf_knit", "cape_champion"] { _ = Wear.put(&f, id) }
                 f.seen = f.pet
                 f.lastSeenT = now
             default:
