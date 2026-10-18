@@ -270,8 +270,8 @@ struct BrushCard: View {
 enum BrushFx {
     static let containerName = "brushFx"
     static let tuftName = "brushTuft"
-    /// Спина по высоте модели: доля от низа рамки (у заглушки — верх туловища).
-    static let backRatio: Float = 0.55
+    /// Линия спины по высоте рамки: верх рамки дают уши и хвост, спина — около 0,8 (снято с ui-59).
+    static let backRatio: Float = 0.79
     /// Последний показанный мазок (AppModel.brushPuff): новые — шерстинки.
     private static var lastPuff = 0
 
@@ -340,7 +340,7 @@ enum BrushFx {
         root.name = tuftName
         root.position = p
         let m = SimpleMaterial(color: color(0xa8662f), roughness: 1, isMetallic: false)
-        let main = ModelEntity(mesh: .generateSphere(radius: 0.024), materials: [m])
+        let main = ModelEntity(mesh: .generateSphere(radius: 0.028), materials: [m])
         main.scale = SIMD3<Float>(1.25, 0.55, 1.0)
         root.addChild(main)
         // Второй комочек сбоку — колтун неровный.
