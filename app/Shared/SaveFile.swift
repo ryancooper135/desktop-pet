@@ -68,6 +68,8 @@ struct SaveFile: Codable, Sendable {
     var econ = Econ.start(paidSeq: 0)
     /// Открытки дня: ждущие решения и альбом (Postcards.swift).
     var cards = PostcardBook()
+    /// Кадры 3D для открыток ещё не разобранных дней (PostcardPhotos.swift). Пустое в файл не пишется.
+    var shots = ShotBook()
     /// Метка для теста «записал приложением — прочитал как виджет».
     var debugMarker: Double?
     /// Вкусы: что хозяин уже видел и что открыто (Tastes.swift). Пустое в файл не пишется.
@@ -129,7 +131,7 @@ struct SaveFile: Codable, Sendable {
         case v, rev, petId, deviceId, seq, name, createdT, owner, pet, seen, lastSeenT, lastStepsT, lastAction
         case tastes, tricks, brush
         case journal, outbox, build, island, flags, notif, debugMarker, econ
-        case cards
+        case cards, shots
         case catchBest, catchDay, catchCoins, catchGames
     }
 
@@ -171,6 +173,7 @@ struct SaveFile: Codable, Sendable {
         econ = (try? c.decodeIfPresent(Econ.self, forKey: .econ)) ?? Econ.start(paidSeq: seq)
         if econ.paidSeq < 0 { econ.paidSeq = seq }
         cards = (try? c.decodeIfPresent(PostcardBook.self, forKey: .cards)) ?? PostcardBook()
+        shots = (try? c.decodeIfPresent(ShotBook.self, forKey: .shots)) ?? ShotBook()
         catchBest = (try? c.decodeIfPresent(Int.self, forKey: .catchBest)) ?? 0
         catchDay = (try? c.decodeIfPresent(Int.self, forKey: .catchDay)) ?? 0
         catchCoins = (try? c.decodeIfPresent(Int.self, forKey: .catchCoins)) ?? 0
@@ -204,6 +207,7 @@ struct SaveFile: Codable, Sendable {
         if !brush.isEmpty { try c.encode(brush, forKey: .brush) }
         try c.encode(econ, forKey: .econ)
         try c.encode(cards, forKey: .cards)
+        if !shots.isEmpty { try c.encode(shots, forKey: .shots) }
         if catchBest != 0 { try c.encode(catchBest, forKey: .catchBest) }
         if catchDay != 0 { try c.encode(catchDay, forKey: .catchDay) }
         if catchCoins != 0 { try c.encode(catchCoins, forKey: .catchCoins) }

@@ -1,12 +1,15 @@
 // «Открытка дня» (RESEARCH/06 #8). Ничего не снимаем в момент события: после местной полуночи
 // задним числом разбираем журнал за прошедший день, находим «моменты» (кормёжка, игра, находка,
 // спасение, день дружбы…), выбираем один стабильно от petId и номера дня и собираем открытку:
-// поза/клип/проп для снимка, находка, подпись из lines.json (away.card_*), время.
+// поза/клип/проп для заглушки, находка, подпись из lines.json (away.card_*), время.
 // Открытка живёт 7 суток с местной полуночи, когда появилась; не сохранили — пропадает.
 // Сохранённые лежат в альбоме (SaveFile.cards) без срока. Пустой день — открытки нет, ничего не выдумываем.
 //
-// Только Foundation и PetCore: гоняется на Linux (app/Package.swift). Снимок 3D и экран — позже,
-// им хватает Postcards.active / album / Postcard.frame и setImage.
+// Кадр 3D для открытки снимает приложение в удачный момент дня (PostcardPhotos, PostcardCamera); при сборке
+// открытки ей достаётся кадр того же момента. Нет кадра — экран рисует заглушку по Postcard.frame.
+// Срок и мягкое «последний день» — Postcards.expiryNote (PostcardPhotos.swift).
+//
+// Только Foundation и PetCore: гоняется на Linux (app/Package.swift).
 
 import Foundation
 @preconcurrency import PetCore
@@ -73,7 +76,7 @@ struct Postcard: Codable, Hashable, Sendable, Identifiable {
     let expiresT: Double
     /// Когда сохранили в альбом; nil — не сохранена.
     var savedT: Double?
-    /// Имя файла кадра (заполнит снимок 3D).
+    /// Имя файла кадра в Paths.dir/photos (PostcardPhotos); nil — кадра нет, на открытке заглушка.
     var image: String?
 
     var momentKind: MomentKind? { MomentKind(rawValue: kind) }
@@ -478,7 +481,9 @@ enum Postcards {
             }
         }
         f.cards.doneDay = max(f.cards.doneDay ?? (today - 1), today - 1)
-        return made
+        // Кадры дня (PostcardPhotos): новым открыткам — кадр момента, кадры прошедших дней — прочь.
+        PostcardPhotos.settle(&f, made: made.map(\.id), today: today)
+        return made.map { f.cards.card($0.id) ?? $0 }
     }
 
     /// Открытки последних 7 дней (и сохранённые, и нет), свежие первыми. Ничего не пишет:

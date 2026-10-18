@@ -15,6 +15,7 @@
 //   ui-56           покупка лежанки в «Доме» видна в комнате — HouseUITests
 //   ui-57/58        мини-игра «Лови мячик»: раунд в разгаре, итог с наградой (PET_CATCH, сид 7)
 //   ui-59/60        расчесать: полоса на 50% с колтунами на спине, дочесали (отряхнулся, тост)
+//   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -142,6 +143,42 @@ final class ScreenshotUITests: XCTestCase {
             settle(1.5)
             snap("ui-48-postcard-sheet")
         }
+        app.terminate()
+    }
+
+    /// Открытка с кадром 3D-сцены: после старта приложение само снимает сцену (PET_SEED=postcard_photo)
+    /// и вешает кадр на вчерашнюю открытку. Значение чипа «photo:<способ>» — ar / metal / window, а если
+    /// настоящий снимок на симуляторе не вышел — fallback (мордочка); способ печатается в лог прогона.
+    @MainActor
+    func testStates65PostcardPhoto() throws {
+        let env = ["PET_SEED": "postcard_photo", "PET_NOW": Self.noon, "PET_SCHEME": "light"]
+        let app = try shootOptional("ui-65-postcard-photo-main", env: env, marker: "postcard.card", keepRunning: true)
+        let chip = app.descendants(matching: .any)["postcard.card"]
+        let hasPhoto = NSPredicate(format: "value BEGINSWITH %@", "photo:")
+        let shot = XCTNSPredicateExpectation(predicate: hasPhoto, object: chip)
+        let got = XCTWaiter().wait(for: [shot], timeout: 30) == .completed
+        print("ui-65: источник кадра = \((chip.value as? String) ?? "нет")")
+        chip.tap()
+        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+            settle(1.5)
+            snap("ui-65-postcard-photo")
+        }
+        app.terminate()
+        XCTAssertTrue(got, "ui-65: у открытки так и не появился кадр")
+    }
+
+    /// Открытке неделя, не сохранена: сегодня последний день. Чип «· последний день», в листе — мягкое напоминание.
+    @MainActor
+    func testStates66PostcardExpiring() throws {
+        let env = ["PET_SEED": "postcard_expiring", "PET_NOW": Self.noon, "PET_SCHEME": "light"]
+        let app = try shootOptional("ui-66-postcard-expiring-main", env: env, marker: "postcard.card", keepRunning: true)
+        app.descendants(matching: .any)["postcard.card"].tap()
+        let note = app.descendants(matching: .any)["postcard.expiry"]
+        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+            settle(1.5)
+            snap("ui-66-postcard-expiring")
+        }
+        XCTAssertTrue(note.exists && note.label.contains("последний день"), "ui-66: нет напоминания о последнем дне")
         app.terminate()
     }
 

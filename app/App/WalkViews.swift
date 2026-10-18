@@ -422,7 +422,7 @@ struct PostcardsSection: View {
                         Button {
                             opened = card
                         } label: {
-                            PostcardFace(frame: card.frame, compact: true)
+                            PostcardFace(card: card, compact: true)
                         }
                         .buttonStyle(SquishStyle())
                         .contextMenu {

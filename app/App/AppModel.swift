@@ -175,6 +175,7 @@ final class AppModel {
         }
         refresh(now: now)
         startTicker()
+        startPhotoChores()
         Task { await AppActions.shared.afterActivation() }
     }
 
@@ -221,6 +222,7 @@ final class AppModel {
             SoundKit.shared.ambient(.yip)
             pop(Finds.broughtText(find), at: anchor)
             heartBurst()
+            notePhoto(PostcardPhotos.walkKind, delay: PostcardCamera.walkDelay)
             // Остров и виджет узнают о возвращении только через синк, иначе остров висит на «Гуляет 0:00».
             Task { await AppActions.shared.afterChange() }
         }
@@ -347,6 +349,7 @@ final class AppModel {
             if a == .pet { heartBurst() }
             noteEarn(a, out)
             noteTaste(a)
+            if let k = PostcardPhotos.kind(forAction: a.kind, key: a.key) { notePhoto(k, delay: PostcardCamera.actionDelay) }
             // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
             poseTask?.cancel()
             poseTask = Task { [weak self] in
@@ -606,6 +609,7 @@ final class AppModel {
         }
         react(t.kind)
         haptic(.success)
+        notePhoto(PostcardPhotos.trickKind, delay: PostcardCamera.actionDelay)
         // «Голос» тявкает сам на прыжке (PetChoreo.begin), если сцена играет клипы; без движения — тявк сразу.
         if t != .speak {
             SoundKit.shared.play(.ok)
@@ -748,6 +752,44 @@ final class AppModel {
         }
     }
 
+    // MARK: волна 10: кадры открыток
+
+    /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
+    var sceneClear: Bool {
+        guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
+              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showHouse, !showTricks, !showCatch else { return false }
+        switch snap.pose {
+        case .sleep, .nap, .away, .dead, .critical: return false
+        default: return true
+        }
+    }
+
+    /// Удачный момент ухода: камера тихо снимет сцену, если правила дня разрешают (PostcardPhotos).
+    private func notePhoto(_ kind: MomentKind, delay: Double) {
+        PostcardCamera.moment(kind, delay: delay) { [weak self] in
+            guard let self else { return false }
+            return self.sceneClear
+        }
+    }
+
+    @ObservationIgnored private var photoChoresDone = false
+
+    /// Раз за запуск: убрать кадры-сироты; в UI-тесте с сидом postcard_photo — снять кадр для открытки.
+    private func startPhotoChores() {
+        guard !photoChoresDone, !Env.isUnitTest else { return }
+        photoChoresDone = true
+        Task { [weak self] in
+            if let id = LaunchSeed.photoCardId {
+                // Сцена успевает загрузиться и встать.
+                try? await Task.sleep(for: .seconds(3))
+                await PostcardCamera.seedPhoto(for: id)
+                self?.refresh()
+            }
+            try? await Task.sleep(for: .seconds(5))
+            PostcardCamera.sweep()
+        }
+    }
+
     /// «В альбом».
     func savePostcard(_ c: Postcard) {
         do {
@@ -791,6 +833,8 @@ final class AppModel {
     private func postcardChanged() {
         postcard = nil
         refresh()
+        // Открытка ушла (выбросили, удалили) — её кадр больше не нужен.
+        PostcardCamera.sweep()
         Task { await AppActions.shared.afterChange() }
     }
 }
@@ -931,6 +975,7 @@ enum AwayBuilder {
 /// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
 /// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
 /// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера;
+/// postcard_photo — открытка «играли» за вчера, кадр снимет камера сцены; postcard_expiring — открытке неделя;
 /// room_max — все линии дома на верхнем уровне, room_mid — уровни 1–2 вперемешку, для снимков комнаты;
 /// house_rich — все линии дома на базе и 50 000 монет: в HouseUITests покупка проходит с первого нажатия;
 /// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки;
@@ -938,6 +983,8 @@ enum AwayBuilder {
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
+    /// Сид postcard_photo: какой открытке приложение снимет настоящий кадр после старта.
+    @MainActor private(set) static var photoCardId: String? = nil
 
     @MainActor
     static func applyOnce() {
@@ -985,7 +1032,7 @@ enum LaunchSeed {
                 f.pet.bathUntil = now + 10 * 60
             case "walk", "walk_back":
                 PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 if seed == "walk" {
                     f.pet.outing = Outing(from: now - 40 * 60, until: now + 20 * 60, find: "cone")
                 } else {
@@ -1005,6 +1052,26 @@ enum LaunchSeed {
                 if let d = Tastes.hidden(petId: f.petId, .toy, log: f.tastes).dislike {
                     f.tastes.seen[Tastes.key(.toy, d)] = TasteLog.Seen(n: 2, t: now - 3600, r: Taste.dislike.rawValue)
                 }
+            case "postcard_photo":
+                // Открытка «играли» за вчера; кадр снимет сама камера сцены после старта (startPhotoChores).
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                let tz = f.owner.tzOffsetMin
+                let day = Postcards.day(now, tzOffsetMin: tz) - 1
+                let card = Postcards.make(Moment(kind: .play, t: Postcards.dayStart(day, tzOffsetMin: tz) + 17 * 3600 + 20 * 60,
+                                                 score: 35), day: day, petId: f.petId, tzOffsetMin: tz)
+                if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
+                photoCardId = card.id
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "postcard_expiring":
+                // Открытка недельной давности: сегодня её последний день (Postcards.isLastDay).
+                PetRunner.catchUp(&f, now: now)
+                let tz = f.owner.tzOffsetMin
+                let day = Postcards.day(now, tzOffsetMin: tz) - Postcards.lifeDays
+                let m = Moment(kind: .bath, t: Postcards.dayStart(day, tzOffsetMin: tz) + 11 * 3600 + 5 * 60, score: 30)
+                let card = Postcards.make(m, day: day, petId: f.petId, tzOffsetMin: tz)
+                if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
             case "postcard":
                 // Открытка «первый день» за вчера, ещё не разобрана: карточка на главной.
                 PetRunner.catchUp(&f, now: now)
@@ -1030,12 +1097,12 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for line in HomeLine.allCases { f.pet.home[line] = 0 }
                 Economy.grant(&f, coins: 50_000)
-                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.seen = f.pet
                 f.lastSeenT = now
             case "tricks":
                 PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 var sit = TrickLog.Entry()
                 sit.n = Tricks.needed
                 sit.t = now - 3600
