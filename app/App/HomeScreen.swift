@@ -47,6 +47,12 @@ struct HomeScreen: View {
             .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
             .accessibilityIdentifier("pet.stage")
 
+            if model.brush != nil {
+                // Расчёсывание (BrushViews): жест по спине вместо обычных касаний.
+                BrushLayer()
+                    .ignoresSafeArea()
+            }
+
             if snap.pose == .away, !noteHeld, let note = awayNote {
                 // Записка на месте Шибы, чуть ниже середины сцены: там он обычно стоит.
                 GeometryReader { geo in
@@ -140,13 +146,16 @@ struct HomeScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                if snap.alive && !rescue {
+                if model.brush != nil && snap.alive {
+                    BrushPanel()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if snap.alive && !rescue {
                     WalkRow(snap: snap)
                         .transition(.opacity)
                 }
 
                 if snap.alive {
-                    ActionBar(snap: snap)
+                    if model.brush == nil { ActionBar(snap: snap) }
                 } else {
                     Button {
                         confirmStartOver = true
@@ -171,6 +180,7 @@ struct HomeScreen: View {
         .animation(.snappy, value: model.sayLine)
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: model.tasteOpened)
         .animation(.snappy, value: model.pendingCard?.id)
+        .animation(.snappy, value: model.brush != nil)
         .onChange(of: snap.pose == .away) { was, now in
             guard now, !was else { return }
             noteHeld = true

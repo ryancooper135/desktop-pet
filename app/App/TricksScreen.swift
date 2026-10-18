@@ -31,6 +31,8 @@ struct TricksScreen: View {
                         }
                     }
                 }
+                // Уход (волна 9): расчесать — тут же, под командами.
+                BrushCard()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 18)

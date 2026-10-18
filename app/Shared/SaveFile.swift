@@ -74,6 +74,8 @@ struct SaveFile: Codable, Sendable {
     var tastes = TasteLog()
     /// Трюки: засчитанные удачи и выученное (Tricks.swift). Пустое в файл не пишется, новому щенку не переходит.
     var tricks = TrickLog()
+    /// Расчёсывание: когда последний раз и сколько всего (Brush.swift). Пустое в файл не пишется.
+    var brush = BrushLog()
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -119,7 +121,7 @@ struct SaveFile: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case v, rev, petId, deviceId, seq, name, createdT, owner, pet, seen, lastSeenT, lastStepsT, lastAction
-        case tastes, tricks
+        case tastes, tricks, brush
         case journal, outbox, build, island, flags, notif, debugMarker, econ
         case cards
     }
@@ -157,6 +159,7 @@ struct SaveFile: Codable, Sendable {
         debugMarker = try c.decodeIfPresent(Double.self, forKey: .debugMarker)
         tastes = (try? c.decodeIfPresent(TasteLog.self, forKey: .tastes)) ?? TasteLog()
         tricks = (try? c.decodeIfPresent(TrickLog.self, forKey: .tricks)) ?? TrickLog()
+        brush = (try? c.decodeIfPresent(BrushLog.self, forKey: .brush)) ?? BrushLog()
         // Сейв до экономики: стартовый кошелёк, а уже записанный журнал задним числом не оплачиваем.
         econ = (try? c.decodeIfPresent(Econ.self, forKey: .econ)) ?? Econ.start(paidSeq: seq)
         if econ.paidSeq < 0 { econ.paidSeq = seq }
@@ -187,6 +190,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(debugMarker, forKey: .debugMarker)
         if !tastes.isEmpty { try c.encode(tastes, forKey: .tastes) }
         if !tricks.isEmpty { try c.encode(tricks, forKey: .tricks) }
+        if !brush.isEmpty { try c.encode(brush, forKey: .brush) }
         try c.encode(econ, forKey: .econ)
         try c.encode(cards, forKey: .cards)
     }

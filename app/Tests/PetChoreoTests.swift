@@ -359,6 +359,22 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand, available: hopOnly), ["hop"])
     }
 
+    /// Расчесали — отряхнулся (сидящий сначала встаёт); против шерсти — дёрнулся с той стороны, где палец.
+    func testBrushReaction() {
+        let all = Set(PetClipNames.required).union(PetClipNames.optional)
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: all), ["shake"])
+        let sit = PetStance.reaction(kind: "brush", ok: true, stance: .sit, available: all)
+        XCTAssertEqual(sit.last, "shake")
+        XCTAssertEqual(PetStance.endStance(after: sit, from: .sit), .stand)
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: false, stance: .stand, lookX: -0.5, available: all), ["hit_left"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: false, stance: .stand, lookX: 0.5, available: all), ["hit_right"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: false, stance: .lie, available: all), ["ear_flick"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .sleep, available: all), [])
+        // Без shake в модели — виляние хвостом.
+        let noShake = all.subtracting(["shake"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: noShake), ["happy_wag"])
+    }
+
     // MARK: прогулка
 
     typealias W = ChoreoPath.Walk

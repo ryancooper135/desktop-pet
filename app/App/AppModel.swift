@@ -37,6 +37,12 @@ final class AppModel {
     var showHouse = false
     /// Лист «Трюки».
     var showTricks = false
+    /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
+    private(set) var brush: BrushSession? = nil
+    /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
+    private(set) var brushTufts = 0
+    /// Растёт на каждый засчитанный мазок: сцена пускает шерстинки и искры.
+    private(set) var brushPuff = 0
 
     // MARK: волна 5: монеты, вкусы, шерсть, открытки
 
@@ -531,7 +537,7 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks, pet://brush
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -541,6 +547,7 @@ final class AppModel {
         case "capsule": showCapsule = true
         case "house": showHouse = true
         case "tricks": showTricks = true
+        case "brush": startBrush()
         default:
             showNeeds = false
             showSettings = false
@@ -618,6 +625,94 @@ final class AppModel {
         } else {
             show(t.done)
         }
+    }
+
+    // MARK: волна 9: расчесать
+
+    /// Начать расчёсывание: лист трюков закрывается, над сценой — полоса прогресса, по спине — колтуны.
+    /// Нельзя (спит, гуляет, недавно чесали) — причина тостом.
+    func startBrush() {
+        showTricks = false
+        guard let f = file else {
+            show(Brush.reasonText(Tricks.loadingReason), ok: false)
+            return
+        }
+        let now = Clock.now()
+        if let r = Brush.gate(f, at: now) {
+            haptic(.warning)
+            SoundKit.shared.play(.refuse)
+            show(Brush.reasonText(r, remaining: Brush.remaining(f, at: now)), ok: false)
+            return
+        }
+        brushTufts = Brush.tufts(Coat.look(f, now: now).stage)
+        // UI-тесты: PET_BRUSH_STROKES=N — сеанс начинается с N засчитанных мазков (снимки 50% и «готово»).
+        let start = Env.isUITest ? Env.value("PET_BRUSH_STROKES").flatMap(Int.init) ?? 0 : 0
+        brush = BrushSession(counted: start)
+    }
+
+    /// Мазок по шерсти засчитан.
+    func brushStroke(at point: CGPoint? = nil) {
+        guard var s = brush, !s.done else { return }
+        let finished = s.add()
+        brush = s
+        brushPuff += 1
+        haptic(.light)
+        SoundKit.shared.play(.brush)
+        pop("", at: point ?? anchor, symbol: "sparkles")
+        if finished {
+            finishBrush()
+        }
+    }
+
+    /// Против шерсти: пёс морщится, мазок не в счёт.
+    func brushAgainst(at point: CGPoint? = nil) {
+        guard var s = brush, !s.done else { return }
+        s.against += 1
+        brush = s
+        reaction = Reaction(id: reaction.id + 1, kind: Brush.journalKind, ok: false, reason: nil)
+        haptic(.medium)
+        SoundKit.shared.play(.refuse)
+        pop("😖", at: point ?? anchor)
+    }
+
+    /// Закрыть полосу расчёсывания (крестик или «Готово»). Недочесал — ничего не записано.
+    func endBrush() {
+        brush = nil
+        brushTufts = 0
+    }
+
+    /// Дочесали: запись в стор, пёс отряхивается, шерсть на стадию лучше. Полоса остаётся на 100% до «Готово».
+    private func finishBrush() {
+        let out: BrushOutcome
+        do {
+            out = try PetStore.shared.mutate { Brush.finish(&$0, now: Clock.now()) }
+        } catch {
+            endBrush()
+            show(RefuseText.text("store"), ok: false)
+            return
+        }
+        refresh()
+        guard out.ok else {
+            endBrush()
+            haptic(.warning)
+            SoundKit.shared.play(.refuse)
+            show(Brush.reasonText(out.reason), ok: false)
+            return
+        }
+        react(Brush.journalKind)
+        haptic(.success)
+        SoundKit.shared.play(.brushDone)
+        let love = Int(out.love.rounded())
+        if love > 0 {
+            lastDelta = ["love": love]
+            popDelta(lastDelta)
+        }
+        if out.after.rank > out.before.rank {
+            show("Шерсть стала лучше: «\(out.after.title)»", emoji: "✨")
+        } else {
+            show("Расчесали — блестит!", emoji: "✨")
+        }
+        Task { await AppActions.shared.afterChange() }
     }
 
     // MARK: капсула и открытки
@@ -833,7 +928,8 @@ enum AwayBuilder {
 /// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
 /// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера;
 /// room_max — все линии дома на верхнем уровне, room_mid — уровни 1–2 вперемешку, для снимков комнаты;
-/// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки).
+/// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки;
+/// brush — сытый бодрый щенок со свалявшейся шерстью, для снимков расчёсывания).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -938,6 +1034,13 @@ enum LaunchSeed {
                 lie.t = now - 3600
                 lie.tries = 6
                 f.tricks[.lie] = lie
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "brush":
+                // С PET_RESET щенок новорождённый: при look 0 шерсть «свалялась» (Coat.newborn).
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.pet.needs[.look] = 0
                 f.seen = f.pet
                 f.lastSeenT = now
             default:

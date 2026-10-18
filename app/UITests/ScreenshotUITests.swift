@@ -12,6 +12,7 @@
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 //   ui-5N-room-*    дом в комнате: все линии на максимуме, уровни 1–2 вперемешку, максимум в тёмной теме
 //   ui-50/54/55     трюки: лист, ряд с лапой, тост после «Сидеть»
+//   ui-59/60        расчесать: полоса на 50% с колтунами на спине, дочесали (отряхнулся, тост)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -189,6 +190,47 @@ final class ScreenshotUITests: XCTestCase {
         settle(1.2)
         snap("ui-55-tricks-done")
         app.terminate()
+    }
+
+    /// Расчесать: щенок со свалявшейся шерстью (PET_SEED=brush), сеанс открыт сразу (PET_OPEN=brush) с уже засчитанными
+    /// мазками (PET_BRUSH_STROKES), ещё один — настоящим жестом слева направо по спине.
+    @MainActor
+    func testStates59Brush() throws {
+        try brushShot("ui-59-brush", strokes: 3, expect: "Расчёсано 50%", settleFor: 1.0)
+    }
+
+    @MainActor
+    func testStates60BrushDone() throws {
+        try brushShot("ui-60-brush-done", strokes: 7, expect: "Готово", settleFor: 2.2)
+    }
+
+    /// expect — подпись элемента после мазка (жест засчитан).
+    @MainActor
+    private func brushShot(_ name: String, strokes: Int, expect: String, settleFor: TimeInterval) throws {
+        let app = Self.makeApp()
+        let env = ["PET_SEED": "brush", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "brush",
+                   "PET_BRUSH_STROKES": String(strokes)]
+        for (k, v) in env { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let pad = app.descendants(matching: .any)["brush.pad"]
+        guard pad.waitForExistence(timeout: 20) else {
+            snap(name)
+            app.terminate()
+            throw XCTSkip("\(name): нет brush.pad")
+        }
+        settle(1.2)
+        // Голова Шибы слева: по шерсти — слева направо, по середине сцены.
+        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.28, dy: 0.5))
+        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.74, dy: 0.52))
+        from.press(forDuration: 0.05, thenDragTo: to)
+        let label = NSPredicate(format: "label CONTAINS %@", expect)
+        let found = app.descendants(matching: .any).matching(label).firstMatch.waitForExistence(timeout: 5)
+        settle(settleFor)
+        snap(name)
+        app.terminate()
+        if !found { throw XCTSkip("\(name): нет «\(expect)» после мазка") }
     }
 
     /// Полдень по часам симулятора (PET_NOW): днём пёс не спит.

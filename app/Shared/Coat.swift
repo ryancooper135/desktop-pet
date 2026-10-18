@@ -2,6 +2,7 @@
 // Чистая функция от (SaveFile, now), ничего не хранит. Ухоженность — экспоненциальное сглаживание чистоты
 // за последние 7 суток (полураспад 30 ч): одно мытьё после недели грязи не делает шерсть гладкой сразу,
 // а пара пропусков не губит её. Поглаживания и конец ванны дают небольшие толчки, шкала look — бонус сверху.
+// Расчёсывание (журнал «brush», Brush.lift) поднимает на стадию выше — дальше снова решает чистота.
 // Чистоту в прошлом восстанавливаем по журналу без симуляции ядра: якоря (конец ванны = 100, ev.low.clean = warnLow,
 // ev.distress.dirty = 10, конец = шкала из peek), между ними — убыль по правилам ядра (день/ночь питомца,
 // clean_decay_x). Дрёма, прогулка (×2 грязи) и еда, что трогает чистоту, не учитываются: расхождение со следующим
@@ -170,6 +171,7 @@ enum Coat {
         var anchors: [Anchor] = []
         var pets: [Double] = []
         var bathEnds: [Double] = []
+        var brushes: [Double] = []
         for e in f.journal where e.t >= lead && e.t <= end {
             switch e.kind {
             case "act.bath" where e.ok == true:
@@ -184,6 +186,8 @@ enum Coat {
                 anchors.append(Anchor(t: e.t, v: cleanZero, bath: false, order: anchors.count))
             case "act.pet" where e.ok == true:
                 pets.append(e.t)
+            case Brush.journalKind:
+                brushes.append(e.t)
             default:
                 break
             }
@@ -202,6 +206,7 @@ enum Coat {
         }
         pets.sort()
         bathEnds.sort()
+        brushes.sort()
 
         func clean(_ t: Double) -> Double {
             let j = anchors.firstIndex { $0.t > t }
@@ -235,6 +240,7 @@ enum Coat {
         var points = [Point(t: start, clean: c0, groom: clamp(raw + bonus))]
         var pi = pets.firstIndex { $0 > start } ?? pets.count
         var bi = bathEnds.firstIndex { $0 > start } ?? bathEnds.count
+        var ci = brushes.firstIndex { $0 > start } ?? brushes.count
         var lastPet = -Double.infinity
         for i in 1..<ts.count {
             let (p, q) = (ts[i - 1], ts[i])
@@ -250,6 +256,11 @@ enum Coat {
             while bi < bathEnds.count, bathEnds[bi] <= q {
                 raw += bathNudge * (1 - raw)
                 bi += 1
+            }
+            // Расчёсывание: стадия вверх от той, что была (Brush.lift).
+            while ci < brushes.count, brushes[ci] <= q {
+                raw = Brush.lift(raw: clamp(raw), bonus: bonus, stage: stage)
+                ci += 1
             }
             raw = clamp(raw)
             let v = clamp(raw + bonus)

@@ -146,6 +146,10 @@ enum SoundCue: Sendable, Hashable {
     case hello
     /// Смерть: тихое нисхождение.
     case death
+    /// Мазок расчёской: мягкое «шорх» — два шумовых всплеска, светлый и потемнее.
+    case brush
+    /// Дочесали: пёс отряхивается — «фррр» и «динь» вверх.
+    case brushDone
 }
 
 enum SoundRecipe {
@@ -216,6 +220,25 @@ enum SoundRecipe {
                 Tone(at: t, .sine, n(s), to: n(s + 3), glide: 0.05,
                      env: Envelope(attack: 0.003, hold: 0.01, release: 0.05), gain: 0.13)
             }
+
+        case .brush:
+            return [
+                Tone(.noise, 3400, env: Envelope(attack: 0.025, hold: 0.04, release: 0.09), gain: 0.16, cutoff: 3400),
+                Tone(at: 0.05, .noise, 1700, env: Envelope(attack: 0.02, hold: 0.03, release: 0.12), gain: 0.14,
+                     cutoff: 1700),
+            ]
+
+        case .brushDone:
+            // Отряхивается: светлый и тёмный шумовые всплески по очереди.
+            var out: [Tone] = []
+            for i in 0..<4 {
+                let cut: Double = i % 2 == 0 ? 2400 : 1500
+                let flick = Envelope(attack: 0.008, hold: 0.02, release: 0.05)
+                out.append(Tone(at: 0.07 * Double(i), .noise, cut, env: flick, gain: 0.15, cutoff: cut))
+            }
+            out.append(Tone(at: 0.3, .triangle, n(8), env: Envelope(attack: 0.002, hold: 0.01, release: 0.1), gain: 0.12))
+            out.append(Tone(at: 0.38, .triangle, n(10), env: Envelope(attack: 0.002, hold: 0.01, release: 0.16), gain: 0.12))
+            return out
 
         case .refuse:
             return [

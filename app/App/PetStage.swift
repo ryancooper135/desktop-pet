@@ -35,6 +35,10 @@ struct PetStage: View {
         let walkHome = (id: walkHomeId, find: walkHomeFind)
         let coat = self.coat
         let home = model?.homeLevels ?? RoomPlan.Levels()
+        // Расчёсывание (BrushFx): колтунов осталось, было в начале, счётчик мазков.
+        let brushTotal = model?.brushTufts ?? 0
+        let brushLeft = model?.brush?.tufts(of: brushTotal) ?? 0
+        let brushPuff = model?.brushPuff ?? 0
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -60,6 +64,8 @@ struct PetStage: View {
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
+            BrushFx.prime(puff: brushPuff)
+            BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
         } update: { content in
             guard let stand = content.entities.first(where: { $0.name == PetModel.standName }),
                   let pet = stand.children.first(where: { $0.name == PetModel.petName }) else { return }
@@ -68,6 +74,7 @@ struct PetStage: View {
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
+            BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
                 RoomDecor.apply(home, to: room)
@@ -185,7 +192,7 @@ enum PetModel {
             if !reduceMotion && r.ok && pose != .dead {
                 let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
                 switch r.kind {
-                case "pet", "feed", "item":
+                case "pet", "feed", "item", "brush":
                     c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
                 case "play":
                     c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
