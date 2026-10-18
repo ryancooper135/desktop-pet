@@ -4,29 +4,7 @@
 
 import Foundation
 
-/// Место на собаке. rawValue — ключ в SaveFile.worn, менять нельзя.
-enum WearSlot: String, Codable, CaseIterable, Hashable, Sendable, Comparable {
-    case head, neck, back
-
-    var title: String {
-        switch self {
-        case .head: return "голова"
-        case .neck: return "шея"
-        case .back: return "спина"
-        }
-    }
-
-    private var order: Int { WearSlot.allCases.firstIndex(of: self) ?? 0 }
-    static func < (a: WearSlot, b: WearSlot) -> Bool { a.order < b.order }
-}
-
-/// Какую фигуру строить. У предметов без своей — общая для места (generic*).
-enum WearShape: String, Hashable, Sendable {
-    case leafHat, bow                    // голова
-    case bandana, collar, scarf          // шея
-    case cape                            // спина
-    case genericHat, genericRing, genericBlanket
-}
+// WearSlot и WearShape — в WearMesh.swift (рядом с геометрией).
 
 /// Как предмет выглядит на собаке: место, фигура, основной цвет и второй (кант, звёздочка, черенок).
 struct WearInfo: Hashable, Sendable {

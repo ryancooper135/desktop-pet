@@ -87,6 +87,7 @@ final class WearTests: XCTestCase {
     func testSlotsOrdered() {
         XCTAssertEqual(WearSlot.allCases.sorted(), [.head, .neck, .back])
         XCTAssertEqual(WearSlot.back.title, "спина")
+        XCTAssertEqual(WearSlot.neck.place, "на шею")
     }
 
     func testSaveFileRoundTripAndOldFile() throws {
@@ -129,5 +130,70 @@ final class WearTests: XCTestCase {
 
         XCTAssertEqual(try Wear.perform("scarf_knit", store: store).get(), .tookOff(.neck))
         XCTAssertTrue(try XCTUnwrap(store.read()).worn.isEmpty)
+    }
+}
+
+/// Фигуры WearMesh: целые, на правильных костях, в пределах собаки и не внутри неё.
+final class WearMeshTests: XCTestCase {
+    func testEveryShapeBuildsFiniteDoubleSidedMesh() {
+        for shape in WearShape.allCases {
+            let parts = WearMesh.parts(shape)
+            XCTAssertFalse(parts.isEmpty, "\(shape)")
+            XCTAssertTrue(parts.contains { !$0.accent }, "\(shape): нет основного цвета")
+            for p in parts {
+                XCTAssertEqual(p.positions.count, p.normals.count)
+                XCTAssertEqual(p.indices.count % 6, 0, "\(shape): треугольники парами (две стороны)")
+                XCTAssertTrue(p.indices.allSatisfy { Int($0) < p.positions.count })
+                XCTAssertTrue(p.positions.allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
+                for n in p.normals { XCTAssertEqual(WearMath.length(n), 1, accuracy: 1e-3) }
+                XCTAssertNotNil(WearMesh.bindJoints[p.joint], "\(shape): кость \(p.joint) без замера")
+            }
+        }
+    }
+
+    func testShapesSitWhereTheirSlotIs() {
+        for shape in WearShape.allCases {
+            let pts = WearMesh.parts(shape).flatMap(\.positions)
+            let lo = pts.reduce(SIMD3<Float>(repeating: .infinity)) { pointwiseMin($0, $1) }
+            let hi = pts.reduce(SIMD3<Float>(repeating: -.infinity)) { pointwiseMax($0, $1) }
+            // Симметрия по x: ни одна вещь не уезжает вбок больше чем на хвостик шарфа.
+            XCTAssertLessThan(abs(lo.x + hi.x), 0.2, "\(shape)")
+            switch shape.slot {
+            case .head:
+                XCTAssertGreaterThan(lo.y, 2.8, "\(shape): шапка на макушке")
+                XCTAssertLessThan(hi.y, 3.7, "\(shape)")
+            case .neck:
+                XCTAssertGreaterThan(lo.y, 1.0, "\(shape)")
+                XCTAssertLessThan(hi.y, 2.7, "\(shape)")
+                XCTAssertGreaterThan(lo.z, 0.8, "\(shape): на шее, не на спине")
+            case .back:
+                XCTAssertGreaterThan(hi.y, 2.1, "\(shape): поверх спины")
+                XCTAssertLessThan(lo.z, 0, "\(shape)")
+                XCTAssertLessThan(hi.z, 1.3, "\(shape): до шеи, не на голове")
+            }
+        }
+    }
+
+    func testRingsClearTheNeck() {
+        // Ленты шеи не уходят внутрь замеренного сечения.
+        for phi in stride(from: Float(0), to: 360, by: 7.5) {
+            let p = WearMesh.neckPoint(phi, out: 0.01)
+            let local = WearMath.rotX(p - WearMesh.neckCenter, -WearMesh.neckTilt)
+            let r = (local.x * local.x + local.z * local.z).squareRoot()
+            XCTAssertGreaterThanOrEqual(r + 1e-4, WearMesh.ringRadius(phi), "\(phi)")
+            XCTAssertEqual(local.y, 0, accuracy: 1e-4)
+        }
+        XCTAssertEqual(WearMesh.ringRadius(0), WearMesh.ringRadius(360), accuracy: 1e-5)
+    }
+
+    func testStubMapLandsOnStubDog() {
+        // Заглушка: голова-коробка в (0, 0.31, 0.15), туловище в (0, 0.17, 0), метры.
+        let head = WearMesh.stubMap(.head)
+        XCTAssertEqual(head.to.y, 0.39, accuracy: 0.001)
+        for slot in WearSlot.allCases {
+            let m = WearMesh.stubMap(slot)
+            XCTAssertGreaterThan(m.scale, 0.05)
+            XCTAssertLessThan(m.scale, 0.5)
+        }
     }
 }

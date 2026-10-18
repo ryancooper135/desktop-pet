@@ -56,6 +56,7 @@ let package = Package(
                 "Tastes.swift",
                 "Tricks.swift",
                 "Wear.swift",
+                "WearMesh.swift",
             ]
         ),
         .testTarget(

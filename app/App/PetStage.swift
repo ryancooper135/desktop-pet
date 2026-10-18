@@ -1,7 +1,7 @@
 // Сцена: RealityView с виртуальной камерой (без AR). Модель — Resources/shiba.usdz, если она есть в бандле,
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
 // Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
-// Вещи дома в комнате — RoomDecor по AppModel.homeLevels.
+// Вещи дома в комнате — RoomDecor по AppModel.homeLevels. Надетое из капсулы — PetWear по AppModel.worn.
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
 import SwiftUI
@@ -39,6 +39,8 @@ struct PetStage: View {
         let brushTotal = model?.brushTufts ?? 0
         let brushLeft = model?.brush?.tufts(of: brushTotal) ?? 0
         let brushPuff = model?.brushPuff ?? 0
+        // Надетое из капсулы (PetWear): шапка, шарф, плащ.
+        let worn = model?.worn ?? [:]
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -47,6 +49,8 @@ struct PetStage: View {
             PetRoom.matte(pet)
             PetRoom.prepareCoat(pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
+            // После prepareCoat: вещи не попадают в материалы шерсти и не перекрашиваются блеском и грязью.
+            PetWear.apply(worn, to: pet)
             // Подставка с поворотом 3/4: внутри питомец и пятно-тень (пятно не дышит вместе с ним).
             let stand = Entity()
             stand.name = PetModel.standName
@@ -76,6 +80,7 @@ struct PetStage: View {
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
+            PetWear.apply(worn, to: pet)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
@@ -441,8 +446,14 @@ enum PetModel {
 /// Заглушка, пока нет shiba.usdz: туловище, голова, морда, уши, хвост и лапы. Смотрит на камеру (+z).
 @MainActor
 enum StubDog {
+    /// Пустой ребёнок-метка: по нему PetWear узнаёт заглушку и надевает вещи по её коробкам.
+    static let markName = "stubDog"
+
     static func make() -> Entity {
         let root = Entity()
+        let mark = Entity()
+        mark.name = markName
+        root.addChild(mark)
         let fur = mat(0xe39a55), dark = mat(0xc97a3a), cream = mat(0xfbebd6), ink = mat(0x4a3b33)
         func box(_ size: SIMD3<Float>, _ pos: SIMD3<Float>, _ m: SimpleMaterial) {
             let e = ModelEntity(mesh: .generateBox(size: size), materials: [m])

@@ -15,6 +15,7 @@
 //   ui-56           покупка лежанки в «Доме» видна в комнате — HouseUITests
 //   ui-57/58        мини-игра «Лови мячик»: раунд в разгаре, итог с наградой (PET_CATCH, сид 7)
 //   ui-59/60        расчесать: полоса на 50% с колтунами на спине, дочесали (отряхнулся, тост)
+//   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -213,6 +214,32 @@ final class ScreenshotUITests: XCTestCase {
     @MainActor
     func testStates60BrushDone() throws {
         try brushShot("ui-60-brush-done", strokes: 7, expect: "Готово", settleFor: 2.2)
+    }
+
+    /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
+    @MainActor
+    func testStates61Wear() {
+        shootState("ui-61-wear", env: ["PET_SEED": "wear", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Коллекция в автомате: у надетого «Снять» и подпись «надето», у остального «Надеть», у миски кнопки нет.
+    /// Потом «Надеть» бантик — шапочка снимается сама, тост «вместо».
+    @MainActor
+    func testStates62WearList() throws {
+        let app = try shootOptional("ui-62-wear-list",
+                                    env: ["PET_SEED": "wear", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                          "PET_OPEN": "capsule"],
+                                    marker: "wear.leaf_hat", scrollIn: "capsule.screen", keepRunning: true)
+        let bow = app.descendants(matching: .any)["wear.bow_blue"]
+        if bow.waitForExistence(timeout: 5) {
+            bow.tap()
+            let toast = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "вместо"))
+            _ = toast.firstMatch.waitForExistence(timeout: 5)
+            settle(0.6)
+            snap("ui-62-wear-list-swap")
+        }
+        app.terminate()
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).
