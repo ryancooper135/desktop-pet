@@ -12,6 +12,7 @@
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 //   ui-5N-room-*    дом в комнате: все линии на максимуме, уровни 1–2 вперемешку, максимум в тёмной теме
 //   ui-50/54/55     трюки: лист, ряд с лапой, тост после «Сидеть»
+//   ui-57/58        мини-игра «Лови мячик»: раунд в разгаре, итог с наградой (PET_CATCH, сид 7)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -189,6 +190,15 @@ final class ScreenshotUITests: XCTestCase {
         settle(1.2)
         snap("ui-55-tricks-done")
         app.terminate()
+    }
+
+    /// Мини-игра «Лови мячик» (полдень, светлая тема, сид раунда 7 — снимки одинаковые на каждом прогоне):
+    /// ui-57 — раунд замер на 12-й секунде (PET_CATCH=play), ui-58 — раунд сыгран автопилотом, карточка итога с наградой.
+    @MainActor
+    func testStates57Catch() throws {
+        let env = ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "catch"]
+        try shootOptional("ui-57-catch-play", env: env.merging(["PET_CATCH": "play"]) { $1 }, marker: "catch.field")
+        try shootOptional("ui-58-catch-done", env: env.merging(["PET_CATCH": "done"]) { $1 }, marker: "catch.result")
     }
 
     /// Полдень по часам симулятора (PET_NOW): днём пёс не спит.

@@ -74,6 +74,12 @@ struct SaveFile: Codable, Sendable {
     var tastes = TasteLog()
     /// Трюки: засчитанные удачи и выученное (Tricks.swift). Пустое в файл не пишется, новому щенку не переходит.
     var tricks = TrickLog()
+    /// «Лови мячик» (CatchGame.swift): рекорд и счётчики местных суток для дневного потолка монет.
+    /// Простые числа верхним уровнем: старый сейв без них — нули, нули в файл не пишутся.
+    var catchBest = 0
+    var catchDay = 0
+    var catchCoins = 0
+    var catchGames = 0
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -122,6 +128,7 @@ struct SaveFile: Codable, Sendable {
         case tastes, tricks
         case journal, outbox, build, island, flags, notif, debugMarker, econ
         case cards
+        case catchBest, catchDay, catchCoins, catchGames
     }
 
     init(from decoder: Decoder) throws {
@@ -161,6 +168,10 @@ struct SaveFile: Codable, Sendable {
         econ = (try? c.decodeIfPresent(Econ.self, forKey: .econ)) ?? Econ.start(paidSeq: seq)
         if econ.paidSeq < 0 { econ.paidSeq = seq }
         cards = (try? c.decodeIfPresent(PostcardBook.self, forKey: .cards)) ?? PostcardBook()
+        catchBest = (try? c.decodeIfPresent(Int.self, forKey: .catchBest)) ?? 0
+        catchDay = (try? c.decodeIfPresent(Int.self, forKey: .catchDay)) ?? 0
+        catchCoins = (try? c.decodeIfPresent(Int.self, forKey: .catchCoins)) ?? 0
+        catchGames = (try? c.decodeIfPresent(Int.self, forKey: .catchGames)) ?? 0
     }
 
     func encode(to encoder: Encoder) throws {
@@ -189,6 +200,10 @@ struct SaveFile: Codable, Sendable {
         if !tricks.isEmpty { try c.encode(tricks, forKey: .tricks) }
         try c.encode(econ, forKey: .econ)
         try c.encode(cards, forKey: .cards)
+        if catchBest != 0 { try c.encode(catchBest, forKey: .catchBest) }
+        if catchDay != 0 { try c.encode(catchDay, forKey: .catchDay) }
+        if catchCoins != 0 { try c.encode(catchCoins, forKey: .catchCoins) }
+        if catchGames != 0 { try c.encode(catchGames, forKey: .catchGames) }
     }
 }
 

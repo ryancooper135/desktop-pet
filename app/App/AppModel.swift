@@ -37,6 +37,8 @@ final class AppModel {
     var showHouse = false
     /// Лист «Трюки».
     var showTricks = false
+    /// Мини-игра «Лови мячик» (CatchGameScreen), на весь экран.
+    var showCatch = false
 
     // MARK: волна 5: монеты, вкусы, шерсть, открытки
 
@@ -531,7 +533,7 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks, pet://catch
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -541,6 +543,7 @@ final class AppModel {
         case "capsule": showCapsule = true
         case "house": showHouse = true
         case "tricks": showTricks = true
+        case "catch": showCatch = true
         default:
             showNeeds = false
             showSettings = false
@@ -548,6 +551,7 @@ final class AppModel {
             showCapsule = false
             showHouse = false
             showTricks = false
+            showCatch = false
             postcard = nil
         }
     }
