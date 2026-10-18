@@ -20,7 +20,7 @@ on:
         type: boolean
         default: true
 concurrency:
-  group: app
+  group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
 jobs:
   app:
