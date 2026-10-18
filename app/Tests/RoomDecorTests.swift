@@ -50,7 +50,49 @@ final class RoomDecorTests: XCTestCase {
             XCTAssertFalse(names.contains(reserved), "вещь дома с именем \(reserved)")
         }
         let lines = Set(root.children.map(\.name))
-        XCTAssertEqual(lines, ["decor.kitchen", "decor.bath", "decor.window", "decor.bed", "decor.play"])
+        XCTAssertEqual(lines, ["decor.kitchen", "decor.bath", "decor.window", "decor.bed", "decor.canopy", "decor.play"])
+    }
+
+    func testBlobShadowAboveBed() {
+        // Пятно-тень над матрасом и стёжкой: под лежанкой собака стояла без контактной тени.
+        XCTAssertGreaterThan(PetRoom.blobY, RoomPlan.bedTop + 0.002)
+        XCTAssertLessThan(RoomDecor.bed(1).visualBounds(relativeTo: nil).max.y, PetRoom.blobY, "матрас и кант ниже пятна")
+    }
+
+    func testBedLowEnoughToStepOver() {
+        // Всё, через что собака сходит с лежанки (бортик, кисти), — не выше 3 см.
+        for level in 1...RoomPlan.maxLevel {
+            let top = RoomDecor.bed(level).visualBounds(relativeTo: nil).max.y
+            XCTAssertLessThanOrEqual(top, 0.03, "лежанка уровня \(level)")
+        }
+    }
+
+    func testPlayIsLow() {
+        // Перед ковром ничего выше playMaxHeight: закроет мяч и лапы.
+        for level in 1...RoomPlan.maxLevel {
+            let top = RoomDecor.play(level).visualBounds(relativeTo: nil).max.y
+            XCTAssertLessThanOrEqual(top, RoomPlan.playMaxHeight, "игровой угол уровня \(level)")
+        }
+    }
+
+    func testCanopyFromLevelTwoOnWall() {
+        // Балдахин — с «Кроватки с балдахином», на стене в своём прямоугольнике, не на полу.
+        func canopy(_ bed: Int) -> Entity? {
+            var l = RoomPlan.Levels()
+            l.bed = bed
+            return RoomDecor.build(l).children.first { $0.name == "decor.canopy" }
+        }
+        XCTAssertNil(canopy(1))
+        for level in 2...RoomPlan.maxLevel {
+            guard let c = canopy(level) else { return XCTFail("нет балдахина на уровне \(level)") }
+            let b = c.visualBounds(relativeTo: nil)
+            let r = RoomPlan.canopy
+            XCTAssertGreaterThanOrEqual(b.min.x, r.minX - RoomPlan.canopyFlare - 1e-3)
+            XCTAssertLessThanOrEqual(b.max.x, r.maxX + RoomPlan.canopyFlare + 1e-3)
+            XCTAssertGreaterThanOrEqual(b.min.y, r.minY - 1e-3)
+            XCTAssertLessThanOrEqual(b.max.y, r.maxY + 1e-3, "выше — строка таймера")
+            XCTAssertLessThan(b.max.z, RoomPlan.backWallZ + 0.07, "у стены, а не в комнате")
+        }
     }
 
     func testApplyRebuildsOnlyOnChange() {

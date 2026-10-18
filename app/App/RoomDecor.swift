@@ -41,6 +41,7 @@ enum RoomDecor {
         if l.bath > 0 { root.addChild(bath(l.bath)) }
         if l.window { root.addChild(window(yard: l.yard, kennel: l.kennel)) }
         if l.bed > 0 { root.addChild(bed(l.bed)) }
+        if l.bed >= 2 { root.addChild(canopy(l.bed)) }
         if l.play > 0 { root.addChild(play(l.play)) }
         return root
     }
@@ -51,7 +52,7 @@ enum RoomDecor {
     @discardableResult
     private static func part(_ mesh: MeshResource, _ hex: UInt32, _ pos: SIMD3<Float>, in parent: Entity,
                              scale: SIMD3<Float> = .one, shade: CGFloat = 1, flat: Bool = false) -> ModelEntity {
-        let e = ModelEntity(mesh: mesh, materials: [PetRoom.matteMaterial(hex, shade: shade)])
+        let e = ModelEntity(mesh: mesh, materials: [material(hex, shade)])
         e.position = pos
         e.scale = scale
         if flat { PetRoom.noShadow(e) }
@@ -59,12 +60,43 @@ enum RoomDecor {
         return e
     }
 
-    private static func box(_ x: Float, _ y: Float, _ z: Float) -> MeshResource {
-        .generateBox(size: SIMD3<Float>(x, y, z))
+    // Меши и материалы — из кэша: на максимуме ~170 деталей, многие одинаковые (стёжка, пузыри, ножки),
+    // а строится всё на главном потоке при запуске и при каждой покупке.
+    private enum Shape: Hashable {
+        case box(Float, Float, Float), cyl(Float, Float), ball(Float), cone(Float, Float)
+    }
+    private struct Paint: Hashable {
+        var hex: UInt32, shade: CGFloat
+    }
+    private static var meshes: [Shape: MeshResource] = [:]
+    private static var paints: [Paint: PhysicallyBasedMaterial] = [:]
+
+    private static func mesh(_ s: Shape) -> MeshResource {
+        if let m = meshes[s] { return m }
+        let m: MeshResource = switch s {
+        case let .box(x, y, z): .generateBox(size: SIMD3<Float>(x, y, z))
+        case let .cyl(h, r): .generateCylinder(height: h, radius: r)
+        case let .ball(r): .generateSphere(radius: r)
+        case let .cone(h, r): .generateCone(height: h, radius: r)
+        }
+        meshes[s] = m
+        return m
     }
 
-    private static func cyl(_ h: Float, _ r: Float) -> MeshResource { .generateCylinder(height: h, radius: r) }
-    private static func ball(_ r: Float) -> MeshResource { .generateSphere(radius: r) }
+    private static func material(_ hex: UInt32, _ shade: CGFloat) -> PhysicallyBasedMaterial {
+        let key = Paint(hex: hex, shade: shade)
+        if let m = paints[key] { return m }
+        let m = PetRoom.matteMaterial(hex, shade: shade)
+        paints[key] = m
+        return m
+    }
+
+    private static func box(_ x: Float, _ y: Float, _ z: Float) -> MeshResource { mesh(.box(x, y, z)) }
+    private static func cyl(_ h: Float, _ r: Float) -> MeshResource { mesh(.cyl(h, r)) }
+    private static func ball(_ r: Float) -> MeshResource { mesh(.ball(r)) }
+    private static func cone(_ h: Float, _ r: Float) -> MeshResource { mesh(.cone(h, r)) }
+    /// Единичный брусок: детали разной длины (бортик) — один меш и scale.
+    private static var unitBox: MeshResource { box(1, 1, 1) }
 
     private static func turn(_ angle: Float, _ axis: SIMD3<Float>) -> simd_quatf { simd_quatf(angle: angle, axis: axis) }
     private static let axisX = SIMD3<Float>(1, 0, 0)
@@ -168,7 +200,7 @@ enum RoomDecor {
             let dx = c.x - 0.035, dz = c.z + 0.035
             part(ball(0.022), C.duck, [dx, top + 0.012, dz], in: g, scale: [1.2, 0.8, 1])
             part(ball(0.014), C.duck, [dx - 0.014, top + 0.034, dz], in: g)
-            part(.generateCone(height: 0.014, radius: 0.007), C.beak, [dx - 0.03, top + 0.032, dz], in: g)
+            part(cone(0.014, 0.007), C.beak, [dx - 0.03, top + 0.032, dz], in: g)
                 .orientation = turn(.pi / 2, axisZ)
             // Свечи на дальнем бортике.
             for (i, sx) in [Float(-0.05), -0.025, 0.05].enumerated() {
@@ -306,7 +338,8 @@ enum RoomDecor {
 
     // MARK: лежанка — под собакой
 
-    /// 1 — лежанка с кантом, 2 — + деревянный бортик и стёжка, 3 — королевская перина: фиолетовая, золото, кисти.
+    /// 1 — лежанка с кантом, 2 — + деревянный бортик и стёжка (и балдахин на стене — canopy),
+    /// 3 — королевская перина: фиолетовая, золото, кисти.
     /// Плоская (верх bedTop): Шиба стоит и спит на ней, ходить не мешает. Оси — как у подставки (yaw3q).
     static func bed(_ level: Int) -> Entity {
         let g = group("decor.bed")
@@ -336,27 +369,72 @@ enum RoomDecor {
             let a = Float(i) / Float(n) * 2 * .pi
             return [c.x + cos(a) * rx, c.z + sin(a) * rz]
         }
+        let rh = RoomPlan.bedRimHeight
         for i in 0..<n {
             let p0 = at(i), p1 = at(i + 1)
             let d = p1 - p0
             let len = simd_length(d) + 0.004
             let mid = (p0 + p1) / 2
-            part(box(len, RoomPlan.bedRimHeight, RoomPlan.bedRim), rim, [mid.x, RoomPlan.bedRimHeight / 2, mid.y], in: g)
+            part(unitBox, rim, [mid.x, rh / 2, mid.y], in: g, scale: [len, rh, RoomPlan.bedRim])
                 .orientation = turn(atan2(-d.y, d.x), axisY)
         }
         if level >= 3 {
-            // Кисти по диагоналям.
+            // Кисти по диагоналям — лежат на бортике, не выше лап.
             for k in 0..<4 {
                 let a = Float.pi / 4 + Float(k) * .pi / 2
-                part(ball(0.012), C.gold, [c.x + cos(a) * rx, RoomPlan.bedRimHeight + 0.006, c.z + sin(a) * rz], in: g)
+                part(ball(0.009), C.gold, [c.x + cos(a) * rx, rh + 0.004, c.z + sin(a) * rz], in: g)
             }
+        }
+        return g
+    }
+
+    // MARK: балдахин — на задней стене за собакой
+
+    /// 2 — розовый ламбрекен и пологи с деревянными подхватами, 3 — фиолетовый с золотом и шишечкой.
+    /// Пологи перед рамой окна и подоконником (тот выступает на 0.05), на стене без окна — то же место.
+    static func canopy(_ level: Int) -> Entity {
+        let g = group("decor.canopy")
+        let C = DecorColors.self
+        let r = RoomPlan.canopy
+        let z = RoomPlan.backWallZ + 0.056
+        let royal = level >= 3
+        let cloth = royal ? C.bedRoyal : C.canopyPink
+        let trim = royal ? C.gold : C.bedPinkEdge
+        let tie = royal ? C.gold : C.wood
+        let dw = RoomPlan.canopyDrape, tieY = RoomPlan.canopyTieY
+        // Пологи: сверху узкие до подхвата, ниже расходятся шире к краю комнаты.
+        for (x, out) in [(r.minX + dw / 2, Float(-1)), (r.maxX - dw / 2, Float(1))] {
+            let upH = r.maxY - tieY
+            part(box(dw, upH, 0.004), cloth, [x, tieY + upH / 2, z], in: g, flat: true)
+            let lowH = tieY - r.minY, flare = RoomPlan.canopyFlare
+            part(box(dw + flare, lowH, 0.004), cloth, [x + out * flare / 2, r.minY + lowH / 2, z], in: g, flat: true)
+            // Складка — полоса тоном темнее.
+            part(box(0.006, r.maxY - r.minY, 0.004), cloth, [x - out * dw * 0.15, (r.minY + r.maxY) / 2, z + 0.001],
+                 in: g, shade: 0.88, flat: true)
+            part(box(dw + 0.008, 0.01, 0.008), tie, [x, tieY, z + 0.002], in: g)
+        }
+        // Ламбрекен поверх верха окна: полоса и фестоны снизу.
+        let topH: Float = 0.022
+        part(box(r.width, topH, 0.006), cloth, [(r.minX + r.maxX) / 2, r.maxY - topH / 2, z + 0.003], in: g, flat: true)
+        part(box(r.width, 0.004, 0.007), trim, [(r.minX + r.maxX) / 2, r.maxY - 0.002, z + 0.004], in: g, flat: true)
+        let n = 9
+        let step = (r.width - 2 * dw) / Float(n)
+        for i in 0..<n {
+            let x = r.minX + dw + step * (Float(i) + 0.5)
+            part(cyl(0.006, step * 0.55), cloth, [x, r.maxY - topH, z + 0.003], in: g, scale: [1, 1, 0.55], flat: true)
+                .orientation = turn(.pi / 2, axisX)
+        }
+        if royal {
+            // Золотая брошь посередине ламбрекена (выше нельзя — строка таймера).
+            part(ball(0.009), C.gold, [(r.minX + r.maxX) / 2, r.maxY - topH / 2, z + 0.007], in: g, scale: [1, 1, 0.6])
         }
         return g
     }
 
     // MARK: игровой угол — перед ковром
 
-    /// 1 — корзина игрушек, 2 — + туннель, 3 — батут вместо туннеля и горка. Всё ниже playMaxHeight.
+    /// 1 — корзина игрушек, 2 — + туннель, 3 — батут вместо туннеля и горка. Всё ниже playMaxHeight
+    /// (RoomDecorTests.testPlayIsLow): мяч на батуте, кость в корзине и верх ската — с запасом в пару мм.
     static func play(_ level: Int) -> Entity {
         let g = group("decor.play")
         let C = DecorColors.self
@@ -367,7 +445,7 @@ enum RoomDecor {
         part(ball(0.018), C.toyRed, [b.x - 0.016, 0.048, b.z - 0.006], in: g)
         part(ball(0.015), C.toyBlue, [b.x + 0.02, 0.046, b.z + 0.008], in: g)
         let bone = group("bone", in: g)
-        bone.position = [b.x + 0.004, 0.056, b.z - 0.012]
+        bone.position = [b.x + 0.004, 0.05, b.z - 0.012]
         bone.orientation = turn(0.5, axisZ)
         part(box(0.036, 0.009, 0.009), C.bone, .zero, in: bone)
         for ex: Float in [-0.019, 0.019] {
@@ -393,11 +471,11 @@ enum RoomDecor {
             }
             part(cyl(0.01, 0.064), C.trampFrame, [m.x, 0.04, m.z], in: g)
             part(cyl(0.012, 0.052), C.trampMat, [m.x, 0.041, m.z], in: g)
-            part(ball(0.012), C.toyRed, [m.x + 0.012, 0.059, m.z - 0.01], in: g)
+            part(ball(0.011), C.toyRed, [m.x + 0.012, 0.057, m.z - 0.01], in: g)
             // Горка слева: площадка-лесенка и скат к собаке.
             let s = RoomPlan.playSlide
             let sz = s.center.z
-            let platW: Float = 0.03, platH: Float = 0.062
+            let platW: Float = 0.03, platH: Float = 0.058
             let px = s.minX + platW / 2
             part(box(platW, platH, 0.055), C.slideStep, [px, platH / 2, sz], in: g)
             for k in 1...2 {
@@ -475,6 +553,7 @@ enum DecorColors {
     static let bedPinkEdge: UInt32 = 0xd99aab
     static let bedRoyal: UInt32 = 0x9b7fd1
     static let bedRoyalEdge: UInt32 = 0x6f55a8
+    static let canopyPink: UInt32 = 0xf7d6de
     // игры
     static let wicker: UInt32 = 0xd6a86a
     static let toyRed: UInt32 = 0xe86a6a

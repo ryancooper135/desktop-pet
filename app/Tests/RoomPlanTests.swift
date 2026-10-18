@@ -172,6 +172,25 @@ final class RoomPlanTests: XCTestCase {
         XCTAssertLessThanOrEqual(RoomPlan.bathTowel.maxX, RoomPlan.bath.maxX + 1e-4)
     }
 
+    func testCanopyFramesWindowClearOfNeighbours() {
+        // Балдахин на стене: пологи по бокам окна, мимо полки кухни и полотенца, выше свечей ванны,
+        // ламбрекен — не выше окна больше чем на 4 см (строка таймера).
+        let c = RoomPlan.canopy, w = RoomPlan.window
+        let flare = RoomPlan.canopyFlare
+        XCTAssertLessThanOrEqual(c.minX, w.minX, "левый полог закрывает край рамы")
+        XCTAssertGreaterThanOrEqual(c.maxX, w.maxX, "правый полог закрывает край рамы")
+        XCTAssertGreaterThan(c.minX - flare, RoomPlan.kitchenShelf.maxX)
+        XCTAssertGreaterThan(c.minX - flare, RoomPlan.kitchen.maxX)
+        XCTAssertLessThanOrEqual(c.maxX + flare, RoomPlan.bathTowel.minX)
+        XCTAssertGreaterThan(c.minY, RoomPlan.bathTop)
+        XCTAssertLessThanOrEqual(c.maxY, w.maxY + 0.04)
+        XCTAssertGreaterThan(RoomPlan.canopyTieY, c.minY)
+        XCTAssertLessThan(RoomPlan.canopyTieY, c.maxY)
+        // Пологи не закрывают будку в окне.
+        XCTAssertLessThanOrEqual(c.minX + RoomPlan.canopyDrape, RoomPlan.kennelSlot.minX)
+        XCTAssertGreaterThanOrEqual(c.maxX - RoomPlan.canopyDrape, RoomPlan.kennelSlot.maxX - 0.005)
+    }
+
     // MARK: помощники
 
     private func corners(_ r: RoomPlan.Rect) -> [P] {
