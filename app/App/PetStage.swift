@@ -1,6 +1,7 @@
 // Сцена: RealityView с виртуальной камерой (без AR). Модель — Resources/shiba.usdz, если она есть в бандле,
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
 // Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
+// Вещи дома в комнате — RoomDecor по AppModel.homeLevels.
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
 import SwiftUI
@@ -22,6 +23,8 @@ struct PetStage: View {
     /// Вид шерсти (блеск, грязь). nil — как есть. Перекрашиваем только при смене значения.
     var coat: CoatLook? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Дом в комнате (RoomDecor) — уровни из модели; без модели (превью) комната как была.
+    @Environment(AppModel.self) private var model: AppModel?
 
     var body: some View {
         // В @Sendable-замыкание RealityView передаём только Sendable-значения, не self.
@@ -31,6 +34,7 @@ struct PetStage: View {
         let lookX = self.lookX
         let walkHome = (id: walkHomeId, find: walkHomeFind)
         let coat = self.coat
+        let home = model?.homeLevels ?? RoomPlan.Levels()
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -46,7 +50,9 @@ struct PetStage: View {
             stand.addChild(PetRoom.blobShadow())
             stand.addChild(pet)
             content.add(stand)
-            content.add(PetRoom.room())
+            let room = PetRoom.room()
+            RoomDecor.apply(home, to: room)
+            content.add(room)
             content.add(PetRoom.camera())
             content.add(PetRoom.lights())
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
@@ -62,6 +68,10 @@ struct PetStage: View {
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
+            // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
+            if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
+                RoomDecor.apply(home, to: room)
+            }
         }
         .background(PetPalette.bg)
     }

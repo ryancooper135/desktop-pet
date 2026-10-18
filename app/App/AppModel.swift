@@ -44,6 +44,8 @@ final class AppModel {
     var tasteOpened: TasteFact? = nil
     /// Вид шерсти для сцены. Меняется только при заметной разнице: перекраска материалов не бесплатна.
     private(set) var coat: CoatLook? = nil
+    /// Уровни дома для сцены (RoomDecor). Меняются только при покупке: сцена перестраивает вещи по смене значения.
+    private(set) var homeLevels = RoomPlan.Levels()
     /// Открытка дня, которую ещё не сохранили и не выбросили.
     private(set) var pendingCard: Postcard? = nil
     /// Открытка на экране (лист). Из альбома — сохранённая.
@@ -124,6 +126,7 @@ final class AppModel {
             // Сначала snap (без значения по умолчанию), потом остальное: у @Observable init-аксессоры.
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             file = f
+            homeLevels = RoomPlan.levels(f)
             knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
@@ -188,6 +191,8 @@ final class AppModel {
             noteWalk(PetRunner.peek(f, at: now))
             noteCoat(Coat.look(f, now: now))
             noteTastes(f)
+            let home = RoomPlan.levels(f)
+            if home != homeLevels { homeLevels = home }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
         } catch {
@@ -754,7 +759,8 @@ enum AwayBuilder {
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
 /// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
 /// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
-/// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера).
+/// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера;
+/// room_max — все линии дома на верхнем уровне, room_mid — уровни 1–2 вперемешку, для снимков комнаты).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -838,6 +844,13 @@ enum LaunchSeed {
                     card = Postcards.make(m, day: day, petId: "\(f.petId)-\(i)", tzOffsetMin: tz)
                 }
                 if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
+            case "room_max", "room_mid":
+                // Дом в комнате (RoomDecor): уровни ставим прямо, без покупок — монеты и журнал не нужны.
+                PetRunner.catchUp(&f, now: now)
+                let mid: [HomeLine: Int] = [.bath: 2, .bed: 1, .kitchen: 2, .kennel: 1, .play: 2, .yard: 1]
+                for line in HomeLine.allCases {
+                    f.pet.home[line] = seed == "room_max" ? RoomPlan.maxLevel : mid[line] ?? 1
+                }
             default:
                 break
             }

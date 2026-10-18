@@ -38,8 +38,9 @@ enum PetRoom {
     nonisolated static let bowlPos = SIMD3<Float>(-0.30, 0.025, -0.75)
     nonisolated static let bowlRadius: Float = 0.09
     nonisolated static let ballPos = SIMD3<Float>(0.15, 0.05, 0.3)
-    /// Пятно-тень чуть выше ковра (верх ковра — 0.004).
-    nonisolated static let blobY: Float = 0.006
+    /// Пятно-тень чуть выше ковра (верх ковра — 0.004) и матраса лежанки (RoomPlan.bedTop = 0.01, стёжка до 0.012):
+    /// при 0.006 под лежанкой пятно пряталось. Вне лежанки 13 мм над полом не видно.
+    nonisolated static let blobY: Float = 0.013
     /// Ширина (x) и длина (z, вдоль морды) пятна; край градиента прозрачный, поэтому длиннее собаки.
     static let blobWidth: Float = 0.34
     static let blobDepth: Float = 0.7
@@ -357,7 +358,7 @@ enum PetRoom {
                 blue: CGFloat(hex & 0xff) / 255 * shade, alpha: 1)
     }
 
-    private static func matteMaterial(_ hex: UInt32, shade: CGFloat = 1) -> PhysicallyBasedMaterial {
+    static func matteMaterial(_ hex: UInt32, shade: CGFloat = 1) -> PhysicallyBasedMaterial {
         var m = PhysicallyBasedMaterial()
         m.baseColor = .init(tint: uiColor(hex, shade: shade), texture: nil)
         m.roughness = .init(floatLiteral: 1)
@@ -367,7 +368,7 @@ enum PetRoom {
     }
 
     /// Пол, стены, ковёр и пятно сами тень не бросают (компонент действует только на свою сущность).
-    private static func noShadow(_ e: Entity) {
+    static func noShadow(_ e: Entity) {
         e.components.set(DynamicLightShadowComponent(castsShadow: false))
     }
 }

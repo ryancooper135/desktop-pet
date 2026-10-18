@@ -33,6 +33,18 @@ final class AnimationUITests: XCTestCase {
     @MainActor
     func testWakeFrames() throws { try recordAction("act.wake", name: "anim-wake") }
 
+    /// Игра и прогулка среди вещей дома (PET_SEED=room_max, полдень): собака сходит с лежанки через бортик,
+    /// бежит за мячом мимо игрового угла, уходит за край мимо ванны.
+    @MainActor
+    func testPlayRoomFrames() throws {
+        try recordAction("act.play", name: "anim-play-room", seed: "room_max", noon: true, count: 24, step: 0.3)
+    }
+
+    @MainActor
+    func testWalkOutRoomFrames() throws {
+        try recordAction("act.walk", name: "anim-walk-room", seed: "room_max", noon: true, count: 24, step: 0.3)
+    }
+
     /// Дрёма из сида PET_SEED=nap, потом «Разбудить»: видно выход из сна.
     @MainActor
     func testWakeFromSleepFrames() throws {
@@ -95,10 +107,10 @@ final class AnimationUITests: XCTestCase {
     }
 
     @MainActor
-    func recordAction(_ identifier: String, name: String, seed: String? = nil,
+    func recordAction(_ identifier: String, name: String, seed: String? = nil, noon: Bool? = nil,
                       count: Int = AnimationUITests.frameCount, step: TimeInterval = AnimationUITests.frameStep) throws {
         // Без сида — полдень по часам симулятора: ночью чистый щенок спит и «Поиграть» выключена.
-        let app = Self.makeApp(seed: seed, noon: seed == nil)
+        let app = Self.makeApp(seed: seed, noon: noon ?? (seed == nil))
         let stage = try launch(app)
         let button = app.descendants(matching: .any)[identifier]
         guard button.waitForExistence(timeout: 5) else {
