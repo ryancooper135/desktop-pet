@@ -74,12 +74,42 @@ final class HomeLayoutTests: XCTestCase {
         let cell = ActionBar.cellWidth(total: 358, count: 6)
         let size = ActionBar.labelSize(titles: titles, cellWidth: cell, maxSize: 13)
         XCTAssertLessThan(size, 13)
-        XCTAssertGreaterThanOrEqual(size, 9)
+        XCTAssertGreaterThanOrEqual(size, 8)
         let widest = titles.map { ActionBar.labelWidth($0, size: size) }.max() ?? 0
-        if size > 9 { XCTAssertLessThanOrEqual(widest, cell - 10) }
+        if size > 8 { XCTAssertLessThanOrEqual(widest, cell - 10) }
         // Крупный Dynamic Type упирается в ширину ячейки, а не в базу.
         XCTAssertLessThanOrEqual(ActionBar.labelWidth("Покормить",
                                                       size: ActionBar.labelSize(titles: titles, cellWidth: 80, maxSize: 30)),
                                  80 - 10)
+    }
+
+    /// Подписи не режутся ни на iPhone Air (420 pt, ряд 388), ни на iPhone SE (375 pt, ряд 343),
+    /// ни при Dynamic Type крупнее обычного: самая длинная подпись влезает в ячейку с полями.
+    @MainActor
+    func testRowFitsAirAndSE() {
+        for total: CGFloat in [388, 358, 343] {
+            for titles in [ActionBar.titles(nap: false, lamp: false), ActionBar.titles(nap: false, lamp: true),
+                           ActionBar.titles(nap: true, lamp: true)] {
+                for base: CGFloat in [13, 15, 17, 20] {
+                    let fit = ActionBar.fit(titles: titles, total: total, maxSize: base)
+                    XCTAssertEqual(fit.cell * CGFloat(titles.count) + fit.spacing * CGFloat(titles.count - 1), total, accuracy: 0.01)
+                    let widest = titles.map { ActionBar.labelWidth($0, size: fit.label) }.max() ?? 0
+                    // В кнопке поля по 2 pt; minimumScaleFactor — только страховка, без неё должно влезать.
+                    XCTAssertLessThanOrEqual(widest, fit.cell - 4, "\(total) pt, \(titles.count) кнопок, база \(base)")
+                    XCTAssertGreaterThanOrEqual(fit.label, 8)
+                    XCTAssertLessThanOrEqual(fit.label, base)
+                }
+            }
+        }
+    }
+
+    /// Днём на iPhone Air (4 кнопки) зазор обычный и кегль базовый; узкий зазор — только когда тесно.
+    @MainActor
+    func testTightSpacingOnlyWhenCramped() {
+        let day = ActionBar.fit(titles: ActionBar.titles(nap: false, lamp: false), total: 388, maxSize: 13)
+        XCTAssertEqual(day.spacing, ActionBar.spacing)
+        XCTAssertEqual(day.label, 13)
+        let se = ActionBar.fit(titles: ActionBar.titles(nap: true, lamp: true), total: 343, maxSize: 13)
+        XCTAssertEqual(se.spacing, ActionBar.tightSpacing)
     }
 }

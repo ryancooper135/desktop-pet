@@ -5,11 +5,27 @@ import SwiftUI
 
 // MARK: - Шкалы
 
+/// Лист по высоте содержимого: на .medium под шкалами оставалась пустая половина листа.
+/// Пока высота не измерена — .medium; при крупном шрифте содержимое длиннее экрана — прокрутка.
 struct NeedsSheet: View {
     @Environment(AppModel.self) private var model
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         let snap = model.snap
+        ScrollView {
+            content(snap)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(PetPalette.bg.ignoresSafeArea())
+        // Один detent: тянуть вверх в пустоту нечего. Высоту больше экрана система сама ограничит, дальше — прокрутка.
+        .presentationDetents(contentHeight > 0 ? [.height(CGFloat(HomeText.sheetHeight(content: Double(contentHeight))))] : [.medium])
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("needs.sheet")
+    }
+
+    private func content(_ snap: PetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Как \(snap.name)")
@@ -33,12 +49,9 @@ struct NeedsSheet: View {
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
             }
-            Spacer(minLength: 0)
         }
         .padding(20)
-        .background(PetPalette.bg.ignoresSafeArea())
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("needs.sheet")
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// «Проголодается в 18:00» — ближайшее событие прогноза на сутки.

@@ -315,24 +315,5 @@ struct PetFaceView: View {
         return p
     }
 
-    static func accessibilityText(_ pose: Pose) -> String {
-        switch pose {
-        case .happy: return "Шиба радуется"
-        case .idle: return "Шиба спокоен"
-        case .eating: return "Шиба ест"
-        case .loved: return "Шибе приятно"
-        case .sleep: return "Шиба спит"
-        case .nap: return "Шиба дремлет"
-        case .bath: return "Шиба моется"
-        case .hungry: return "Шиба голодный"
-        case .dirty: return "Шиба испачкался"
-        case .tired: return "Шиба устал"
-        case .bored: return "Шибе скучно"
-        case .lonely: return "Шиба скучает по тебе"
-        case .sulky: return "Шиба обиделся"
-        case .critical: return "Шибе очень плохо"
-        case .dead: return "Шибы больше нет"
-        case .away: return "Шиба ушёл гулять"
-        }
-    }
+    static func accessibilityText(_ pose: Pose) -> String { HomeText.poseText(pose) }
 }

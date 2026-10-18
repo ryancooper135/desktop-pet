@@ -389,6 +389,10 @@ enum EconText {
     static func coins(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_coin", n, lines: lines))" }
     static func tickets(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_ticket", n, lines: lines))" }
     static func shards(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_shard", n, lines: lines))" }
+    /// Кошелёк одной фразой для VoiceOver: «150 монет, 1 билетик».
+    static func wallet(coins c: Int, tickets t: Int, lines: Lines = .shared) -> String {
+        "\(coins(c, lines: lines)), \(tickets(t, lines: lines))"
+    }
 
     /// Тост после действия: «+5 монет» или «На сегодня монет за заботу хватит». nil — показывать нечего.
     static func toast(_ e: Earning, lines: Lines = .shared) -> String? {

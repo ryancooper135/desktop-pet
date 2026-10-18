@@ -40,7 +40,7 @@ struct HomeScreen: View {
             }
             .ignoresSafeArea()
             .accessibilityElement()
-            .accessibilityLabel(Text("\(snap.name): \(PetFaceView.accessibilityText(snap.pose))"))
+            .accessibilityLabel(Text(HomeText.stageLabel(name: snap.name, pose: snap.pose)))
             .accessibilityHint(Text("Проведи пальцем по спине, чтобы погладить"))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.act(.pet) }
@@ -119,7 +119,7 @@ struct HomeScreen: View {
                         .padding(.vertical, 8)
                         .background(RoundedRectangle(cornerRadius: 16).fill(PetPalette.card))
                         .accessibilityIdentifier("pet.line")
-                    if let t = snap.timer { NeedTimerView(timer: t) }
+                    if let t = snap.timer { CalmTimerView(timer: t) }
                     if let fact = model.tasteOpened {
                         TasteOpenedCard(fact: fact)
                             .onTapGesture { model.tasteOpened = nil }
@@ -189,7 +189,6 @@ struct HomeScreen: View {
         .sheet(isPresented: $model.showNeeds) {
             NeedsSheet()
                 .environment(model)
-                .presentationDetents([.medium])
         }
         .sheet(isPresented: $model.showSettings) {
             SettingsScreen()
@@ -317,6 +316,8 @@ struct NameCard: View {
         HStack(spacing: 10) {
             PetFaceView(pose: snap.pose)
                 .frame(width: 40, height: 40)
+                // Настроение читает сцена («Шиба спокоен»); здесь оно дало бы «Шиба спокоен, Шиба, …».
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(snap.name)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
@@ -357,6 +358,10 @@ struct ActionBar: View {
     let snap: PetSnapshot
 
     static let spacing: CGFloat = 8
+    /// На узком ряду (6 кнопок на iPhone SE) зазор ужимается, чтобы подписи не падали ниже читаемого.
+    static let tightSpacing: CGFloat = 4
+    /// Ниже этого кегля при обычном зазоре переходим на узкий.
+    static let comfortLabel: CGFloat = 10
     /// Базовый кегль подписи, растёт вместе с Dynamic Type; сверху его ограничивает ширина ячейки.
     @ScaledMetric(relativeTo: .caption) private var baseLabel: CGFloat = 13
     @State private var width: CGFloat = 0
@@ -369,10 +374,11 @@ struct ActionBar: View {
         let nap = snap.pose == .nap
         let lamp = Self.lampTime(Clock.now())
         let titles = Self.titles(nap: nap, lamp: lamp)
-        let cell = Self.cellWidth(total: width, count: titles.count)
-        let label = Self.labelSize(titles: titles, cellWidth: cell, maxSize: baseLabel)
-        GlassEffectContainer(spacing: Self.spacing) {
-            HStack(spacing: Self.spacing) {
+        let fit = Self.fit(titles: titles, total: width, maxSize: baseLabel)
+        let cell = fit.cell
+        let label = fit.label
+        GlassEffectContainer(spacing: fit.spacing) {
+            HStack(spacing: fit.spacing) {
                 if nap {
                     ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
                         .frame(width: cell > 0 ? cell : nil)
@@ -411,15 +417,25 @@ struct ActionBar: View {
     }
 
     /// Ширина одной ячейки при равном делении панели; 0, пока ширина не измерена.
-    static func cellWidth(total: CGFloat, count: Int) -> CGFloat {
+    static func cellWidth(total: CGFloat, count: Int, spacing: CGFloat = spacing) -> CGFloat {
         guard total > 0, count > 0 else { return 0 }
         return max(0, (total - spacing * CGFloat(count - 1)) / CGFloat(count))
+    }
+
+    /// Раскладка ряда: зазор, ширина ячейки и общий кегль. Обычный зазор, пока кегль не ниже comfortLabel;
+    /// иначе узкий зазор и меньшие поля — так 6 кнопок на iPhone SE (375 pt) остаются читаемыми.
+    static func fit(titles: [String], total: CGFloat, maxSize: CGFloat) -> (spacing: CGFloat, cell: CGFloat, label: CGFloat) {
+        let cell = cellWidth(total: total, count: titles.count)
+        let label = labelSize(titles: titles, cellWidth: cell, maxSize: maxSize)
+        guard cell > 0, label < comfortLabel, maxSize > comfortLabel else { return (spacing, cell, label) }
+        let tight = cellWidth(total: total, count: titles.count, spacing: tightSpacing)
+        return (tightSpacing, tight, labelSize(titles: titles, cellWidth: tight, maxSize: maxSize, inset: 3))
     }
 
     /// Один кегль на все подписи: самый крупный (не больше maxSize), при котором самая длинная влезает в ячейку.
     /// inset — поля внутри капсулы с каждой стороны. Пока ширина не известна, отдаёт maxSize.
     static func labelSize(titles: [String], cellWidth: CGFloat, maxSize: CGFloat,
-                          minSize: CGFloat = 9, inset: CGFloat = 5) -> CGFloat {
+                          minSize: CGFloat = 8, inset: CGFloat = 5) -> CGFloat {
         guard cellWidth > 0, !titles.isEmpty else { return maxSize }
         let room = cellWidth - inset * 2
         var size = maxSize
@@ -488,8 +504,10 @@ struct ActButton: View {
                 Text(title)
                     .font(.system(size: labelSize, weight: .semibold, design: .rounded))
                     .lineLimit(1)
-                    // Запас на погрешность замера; у всех кнопок одинаковый, так что кегль остаётся общим.
-                    .minimumScaleFactor(0.9)
+                    // Запас на погрешность замера и самый узкий экран: кегль уже подобран рядом,
+                    // здесь только страховка от «Покор…», если замер разошёлся с отрисовкой.
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
             }
             .foregroundStyle(PetPalette.ink)
             .padding(.horizontal, 2)
@@ -506,6 +524,54 @@ struct ActButton: View {
         })
         .accessibilityLabel(Text(title))
         .accessibilityIdentifier("act.\(kind)")
+    }
+}
+
+/// Таймер под репликой без секунд: «Испачкается через 2 ч 51 мин», «Заскучает через 40 мин», «меньше чем через минуту».
+/// Обновляется только когда меняется текст (раз в минуту, ровно на границе минуты остатка), а не каждую секунду.
+/// Виджеты и остров по-прежнему на NeedTimerView: там TimelineView не тикает, нужен системный отсчёт.
+struct CalmTimerView: View {
+    var timer: NeedTimer
+    @Environment(\.petFrozenNow) private var frozenNow
+
+    var body: some View {
+        if let frozen = frozenNow {
+            line(at: frozen)
+        } else {
+            TimelineView(MinuteBoundarySchedule(end: timer.end)) { ctx in
+                // Часы приложения (PET_NOW в UI-тестах сдвигает их), а не голая дата расписания.
+                line(at: ctx.date.timeIntervalSince1970 + Clock.offset)
+            }
+        }
+    }
+
+    private func line(at t: Double) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: NeedTimerView.icon(timer.kind))
+                .accessibilityHidden(true)
+            Text(HomeText.calmTimer(kind: timer.kind, title: timer.title, remaining: timer.end - t))
+                .contentTransition(.numericText(countsDown: true))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .font(.system(size: 12, weight: .medium, design: .rounded))
+        .foregroundStyle(PetPalette.soft)
+        .animation(.snappy, value: Int((timer.end - t) / 60))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("pet.timer")
+    }
+}
+
+/// Моменты, когда у таймера меняется текст: остаток пересекает целую минуту (HomeText.nextChange).
+/// end — в часах приложения (Clock), даты расписания — настоящие.
+struct MinuteBoundarySchedule: TimelineSchedule {
+    let end: Double
+
+    func entries(from startDate: Date, mode: TimelineScheduleMode) -> AnySequence<Date> {
+        let offset = Clock.offset
+        let end = end
+        let ticks = sequence(first: startDate.timeIntervalSince1970 + offset) { HomeText.nextChange(after: $0, end: end) }
+        return AnySequence(ticks.lazy.map { Date(timeIntervalSince1970: $0 - offset) })
     }
 }
 
@@ -626,10 +692,10 @@ struct WalletChip: View {
         }
         .fixedSize()
         .buttonStyle(SquishStyle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Кошелёк: \(EconText.coins(coins)), \(EconText.tickets(tickets))"))
-        .accessibilityHint(Text("Открыть автомат с капсулами"))
-        .accessibilityAddTraits(.isButton)
+        // Подпись прямо у кнопки: один элемент «150 монет, 1 билетик». Обёртка accessibilityElement(children: .ignore)
+        // давала вложенную вторую кнопку «🪙, 150, 🎟, 1», и VoiceOver читал картинки по отдельности.
+        .accessibilityLabel(Text(EconText.wallet(coins: coins, tickets: tickets)))
+        .accessibilityHint(Text("Кошелёк. Открыть автомат с капсулами"))
         .accessibilityIdentifier("open.wallet")
     }
 }
