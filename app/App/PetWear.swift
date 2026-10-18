@@ -136,9 +136,8 @@ enum PetWear {
     private static func invBind(_ skin: ModelEntity, _ leaf: String) -> simd_float4x4? {
         guard let skeletons = skin.model?.mesh.contents.skeletons else { return nil }
         for s in skeletons {
-            if let i = leafIndex(s.jointNames, leaf), i < s.inverseBindPoseMatrices.count {
-                return s.inverseBindPoseMatrices[i]
-            }
+            let joints = s.joints
+            if let i = leafIndex(joints.map(\.name), leaf) { return joints[i].inverseBindPoseMatrix }
         }
         return nil
     }
