@@ -59,9 +59,7 @@ targets:
         NSMotionUsageDescription: "Питомец гуляет вместе с тобой по шагам"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        # Комната светлая и в тёмной теме: белые часы и батарейка на ней не видны.
-        UIStatusBarStyle: UIStatusBarStyleDarkContent
-        UIViewControllerBasedStatusBarAppearance: false
+        # Статус-бар следует теме (волна 10). Где стена комнаты того же тона, что часы, — подложка StatusScrim.
         CFBundleURLTypes:
           - CFBundleURLName: com.vadimpet.pet
             CFBundleURLSchemes: [pet]

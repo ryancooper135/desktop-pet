@@ -2,6 +2,7 @@
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
 // Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
 // Вещи дома в комнате — RoomDecor по AppModel.homeLevels.
+// Вечер и ночь — RoomLighting по AppModel.roomSchedule и теме; поверх сцены — виньетка фазы (без касаний).
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
 import SwiftUI
@@ -25,6 +26,7 @@ struct PetStage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Дом в комнате (RoomDecor) — уровни из модели; без модели (превью) комната как была.
     @Environment(AppModel.self) private var model: AppModel?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         // В @Sendable-замыкание RealityView передаём только Sendable-значения, не self.
@@ -39,9 +41,12 @@ struct PetStage: View {
         let brushTotal = model?.brushTufts ?? 0
         let brushLeft = model?.brush?.tufts(of: brushTotal) ?? 0
         let brushPuff = model?.brushPuff ?? 0
+        let schedule = model?.roomSchedule ?? RoomSchedule.standard
+        let dark = colorScheme == .dark
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
+            RoomLighting.registerOnce()
             let pet = await PetModel.load()
             pet.name = PetModel.petName
             PetRoom.matte(pet)
@@ -56,9 +61,11 @@ struct PetStage: View {
             content.add(stand)
             let room = PetRoom.room()
             RoomDecor.apply(home, to: room)
+            // Свет — внутри комнаты: RoomLighting красит его вместе с ней, сразу нужной фазы (без мигания).
+            room.addChild(PetRoom.lights())
+            RoomLighting.setup(room, schedule: schedule, dark: dark)
             content.add(room)
             content.add(PetRoom.camera())
-            content.add(PetRoom.lights())
             // Лапы на матрасе лежанки, а не в нём (RoomPlan.petLift).
             PetChoreo.setHome(pet, home)
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
@@ -79,11 +86,34 @@ struct PetStage: View {
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
-                RoomDecor.apply(home, to: room)
+                let rebuilt = RoomDecor.apply(home, to: room)
+                RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt)
             }
             PetChoreo.setHome(pet, home)
         }
+        .overlay { RoomVignette(schedule: schedule, dark: dark) }
         .background(PetPalette.bg)
+    }
+}
+
+/// Затемнение краёв кадра вечером и ночью: центр с собакой читается. Фазу сверяет раз в полминуты.
+private struct RoomVignette: View {
+    var schedule: RoomSchedule
+    var dark: Bool
+
+    /// Цвет краёв — ночная синева.
+    static let edge = Color(red: 0x10 / 255, green: 0x16 / 255, blue: 0x2e / 255)
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            let v = RoomLight.at(phase: schedule.phaseNow(dark: dark)).vignette
+            EllipticalGradient(stops: [.init(color: Self.edge.opacity(0), location: 0.35),
+                                       .init(color: Self.edge.opacity(v), location: 1)],
+                               center: UnitPoint(x: 0.5, y: 0.55), startRadiusFraction: 0, endRadiusFraction: 0.85)
+                .animation(.easeInOut(duration: 1.4), value: v)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

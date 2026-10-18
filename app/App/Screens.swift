@@ -158,6 +158,7 @@ struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @State private var bed: Int = 23 * 60
     @State private var island = true
+    @State private var roomEvening = RoomEveningMode.standard
     @State private var loaded = false
     @State private var confirmStartOver = false
     /// Звук только на этом телефоне (UserDefaults), по умолчанию включён. Читает SoundKit.
@@ -190,6 +191,18 @@ struct SettingsScreen: View {
                     Text("Лампа")
                 } footer: {
                     Text("Через 15 минут после этого времени \(name) тоже ляжет спать.")
+                }
+
+                Section {
+                    Picker("Комната вечером", selection: $roomEvening) {
+                        ForEach(RoomEveningMode.allCases, id: \.self) { m in
+                            Text(m.title).tag(m)
+                        }
+                    }
+                    .listRowBackground(PetPalette.card)
+                    .accessibilityIdentifier("settings.roomEvening")
+                } footer: {
+                    Text(Self.roomEveningNote(roomEvening))
                 }
 
                 Section {
@@ -238,11 +251,15 @@ struct SettingsScreen: View {
                 if let f = model.file {
                     bed = Self.bedOptions.contains(f.owner.bedMin) ? f.owner.bedMin : 23 * 60
                     island = f.island.enabled
+                    roomEvening = f.roomEveningMode
                 }
                 loaded = true
             }
             .onChange(of: bed) { _, m in
                 if loaded, m != model.file?.owner.bedMin { model.setBedtime(minute: m) }
+            }
+            .onChange(of: roomEvening) { _, m in
+                if loaded, m != model.file?.roomEveningMode { model.setRoomEvening(m) }
             }
             .onChange(of: sound) { _, on in
                 // Выключили — замолчать сразу; включили — короткое «да», чтобы было слышно громкость.
@@ -266,6 +283,14 @@ struct SettingsScreen: View {
 
     static func hm(_ m: Int) -> String {
         String(format: "%02d:%02d", m / 60, m % 60)
+    }
+
+    static func roomEveningNote(_ m: RoomEveningMode) -> String {
+        switch m {
+        case .byTime: "После заката в комнате тёплый вечерний свет, после «Ложусь в» — ночной полумрак."
+        case .byTheme: "В тёмной теме телефона — вечерний свет, ночью — полумрак. В светлой — всегда день."
+        case .alwaysDay: "Комната всегда светлая, как днём."
+        }
     }
 }
 

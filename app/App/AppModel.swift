@@ -56,6 +56,8 @@ final class AppModel {
     private(set) var coat: CoatLook? = nil
     /// Уровни дома для сцены (RoomDecor). Меняются только при покупке: сцена перестраивает вещи по смене значения.
     private(set) var homeLevels = RoomPlan.Levels()
+    /// Свет комнаты: «Комната вечером» и сон хозяина (RoomLighting). Меняется только при правке, не на каждый тик.
+    private(set) var roomSchedule = RoomSchedule.standard
     /// Открытка дня, которую ещё не сохранили и не выбросили.
     private(set) var pendingCard: Postcard? = nil
     /// Открытка на экране (лист). Из альбома — сохранённая.
@@ -137,6 +139,7 @@ final class AppModel {
             snap = Presenter.make(f, at: now, reactionWindow: Self.reactionWindow)
             file = f
             homeLevels = RoomPlan.levels(f)
+            roomSchedule = f.roomSchedule
             knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
@@ -203,6 +206,8 @@ final class AppModel {
             noteTastes(f)
             let home = RoomPlan.levels(f)
             if home != homeLevels { homeLevels = home }
+            let schedule = f.roomSchedule
+            if schedule != roomSchedule { roomSchedule = schedule }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
         } catch {
@@ -495,6 +500,19 @@ final class AppModel {
             try PetRunner.setBedtime(minute: minute)
             refresh()
             Task { await AppActions.shared.afterChange() }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+    }
+
+    /// «Комната вечером»: по времени, по теме или всегда день. Выбор пишем явно — даже если он совпал
+    /// с умолчанием: сменим умолчание (вопрос вкуса) — выбравших руками это не тронет.
+    func setRoomEvening(_ mode: RoomEveningMode) {
+        do {
+            try PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+                f.roomEvening = mode.rawValue
+            }
+            refresh()
         } catch {
             show(RefuseText.text("store"), ok: false)
         }

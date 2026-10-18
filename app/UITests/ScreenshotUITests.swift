@@ -15,6 +15,7 @@
 //   ui-56           покупка лежанки в «Доме» видна в комнате — HouseUITests
 //   ui-57/58        мини-игра «Лови мячик»: раунд в разгаре, итог с наградой (PET_CATCH, сид 7)
 //   ui-59/60        расчесать: полоса на 50% с колтунами на спине, дочесали (отряхнулся, тост)
+//   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -173,6 +174,20 @@ final class ScreenshotUITests: XCTestCase {
                    settleFor: 2.5)
     }
 
+    /// Вечер (20:30, светлая тема): тёплый свет, приглушённые стены, лампа, персиковое небо в окне.
+    @MainActor
+    func testStates63RoomEvening() {
+        shootState("ui-63-room-evening", env: ["PET_SEED": "room_mid", "PET_NOW": Self.today(20, 30), "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Ночь (02:00, тёмная тема): синий полумрак, ночник, луна и звёзды в окне; Шиба спит на лежанке.
+    @MainActor
+    func testStates64RoomNightDark() {
+        shootState("ui-64-room-night-dark", env: ["PET_SEED": "room_max", "PET_NOW": Self.today(2, 0), "PET_SCHEME": "dark"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
     /// Лист «Трюки» (светлая тема, полдень — иначе ночью трюки серые): «Сидеть» выучен, «Лежать» 3 из 5, дальше замки.
     /// ui-54/55 — после команды «Сидеть» (PET_TRICK_ROLL=0 — всегда выходит): лист уехал, тост, ряд кнопок с лапой.
     @MainActor
@@ -245,8 +260,11 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     /// Полдень по часам симулятора (PET_NOW): днём пёс не спит.
-    static var noon: String {
-        let t = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+    static var noon: String { today(12, 0) }
+
+    /// Сегодня в hh:mm по часам симулятора (PET_NOW, unix-секунды).
+    static func today(_ hour: Int, _ minute: Int) -> String {
+        let t = Calendar.current.startOfDay(for: Date()).addingTimeInterval(Double(hour * 3600 + minute * 60))
         return String(Int(t.timeIntervalSince1970))
     }
 

@@ -48,6 +48,7 @@ let package = Package(
                 "PetStore.swift",
                 "Postcards.swift",
                 "Presenter.swift",
+                "RoomLight.swift",
                 "RoomPlan.swift",
                 "SaveFile.swift",
                 "SoundRecipes.swift",
@@ -87,6 +88,7 @@ let package = Package(
                 "HomeOfferTests.swift",
                 "RoomPlanTests.swift",
                 "HomeTextTests.swift",
+                "RoomLightTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),
