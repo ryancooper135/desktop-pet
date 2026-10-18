@@ -1,5 +1,6 @@
 // Комната стиля A «Nintendogs»: клетчатый пол, две стены с плинтусом, круглый ковёр, миска и мяч.
-// Свет: тёплый ключевой с тенью, холодный заполняющий, контровой сзади. Камера 3/4 чуть сверху.
+// Свет: тёплый ключевой с тенью, холодный заполняющий, контровой сзади, вечером — лампа. Камера 3/4 чуть сверху.
+// Вечер и ночь (цвет света, приглушённые стены, небо в окне) — RoomLighting по RoomLight (app/Shared).
 // Пятно-тень под собакой заземляет её, даже если тень от света слабая. Всё матовое, без бликов.
 // Размеры в метрах; питомец ростом PetModel.height (0.42) стоит в начале координат, мордой к +z.
 // Кадр — экран iPhone во весь рост (узкий, ~0.46), поэтому миска и мяч стоят близко к собаке,
@@ -145,8 +146,23 @@ enum PetRoom {
             l.look(at: .zero, from: spec.from, relativeTo: nil)
             root.addChild(l)
         }
+        // Тёплая лампа слева над ковром: днём выключена, вечером горит, ночью — ночник (RoomLighting).
+        let lamp = PointLight()
+        lamp.name = lampName
+        lamp.light.color = uiColor(lampColor)
+        lamp.light.intensity = 0
+        lamp.light.attenuationRadius = 3
+        lamp.position = lampPos
+        lamp.isEnabled = false
+        root.addChild(lamp)
         return root
     }
+
+    static let lampName = "lamp"
+    static let lampColor: UInt32 = 0xffc27a
+    static let lampPos = SIMD3<Float>(-0.6, 0.9, 0.7)
+    /// Полная яркость лампы, люмены: у собаки (~1.2 м) это около 700 лк — вдвое тише вечернего ключа.
+    static let lampLumens: Float = 12_000
 
     static func camera() -> Entity {
         let cam = PerspectiveCamera()
@@ -351,6 +367,9 @@ enum PetRoom {
         CGColor(srgbRed: CGFloat((hex >> 16) & 0xff) / 255, green: CGFloat((hex >> 8) & 0xff) / 255,
                 blue: CGFloat(hex & 0xff) / 255, alpha: 1)
     }
+
+    /// Цвет по hex для других файлов сцены (RoomDecor, RoomLighting).
+    static func color(_ hex: UInt32) -> UIColor { uiColor(hex) }
 
     /// shade < 1 — темнее на (1 − shade).
     private static func uiColor(_ hex: UInt32, shade: CGFloat = 1) -> UIColor {

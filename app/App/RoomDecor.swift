@@ -20,18 +20,22 @@ enum RoomDecor {
     private static var registered = false
 
     /// Поставить вещи по уровням. Те же уровни — ничего не делает (зовётся из update на каждый пересчёт вью).
-    static func apply(_ levels: RoomPlan.Levels, to room: Entity) {
+    /// true — вещи перестроены: новым деталям нужен текущий свет комнаты (RoomLighting).
+    @discardableResult
+    static func apply(_ levels: RoomPlan.Levels, to room: Entity) -> Bool {
         if !registered {
             RoomDecorShown.registerComponent()
+            RoomLighting.registerOnce()   // метки RoomGlow / RoomSky / RoomNightSky на деталях
             registered = true
         }
         let old = room.children.first(where: { $0.name == rootName })
-        if old?.components[RoomDecorShown.self]?.levels == levels { return }
+        if old?.components[RoomDecorShown.self]?.levels == levels { return false }
         old?.removeFromParent()
-        if levels == RoomPlan.Levels() { return }
+        if levels == RoomPlan.Levels() { return old != nil }
         let root = build(levels)
         root.components.set(RoomDecorShown(levels: levels))
         room.addChild(root)
+        return true
     }
 
     static func build(_ l: RoomPlan.Levels) -> Entity {
@@ -56,8 +60,24 @@ enum RoomDecor {
         e.position = pos
         e.scale = scale
         if flat { PetRoom.noShadow(e) }
+        // Огонёк свечи, свет в окошке будки, огонь в очаге светятся сами: вечером свет комнаты их не гасит.
+        if DecorColors.glows.contains(hex) { e.components.set(RoomGlow()) }
         parent.addChild(e)
         return e
+    }
+
+    /// Луна или звезда в окне: светится сама (UnlitMaterial), видна только вечером и ночью — RoomLighting.
+    private static func nightDot(_ r: Float, _ hex: UInt32, _ x: Float, _ y: Float, z: Float, in parent: Entity) {
+        var m = UnlitMaterial(color: PetRoom.color(hex))
+        m.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let e = ModelEntity(mesh: cyl(0.002, r), materials: [m])
+        e.position = [x, y, z]
+        e.orientation = turn(.pi / 2, axisX)
+        PetRoom.noShadow(e)
+        e.components.set(RoomNightSky(hex: hex))
+        e.components.set(RoomGlow())
+        e.isEnabled = false
+        parent.addChild(e)
     }
 
     // Меши и материалы — из кэша: на максимуме ~170 деталей, многие одинаковые (стёжка, пузыри, ножки),
@@ -241,7 +261,13 @@ enum RoomDecor {
         func blob(_ r: Float, _ hex: UInt32, _ x: Float, _ y: Float, _ layer: Int, sx: Float = 1, sy: Float = 1) {
             part(cyl(0.002, r), hex, [x, y, z(layer)], in: g, scale: [sx, 1, sy], flat: true).orientation = turn(.pi / 2, axisX)
         }
-        plate(inW, inH, C.sky, cx, cy, 0)
+        // Небо: днём голубое, вечером персиковое, ночью тёмно-синее (RoomLighting по метке RoomSky).
+        part(box(inW, inH, 0.002), C.sky, [cx, cy, z(0)], in: g, flat: true).components.set(RoomSky())
+        // Луна и звёзды — между небом и облаками: луна в середине сверху (слева облако, справа будка).
+        nightDot(0.017, C.moon, inX.lowerBound + 0.17, inY.upperBound - 0.04, z: z(0) + 0.0015, in: g)
+        for (sx, sy) in [(Float(0.03), Float(0.075)), (0.13, 0.012), (0.22, 0.07), (0.10, 0.1)] {
+            nightDot(0.0035, C.star, inX.lowerBound + sx, inY.upperBound - sy, z: z(0) + 0.0015, in: g)
+        }
         // Облачко.
         blob(0.018, C.cloud, inX.lowerBound + 0.07, inY.upperBound - 0.035, 1, sx: 1.8)
         blob(0.014, C.cloud, inX.lowerBound + 0.095, inY.upperBound - 0.03, 1, sx: 1.4)
@@ -527,6 +553,8 @@ enum DecorColors {
     // окно и двор
     static let frame: UInt32 = 0xd9bfa3
     static let sky: UInt32 = 0xcfe9f7
+    static let moon: UInt32 = 0xfff4d2
+    static let star: UInt32 = 0xfff8e6
     static let cloud: UInt32 = 0xffffff
     static let grass: UInt32 = 0xa6d48f
     static let bush: UInt32 = 0x77b864
@@ -543,6 +571,8 @@ enum DecorColors {
     static let door: UInt32 = 0x5a3a28
     static let fire: UInt32 = 0xf0a04b
     static let lamp: UInt32 = 0xffd36b
+    /// Детали, которые светятся сами: свет комнаты вечером и ночью их не приглушает.
+    static let glows: Set<UInt32> = [flame, fire, lamp]
     static let plaid: UInt32 = 0xd96a5a
     static let chimney: UInt32 = 0xa65a48
     static let smoke: UInt32 = 0xf2f2f2

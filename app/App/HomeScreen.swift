@@ -10,6 +10,7 @@ import UIKit
 
 struct HomeScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.colorScheme) private var colorScheme
     @State private var confirmStartOver = false
     /// Записка ждёт, пока Шиба уйдёт за край кадра (при открытии во время прогулки — сразу).
     @State private var noteHeld = false
@@ -48,6 +49,9 @@ struct HomeScreen: View {
             .accessibilityIdentifier("pet.stage")
             // Только в UI-тестах: какие уровни дома стоят в комнате (HouseUITests). VoiceOver это не читает.
             .accessibilityValue(Text(Env.isUITest ? model.homeLevels.tag : ""))
+
+            // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
+            StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
 
             if model.brush != nil {
                 // Расчёсывание (BrushViews): жест по спине вместо обычных касаний.
@@ -792,5 +796,31 @@ struct TasteOpenedCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("taste.opened")
+    }
+}
+
+/// Подложка под статус-бар цвета фона: в тёмной теме днём (стена светлая, часы белые)
+/// и в светлой ночью (стена тёмная, часы чёрные). Фазу сверяет раз в полминуты, появляется плавно.
+private struct StatusScrim: View {
+    var schedule: RoomSchedule
+    var dark: Bool
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            let on = RoomClock.needsStatusScrim(phase: schedule.phaseNow(dark: dark), dark: dark)
+            GeometryReader { geo in
+                LinearGradient(stops: [.init(color: PetPalette.bg.opacity(0.92), location: 0),
+                                       .init(color: PetPalette.bg.opacity(0.92), location: 0.55),
+                                       .init(color: PetPalette.bg.opacity(0), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geo.safeAreaInsets.top + 18)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .ignoresSafeArea(edges: .top)
+                    .opacity(on ? 1 : 0)
+                    .animation(.easeInOut(duration: 1.4), value: on)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
