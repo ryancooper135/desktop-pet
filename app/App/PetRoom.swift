@@ -357,7 +357,7 @@ enum PetRoom {
                 blue: CGFloat(hex & 0xff) / 255 * shade, alpha: 1)
     }
 
-    private static func matteMaterial(_ hex: UInt32, shade: CGFloat = 1) -> PhysicallyBasedMaterial {
+    static func matteMaterial(_ hex: UInt32, shade: CGFloat = 1) -> PhysicallyBasedMaterial {
         var m = PhysicallyBasedMaterial()
         m.baseColor = .init(tint: uiColor(hex, shade: shade), texture: nil)
         m.roughness = .init(floatLiteral: 1)
@@ -367,7 +367,7 @@ enum PetRoom {
     }
 
     /// Пол, стены, ковёр и пятно сами тень не бросают (компонент действует только на свою сущность).
-    private static func noShadow(_ e: Entity) {
+    static func noShadow(_ e: Entity) {
         e.components.set(DynamicLightShadowComponent(castsShadow: false))
     }
 }

@@ -10,6 +10,7 @@
 //   ui-4N-<имя>     состояния с отдельного запуска (testStates*): критично, смерть, шкалы, «Пока тебя не было»,
 //                   тёмная тема, автомат, вкусы в альбоме, открытка дня. Состояние задаёт окружение запуска
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
+//   ui-5N-room-*    дом в комнате: все линии на максимуме, уровни 1–2 вперемешку, максимум в тёмной теме
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -145,6 +146,27 @@ final class ScreenshotUITests: XCTestCase {
     func testStates49House() throws {
         try shootOptional("ui-49-house", env: ["PET_OPEN": "house"], marker: "house.screen")
         try shootOptional("ui-49-house-dark", env: ["PET_OPEN": "house", "PET_SCHEME": "dark"], marker: "house.screen")
+    }
+
+    // MARK: - Дом в комнате (RoomDecor)
+
+    /// Все линии дома на верхнем уровне: кухня, ванна, окно с двором и будкой, лежанка, игровой угол.
+    @MainActor
+    func testStates51RoomMax() {
+        shootState("ui-51-room-max", env: ["PET_SEED": "room_max"], marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Уровни 1–2 вперемешку: промежуточные вещи не налезают друг на друга.
+    @MainActor
+    func testStates52RoomMid() {
+        shootState("ui-52-room-mid", env: ["PET_SEED": "room_mid"], marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Верхний уровень в тёмной теме: комната та же, проверяем, что интерфейс поверх читается.
+    @MainActor
+    func testStates53RoomMaxDark() {
+        shootState("ui-53-room-max-dark", env: ["PET_SEED": "room_max", "PET_SCHEME": "dark"], marker: Self.mainMarker,
+                   settleFor: 2.5)
     }
 
     /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.
