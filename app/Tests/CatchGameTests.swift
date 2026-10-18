@@ -1,5 +1,5 @@
 // «Лови мячик» (CatchGame.swift): раскладка от сида, темп раунда, поймал/мимо, три промаха и 30 секунд,
-// монеты ∝ очкам с убыванием и дневным потолком, рекорд, настроение ядерным play, когда играть нельзя,
+// монеты ∝ очкам с убыванием, баффом дома (minigame_coins_x) и дневным потолком, рекорд, настроение ядерным play, когда играть нельзя,
 // поля сейва верхним уровнем (старый сейв — нули) и переход к новому щенку.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
@@ -205,6 +205,59 @@ final class CatchGameTests: XCTestCase {
         XCTAssertEqual(r5.coins, 11) // 5 + 6,25
         XCTAssertEqual(f.catchGames, 1)
         XCTAssertEqual(f.catchBest, 40)
+    }
+
+    // MARK: бафф дома (minigame_coins_x)
+
+    func testHomeBuffByPlayLevel() {
+        var f = cFile()
+        XCTAssertEqual(CatchGame.coinsX(f.pet), 1, "пустой угол")
+        f.pet.home[.play] = 1
+        XCTAssertEqual(CatchGame.coinsX(f.pet), 1, "корзина игрушек — бафф только к скуке")
+        f.pet.home[.play] = 2
+        XCTAssertEqual(CatchGame.coinsX(f.pet), 1.1, accuracy: 1e-12)
+        f.pet.home[.play] = 3
+        XCTAssertEqual(CatchGame.coinsX(f.pet), 1.15, accuracy: 1e-12)
+        f.pet.home[.play] = 9   // битый сейв — как у ядра: уровня нет, баффа нет
+        XCTAssertEqual(CatchGame.coinsX(f.pet), 1)
+    }
+
+    func testWantWithBuffRoundsOnceAfterDiminishing() {
+        let c = cCfg()
+        XCTAssertEqual(CatchGame.want(score: 40, game: 1, buff: 1, c), CatchGame.want(score: 40, game: 1, c))
+        XCTAssertEqual(CatchGame.want(score: 40, game: 1, buff: 1.1, c), 33)
+        XCTAssertEqual(CatchGame.want(score: 40, game: 1, buff: 1.15, c), 35) // 34,5
+        XCTAssertEqual(CatchGame.want(score: 20, game: 1, buff: 1.1, c), 19) // 17,5 · 1,1 = 19,25 (без баффа 18)
+        XCTAssertEqual(CatchGame.want(score: 20, game: 1, buff: 1.15, c), 20) // 20,125
+        XCTAssertEqual(CatchGame.want(score: 40, game: 7, buff: 1.15, c), 17) // 30 · 0,5 · 1,15 = 17,25
+        XCTAssertEqual(CatchGame.want(score: 0, game: 1, buff: 1.15, c), 0, "без очков бафф не помогает")
+    }
+
+    func testFinishAppliesBuffButCapStays() {
+        let c = cCfg()
+        var f = cFile()
+        f.pet.home[.play] = 3
+        let r1 = CatchGame.finish(score: 40, in: &f, now: cT0, c)
+        XCTAssertEqual(r1.coins, 35)
+        XCTAssertFalse(r1.capped)
+        XCTAssertEqual(CatchGame.coinsLeft(f, now: cT0, c), 25)
+        let r2 = CatchGame.finish(score: 40, in: &f, now: cT0 + 60, c)
+        XCTAssertEqual(r2.coins, 25, "потолок дня тот же 60 — с баффом до него просто быстрее")
+        XCTAssertTrue(r2.capped)
+        let r3 = CatchGame.finish(score: 40, in: &f, now: cT0 + 120, c)
+        XCTAssertEqual(r3.coins, 0)
+        XCTAssertEqual(f.catchCoins, c.dailyCap)
+
+        var plain = cFile()
+        plain.pet.home[.play] = 1
+        XCTAssertEqual(CatchGame.finish(score: 40, in: &plain, now: cT0, c).coins, 30, "без комплекса — как раньше")
+    }
+
+    func testPlayLinePerkText() {
+        let play = HomeShop.line(.play)!.levels
+        XCTAssertFalse(HomeShop.perks(play[1].buff).contains { $0.contains("Лови мячик") })
+        XCTAssertTrue(HomeShop.perks(play[2].buff).contains("Монет за «Лови мячик» на 10% больше"))
+        XCTAssertTrue(HomeShop.perks(play[3].buff).contains("Монет за «Лови мячик» на 15% больше"))
     }
 
     func testFinishRaisesFunThroughCorePlay() {
