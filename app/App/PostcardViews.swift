@@ -31,7 +31,7 @@ struct PostcardFace: View {
                 RoundedRectangle(cornerRadius: 4)
                     .strokeBorder(PetPalette.furDark.opacity(0.35), lineWidth: compact ? 1 : 2)
             }
-            Text(frame.caption)
+            Text(Presenter.keepHyphens(Presenter.keepDash(frame.caption)))
                 .font(.system(size: compact ? 12 : 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
@@ -76,7 +76,9 @@ struct PostcardSheet: View {
                 Text(fromAlbum ? "Открытка" : "Открытка дня")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                // Открытка поуже — целиком видна уже в половинном листе, над кнопками.
                 PostcardFace(frame: card.frame)
+                    .frame(maxWidth: 280)
                     .padding(.horizontal, 12)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text("Открытка: \(card.caption), \(card.frame.date)"))
@@ -96,7 +98,14 @@ struct PostcardSheet: View {
                         }
                         Button("Оставить", role: .cancel) {}
                     }
-                } else {
+                }
+            }
+            .padding(20)
+        }
+        // «Не надо / В альбом» прибиты к низу листа: в половинном листе они уходили под его край.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !fromAlbum {
+                VStack(spacing: 8) {
                     HStack(spacing: 12) {
                         Button {
                             model.discardPostcard(card)
@@ -125,8 +134,12 @@ struct PostcardSheet: View {
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.soft)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity)
+                .background(PetPalette.bg)
             }
-            .padding(20)
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)

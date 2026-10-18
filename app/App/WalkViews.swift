@@ -65,6 +65,7 @@ struct WalkButton: View {
                 Image(systemName: "figure.walk")
                     .font(.system(size: 20, weight: .semibold))
                     .symbolEffect(.bounce, value: taps)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(away ? "Гуляет" : "Гулять")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -110,6 +111,7 @@ struct AlbumButton: View {
             HStack(spacing: 6) {
                 Image(systemName: "books.vertical.fill")
                     .font(.system(size: 17, weight: .semibold))
+                    .accessibilityHidden(true)
                 Text("Альбом")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                 if total > 0 {
@@ -217,7 +219,8 @@ struct AlbumSheet: View {
                     Text("Альбом находок")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
-                    Text(total == 0 ? "Пока пусто. Отпусти \(model.snap.name) погулять — принесёт что-нибудь."
+                    // Без имени: «Отпусти Шиба» не склоняется. Тире не уходит в начало строки.
+                    Text(total == 0 ? Presenter.keepDash("Пока пусто. Отпусти на прогулку — принесёт что-нибудь.")
                          : "Принёс \(total) · разных \(Finds.kinds(finds)) из \(Finds.all.count)")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.soft)

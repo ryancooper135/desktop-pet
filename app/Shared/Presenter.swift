@@ -266,6 +266,27 @@ enum Presenter {
         line.count <= shortLineMax || island.isEmpty ? line : island
     }
 
+    /// Тире не начинает строку: пробел перед «—» неразрывный («Не помог — умрёт» не рвётся на «Не помог / — умрёт»).
+    static func keepDash(_ text: String) -> String {
+        text.replacingOccurrences(of: " \u{2014}", with: "\u{00A0}\u{2014}")
+    }
+
+    /// Слово с дефисом не рвётся по дефису: «чего-то» не делится на «чего- / то».
+    /// После дефиса между буквами ставим WORD JOINER (U+2060): глиф дефиса остаётся из шрифта,
+    /// а неразрывный U+2011 в SF Rounded мог бы прийти из запасного шрифта. «1-3», «-5» и тире не трогаем.
+    static func keepHyphens(_ text: String) -> String {
+        let chars = Array(text)
+        var out = ""
+        for (i, c) in chars.enumerated() {
+            if c == "-", i > 0, i + 1 < chars.count, chars[i - 1].isLetter, chars[i + 1].isLetter {
+                out.append("-\u{2060}")
+            } else {
+                out.append(c)
+            }
+        }
+        return out
+    }
+
     /// Секунды до конца → «9 ч 25 мин», «40 мин», «2 ч». Минуты вниз, но меньше минуты — «1 мин».
     static func remainingText(_ seconds: Double) -> String {
         guard seconds > 0 else { return "0 мин" }

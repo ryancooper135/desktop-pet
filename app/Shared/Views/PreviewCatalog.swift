@@ -130,10 +130,28 @@ func previewView(family: String, mood: String) -> AnyView? {
     return AnyView(view.environment(\.petFrozenNow, PreviewFixtures.file(mood).t))
 }
 
+/// Живой отсчёт для снимка: критичный питомец («Затоскует через 40:00»), но таймер не застывает
+/// фразой, а рисуется как в виджете — жадный Text(timerInterval:) на паузе.
+/// ImageRenderer паузу не слушает и считает от настоящих часов, поэтому таймер начинается через час
+/// от «сейчас»: до начала отсчёт показывает весь срок. Только семейства, где под таймер мало места.
 @MainActor
-private func previewBody(family: String, mood: String) -> AnyView? {
-    let snap = PreviewFixtures.catalogSnapshot(mood)
-    let state = PreviewFixtures.islandState(mood)
+func previewLiveView(family: String) -> AnyView? {
+    let at = (Date().timeIntervalSince1970 / 60).rounded(.down) * 60 + 3600
+    guard ["small", "medium", "large", "rectangular", "islandExpanded", "lockActivity"].contains(family),
+          let view = previewBody(family: family, mood: "critical", timerAt: at) else { return nil }
+    return AnyView(view.environment(\.petPausedNow, at))
+}
+
+/// timerAt — перенести таймер фикстуры на этот момент (тот же срок).
+@MainActor
+private func previewBody(family: String, mood: String, timerAt: Double? = nil) -> AnyView? {
+    var snap = PreviewFixtures.catalogSnapshot(mood)
+    var state = PreviewFixtures.islandState(mood)
+    if let at = timerAt, let tm = snap.timer {
+        snap.timer = NeedTimer(kind: tm.kind, start: at, end: at + tm.end - tm.start, title: tm.title)
+        state.timerStart = at
+        state.timerEnd = at + tm.end - tm.start
+    }
     let lockBg = Color(hex: 0x2a2320)
     switch family {
     case "small":

@@ -26,6 +26,17 @@ extension EnvironmentValues {
         get { self[PetFrozenNowKey.self] }
         set { self[PetFrozenNowKey.self] = newValue }
     }
+
+    /// Снимок живого отсчёта: таймер рисуется как в виджете («через 40:00»), но стоит на этом моменте.
+    /// Нужен, чтобы глазами проверить, влезает ли приставка рядом с отсчётом. В приложении — nil.
+    var petPausedNow: Double? {
+        get { self[PetPausedNowKey.self] }
+        set { self[PetPausedNowKey.self] = newValue }
+    }
+}
+
+private struct PetPausedNowKey: EnvironmentKey {
+    static let defaultValue: Double? = nil
 }
 
 struct HeartsView: View {
@@ -110,21 +121,29 @@ struct NeedTimerView: View {
     var title: String? = nil
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.petFrozenNow) private var frozenNow
+    @Environment(\.petPausedNow) private var pausedNow
 
     var body: some View {
         let start = Date(timeIntervalSince1970: Swift.min(timer.start, timer.end))
         let end = Date(timeIntervalSince1970: timer.end)
-        let remaining = timer.end - (frozenNow ?? now ?? timer.start)
+        let remaining = timer.end - (frozenNow ?? pausedNow ?? now ?? timer.start)
         let name = showTitle ? (title ?? timer.title) : ""
         let prefix = Presenter.timerPrefix(kind: timer.kind)
         let tinted = mono || renderingMode != .fullColor
         HStack(spacing: 4) {
+            // Иконка — украшение: VoiceOver читает фразу, а не «Часы».
             Image(systemName: Self.icon(timer.kind))
+                .accessibilityHidden(true)
             if frozenNow != nil {
                 Text(Presenter.timerPhrase(kind: timer.kind, title: name, remaining: remaining))
             } else if Presenter.timerIsLive(remaining: remaining) {
-                if !name.isEmpty { Text(name) }
-                Text(timerInterval: start...end, countsDown: true)
+                // Те же слова, что у снимка и длинного таймера: «Затоскует через 49:12», «ещё 4:12».
+                // Отсчёт жадный и забирает всю ширину — слова получают место первыми, иначе их режет.
+                Text(name.isEmpty ? prefix : "\(name) \(prefix)")
+                    .layoutPriority(1)
+                Text(timerInterval: start...end,
+                     pauseTime: pausedNow.map { Date(timeIntervalSince1970: $0) },
+                     countsDown: true)
                     .monospacedDigit()
                     .multilineTextAlignment(.leading)
             } else if name.isEmpty {
@@ -137,6 +156,7 @@ struct NeedTimerView: View {
         .minimumScaleFactor(0.8)
         .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft))
+        .accessibilityElement(children: .combine)
     }
 
     static func icon(_ kind: String) -> String {

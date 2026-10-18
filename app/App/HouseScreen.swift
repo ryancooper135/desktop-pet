@@ -202,17 +202,19 @@ struct HomeLineCard: View {
     }
 }
 
-/// Точки уровней справа: закрашено столько, сколько куплено.
+/// Сегменты уровней справа: закрашено столько, сколько куплено.
 struct LevelPips: View {
     let level: Int
     let top: Int
 
     var body: some View {
-        HStack(spacing: 4) {
+        // Плоские сегменты шкалы: три серые точки читались как кнопка меню «…»,
+        // а пустые капсулы контуром — как звенья цепочки.
+        HStack(spacing: 2) {
             ForEach(0..<max(top, 0), id: \.self) { i in
-                Circle()
-                    .fill(i < level ? PetPalette.accent : PetPalette.soft.opacity(0.25))
-                    .frame(width: 9, height: 9)
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(i < level ? PetPalette.accent : PetPalette.soft.opacity(0.3))
+                    .frame(width: 16, height: 5)
             }
         }
         .animation(.snappy, value: level)

@@ -187,7 +187,8 @@ struct WalkPill: View {
         Group {
             if let tm = snap.timer, tm.kind == "walk" {
                 if countdown {
-                    NeedTimerView(timer: tm, now: snap.t)
+                    // Без «Гуляет»: значок уже говорит о прогулке, а с ним строка обрезалась («ещё 1 ч 10 м…»).
+                    NeedTimerView(timer: tm, showTitle: false, now: snap.t)
                 } else {
                     HStack(spacing: 5) {
                         Image(systemName: "house.fill")

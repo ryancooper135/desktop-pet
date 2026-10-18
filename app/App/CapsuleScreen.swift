@@ -135,11 +135,11 @@ struct CapsuleScreen: View {
             HStack(spacing: 10) {
                 PullButton(title: EconText.ui("capsule_price_ticket"),
                            price: "🎟 \(o.ticketPrice)",
-                           note: EconText.tickets(o.tickets),
+                           note: o.tickets > 0 ? "У тебя \(EconText.tickets(o.tickets))" : "Билетиков нет",
                            can: o.canPayTicket) { start(.ticket) }
                     .disabled(busy)
                     .accessibilityIdentifier("capsule.pull.ticket")
-                PullButton(title: EconText.ui("capsule_price_coins", ["count": "\(o.coinPrice)"]),
+                PullButton(title: EconText.ui("capsule_price_coins"),
                            price: "🪙 \(o.coinPrice)",
                            note: o.coinPullsLeft > 0 ? "Сегодня ещё \(o.coinPullsLeft)" : EconText.ui("capsule_limit"),
                            can: o.canPayCoins) { start(.coins) }

@@ -10,7 +10,7 @@ struct PetIslandControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind) {
             ControlWidgetButton(action: StartIslandIntent(.control)) {
-                Label("Шиба в острове", systemImage: "pawprint.fill")
+                Label("Шиба на острове", systemImage: "pawprint.fill")
             }
         }
         .displayName("Шиба в острове")

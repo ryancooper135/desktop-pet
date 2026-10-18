@@ -18,7 +18,7 @@ struct PetShortcuts: AppShortcutsProvider {
                     phrases: ["Как там Шиба в \(.applicationName)", "Как дела у питомца в \(.applicationName)"],
                     shortTitle: "Как он там", systemImageName: "pawprint")
         AppShortcut(intent: StartIslandIntent(),
-                    phrases: ["Шиба в острове \(.applicationName)", "Покажи питомца в \(.applicationName)"],
+                    phrases: ["Шиба на острове \(.applicationName)", "Покажи питомца в \(.applicationName)"],
                     shortTitle: "В остров", systemImageName: "capsule")
     }
 }

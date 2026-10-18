@@ -167,7 +167,7 @@ struct PlayIntent: AppIntent {
 
 /// Включить остров (Live Activity). Из Пункта управления и «Команд».
 struct StartIslandIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Показать Шибу в острове"
+    static let title: LocalizedStringResource = "Показать Шибу на острове"
 
     @Parameter(title: "Откуда", default: "shortcut")
     var source: String

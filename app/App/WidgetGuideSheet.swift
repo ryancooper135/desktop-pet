@@ -22,9 +22,11 @@ struct WidgetGuideSheet: View {
                         Text("\(name) всегда рядом")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
-                        Text("С виджетом не надо открывать приложение, чтобы проверить, как он")
+                        // Короче и с полями: длинная фраза шла от края до края.
+                        Text("Как он — видно без приложения")
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)
+                            .padding(.horizontal, 12)
                     }
                     .multilineTextAlignment(.center)
 
@@ -83,7 +85,7 @@ struct WidgetGuideSheet: View {
                 .tint(PetPalette.accent)
                 .accessibilityIdentifier("guide.settings")
             } else if !enabled {
-                Text("Включи — и \(name) будет жить в «острове» наверху экрана, даже когда приложение закрыто.")
+                Text("Включи — и \(name) будет жить на «острове» наверху экрана, даже когда приложение закрыто.")
                     .guideText()
                 Button {
                     turningOn = true
@@ -100,7 +102,7 @@ struct WidgetGuideSheet: View {
                 .disabled(turningOn)
                 .accessibilityIdentifier("guide.island")
             } else {
-                Text("Уже включён: когда сворачиваешь приложение, \(name) живёт в «острове» наверху экрана.")
+                Text("Уже включён: когда сворачиваешь приложение, \(name) живёт на «острове» наверху экрана.")
                     .guideText()
             }
         }
