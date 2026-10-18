@@ -25,6 +25,7 @@ let package = Package(
             sources: [
                 "AppGroup.swift",
                 "Backup.swift",
+                "Brush.swift",
                 "Capsule.swift",
                 "CatchGame.swift",
                 "Catalog.swift",
@@ -69,6 +70,7 @@ let package = Package(
                 "TastesTests.swift",
                 "TricksTests.swift",
                 "CatchGameTests.swift",
+                "BrushTests.swift",
                 "EconomyTests.swift",
                 "CoatTests.swift",
                 "PostcardsTests.swift",

@@ -142,6 +142,9 @@ enum PetStance {
         if let trick = Trick(kind: kind) {
             return trickClips(trick, ok: ok, stance: stance, available: available)
         }
+        if kind == Brush.journalKind {
+            return brushClips(ok: ok, stance: stance, lookX: lookX, available: available)
+        }
         if !ok {
             return stance == .sleep ? [] : pick(["head_tilt"], available: available)
         }
@@ -184,6 +187,25 @@ enum PetStance {
             out = []
         }
         return pick(out, available: available)
+    }
+
+    /// Расчёсывание (Brush): дочесали — отряхнулся (сидящий/лежащий сначала встаёт); против шерсти — дёрнулся
+    /// от щётки (стоя — «тычок» с той стороны, где палец), сидя и лёжа — повёл ухом. Спящему не до щётки.
+    static func brushClips(ok: Bool, stance: Stance, lookX: Float? = nil, available: Set<String> = defaultClips) -> [String] {
+        if stance == .dead || stance == .sleep { return [] }
+        if ok {
+            // Без клипа shake (старая модель) — хотя бы вильнул хвостом.
+            let shake = pick(["shake"], available: available)
+            let body = shake.isEmpty ? pick(["happy_wag"], available: available) : shake
+            if body.isEmpty || stance == .stand { return body }
+            return pick(path(from: stance, to: .stand), available: available) + body
+        }
+        if stance == .stand {
+            let left: Bool
+            if let x = lookX, x != 0 { left = x < 0 } else { left = Bool.random() }
+            return pick([left ? "hit_left" : "hit_right"], available: available)
+        }
+        return pick(["ear_flick"], available: available)
     }
 
     /// Трюк (Tricks): удача — его клипы, нет — склонил голову и понюхал («Не понял…»). Клипы трюков — из стойки
