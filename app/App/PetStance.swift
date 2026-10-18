@@ -139,6 +139,9 @@ enum PetStance {
     static func reaction(kind: String, ok: Bool, stance: Stance, lookX: Float? = nil,
                          available: Set<String> = defaultClips) -> [String] {
         if stance == .dead { return [] }
+        if let trick = Trick(kind: kind) {
+            return trickClips(trick, ok: ok, stance: stance, available: available)
+        }
         if !ok {
             return stance == .sleep ? [] : pick(["head_tilt"], available: available)
         }
@@ -182,6 +185,27 @@ enum PetStance {
         }
         return pick(out, available: available)
     }
+
+    /// Трюк (Tricks): удача — его клипы, нет — склонил голову и понюхал («Не понял…»). Клипы трюков — из стойки
+    /// «стоит»: сидящий или лежащий сначала встаёт, после трюка возвращается в своё положение. Спящему не до трюков.
+    /// «Сидеть» сидящему и «Лежать» лежащему — без вставания: повёл ухом/головой и остался, как велели.
+    static func trickClips(_ trick: Trick, ok: Bool, stance: Stance, available: Set<String> = defaultClips) -> [String] {
+        if stance == .dead || stance == .sleep { return [] }
+        if ok, let stay = stayClips[trick], stay.stance == stance {
+            return pick(stay.clips, available: available)
+        }
+        let body = pick(ok ? trick.clips : Tricks.failClips, available: available)
+        if body.isEmpty { return [] }
+        if stance == .stand { return body }
+        return pick(path(from: stance, to: .stand), available: available) + body
+            + pick(path(from: .stand, to: stance), available: available)
+    }
+
+    /// Команда, которую пёс уже выполняет: короткая вставка из фиджетов этой стойки и удержание позы.
+    static let stayClips: [Trick: (stance: Stance, clips: [String])] = [
+        .sit: (.sit, ["head_tilt", "sit"]),
+        .lie: (.lie, ["ear_flick", "lie"]),
+    ]
 
     /// Оставляет только клипы, которые есть. Нет клипа — шаг пропускается.
     static func pick(_ names: [String], available: Set<String>) -> [String] {

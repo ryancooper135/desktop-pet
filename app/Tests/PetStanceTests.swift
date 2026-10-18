@@ -107,6 +107,41 @@ final class PetStanceTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand), ["jump_to_idle"])
     }
 
+    func testTrickReactions() {
+        let all = Set(PetClipNames.required + PetClipNames.optional)
+        // Стоя — ровно клипы трюка; не вышло — склонил голову и понюхал.
+        XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: true, stance: .stand, available: all), ["sit_in", "sit", "sit_out"])
+        XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: false, stance: .stand, available: all), ["head_tilt", "sniff"])
+        for t in Trick.allCases {
+            let rc = PetStance.reaction(kind: t.kind, ok: true, stance: .stand, available: all)
+            XCTAssertEqual(rc, t.clips, "\(t)")
+            XCTAssertEqual(PetStance.endStance(after: rc, from: .stand), .stand, "\(t)")
+        }
+        // Сидя: встал, трюк, сел обратно — тело кончает там же, без телепорта.
+        let fromSit = PetStance.reaction(kind: "trick.bow", ok: true, stance: .sit, available: all)
+        XCTAssertEqual(fromSit, ["sit_out", "play_bow", "sit_in"])
+        XCTAssertEqual(PetStance.endStance(after: fromSit, from: .sit), .sit)
+        let lieFromSit = PetStance.reaction(kind: "trick.lie", ok: true, stance: .sit, available: all)
+        XCTAssertEqual(lieFromSit, ["sit_out", "lie_in", "lie", "lie_out", "sit_in"])
+        XCTAssertEqual(PetStance.endStance(after: lieFromSit, from: .sit), .sit)
+        // Уже сидит/лежит — не встаёт и не дёргается: вставка и та же поза.
+        let fromLie = PetStance.reaction(kind: "trick.lie", ok: true, stance: .lie, available: all)
+        XCTAssertEqual(fromLie, ["ear_flick", "lie"])
+        XCTAssertEqual(PetStance.endStance(after: fromLie, from: .lie), .lie)
+        let sitFromSit = PetStance.reaction(kind: "trick.sit", ok: true, stance: .sit, available: all)
+        XCTAssertEqual(sitFromSit, ["head_tilt", "sit"])
+        XCTAssertEqual(PetStance.endStance(after: sitFromSit, from: .sit), .sit)
+        // Промах сидя — по-прежнему встал, «не понял», сел.
+        XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: false, stance: .sit, available: all),
+                       ["sit_out", "head_tilt", "sniff", "sit_in"])
+        // Спит или мёртв — ничего. Нет клипов трюка — тоже ничего (не голый «встал-сел»).
+        XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: true, stance: .sleep, available: all), [])
+        XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: false, stance: .dead, available: all), [])
+        XCTAssertEqual(PetStance.reaction(kind: "trick.shake", ok: true, stance: .sit, available: Set(PetClipNames.required)), [])
+        // Неизвестный трюк — обычная реакция по виду (пусто).
+        XCTAssertEqual(PetStance.reaction(kind: "trick.fly", ok: true, stance: .stand, available: all), [])
+    }
+
     // MARK: еда одним подходом
 
     func testEatPartsCoverEatClip() throws {
@@ -226,6 +261,12 @@ final class PetStanceTests: XCTestCase {
             XCTAssertTrue(have.contains(PetStance.loop(for: pose)), "\(pose)")
             for clip in PetStance.intro(for: pose) {
                 XCTAssertTrue(have.contains(clip), "\(pose): нет \(clip)")
+            }
+        }
+        // Трюки и «Не понял…» целиком из бандла: без клипа трюк молча пропал бы.
+        for t in Trick.allCases {
+            for clip in t.clips + Tricks.failClips + (PetStance.stayClips[t]?.clips ?? []) {
+                XCTAssertTrue(have.contains(clip), "\(t): нет \(clip)")
             }
         }
         // Реакции с клипами из контракта ссылаются только на то, что есть в бандле.

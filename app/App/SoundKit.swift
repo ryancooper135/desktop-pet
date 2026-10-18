@@ -37,6 +37,11 @@ final class SoundKit {
         schedule(SoundRecipe.tones(cue))
     }
 
+    /// Звук позже, вместе с анимацией (трюк «Голос»). Перебили хореографию — не прозвучит.
+    func play(_ cue: SoundCue, after offset: Double) {
+        schedule(SoundRecipe.delayed(cue, by: offset))
+    }
+
     /// Ответ ядра на действие из приложения (рядом с хаптикой success/warning).
     func settled(kind: String, ok: Bool) {
         if let cue = SoundRecipe.forAction(kind: kind, ok: ok) { play(cue) }

@@ -68,6 +68,39 @@ final class AnimationUITests: XCTestCase {
         attachSheet(frames, name: "anim-walk")
     }
 
+    /// Трюк «Сидеть» из листа «Трюки» (сид tricks: уже выучен; PET_TRICK_ROLL=0 — всегда выходит): лист уезжает,
+    /// Шиба садится, сидит и встаёт, прыжок пружиной и тост «Сидит!».
+    @MainActor
+    func testTrickSitFrames() throws { try recordTrick("trick.sit", roll: "0", name: "anim-trick-sit", count: 24, step: 0.3) }
+
+    /// Промах (PET_TRICK_ROLL=0.99): склонил голову, понюхал, «Не понял…».
+    @MainActor
+    func testTrickMissFrames() throws { try recordTrick("trick.lie", roll: "0.99", name: "anim-trick-miss") }
+
+    @MainActor
+    func recordTrick(_ identifier: String, roll: String, name: String,
+                     count: Int = AnimationUITests.frameCount, step: TimeInterval = AnimationUITests.frameStep) throws {
+        let app = Self.makeApp(seed: "tricks", noon: true)
+        app.launchEnvironment["PET_TRICK_ROLL"] = roll
+        let stage = try launch(app)
+        let open = app.descendants(matching: .any)["open.tricks"]
+        guard open.waitForExistence(timeout: 5), open.isHittable else {
+            throw XCTSkip("нет кнопки open.tricks")
+        }
+        let crop = stage.frame
+        open.tap()
+        let button = app.descendants(matching: .any)[identifier]
+        guard button.waitForExistence(timeout: 5) else {
+            throw XCTSkip("нет кнопки \(identifier) в листе «Трюки»")
+        }
+        // Лист доехал — потом команда.
+        Thread.sleep(forTimeInterval: 0.6)
+        let start = Date()
+        button.tap()
+        let frames = capture(app, crop: crop, count: count, step: step, since: start)
+        attachSheet(frames, name: name)
+    }
+
     /// Поглаживание пальцем: 4 мазка туда-обратно по сцене, после каждого по 4 кадра.
     @MainActor
     func testStrokeFrames() throws {

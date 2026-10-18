@@ -51,6 +51,7 @@ let package = Package(
                 "StableHash.swift",
                 "Synth.swift",
                 "Tastes.swift",
+                "Tricks.swift",
             ]
         ),
         .testTarget(
@@ -64,6 +65,7 @@ let package = Package(
                 "SoundTests.swift",
                 "WalkTests.swift",
                 "TastesTests.swift",
+                "TricksTests.swift",
                 "EconomyTests.swift",
                 "CoatTests.swift",
                 "PostcardsTests.swift",

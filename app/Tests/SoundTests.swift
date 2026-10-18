@@ -190,6 +190,15 @@ final class SoundTests: XCTestCase {
         XCTAssertTrue(t.allSatisfy(\.choreo))
     }
 
+    func testDelayedIsShiftedChoreo() {
+        let base = SoundRecipe.tones(.yip)
+        let d = SoundRecipe.delayed(.yip, by: 0.7)
+        XCTAssertEqual(d.count, base.count)
+        assertClose(d.map(\.at), base.map { $0.at + 0.7 })
+        XCTAssertTrue(d.allSatisfy(\.choreo))
+        assertClose(SoundRecipe.delayed(.yip, by: -1).map(\.at), base.map(\.at))
+    }
+
     func testEatCrunches() {
         let t = SoundRecipe.eat(from: 0.5, to: 1.8)
         let crunches = t.filter { $0.wave == .noise }

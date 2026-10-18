@@ -208,6 +208,12 @@ struct HomeScreen: View {
                 .environment(model)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $model.showTricks) {
+            // Половина экрана: пёс виден над листом, а выбрал команду — лист уезжает и пёс пробует.
+            TricksScreen()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)
