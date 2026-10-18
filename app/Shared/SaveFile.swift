@@ -82,6 +82,9 @@ struct SaveFile: Codable, Sendable {
     var catchGames = 0
     /// Расчёсывание: когда последний раз и сколько всего (Brush.swift). Пустое в файл не пишется.
     var brush = BrushLog()
+    /// Надето (Wear.swift): место (head/neck/back) → id предмета из капсулы. Пустое в файл не пишется,
+    /// новому щенку переходит вместе с предметами.
+    var worn: [String: String] = [:]
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -131,6 +134,7 @@ struct SaveFile: Codable, Sendable {
         case journal, outbox, build, island, flags, notif, debugMarker, econ
         case cards
         case catchBest, catchDay, catchCoins, catchGames
+        case worn
     }
 
     init(from decoder: Decoder) throws {
@@ -175,6 +179,7 @@ struct SaveFile: Codable, Sendable {
         catchDay = (try? c.decodeIfPresent(Int.self, forKey: .catchDay)) ?? 0
         catchCoins = (try? c.decodeIfPresent(Int.self, forKey: .catchCoins)) ?? 0
         catchGames = (try? c.decodeIfPresent(Int.self, forKey: .catchGames)) ?? 0
+        worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -208,6 +213,7 @@ struct SaveFile: Codable, Sendable {
         if catchDay != 0 { try c.encode(catchDay, forKey: .catchDay) }
         if catchCoins != 0 { try c.encode(catchCoins, forKey: .catchCoins) }
         if catchGames != 0 { try c.encode(catchGames, forKey: .catchGames) }
+        if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
     }
 }
 

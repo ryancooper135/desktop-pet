@@ -100,6 +100,8 @@ final class PetStore: @unchecked Sendable {
             fresh.catchDay = old.catchDay
             fresh.catchCoins = old.catchCoins
             fresh.catchGames = old.catchGames
+            // Надетое — вместе с предметами: шарф остаётся на месте и у нового щенка.
+            fresh.worn = old.worn
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
             // Старый файл целиком остаётся в state.broken-<t>.json.
         }

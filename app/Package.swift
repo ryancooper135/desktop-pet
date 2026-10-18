@@ -55,6 +55,7 @@ let package = Package(
                 "Synth.swift",
                 "Tastes.swift",
                 "Tricks.swift",
+                "Wear.swift",
             ]
         ),
         .testTarget(
@@ -87,6 +88,7 @@ let package = Package(
                 "HomeOfferTests.swift",
                 "RoomPlanTests.swift",
                 "HomeTextTests.swift",
+                "WearTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),
