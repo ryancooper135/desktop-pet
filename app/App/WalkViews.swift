@@ -24,11 +24,12 @@ struct WalkRow: View {
         let gate = model.file.map { WalkPlan.gate($0, at: snap.t) }
         let tricks = model.file.map { Tricks.gate($0, at: snap.t) } ?? Tricks.loadingReason
         let total = Finds.total(albumFinds(model.file, at: snap.t))
-        // Всё целиком; не влезло — «Гулять» без строчки (iPhone Air); дальше — «Альбом» значком; совсем узко — плотнее.
-        // Последний вариант берётся всегда.
+        // Всё целиком; не влезло — «Гулять» без строчки (iPhone Air, кнопки плотнее); дальше — «Альбом» значком;
+        // совсем узко — плотнее. Последний вариант берётся всегда.
         ViewThatFits(in: .horizontal) {
             row(gate: gate, tricks: tricks, total: total, compact: false, brief: false, spacing: 8)
-            row(gate: gate, tricks: tricks, total: total, compact: false, brief: true, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: false, brief: true, spacing: 6)
+            row(gate: gate, tricks: tricks, total: total, compact: false, brief: true, spacing: 4)
             row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 8)
             row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 5)
         }
@@ -36,12 +37,15 @@ struct WalkRow: View {
 
     private func row(gate: WalkGate?, tricks: String?, total: Int, compact: Bool, brief: Bool,
                      spacing: CGFloat) -> some View {
-        HStack(spacing: spacing) {
-            AlbumButton(total: total, compact: compact)
-            MachineButton()
-            HouseButton()
-            TricksButton(gate: tricks)
-            Spacer(minLength: 0)
+        // Распорка — сама зазор до «Гулять»: у HStack со spacing она добавила бы лишний с обеих сторон.
+        HStack(spacing: 0) {
+            HStack(spacing: spacing) {
+                AlbumButton(total: total, compact: compact)
+                MachineButton()
+                HouseButton()
+                TricksButton(gate: tricks)
+            }
+            Spacer(minLength: spacing)
             if let gate {
                 WalkButton(gate: gate, brief: brief)
             }
