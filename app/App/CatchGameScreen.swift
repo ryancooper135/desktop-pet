@@ -41,7 +41,7 @@ struct CatchGameScreen: View {
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
-                IntroCard(gate: gate, best: model.file?.catchBest ?? 0, left: coinsLeft, start: start)
+                IntroCard(gate: gate, best: model.file?.catchBest ?? 0, left: coinsLeft) { start() }
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             case .playing:
@@ -53,14 +53,14 @@ struct CatchGameScreen: View {
                     .padding(.bottom, 12)
             case .done(let r):
                 Spacer(minLength: 0)
-                DoneCard(result: r, again: gate == nil, start: start) { model.showCatch = false }
+                DoneCard(result: r, again: gate == nil, start: { start() }, close: { model.showCatch = false })
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             }
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .task(id: runID) { await loop() }
-        .onAppear(perform: uiTestSetup)
+        .onAppear { uiTestSetup() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("catch.screen")
     }
