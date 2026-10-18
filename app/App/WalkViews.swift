@@ -6,8 +6,9 @@
 // • альбом — шит, ещё открывается по pet://album;
 // • волна 5: круглая кнопка автомата между «Альбомом» и «Гулять» (pet://capsule), в альбоме — «Вкусы» и «Открытки»;
 // • этап 8: рядом с автоматом круглая кнопка «Дом» (pet://house, HouseScreen.swift);
-// • волна 8: за «Домом» круглая кнопка «Трюки» (pet://tricks, TricksScreen.swift). Ряд тесный: если целиком не влезает,
-//   «Альбом» сжимается до значка со счётчиком (ViewThatFits), подпись «Гулять» не трогаем.
+// • волна 8: за «Домом» круглая кнопка «Трюки» (pet://tricks, TricksScreen.swift). Ряд тесный (ViewThatFits): если целиком
+//   не влезает, сначала прячется строчка под «Гулять» (её дублируют тост, записка и VoiceOver), «Альбом» с подписью
+//   остаётся; не влезло и так — «Альбом» сжимается до значка со счётчиком, а «Гулять» снова со строчкой.
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
@@ -21,17 +22,20 @@ struct WalkRow: View {
 
     var body: some View {
         let gate = model.file.map { WalkPlan.gate($0, at: snap.t) }
-        let tricks = model.file.map { Tricks.gate($0, at: snap.t) } ?? "store"
+        let tricks = model.file.map { Tricks.gate($0, at: snap.t) } ?? Tricks.loadingReason
         let total = Finds.total(albumFinds(model.file, at: snap.t))
-        // Сначала с подписью «Альбом»; не влезло — значок; совсем узко — плотнее. Последний вариант берётся всегда.
+        // Всё целиком; не влезло — «Гулять» без строчки (iPhone Air); дальше — «Альбом» значком; совсем узко — плотнее.
+        // Последний вариант берётся всегда.
         ViewThatFits(in: .horizontal) {
-            row(gate: gate, tricks: tricks, total: total, compact: false, spacing: 8)
-            row(gate: gate, tricks: tricks, total: total, compact: true, spacing: 8)
-            row(gate: gate, tricks: tricks, total: total, compact: true, spacing: 5)
+            row(gate: gate, tricks: tricks, total: total, compact: false, brief: false, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: false, brief: true, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 5)
         }
     }
 
-    private func row(gate: WalkGate?, tricks: String?, total: Int, compact: Bool, spacing: CGFloat) -> some View {
+    private func row(gate: WalkGate?, tricks: String?, total: Int, compact: Bool, brief: Bool,
+                     spacing: CGFloat) -> some View {
         HStack(spacing: spacing) {
             AlbumButton(total: total, compact: compact)
             MachineButton()
@@ -39,7 +43,7 @@ struct WalkRow: View {
             TricksButton(gate: tricks)
             Spacer(minLength: 0)
             if let gate {
-                WalkButton(gate: gate)
+                WalkButton(gate: gate, brief: brief)
             }
         }
     }
@@ -57,6 +61,8 @@ func albumFinds(_ f: SaveFile?, at t: Double) -> [String: Int] {
 struct WalkButton: View {
     @Environment(AppModel.self) private var model
     let gate: WalkGate
+    /// Тесный ряд: только «Гулять», без строчки-причины (она в тосте по нажатию и в accessibilityValue).
+    var brief = false
     @State private var taps = 0
     @State private var refusals = 0
 
@@ -82,7 +88,7 @@ struct WalkButton: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(away ? "Гуляет" : "Гулять")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                    if !gate.hint.isEmpty {
+                    if !brief && !gate.hint.isEmpty {
                         Text(gate.hint)
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)

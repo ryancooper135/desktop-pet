@@ -590,8 +590,12 @@ final class AppModel {
         }
         react(t.kind)
         haptic(.success)
-        // «Голос» тявкает сам на прыжке (PetChoreo.begin).
-        if t != .speak { SoundKit.shared.play(.ok) }
+        // «Голос» тявкает сам на прыжке (PetChoreo.begin), если сцена играет клипы; без движения — тявк сразу.
+        if t != .speak {
+            SoundKit.shared.play(.ok)
+        } else if !PetModel.playsReactions {
+            SoundKit.shared.play(.yip)
+        }
         let love = Int(out.love.rounded())
         if love > 0 {
             lastDelta = ["love": love]

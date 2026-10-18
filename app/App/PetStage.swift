@@ -195,6 +195,10 @@ enum PetModel {
 
     // MARK: клипы
 
+    /// Реакции играет сцена клипами: тявк «Голоса» ставит PetChoreo.begin на прыжке. При «Уменьшении движения»
+    /// или без таблицы клипов drive до режиссёра не доходит — звук трюка тогда ставит AppModel сразу.
+    static var playsReactions: Bool { !UIAccessibility.isReduceMotionEnabled && ClipTable.shared != nil }
+
     /// Сменить позу и/или сыграть реакцию. Реакция проверяется до сравнения ключа позы.
     static func drive(_ pet: Entity, pose: Pose, reduceMotion: Bool, reaction: PetReaction?, lookX: Float?) {
         guard var st = pet.components[ClipState.self], let table = ClipTable.shared else { return }

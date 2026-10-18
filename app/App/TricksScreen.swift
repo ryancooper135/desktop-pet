@@ -15,7 +15,7 @@ struct TricksScreen: View {
 
     var body: some View {
         let rows = model.file.map { Tricks.rows($0) } ?? []
-        let gate = model.file.map { Tricks.gate($0, at: model.snap.t) } ?? "store"
+        let gate = model.file.map { Tricks.gate($0, at: model.snap.t) } ?? Tricks.loadingReason
         ScrollView {
             VStack(spacing: 14) {
                 header(learned: rows.filter(\.learned).count, total: rows.count)

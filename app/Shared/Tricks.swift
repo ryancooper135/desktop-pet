@@ -138,10 +138,8 @@ struct TrickOutcome: Hashable, Sendable {
     let progress: Int
     /// Трюк выучен именно сейчас.
     let learnedNow: Bool
-    /// Монеты за первый раз (0, если упёрлись в дневной потолок).
+    /// Монеты за первый раз (learnCoins, иначе 0).
     let coins: Int
-    /// Хотели монет, но дневной потолок.
-    let capped: Bool
     /// Прибавка ласки.
     let love: Double
 
@@ -172,10 +170,12 @@ enum Tricks {
     /// Настроение от трюков — не чаще перезарядки «Погладить» (3 минуты), иначе шесть трюков подряд
     /// дают больше ласки, чем сама ласка.
     static let joyGap: Double = 180
-    /// Монеты за первый раз — из того же дневного потолка ухода.
+    /// Монеты за первый раз — разово, мимо дневного потолка ухода.
     static let learnCoins = 5
 
     static let lockedReason = "locked"
+    /// Стор ещё не прочитан (model.file == nil): не «не получилось сохранить», а подождать.
+    static let loadingReason = "loading"
     static let failText = "Не понял…"
     /// Клипы промаха: склонил голову, понюхал — «а что надо-то?».
     static let failClips = ["head_tilt", "sniff"]
@@ -207,6 +207,7 @@ enum Tricks {
     /// Текст отказа: общий из RefuseText, для замка — какой трюк выучить раньше.
     static func reasonText(_ reason: String?, for t: Trick? = nil) -> String {
         if reason == lockedReason, let p = t?.previous { return "Сначала выучи «\(p.title)»" }
+        if reason == loadingReason { return "Секунду…" }
         return RefuseText.text(reason)
     }
 
@@ -240,7 +241,7 @@ enum Tricks {
         PetRunner.catchUp(&f, now: now)
         func refuse(_ r: String) -> TrickOutcome {
             TrickOutcome(trick: t, ok: false, reason: r, counted: false, progress: progress(t, in: f),
-                         learnedNow: false, coins: 0, capped: false, love: 0)
+                         learnedNow: false, coins: 0, love: 0)
         }
         if let r = gate(f, at: now) { return refuse(r) }
         guard unlocked(t, in: f) else { return refuse(lockedReason) }
@@ -252,10 +253,11 @@ enum Tricks {
         guard ok else {
             f.tricks[t] = e
             return TrickOutcome(trick: t, ok: false, reason: nil, counted: false, progress: min(needed, e.n),
-                                learnedNow: false, coins: 0, capped: false, love: 0)
+                                learnedNow: false, coins: 0, love: 0)
         }
 
-        let counted = now >= e.t + gap
+        // Метка из будущего (часы перевели назад, clock_back) — устаревшая, иначе счёт стоит, пока часы не догонят.
+        let counted = now < e.t || now >= e.t + gap
         var learnedNow = false
         if counted {
             e.t = now
@@ -271,19 +273,18 @@ enum Tricks {
         let love = counted ? cheer(&f, now: now) : 0
 
         var coins = 0
-        var capped = false
         if learnedNow {
             f.log("trick.learn", t: now, key: t.rawValue)
-            (coins, capped) = pay(&f, now: now)
+            coins = pay(&f, now: now)
         }
         return TrickOutcome(trick: t, ok: true, reason: nil, counted: counted, progress: min(needed, e.n),
-                            learnedNow: learnedNow, coins: coins, capped: capped, love: love)
+                            learnedNow: learnedNow, coins: coins, love: love)
     }
 
     /// Настроение: «Погладить» ядра на копии без перезарядки, в питомца — loveShare прибавки.
     /// Перезарядку настоящей «Погладить» не ставим: трюк не должен запрещать ласку.
     private static func cheer(_ f: inout SaveFile, now: Double) -> Double {
-        if let j = f.tricks.joyT, now < j + joyGap { return 0 }
+        if let j = f.tricks.joyT, now >= j, now < j + joyGap { return 0 }
         var s = f.pet
         s.cooldowns["pet"] = nil
         let before = f.pet.needs[.love] ?? 0
@@ -295,14 +296,13 @@ enum Tricks {
         return min(100, before + gain) - before
     }
 
-    /// Монеты за первый раз — по правилам ухода: тот же дневной потолок, запись в lastEarn для тоста.
-    private static func pay(_ f: inout SaveFile, now: Double, _ cfg: EconomyConfig = .shared) -> (Int, Bool) {
-        Economy.rollDay(&f.econ, day: Economy.day(now))
-        let got = min(learnCoins, Economy.careLeftToday(f, at: now, cfg))
-        f.econ.daily.care += got
-        f.econ.wallet.coins += got
+    /// Монеты за первый раз — мимо дневного потолка ухода: награда разовая (не больше 6 × learnCoins на щенка),
+    /// а выученный трюк второго шанса не даст — упрись она в вечерний потолок, сгорела бы молча.
+    /// Запись в lastEarn — для тоста.
+    private static func pay(_ f: inout SaveFile, now: Double) -> Int {
+        f.econ.wallet.coins += learnCoins
         let id = f.journal.last?.id ?? "\(f.deviceId):\(f.seq)"
-        f.econ.lastEarn = Earning(id: id, kind: "trick", coins: got, capped: got < learnCoins, t: now)
-        return (got, got < learnCoins)
+        f.econ.lastEarn = Earning(id: id, kind: "trick", coins: learnCoins, capped: false, t: now)
+        return learnCoins
     }
 }

@@ -246,8 +246,7 @@ final class TricksTests: XCTestCase {
         XCTAssertTrue(Economy.settle(&f).isEmpty, "settle ничего сверху не платит")
     }
 
-    func testCoinsOnlyFirstLearnWithinDailyCap() {
-        let cfg = EconomyConfig.shared
+    func testCoinsOnlyFirstLearnPastDailyCap() {
         var f = kFile()
         let wallet0 = f.econ.wallet.coins
         var now = kT0
@@ -256,25 +255,41 @@ final class TricksTests: XCTestCase {
             now += Tricks.gap
         }
         let learned = Tricks.attempt(.sit, in: &f, now: now, roll: 0)
-        let want = min(Tricks.learnCoins, cfg.careDailyCap)
-        XCTAssertEqual(learned.coins, want)
-        XCTAssertEqual(f.econ.wallet.coins, wallet0 + want)
-        XCTAssertEqual(f.econ.daily.care, want)
+        XCTAssertEqual(learned.coins, Tricks.learnCoins)
+        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins)
+        XCTAssertEqual(f.econ.daily.care, 0, "потолок ухода не тратится")
         XCTAssertEqual(f.econ.lastEarn?.kind, "trick")
-        XCTAssertEqual(f.econ.lastEarn?.coins, want)
+        XCTAssertEqual(f.econ.lastEarn?.coins, Tricks.learnCoins)
+        XCTAssertEqual(f.econ.lastEarn?.capped, false)
         // Повтор выученного — без монет.
         XCTAssertEqual(Tricks.attempt(.sit, in: &f, now: now + Tricks.gap, roll: 0).coins, 0)
-        XCTAssertEqual(f.econ.wallet.coins, wallet0 + want)
+        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins)
 
-        // Потолок дня почти выбран: дают сколько осталось и говорят, что упёрлись.
-        guard cfg.careDailyCap > 2 else { return }
-        f.econ.daily.care = cfg.careDailyCap - 2
+        // Вечер, потолок ухода выбран: разовая награда всё равно целиком, иначе сгорела бы навсегда.
+        let cap = EconomyConfig.shared.careDailyCap
+        f.econ.daily.care = cap
         let w1 = f.econ.wallet.coins
         let lie = teachOutcome(.lie, &f, from: now + Tricks.gap)
-        XCTAssertEqual(lie.coins, min(2, Tricks.learnCoins))
-        XCTAssertEqual(lie.capped, Tricks.learnCoins > 2)
-        XCTAssertEqual(f.econ.wallet.coins, w1 + min(2, Tricks.learnCoins))
-        XCTAssertEqual(Economy.careLeftToday(f, at: now + 3600), 0)
+        XCTAssertTrue(lie.learnedNow)
+        XCTAssertEqual(lie.coins, Tricks.learnCoins)
+        XCTAssertEqual(f.econ.wallet.coins, w1 + Tricks.learnCoins)
+        XCTAssertEqual(f.econ.daily.care, cap)
+    }
+
+    func testClockBackDoesNotFreezeProgress() {
+        var f = kFile(level: 50)
+        let late = kT0 + 600
+        let first = Tricks.attempt(.sit, in: &f, now: late, roll: 0)
+        XCTAssertTrue(first.counted)
+        XCTAssertGreaterThan(first.love, 0)
+        // Часы перевели на 10 минут назад: метки в будущем — устаревшие, счёт и ласка идут.
+        let back = Tricks.attempt(.sit, in: &f, now: kT0, roll: 0)
+        XCTAssertTrue(back.counted)
+        XCTAssertEqual(back.progress, 2)
+        XCTAssertGreaterThan(back.love, 0)
+        // А дальше снова как обычно: раньше gap не засчитывается.
+        XCTAssertFalse(Tricks.attempt(.sit, in: &f, now: kT0 + 1, roll: 0).counted)
+        XCTAssertTrue(Tricks.attempt(.sit, in: &f, now: kT0 + Tricks.gap, roll: 0).counted)
     }
 
     private func teachOutcome(_ t: Trick, _ f: inout SaveFile, from: Double) -> TrickOutcome {
