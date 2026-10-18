@@ -58,7 +58,12 @@ struct RootView: View {
             }
         }
         .onChange(of: model.snap.level) { _, _ in guide.check() }
-        .onChange(of: model.away == nil) { _, free in if free { guide.check() } }
+        .onChange(of: model.away == nil) { _, free in
+            guard free else { return }
+            guide.check()
+            // «Доброе утро», отложенное под отчётом «Пока тебя не было».
+            model.sayPending()
+        }
         .onChange(of: model.showNeeds || model.showSettings || model.showAlbum || model.showCapsule || model.showHouse || model.showCatch || model.postcard != nil) { _, busy in if !busy { guide.check() } }
         .preferredColorScheme(UITestHooks.scheme)
         .task {

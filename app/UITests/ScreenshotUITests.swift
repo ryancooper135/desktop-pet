@@ -18,6 +18,8 @@
 //   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 //   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
+//   ui-69/70        сон хозяина: настройки с выученным окном «Я сплю примерно 00:40–08:10» (и экран «Я сплю»),
+//                   «Доброе утро» при первом заходе утром (PET_SEED=sleep_learned / good_morning)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -292,6 +294,42 @@ final class ScreenshotUITests: XCTestCase {
             snap("ui-62-wear-list-swap")
         }
         app.terminate()
+    }
+
+    /// Сон хозяина выучен (PET_SEED=sleep_learned): в настройках «Я сплю примерно 00:40–08:10 (учится сам)»
+    /// и «Ложиться вместе со мной». Потом экран «Я сплю» — пикеры «Засыпаю/Просыпаюсь» и «Забыть выученное».
+    @MainActor
+    func testStates69OwnerSleep() throws {
+        let app = try shootOptional("ui-69-owner-sleep",
+                                    env: ["PET_SEED": "sleep_learned", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                          "PET_OPEN": "settings"],
+                                    marker: "settings.ownerSleep", keepRunning: true)
+        let row = app.descendants(matching: .any)["settings.ownerSleep"]
+        if row.isHittable {
+            row.tap()
+            if app.descendants(matching: .any)["ownerSleep.now"].waitForExistence(timeout: 5) {
+                settle(1)
+                snap("ui-69-owner-sleep-edit")
+            }
+        }
+        app.terminate()
+    }
+
+    /// Первый заход утром после ночи (PET_SEED=good_morning, 08:20): Шиба говорит «Доброе утро…» один раз.
+    @MainActor
+    func testStates70GoodMorning() throws {
+        let app = Self.makeApp()
+        let env = ["PET_SEED": "good_morning", "PET_NOW": Self.today(8, 20), "PET_SCHEME": "light"]
+        for (k, v) in env { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let line = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Доброе утро"))
+        let found = line.firstMatch.waitForExistence(timeout: 20)
+        settle(2.0)
+        snap("ui-70-good-morning")
+        app.terminate()
+        XCTAssertTrue(found, "ui-70: нет «Доброе утро»")
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).

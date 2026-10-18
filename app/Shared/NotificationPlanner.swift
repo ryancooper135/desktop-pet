@@ -26,10 +26,13 @@ enum NotificationPlanner {
         // Уже сработавшее из плана свежее старого lastSentT: берём самое позднее, иначе два в один день.
         let fired = f.notif.scheduled.filter { $0 <= now }.max()
         let lastSent = [f.notif.lastSentT, fired].compactMap { $0 }.max()
-        let opts = NotifyOpts(horizonH: horizonH, lastOpenT: f.lastSeenT ?? now, lastSentT: lastSent)
+        // Тихие часы: сон питомца и сон хозяина (OwnerSleep) вместе, с пределом от окна питомца — см. OwnerSleep.quiet.
+        let q = quietHours(f, now: now, owner: o)
+        let opts = NotifyOpts(horizonH: horizonH, lastOpenT: f.lastSeenT ?? now, lastSentT: lastSent,
+                              quietFromMin: q.from, quietToMin: q.to)
         var out: [PlannedNote] = []
         var core = PetEngine.notificationPlan(f.pet, r, o, now: now, opts: opts)
-        if let walk = walkHome(f, now: now, owner: o, lastSent: lastSent, core: core) {
+        if let walk = walkHome(f, now: now, owner: o, lastSent: lastSent, core: core, quiet: q) {
             // День возвращения отдан «Вернулся!»: мягкие напоминания того дня снимаем, лимит 1 в день цел.
             core.removeAll { localDay($0.at, o) == localDay(walk.date.timeIntervalSince1970, o) }
             out.append(walk)
@@ -50,6 +53,15 @@ enum NotificationPlanner {
         return Array(out.prefix(maxNotes))
     }
 
+    /// Тихие часы уведомлений (минуты суток): ни мягкое, ни «последний шанс» не будят хозяина. Исключения для
+    /// «умирает» в ядре нет — всё из тихих часов переносится на их конец, поэтому окно хозяина ограничено
+    /// no_death_first_h_after_wake от окна питомца: так перенос не уводит «последний шанс» за смерть.
+    static func quietHours(_ f: SaveFile, now: Double, owner o: Owner) -> (from: Int, to: Int) {
+        let est = OwnerSleep.estimate(f.sleep, now: now, tzOffsetMin: o.tzOffsetMin)
+        let cap = Int(Catalog.rules.noDeathAfterWakeH * 60)
+        return OwnerSleep.quiet(bedMin: o.bedMin, wakeMin: o.wakeMin, est: est.window, capMin: cap)
+    }
+
     /// Местный день (как в ядре): по нему лимит «1 в день» и ротация текстов.
     static func localDay(_ t: Double, _ o: Owner) -> Int {
         Int((Double(Int((t / 60).rounded(.down)) + o.tzOffsetMin) / 1440).rounded(.down))
@@ -60,17 +72,18 @@ enum NotificationPlanner {
 
     /// «Вернулся! Принёс шишку» к концу прогулки (outing.until). Ядро прогулку в план не кладёт — решаем здесь.
     /// Решение: уведомление идёт в общий лимит «1 в местный день».
-    ///  • возвращение в тихие часы хозяина — не шлём и не переносим на утро (к утру новость старая, Шиба встретит в приложении);
+    ///  • возвращение в тихие часы (сон питомца и хозяина, quietHours) — не шлём и не переносим на утро (к утру новость старая, Шиба встретит в приложении);
     ///  • в этот день уже было уведомление (lastSent) — не шлём;
     ///  • ядро в этот день планирует что-то серьёзнее мягкой нужды (беда, сердечко, L3, последний шанс) — уступаем ему;
     ///  • иначе «Вернулся!» вытесняет мягкое «голоден/скучаю» того же дня: новость приятнее и всё равно зовёт в приложение.
     static func walkHome(_ f: SaveFile, now: Double, owner o: Owner, lastSent: Double?,
-                         core: [PlannedNotification]) -> PlannedNote? {
+                         core: [PlannedNotification], quiet: (from: Int, to: Int)? = nil) -> PlannedNote? {
         let s = PetRunner.peek(f, at: now)
         guard s.alive, let out = s.outing else { return nil }
         let at = out.until
         guard at >= now + walkLeadSec, at <= now + horizonH * 3600 else { return nil }
-        if PetEngine.ownerAsleep(at, o) { return nil }
+        let q = quiet ?? quietHours(f, now: now, owner: o)
+        if OwnerSleep.inWindow(PetEngine.localMin(at, o), q.from, q.to) { return nil }
         let day = localDay(at, o)
         if let ls = lastSent, localDay(ls, o) == day { return nil }
         let soft: Set<String> = ["low", "absent"]
