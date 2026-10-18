@@ -130,6 +130,16 @@ func previewView(family: String, mood: String) -> AnyView? {
     return AnyView(view.environment(\.petFrozenNow, PreviewFixtures.file(mood).t))
 }
 
+/// Живой отсчёт для снимка: критичный питомец («Затоскует через 40:00»), но таймер не застывает
+/// фразой, а рисуется как в виджете — жадный Text(timerInterval:) на паузе в момент фикстуры.
+/// Только семейства, где под таймер мало места.
+@MainActor
+func previewLiveView(family: String) -> AnyView? {
+    guard ["small", "medium", "large", "rectangular", "islandExpanded", "lockActivity"].contains(family),
+          let view = previewBody(family: family, mood: "critical") else { return nil }
+    return AnyView(view.environment(\.petPausedNow, PreviewFixtures.file("critical").t))
+}
+
 @MainActor
 private func previewBody(family: String, mood: String) -> AnyView? {
     let snap = PreviewFixtures.catalogSnapshot(mood)

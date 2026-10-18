@@ -23,7 +23,7 @@ struct WidgetGuideSheet: View {
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
                         // Короче и с полями: длинная фраза шла от края до края.
-                        Text("Видно, как он, даже не открывая приложение")
+                        Text("Как он — видно без приложения")
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)
                             .padding(.horizontal, 12)

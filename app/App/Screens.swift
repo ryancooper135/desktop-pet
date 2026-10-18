@@ -180,7 +180,7 @@ struct SettingsScreen: View {
                 }
 
                 Section {
-                    Toggle("\(name) в острове", isOn: $island)
+                    Toggle("\(name) на острове", isOn: $island)
                         .listRowBackground(PetPalette.card)
                 } header: {
                     Text("Остров")

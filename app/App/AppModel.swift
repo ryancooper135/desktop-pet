@@ -830,8 +830,13 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 let tz = f.owner.tzOffsetMin
                 let day = Postcards.day(now, tzOffsetMin: tz) - 1
-                let card = Postcards.make(Moment(kind: .firstDay, t: now - 86400, score: 100),
-                                          day: day, petId: f.petId, tzOffsetMin: tz)
+                // Подпись с дефисом («Начало чего-то хорошего»): на снимке видно, что слово не рвётся.
+                // petId здесь только зерно выбора строки — перебираем, пока не выпадет нужная.
+                let m = Moment(kind: .firstDay, t: now - 86400, score: 100)
+                var card = Postcards.make(m, day: day, petId: f.petId, tzOffsetMin: tz)
+                for i in 0..<64 where card.lineId != "a.card_first_day.03" {
+                    card = Postcards.make(m, day: day, petId: "\(f.petId)-\(i)", tzOffsetMin: tz)
+                }
                 if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
             default:
                 break

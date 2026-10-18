@@ -202,7 +202,7 @@ struct HomeLineCard: View {
     }
 }
 
-/// Точки уровней справа: закрашено столько, сколько куплено.
+/// Сегменты уровней справа: закрашено столько, сколько куплено.
 struct LevelPips: View {
     let level: Int
     let top: Int

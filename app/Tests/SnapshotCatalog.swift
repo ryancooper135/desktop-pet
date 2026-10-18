@@ -86,6 +86,15 @@ enum SnapshotCatalog {
                                         colorScheme: scheme, view: view))
             }
         }
+        // Живой отсчёт (в приложении он тикает): влезает ли «через» рядом с «40:00».
+        for family in SnapshotFamily.allCases {
+            guard let view = previewLiveView(family: family.rawValue) else { continue }
+            let prefix = family.isIsland || family == .lockActivity ? "island" : "widget"
+            let scheme: ColorScheme = family.isIsland || family.isLockScreen ? .dark : .light
+            out.append(SnapshotCase(name: "\(prefix)-\(family.rawValue)-live",
+                                    size: family.size, cornerRadius: family.cornerRadius,
+                                    colorScheme: scheme, view: view))
+        }
         return out
     }
 

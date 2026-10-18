@@ -369,8 +369,8 @@ final class ForecastToolsCoverageTests: XCTestCase {
     }
 
     func testKeepHyphensGluesWordParts() {
-        XCTAssertEqual(Presenter.keepHyphens("Начало чего-то хорошего"), "Начало чего\u{2011}то хорошего")
-        XCTAssertEqual(Presenter.keepHyphens("кто-то где-нибудь"), "кто\u{2011}то где\u{2011}нибудь", "все дефисы")
+        XCTAssertEqual(Presenter.keepHyphens("Начало чего-то хорошего"), "Начало чего-\u{2060}то хорошего")
+        XCTAssertEqual(Presenter.keepHyphens("кто-то где-нибудь"), "кто-\u{2060}то где-\u{2060}нибудь", "все дефисы")
         XCTAssertEqual(Presenter.keepHyphens("1-3 часа"), "1-3 часа", "между цифрами не трогаем")
         XCTAssertEqual(Presenter.keepHyphens("-то"), "-то", "дефис в начале строки не трогаем")
         XCTAssertEqual(Presenter.keepHyphens("а — б"), "а — б", "тире не трогаем")
