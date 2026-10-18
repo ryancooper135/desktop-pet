@@ -18,6 +18,8 @@
 //   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 //   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
+//   ui-67           предметы: коллекция с иконками и кнопками по роли; комната с кубком на полке и теннисным мячиком
+//   ui-68           лавка дня: три карточки за монеты, потом одна куплена
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -290,6 +292,35 @@ final class ScreenshotUITests: XCTestCase {
             _ = toast.firstMatch.waitForExistence(timeout: 5)
             settle(0.6)
             snap("ui-62-wear-list-swap")
+        }
+        app.terminate()
+    }
+
+    /// Предметы (PET_SEED=items): сначала комната — кубок на полке, теннисный мячик, корона с бабочкой на собаке;
+    /// потом коллекция в автомате — иконки на плитках редкости, «Надеть / На полку / Играть».
+    @MainActor
+    func testStates67Items() throws {
+        shootState("ui-67-items-room", env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+        try shootOptional("ui-67-items-list",
+                          env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "capsule"],
+                          marker: "shelf.trophy_cup", scrollIn: "capsule.screen")
+    }
+
+    /// Лавка дня (PET_OPEN=shop открывает автомат, а из него лист): три карточки, потом покупка первой — «Куплено».
+    @MainActor
+    func testStates68Shop() throws {
+        let app = try shootOptional("ui-68-shop",
+                                    env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                          "PET_OPEN": "shop"],
+                                    marker: "shop.screen", keepRunning: true)
+        let buy = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "shop.buy.")).firstMatch
+        if buy.waitForExistence(timeout: 5) {
+            buy.tap()
+            let sold = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Куплено"))
+            XCTAssertTrue(sold.firstMatch.waitForExistence(timeout: 5), "ui-68: после покупки нет «Куплено»")
+            settle(0.8)
+            snap("ui-68-shop-bought")
         }
         app.terminate()
     }

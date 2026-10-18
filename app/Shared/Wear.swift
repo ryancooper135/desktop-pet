@@ -1,6 +1,6 @@
 // «Надето»: предметы из капсулы на собаке. Три места — голова, шея, спина, по одному предмету на место.
 // Здесь только логика и таблица (что куда и каким цветом); форма в 3D — app/App/PetWear.swift.
-// Мебель из капсулы (миска, коврик, лампа, диван, будка) не надевается.
+// Мебель и мелочи из капсулы не надеваются: они встают на полку или идут в игру (ItemCatalog).
 
 import Foundation
 
@@ -26,6 +26,13 @@ enum Wear {
         "raincoat":       WearInfo(slot: .back, shape: .genericBlanket, color: 0xF4C430, accent: 0xD9A21B),
         "hoodie_pumpkin": WearInfo(slot: .back, shape: .genericBlanket, color: 0xF08A2A, accent: 0x5E8C3A),
         "cape_champion":  WearInfo(slot: .back, shape: .cape, color: 0xC23B4A, accent: 0xF2B01E),
+        // волна 11
+        "bell_collar":    WearInfo(slot: .neck, shape: .bellCollar, color: 0xD24B45, accent: 0xF2C14E),
+        "bowtie_dots":    WearInfo(slot: .neck, shape: .bowtie, color: 0x2F5FA8, accent: 0xF6E7D2),
+        "beret_red":      WearInfo(slot: .head, shape: .beret, color: 0xC8323C, accent: 0x3A2A22),
+        "wreath_autumn":  WearInfo(slot: .head, shape: .wreath, color: 0xE08A2E, accent: 0xB8322B),
+        "crown_champion": WearInfo(slot: .head, shape: .crown, color: 0xF2B01E, accent: 0xC23B4A),
+        "backpack_mini":  WearInfo(slot: .back, shape: .backpack, color: 0xC98A4B, accent: 0x6B4428),
     ]
 
     static func info(_ id: String) -> WearInfo? { table[id] }

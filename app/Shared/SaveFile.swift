@@ -90,6 +90,12 @@ struct SaveFile: Codable, Sendable {
     /// Надето (Wear.swift): место (head/neck/back) → id предмета из капсулы. Пустое в файл не пишется,
     /// новому щенку переходит вместе с предметами.
     var worn: [String: String] = [:]
+    /// Волна 11. Что стоит на полке в комнате (ItemCatalog.decor), nil — пусто. nil в файл не пишется.
+    var shelf: String?
+    /// Чем играем в «Поиграть» (ItemCatalog.toys), nil — обычный мячик. nil в файл не пишется.
+    var toy: String?
+    /// Лавка дня (ShopDaily): что на витрине и что уже куплено сегодня. nil — лавку ещё не открывали.
+    var shop: ShopDay?
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -141,6 +147,7 @@ struct SaveFile: Codable, Sendable {
         case catchBest, catchDay, catchCoins, catchGames
         case roomEvening
         case worn
+        case shelf, toy, shop
     }
 
     init(from decoder: Decoder) throws {
@@ -188,6 +195,9 @@ struct SaveFile: Codable, Sendable {
         catchGames = (try? c.decodeIfPresent(Int.self, forKey: .catchGames)) ?? 0
         roomEvening = try? c.decodeIfPresent(String.self, forKey: .roomEvening)
         worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
+        shelf = try? c.decodeIfPresent(String.self, forKey: .shelf)
+        toy = try? c.decodeIfPresent(String.self, forKey: .toy)
+        shop = try? c.decodeIfPresent(ShopDay.self, forKey: .shop)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -224,6 +234,9 @@ struct SaveFile: Codable, Sendable {
         if catchGames != 0 { try c.encode(catchGames, forKey: .catchGames) }
         try c.encodeIfPresent(roomEvening, forKey: .roomEvening)
         if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
+        try c.encodeIfPresent(shelf, forKey: .shelf)
+        try c.encodeIfPresent(toy, forKey: .toy)
+        try c.encodeIfPresent(shop, forKey: .shop)
     }
 }
 

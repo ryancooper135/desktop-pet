@@ -57,6 +57,8 @@ struct CapsuleConfig: Hashable, Sendable {
     var pools: [Rarity: [CapsuleItem]] = CapsuleConfig.stubPools
 
     /// Заглушки, пока в economy.json нет capsule.pools. Тема — «осень».
+    /// Старые id не переименовывать: по ним лежат вещи в сейвах. Новые — только в конец списка редкости.
+    /// Роль каждой вещи (надеть / на полку / играть) — ItemCatalog.
     static let stubPools: [Rarity: [CapsuleItem]] = [
         .common: [
             CapsuleItem(id: "bandana_red", name: "Красная бандана", rarity: .common),
@@ -64,20 +66,33 @@ struct CapsuleConfig: Hashable, Sendable {
             CapsuleItem(id: "leaf_hat", name: "Шапочка-листик", rarity: .common),
             CapsuleItem(id: "bowl_plain", name: "Простая миска", rarity: .common),
             CapsuleItem(id: "mat_check", name: "Клетчатый коврик", rarity: .common),
+            // волна 11
+            CapsuleItem(id: "bell_collar", name: "Ошейник с бубенчиком", rarity: .common),
+            CapsuleItem(id: "pumpkin_small", name: "Тыковка", rarity: .common),
+            CapsuleItem(id: "ball_tennis", name: "Теннисный мячик", rarity: .common),
         ],
         .rare: [
             CapsuleItem(id: "scarf_knit", name: "Вязаный шарф", rarity: .rare),
             CapsuleItem(id: "collar_star", name: "Ошейник со звёздами", rarity: .rare),
             CapsuleItem(id: "lamp_mushroom", name: "Лампа-грибок", rarity: .rare),
             CapsuleItem(id: "raincoat", name: "Жёлтый дождевик", rarity: .rare),
+            CapsuleItem(id: "beret_red", name: "Берет художника", rarity: .rare),
+            CapsuleItem(id: "bowtie_dots", name: "Бабочка в горошек", rarity: .rare),
+            CapsuleItem(id: "acorn_jar", name: "Банка желудей", rarity: .rare),
+            CapsuleItem(id: "ball_pumpkin", name: "Мяч-тыковка", rarity: .rare),
         ],
         .epic: [
             CapsuleItem(id: "hoodie_pumpkin", name: "Толстовка-тыква", rarity: .epic),
             CapsuleItem(id: "sofa_mini", name: "Мини-диван", rarity: .epic),
+            CapsuleItem(id: "backpack_mini", name: "Рюкзачок-жёлудь", rarity: .epic),
+            CapsuleItem(id: "wreath_autumn", name: "Венок из листьев", rarity: .epic),
+            CapsuleItem(id: "trophy_cup", name: "Кубок выставки", rarity: .epic),
+            CapsuleItem(id: "ball_star", name: "Звёздный мяч", rarity: .epic),
         ],
         .legendary: [
             CapsuleItem(id: "cape_champion", name: "Плащ чемпиона", rarity: .legendary),
             CapsuleItem(id: "kennel_castle", name: "Будка-замок", rarity: .legendary),
+            CapsuleItem(id: "crown_champion", name: "Корона чемпиона", rarity: .legendary),
         ],
     ]
 

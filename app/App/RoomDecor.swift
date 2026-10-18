@@ -13,6 +13,16 @@ struct RoomDecorShown: Component {
     var levels: RoomPlan.Levels
 }
 
+/// Что стоит на полке вещиц (волна 11).
+struct RoomShelfShown: Component {
+    var id: String
+}
+
+/// Каким мячиком играем (волна 11); нет компонента — обычный жёлтый.
+struct RoomToyShown: Component {
+    var id: String
+}
+
 @MainActor
 enum RoomDecor {
     static let roomName = "room"
@@ -23,11 +33,7 @@ enum RoomDecor {
     /// true — вещи перестроены: новым деталям нужен текущий свет комнаты (RoomLighting).
     @discardableResult
     static func apply(_ levels: RoomPlan.Levels, to room: Entity) -> Bool {
-        if !registered {
-            RoomDecorShown.registerComponent()
-            RoomLighting.registerOnce()   // метки RoomGlow / RoomSky / RoomNightSky на деталях
-            registered = true
-        }
+        registerOnce()
         let old = room.children.first(where: { $0.name == rootName })
         if old?.components[RoomDecorShown.self]?.levels == levels { return false }
         old?.removeFromParent()
@@ -36,6 +42,15 @@ enum RoomDecor {
         root.components.set(RoomDecorShown(levels: levels))
         room.addChild(root)
         return true
+    }
+
+    static func registerOnce() {
+        guard !registered else { return }
+        RoomDecorShown.registerComponent()
+        RoomShelfShown.registerComponent()
+        RoomToyShown.registerComponent()
+        RoomLighting.registerOnce()   // метки RoomGlow / RoomSky / RoomNightSky на деталях
+        registered = true
     }
 
     static func build(_ l: RoomPlan.Levels) -> Entity {
@@ -596,4 +611,167 @@ enum DecorColors {
     static let trampMat: UInt32 = 0x3a3f4a
     static let slideStep: UInt32 = 0xf2a65a
     static let slide: UInt32 = 0x5bbf8a
+    // полка вещиц (волна 11)
+    static let shelfBowl: UInt32 = 0x7fa7c9
+    static let matRed: UInt32 = 0xd96a5a
+    static let matCream: UInt32 = 0xf6ead6
+    static let mushroomCap: UInt32 = 0xd9534f
+    static let sofaTeal: UInt32 = 0x5fb3a8
+    static let stone: UInt32 = 0xb9b4ac
+    static let pumpkin: UInt32 = 0xf08a2a
+    static let leafGreen: UInt32 = 0x5e8c3a
+    static let acorn: UInt32 = 0x9c6b45
+    static let acornCap: UInt32 = 0x6b4428
+    static let trophy: UInt32 = 0xf2b01e
+}
+
+// MARK: - волна 11: полка вещиц и мячик из капсулы
+
+@MainActor
+extension RoomDecor {
+    static let shelfName = "roomShelf"
+    /// Детали узора мячика — дети «ball», двигаются вместе с ним (PetChoreo двигает только его позицию).
+    static let toySkinName = "toySkin"
+
+    /// Поставить вещь на полку (RoomPlan.decorShelf) или убрать полку. Тот же id — ничего не делает.
+    /// true — перестроили: новым деталям нужен свет комнаты.
+    @discardableResult
+    static func applyShelf(_ id: String?, to room: Entity) -> Bool {
+        registerOnce()
+        let old = room.children.first(where: { $0.name == shelfName })
+        if old?.components[RoomShelfShown.self]?.id == id { return false }
+        if old == nil, id == nil { return false }
+        old?.removeFromParent()
+        guard let id else { return true }
+        let g = shelf(id)
+        g.components.set(RoomShelfShown(id: id))
+        room.addChild(g)
+        return true
+    }
+
+    /// Полка как у кухни шефа (доска на двух кронштейнах) и миниатюра вещи на ней.
+    static func shelf(_ id: String) -> Entity {
+        typealias C = DecorColors
+        let g = group(shelfName)
+        let s = RoomPlan.decorShelf
+        let sx = (s.minX + s.maxX) / 2, wallZ = RoomPlan.backWallZ
+        let z = wallZ + 0.03
+        part(box(s.width, 0.012, 0.06), C.wood, [sx, s.minY, z], in: g)
+        for bx in [s.minX + 0.015, s.maxX - 0.015] {
+            part(box(0.008, 0.03, 0.04), C.wood, [bx, s.minY - 0.02, wallZ + 0.02], in: g, shade: 0.85)
+        }
+        let y = s.minY + 0.006
+        switch id {
+        case "bowl_plain":
+            part(cyl(0.018, 0.026), C.shelfBowl, [sx, y + 0.009, z], in: g)
+            part(cyl(0.002, 0.02), C.kibble, [sx, y + 0.018, z], in: g)
+        case "mat_check":
+            // Свёрнутый коврик в клетку: рулон и полоски второго цвета.
+            let roll = part(cyl(0.07, 0.016), C.matRed, [sx, y + 0.016, z], in: g)
+            roll.orientation = turn(.pi / 2, axisZ)
+            for dx: Float in [-0.022, 0, 0.022] {
+                let band = part(cyl(0.01, 0.0165), C.matCream, [sx + dx, y + 0.016, z], in: g)
+                band.orientation = turn(.pi / 2, axisZ)
+            }
+        case "lamp_mushroom":
+            part(cyl(0.032, 0.008), C.matCream, [sx, y + 0.016, z], in: g)
+            part(ball(0.026), C.mushroomCap, [sx, y + 0.036, z], in: g, scale: [1, 0.62, 1])
+            for d: SIMD2<Float> in [[-0.012, 0.014], [0.012, 0.016], [0, 0.022]] {
+                part(ball(0.005), C.white, [sx + d.x, y + 0.043, z + d.y], in: g)
+            }
+        case "sofa_mini":
+            part(box(0.07, 0.016, 0.032), C.sofaTeal, [sx, y + 0.008, z + 0.004], in: g)
+            part(box(0.07, 0.03, 0.01), C.sofaTeal, [sx, y + 0.015, z - 0.016], in: g, shade: 0.85)
+            for dx: Float in [-0.033, 0.033] {
+                part(box(0.008, 0.024, 0.032), C.sofaTeal, [sx + dx, y + 0.012, z + 0.004], in: g, shade: 0.9)
+            }
+            part(box(0.02, 0.012, 0.006), C.matCream, [sx - 0.015, y + 0.022, z - 0.008], in: g)
+        case "kennel_castle":
+            part(box(0.044, 0.036, 0.03), C.stone, [sx, y + 0.018, z], in: g)
+            part(box(0.014, 0.02, 0.002), C.door, [sx, y + 0.01, z + 0.016], in: g)
+            for dx: Float in [-0.026, 0.026] {
+                part(cyl(0.05, 0.009), C.stone, [sx + dx, y + 0.025, z], in: g, shade: 0.9)
+                part(cone(0.022, 0.012), C.roof, [sx + dx, y + 0.061, z], in: g)
+            }
+        case "pumpkin_small":
+            part(ball(0.024), C.pumpkin, [sx, y + 0.02, z], in: g, scale: [1.25, 0.85, 1.2])
+            part(cyl(0.012, 0.004), C.leafGreen, [sx, y + 0.044, z], in: g)
+            part(box(0.016, 0.003, 0.01), C.leafGreen, [sx + 0.01, y + 0.042, z + 0.004], in: g)
+        case "acorn_jar":
+            part(cyl(0.046, 0.019), C.jar, [sx - 0.008, y + 0.023, z], in: g)
+            part(cyl(0.008, 0.02), C.acornCap, [sx - 0.008, y + 0.05, z], in: g)
+            part(cyl(0.016, 0.0195), C.acorn, [sx - 0.008, y + 0.014, z], in: g, shade: 0.9)
+            // Жёлудь рядом с банкой.
+            part(ball(0.009), C.acorn, [sx + 0.026, y + 0.009, z + 0.012], in: g, scale: [1, 1.2, 1])
+            part(ball(0.0095), C.acornCap, [sx + 0.026, y + 0.017, z + 0.012], in: g, scale: [1, 0.6, 1])
+        case "trophy_cup":
+            part(box(0.032, 0.01, 0.024), C.door, [sx, y + 0.005, z], in: g)
+            part(cyl(0.016, 0.005), C.trophy, [sx, y + 0.018, z], in: g, shade: 0.9)
+            // Чаша — конус вершиной вниз.
+            let cup = part(cone(0.03, 0.02), C.trophy, [sx, y + 0.041, z], in: g)
+            cup.orientation = turn(.pi, axisX)
+            for dx: Float in [-0.021, 0.021] {
+                part(ball(0.007), C.trophy, [sx + dx, y + 0.044, z], in: g, scale: [0.6, 1, 0.6], shade: 0.9)
+            }
+        default:
+            part(box(0.03, 0.03, 0.03), C.wicker, [sx, y + 0.015, z], in: g)
+        }
+        return g
+    }
+
+    /// Перекрасить мячик комнаты в выбранный мячик из капсулы и добавить узор. nil — обычный жёлтый.
+    /// true — перекрасили: свету комнаты нужно перекрасить заново (сброшена его база тинта).
+    @discardableResult
+    static func applyToy(_ id: String?, to room: Entity) -> Bool {
+        registerOnce()
+        guard let ball = room.findEntity(named: "ball") as? ModelEntity else { return false }
+        let toy = id.flatMap { ItemCatalog.toys[$0] }
+        let want = toy == nil ? nil : id
+        if ball.components[RoomToyShown.self]?.id == want { return false }
+        ball.children.filter { $0.name == toySkinName }.forEach { $0.removeFromParent() }
+        ball.components.remove(RoomTintBase.self)
+        guard let id = want, let toy else {
+            ball.components.remove(RoomToyShown.self)
+            ball.model?.materials = [PetRoom.matteMaterial(RoomColors.ball)]
+            return true
+        }
+        ball.model?.materials = [material(toy.color, 1)]
+        let skin = group(toySkinName, in: ball)
+        let r = RoomPlan.Keep.ballRadius
+        switch toy.pattern {
+        case .seam:
+            // Теннисный шов — волна по сфере из бусин.
+            for k in 0..<22 {
+                let a = Float(k) / 22 * 2 * .pi
+                let v = simd_normalize(SIMD3<Float>(cos(a), 0.55 * sin(2 * a), sin(a)))
+                part(ball(0.0055), toy.accent, v * r, in: skin)
+            }
+        case .pumpkin:
+            // Дольки — меридианы потемнее, сверху черенок и листик.
+            for m in 0..<6 {
+                let phi = Float(m) / 6 * 2 * .pi
+                for k in 1..<8 {
+                    let th = Float(k) / 8 * .pi
+                    let v = SIMD3<Float>(sin(th) * cos(phi), cos(th), sin(th) * sin(phi))
+                    part(ball(0.006), toy.color, v * r * 0.97, in: skin, shade: 0.78)
+                }
+            }
+            part(cyl(0.022, 0.007), toy.accent, [0, r + 0.008, 0], in: skin)
+            part(box(0.026, 0.004, 0.014), toy.accent, [0.014, r + 0.004, 0.004], in: skin, shade: 1.1)
+        case .stars:
+            // Звёздочки — плоские крестики по сфере.
+            let dirs: [SIMD3<Float>] = [[0, 1, 0], [0.8, 0.45, 0.4], [-0.75, 0.4, 0.5], [0.1, 0.35, 0.95],
+                                        [0.6, -0.1, -0.8], [-0.6, 0, -0.8], [0.95, -0.2, 0.2], [-0.9, -0.25, 0.1]]
+            for d in dirs {
+                let v = simd_normalize(d)
+                let q = simd_quatf(from: SIMD3<Float>(0, 1, 0), to: v)
+                for spin: Float in [0, .pi / 2] {
+                    let e = part(box(0.024, 0.006, 0.008), toy.accent, v * r, in: skin)
+                    e.orientation = q * turn(spin, axisY)
+                }
+            }
+        }
+        ball.components.set(RoomToyShown(id: id))
+        return true
+    }
 }

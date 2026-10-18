@@ -2,8 +2,9 @@
 // Логика — CapsuleMachine (Shared/Capsule.swift), тут только вид. Исход известен сразу (бросок детерминированный),
 // анимация его только показывает: шарик дрожит цветом редкости → «Тапни, чтобы открыть» → крышка слетает,
 // внутри предмет; дубликат рассыпается в клочки. Кошелёк и инвентарь обновляются после раскрытия (model.refresh).
-// Решения (Вадим может поменять): у предметов нет своих значков — пока звёздочки цвета редкости;
-// без билетиков и монет кнопки не гаснут — нажатие объясняет отказ текстом.
+// Решения (Вадим может поменять): без билетиков и монет кнопки не гаснут — нажатие объясняет отказ текстом.
+// Волна 11: у предметов свои плоские иконки (ItemIcon), в коллекции кнопка по роли — надеть, на полку,
+// играть этим; под круткой карточка «Лавка дня» открывает ShopSheet (Shared/ShopDaily.swift).
 
 import SwiftUI
 @preconcurrency import PetCore
@@ -28,6 +29,7 @@ struct CapsuleScreen: View {
     private var busy: Bool { phase == .shaking || phase == .ready }
 
     var body: some View {
+        @Bindable var model = model
         let offer = model.file.map { CapsuleMachine.offer($0, at: Clock.now()) }
         ScrollView {
             VStack(spacing: 16) {
@@ -44,11 +46,17 @@ struct CapsuleScreen: View {
                 result
                 if let offer { pity(offer) }
                 if let offer { buttons(offer) }
+                shopCard
                 inventory
             }
             .padding(20)
         }
         .background(PetPalette.bg.ignoresSafeArea())
+        .sheet(isPresented: $model.showShop) {
+            ShopSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
         .animation(.snappy, value: refusal)
         .onDisappear {
             flow?.cancel()
@@ -149,6 +157,81 @@ struct CapsuleScreen: View {
         }
     }
 
+    /// Вход в лавку: одна карточка под круткой, три иконки витрины — видно, что там сегодня.
+    private var shopCard: some View {
+        let offers = model.file.map { ShopDaily.offers($0, now: Clock.now()) } ?? []
+        return Button {
+            model.haptic(.light)
+            model.showShop = true
+        } label: {
+            HStack(spacing: 10) {
+                Text("🛍")
+                    .font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Лавка дня")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                    Text("Три вещи за монеты, завтра другие")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.soft)
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: -6) {
+                    ForEach(offers) { o in
+                        ItemIcon(id: o.id, size: 30)
+                            .padding(3)
+                            .background(Circle().fill(PetPalette.bg))
+                            .opacity(o.state == .sold ? 0.4 : 1)
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(PetPalette.soft)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.card))
+            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(PetPalette.accent.opacity(0.35), lineWidth: 1.5) }
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Лавка дня"))
+        .accessibilityHint(Text("Три вещи за монеты"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("capsule.shop")
+    }
+
+    /// Что предмет делает сейчас и что сделает кнопка: подпись под именем и кнопка справа.
+    private struct Use {
+        var note: String
+        var on: Bool
+        var title: String
+        var label: String
+        var key: String
+        var act: () -> Void
+    }
+
+    private func use(_ it: CapsuleItem) -> Use? {
+        switch ItemCatalog.role(it.id) {
+        case .wear:
+            guard let slot = Wear.info(it.id)?.slot else { return nil }
+            let on = model.worn[slot] == it.id
+            return Use(note: on ? "надето" : slot.place, on: on, title: on ? "Снять" : "Надеть",
+                       label: on ? "Снять «\(it.name)»" : "Надеть «\(it.name)»", key: "wear.\(it.id)") { model.wear(it.id) }
+        case .decor:
+            let on = model.shelf == it.id
+            return Use(note: on ? "на полке" : "на полку в комнате", on: on, title: on ? "Убрать" : "На полку",
+                       label: on ? "Убрать «\(it.name)» с полки" : "Поставить «\(it.name)» на полку",
+                       key: "shelf.\(it.id)") { model.toggleShelf(it.id) }
+        case .toy:
+            let on = model.toy == it.id
+            return Use(note: on ? "играем этим" : "мячик для «Поиграть»", on: on, title: on ? "Убрать" : "Играть",
+                       label: on ? "Играть обычным мячиком" : "Играть «\(it.name)»",
+                       key: "toy.\(it.id)") { model.toggleToy(it.id) }
+        case nil:
+            return nil
+        }
+    }
+
     @ViewBuilder
     private var inventory: some View {
         let items = model.file.map { CapsuleMachine.inventory($0) } ?? []
@@ -169,30 +252,30 @@ struct CapsuleScreen: View {
                     .foregroundStyle(PetPalette.soft)
             }
             ForEach(items, id: \.id) { it in
-                let slot = Wear.info(it.id)?.slot
-                let on = slot.map { model.worn[$0] == it.id } ?? false
+                let u = use(it)
+                let on = u?.on ?? false
                 HStack(spacing: 10) {
                     HStack(spacing: 10) {
-                        Circle()
-                            .fill(rarityColor(it.rarity))
-                            .frame(width: 12, height: 12)
+                        ItemTile(id: it.id, rarity: it.rarity, size: 44)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(it.name)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .foregroundStyle(PetPalette.ink)
-                            if let slot {
-                                Text(on ? "надето" : slot.place)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                            Text(EconText.rarityName(it.rarity))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(rarityColor(it.rarity))
+                            if let u {
+                                Text(u.note)
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundStyle(on ? PetPalette.accent : PetPalette.soft)
                             }
                         }
                         Spacer(minLength: 0)
-                        Text(EconText.rarityName(it.rarity))
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(rarityColor(it.rarity))
                     }
                     .accessibilityElement(children: .combine)
-                    if slot != nil { wearButton(it, on: on) }
+                    if let u { useButton(u) }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -208,12 +291,13 @@ struct CapsuleScreen: View {
         .accessibilityIdentifier("capsule.inventory")
     }
 
-    /// «Надеть» — залитая акцентом, «Снять» — обводка: надетое видно по кнопке издалека.
-    private func wearButton(_ it: CapsuleItem, on: Bool) -> some View {
-        Button {
-            model.wear(it.id)
+    /// «Надеть / На полку / Играть» — залитая акцентом, «Снять / Убрать» — обводка: что в деле, видно издалека.
+    private func useButton(_ u: Use) -> some View {
+        let on = u.on
+        return Button {
+            u.act()
         } label: {
-            Text(on ? "Снять" : "Надеть")
+            Text(u.title)
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .lineLimit(1)
                 .foregroundStyle(on ? PetPalette.accent : .white)
@@ -223,8 +307,8 @@ struct CapsuleScreen: View {
                 .overlay { Capsule().strokeBorder(PetPalette.accent, lineWidth: on ? 1.5 : 0) }
         }
         .buttonStyle(SquishStyle())
-        .accessibilityLabel(Text(on ? "Снять «\(it.name)»" : "Надеть «\(it.name)»"))
-        .accessibilityIdentifier("wear.\(it.id)")
+        .accessibilityLabel(Text(u.label))
+        .accessibilityIdentifier(u.key)
     }
 
     private var ballLabel: String {
@@ -364,10 +448,8 @@ struct GachaBall: View {
             // Предмет внутри.
             if open, let p = pull {
                 ZStack {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 64, weight: .bold))
-                        .foregroundStyle(rarityColor(p.rarity))
-                        .shadow(color: rarityColor(p.rarity).opacity(0.6), radius: 12)
+                    ItemIcon(id: p.item.id, size: 84)
+                        .shadow(color: rarityColor(p.rarity).opacity(0.7), radius: 12)
                         .scaleEffect(shattered ? 0.3 : 1)
                         .opacity(shattered ? 0 : 1)
                     if p.duplicate {
@@ -425,5 +507,22 @@ struct GachaBall: View {
         .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.45, dampingFraction: 0.6), value: open)
         .animation(.easeInOut(duration: 0.3), value: phase)
+    }
+}
+
+/// Иконка предмета на плитке цвета редкости: так в коллекции и в лавке редкость видна без подписи.
+struct ItemTile: View {
+    let id: String
+    let rarity: Rarity
+    var size: CGFloat = 44
+
+    var body: some View {
+        ItemIcon(id: id, size: size * 0.82)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous).fill(rarityColor(rarity).opacity(0.16)))
+            .overlay {
+                RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                    .strokeBorder(rarityColor(rarity).opacity(0.5), lineWidth: 1.5)
+            }
     }
 }
