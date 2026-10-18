@@ -104,7 +104,7 @@ struct HomeScreen: View {
                            text: "Виджеты не видят сохранение: общая с ними папка не подключилась.")
                 }
                 if let card = model.pendingCard, snap.alive {
-                    PostcardChip { model.postcard = card }
+                    PostcardChip(card: card) { model.postcard = card }
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
@@ -717,7 +717,15 @@ struct WalletChip: View {
 
 /// «Открытка дня»: маленькая бумажка под верхним рядом, пока есть несохранённая открытка.
 struct PostcardChip: View {
+    let card: Postcard
     let action: () -> Void
+
+    private var lastDay: Bool { Postcards.isLastDay(card, now: Clock.now()) }
+    /// Для UI-тестов: есть ли у открытки снимок и каким способом он снят (ar/metal/window/fallback).
+    private var photoValue: String {
+        guard card.image != nil else { return "" }
+        return "photo:" + (PostcardCamera.lastSource.isEmpty ? "disk" : PostcardCamera.lastSource)
+    }
 
     var body: some View {
         Button(action: action) {
@@ -727,6 +735,12 @@ struct PostcardChip: View {
                 Text("Открытка дня")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                if lastDay {
+                    // Мягко: тем же акцентом, что конверт, без красного.
+                    Text("· \(Postcards.lastDayChip)")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.accent)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
@@ -741,7 +755,8 @@ struct PostcardChip: View {
         }
         .buttonStyle(SquishStyle())
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityLabel(Text("Открытка дня"))
+        .accessibilityLabel(Text(lastDay ? "Открытка дня, \(Postcards.lastDayChip)" : "Открытка дня"))
+        .accessibilityValue(Text(photoValue))
         .accessibilityIdentifier("postcard.card")
     }
 }

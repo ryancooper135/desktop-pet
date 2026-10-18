@@ -1,5 +1,6 @@
 // «Открытка дня» (волна 5): бумажная карточка в ретро-рамке и лист с решением «В альбом / Не надо».
-// Кадр пока — мордочка PetFaceView в позе открытки и значок находки. Снимок 3D (Postcards.setImage) — потом.
+// Кадр — снимок 3D-сцены удачного момента (волна 10: PostcardCamera, PostcardPhotos). Снимка нет —
+// мордочка PetFaceView в позе открытки и значок находки. Срок: в последний день лист и чип мягко напоминают.
 // Решение (Вадим может поменять): открытка всегда светлая, как записка «Ушёл гулять», и чуть набок.
 
 import SwiftUI
@@ -9,6 +10,19 @@ import SwiftUI
 struct PostcardFace: View {
     let frame: PostcardFrame
     var compact: Bool = false
+    /// Снимок сцены. nil — заглушка-мордочка.
+    var image: UIImage? = nil
+
+    init(frame: PostcardFrame, compact: Bool = false, image: UIImage? = nil) {
+        self.frame = frame
+        self.compact = compact
+        self.image = image
+    }
+
+    /// Открытка с её кадром с диска (Postcard.image), если он есть.
+    init(card: Postcard, compact: Bool = false) {
+        self.init(frame: card.frame, compact: compact, image: PostcardCamera.image(card.image))
+    }
 
     private var paper: Color { Color(hex: 0xfff6d8) }
 
@@ -17,13 +31,25 @@ struct PostcardFace: View {
             ZStack(alignment: .bottomTrailing) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(PetPalette.stageBg)
-                PetFaceView(pose: frame.pose)
-                    .padding(compact ? 10 : 22)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if let find = frame.find {
-                    Text(find.emoji)
-                        .font(.system(size: compact ? 20 : 36))
-                        .padding(compact ? 4 : 10)
+                if let image {
+                    // Снимок уже 4:3; fill на случай округлений, лишнее срезается.
+                    Color.clear
+                        .overlay {
+                            Image(uiImage: image)
+                                .resizable()
+                                .interpolation(.medium)
+                                .scaledToFill()
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    PetFaceView(pose: frame.pose)
+                        .padding(compact ? 10 : 22)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let find = frame.find {
+                        Text(find.emoji)
+                            .font(.system(size: compact ? 20 : 36))
+                            .padding(compact ? 4 : 10)
+                    }
                 }
             }
             .aspectRatio(4 / 3, contentMode: .fit)
@@ -77,7 +103,7 @@ struct PostcardSheet: View {
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                 // Открытка поуже — целиком видна уже в половинном листе, над кнопками.
-                PostcardFace(frame: card.frame)
+                PostcardFace(card: card)
                     .frame(maxWidth: 280)
                     .padding(.horizontal, 12)
                     .accessibilityElement(children: .ignore)
@@ -130,9 +156,7 @@ struct PostcardSheet: View {
                         .tint(PetPalette.accent)
                         .accessibilityIdentifier("postcard.save")
                     }
-                    Text("Не сохранишь — через неделю пропадёт.")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(PetPalette.soft)
+                    expiryNote
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
@@ -144,5 +168,22 @@ struct PostcardSheet: View {
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("postcard.sheet")
+    }
+
+    /// «Не сохранишь — пропадёт через N дней»; в последний день — акцентом и с часиками, без тревоги.
+    @ViewBuilder private var expiryNote: some View {
+        let now = Clock.now()
+        if let note = Postcards.expiryNote(card, now: now) {
+            let last = Postcards.isLastDay(card, now: now)
+            HStack(spacing: 5) {
+                if last { Image(systemName: "clock") }
+                Text(note)
+            }
+            .font(.system(size: last ? 13 : 12, weight: last ? .semibold : .medium, design: .rounded))
+            .foregroundStyle(last ? PetPalette.accent : PetPalette.soft)
+            .multilineTextAlignment(.center)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("postcard.expiry")
+        }
     }
 }
