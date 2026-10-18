@@ -24,7 +24,7 @@ struct CatchGameScreen: View {
     @State private var phase: Phase = .intro
     @State private var round = CatchRound(seed: 1)
     @State private var bowlX = 0.5
-    @State private var pops: [Pop] = []
+    @State private var pops: [CatchPop] = []
     @State private var catches = 0
     @State private var runID = 0
     /// Снимок для UI-теста: раунд не идёт сам.
@@ -145,12 +145,8 @@ struct CatchGameScreen: View {
                         .position(x: CGFloat(d.x) * w, y: CGFloat(d.y(at: round.t)) * h)
                 }
                 ForEach(pops) { p in
-                    Text(p.text)
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundStyle(p.ok ? PetPalette.green : PetPalette.red)
-                        .position(x: CGFloat(p.x) * w, y: CGFloat(CatchGame.catchY) * h - ball * 1.2
-                                  - CGFloat(max(0, round.t - p.t)) * 60)
-                        .opacity(max(0, 1 - (round.t - p.t) / Pop.life))
+                    PopLabel(pop: p, age: round.t - p.t)
+                        .position(x: CGFloat(p.x) * w, y: popY(h: h, ball: ball))
                 }
                 BowlView(width: CGFloat(CatchGame.bowlHalf * 2) * w, bounce: catches)
                     .position(x: CGFloat(bowlX) * w, y: CGFloat(CatchGame.catchY) * h + ball * 0.35)
@@ -168,6 +164,11 @@ struct CatchGameScreen: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("catch.field")
+    }
+
+    /// Где всплывает «+1»: чуть выше миски (дальше поднимает PopLabel).
+    private func popY(h: CGFloat, ball: CGFloat) -> CGFloat {
+        CGFloat(CatchGame.catchY) * h - ball * 1.2
     }
 
     // MARK: раунд
@@ -199,7 +200,7 @@ struct CatchGameScreen: View {
             last = now
             let events = round.advance(to: round.t + dt, bowlX: bowlX)
             handle(events)
-            pops.removeAll { round.t - $0.t > Pop.life }
+            pops.removeAll { round.t - $0.t > CatchPop.life }
         }
         if !Task.isCancelled, phase == .playing, round.isOver { finish() }
     }
@@ -209,11 +210,11 @@ struct CatchGameScreen: View {
             switch e {
             case .caught(let d):
                 catches += 1
-                pops.append(Pop(x: d.x, t: round.t, text: "+\(d.kind.points)", ok: true))
+                pops.append(CatchPop(x: d.x, t: round.t, text: "+\(d.kind.points)", ok: true))
                 model.haptic(.light)
                 SoundKit.shared.play(d.kind == .bone ? .yip : .boop)
             case .missed(let d):
-                pops.append(Pop(x: d.x, t: round.t, text: "мимо", ok: false))
+                pops.append(CatchPop(x: d.x, t: round.t, text: "мимо", ok: false))
                 model.haptic(.warning)
                 SoundKit.shared.play(.refuse)
             }
@@ -264,7 +265,23 @@ struct CatchGameScreen: View {
 }
 
 /// Всплывающее «+1» / «мимо» над миской.
-private struct Pop: Identifiable {
+/// «+1» / «мимо»: всплывает и гаснет за CatchPop.life секунд раунда.
+private struct PopLabel: View {
+    let pop: CatchPop
+    let age: Double
+
+    var body: some View {
+        let k = max(0, age)
+        let fade = max(0, 1 - k / CatchPop.life)
+        Text(pop.text)
+            .font(.system(size: 18, weight: .heavy, design: .rounded))
+            .foregroundStyle(pop.ok ? PetPalette.green : PetPalette.red)
+            .offset(y: CGFloat(-k * 60))
+            .opacity(fade)
+    }
+}
+
+private struct CatchPop: Identifiable {
     static let life = 0.7
     let id = UUID()
     let x: Double
