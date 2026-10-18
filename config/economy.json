@@ -165,7 +165,8 @@
     "fun_gain": 18,
     "list": {
       "block_duo":  { "name": "Блок Дуо",            "formula": "min(70, 10 + floor(sqrt(score)/2.2))", "record_bonus": 20, "url": "https://blockduo.spotify-together.workers.dev/?embed=pet" },
-      "catch":      { "name": "Ловишка",             "base": 10, "max": 55, "par_score": 40 },
+      "catch":      { "name": "Лови мячик",          "base": 5,  "max": 30, "par_score": 40, "daily_cap": 60, "round_seconds": 30, "misses": 3,
+                      "_note": "CatchGame.swift: мячик 1 очко, косточка 2; монеты = base + (max − base)·min(очки, par_score)/par_score, × diminishing по номеру раунда за сутки, не больше daily_cap в сутки; 0 очков — 0 монет. Настроение — ядерным play (fun_gain/energy_cost)" },
       "fetch":      { "name": "Апорт",               "base": 10, "max": 50, "par_score": 12, "walk_gain": 15 },
       "zoomies":    { "name": "Поймай зумиз",        "base": 5,  "max": 25, "only_in_state": "zoomies", "walk_gain": 10 },
       "simon":      { "name": "Повторюшка",          "base": 8,  "max": 50, "par_score": 9 },

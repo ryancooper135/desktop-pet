@@ -9,12 +9,14 @@
 // • волна 8: за «Домом» круглая кнопка «Трюки» (pet://tricks, TricksScreen.swift). Ряд тесный (ViewThatFits): если целиком
 //   не влезает, сначала прячется строчка под «Гулять» (её дублируют тост, записка и VoiceOver), «Альбом» с подписью
 //   остаётся; не влезло и так — «Альбом» сжимается до значка со счётчиком, а «Гулять» снова со строчкой.
+// • волна 9: за «Трюками» круглая кнопка «Лови мячик» (pet://catch, CatchGameScreen.swift); на самый тесный ряд —
+//   «Альбом» значком и «Гулять» без строчки, зазоры 4 и 2.
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
 @preconcurrency import PetCore
 
-// MARK: - Ряд «Альбом · Автомат · Дом · Трюки · Гулять»
+// MARK: - Ряд «Альбом · Автомат · Дом · Трюки · Мячик · Гулять»
 
 struct WalkRow: View {
     @Environment(AppModel.self) private var model
@@ -32,6 +34,8 @@ struct WalkRow: View {
             row(gate: gate, tricks: tricks, total: total, compact: false, brief: true, spacing: 4)
             row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 8)
             row(gate: gate, tricks: tricks, total: total, compact: true, brief: false, spacing: 5)
+            row(gate: gate, tricks: tricks, total: total, compact: true, brief: true, spacing: 4)
+            row(gate: gate, tricks: tricks, total: total, compact: true, brief: true, spacing: 2)
         }
     }
 
@@ -44,6 +48,7 @@ struct WalkRow: View {
                 MachineButton()
                 HouseButton()
                 TricksButton(gate: tricks)
+                CatchButton(t: snap.t)
             }
             Spacer(minLength: spacing)
             if let gate {
