@@ -45,6 +45,28 @@ final class AppActions {
         return out
     }
 
+    /// Привычка из «Команд» или с экрана «Привычки»: отметка и монеты (Habits.checkIn). Приложение открыто —
+    /// пёс радуется (реакция habit) и тост с его фразой; Siri ту же фразу говорит сама (Intents.swift).
+    @discardableResult
+    func habit(_ h: Habit, times: Int = 1, source: ActionSource) async -> HabitOutcome {
+        let now = Clock.now()
+        let out: HabitOutcome
+        do {
+            out = try PetStore.shared.mutate { Habits.checkIn(h, times: times, in: &$0, now: now) }
+        } catch {
+            out = Habits.failed(h)
+        }
+        let model = AppModel.shared
+        model.refresh(now: now)
+        if out.ok {
+            model.react(Habits.reactKind)
+            model.haptic(.success)
+        }
+        model.show(Habits.reply(out), ok: out.ok || out.reason == Habits.enoughReason, emoji: out.ok ? "🐾" : nil)
+        await afterChange()
+        return out
+    }
+
     /// Изменение видимых шкал в целых, без нулей: ["food": 12, "love": 8].
     static func delta(_ a: PetState, _ b: PetState) -> [String: Int] {
         var d: [String: Int] = [:]

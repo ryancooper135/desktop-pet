@@ -359,12 +359,13 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand, available: hopOnly), ["hop"])
     }
 
-    /// Расчесали — отряхнулся (сидящий сначала встаёт); против шерсти — дёрнулся с той стороны, где палец.
+    /// Расчесали — отряхнулся, подпрыгнул, виляет (сидящий сначала встаёт); против шерсти — дёрнулся с той стороны,
+    /// где палец.
     func testBrushReaction() {
         let all = Set(PetClipNames.required).union(PetClipNames.optional)
-        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: all), ["shake"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: all), ["shake", "hop", "happy_wag"])
         let sit = PetStance.reaction(kind: "brush", ok: true, stance: .sit, available: all)
-        XCTAssertEqual(sit.last, "shake")
+        XCTAssertEqual(Array(sit.suffix(3)), ["shake", "hop", "happy_wag"])
         XCTAssertEqual(PetStance.endStance(after: sit, from: .sit), .stand)
         XCTAssertEqual(PetStance.reaction(kind: "brush", ok: false, stance: .stand, lookX: -0.5, available: all), ["hit_left"])
         XCTAssertEqual(PetStance.reaction(kind: "brush", ok: false, stance: .stand, lookX: 0.5, available: all), ["hit_right"])
@@ -373,6 +374,18 @@ final class PetChoreoTests: XCTestCase {
         // Без shake в модели — виляние хвостом.
         let noShake = all.subtracting(["shake"])
         XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: noShake), ["happy_wag"])
+        // Без hop — отряхнулся и виляет.
+        let noHop = all.subtracting(["hop"])
+        XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: noHop), ["shake", "happy_wag"])
+    }
+
+    /// Привычка из «Команд»: стоя — подпрыгнул и виляет, сидя и лёжа — ухо, спящего не будим.
+    func testHabitReaction() {
+        let all = Set(PetClipNames.required).union(PetClipNames.optional)
+        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .stand, available: all), ["hop", "happy_wag"])
+        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .sit, available: all), ["ear_flick"])
+        XCTAssertEqual(PetStance.endStance(after: ["ear_flick"], from: .lie), .lie, "лежащий остаётся лежать")
+        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .sleep, available: all), [])
     }
 
     // MARK: прогулка

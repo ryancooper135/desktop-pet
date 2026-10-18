@@ -90,6 +90,9 @@ struct SaveFile: Codable, Sendable {
     /// Надето (Wear.swift): место (head/neck/back) → id предмета из капсулы. Пустое в файл не пишется,
     /// новому щенку переходит вместе с предметами.
     var worn: [String: String] = [:]
+    /// Привычки хозяина из «Команд» (Habits.swift): сегодня, последний раз и всего. Пустое в файл не пишется,
+    /// новому щенку переходит — это отметки хозяина, не пса.
+    var habits = HabitLog()
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -141,6 +144,7 @@ struct SaveFile: Codable, Sendable {
         case catchBest, catchDay, catchCoins, catchGames
         case roomEvening
         case worn
+        case habits
     }
 
     init(from decoder: Decoder) throws {
@@ -188,6 +192,7 @@ struct SaveFile: Codable, Sendable {
         catchGames = (try? c.decodeIfPresent(Int.self, forKey: .catchGames)) ?? 0
         roomEvening = try? c.decodeIfPresent(String.self, forKey: .roomEvening)
         worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
+        habits = (try? c.decodeIfPresent(HabitLog.self, forKey: .habits)) ?? HabitLog()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -224,6 +229,7 @@ struct SaveFile: Codable, Sendable {
         if catchGames != 0 { try c.encode(catchGames, forKey: .catchGames) }
         try c.encodeIfPresent(roomEvening, forKey: .roomEvening)
         if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
+        if !habits.isEmpty { try c.encode(habits, forKey: .habits) }
     }
 }
 

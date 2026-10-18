@@ -39,6 +39,8 @@ final class AppModel {
     var showTricks = false
     /// Мини-игра «Лови мячик» (CatchGameScreen), на весь экран.
     var showCatch = false
+    /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
+    var showHabits = false
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -565,7 +567,8 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks, pet://catch, pet://brush
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks, pet://catch, pet://brush,
+    /// pet://habits
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -577,6 +580,7 @@ final class AppModel {
         case "tricks": showTricks = true
         case "catch": showCatch = true
         case "brush": startBrush()
+        case "habits": showHabits = true
         default:
             showNeeds = false
             showSettings = false
@@ -585,6 +589,7 @@ final class AppModel {
             showHouse = false
             showTricks = false
             showCatch = false
+            showHabits = false
             postcard = nil
         }
     }
@@ -738,11 +743,7 @@ final class AppModel {
             lastDelta = ["love": love]
             popDelta(lastDelta)
         }
-        if out.after.rank > out.before.rank {
-            show("Шерсть стала лучше: «\(out.after.title)»", emoji: "✨")
-        } else {
-            show("Расчесали — блестит!", emoji: "✨")
-        }
+        show(Brush.doneText(out), emoji: "✨")
         Task { await AppActions.shared.afterChange() }
     }
 
@@ -808,7 +809,7 @@ final class AppModel {
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
-              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showHouse, !showTricks, !showCatch else { return false }
+              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showHouse, !showTricks, !showCatch, !showHabits else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true
@@ -1173,6 +1174,15 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.pet.needs[.look] = 0
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "habits":
+                // Экран «Привычки»: утро и три стакана воды отмечены сегодня, зарядка была вчера, остальное — ни разу.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                Habits.checkIn(.workout, in: &f, now: now - 86400)
+                Habits.checkIn(.wake, in: &f, now: now - 600)
+                Habits.checkIn(.water, times: 3, in: &f, now: now - 300)
                 f.seen = f.pet
                 f.lastSeenT = now
             case "wear":

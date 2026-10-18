@@ -229,6 +229,11 @@ struct HomeScreen: View {
                 .environment(model)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $model.showHabits) {
+            HabitsSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
         .fullScreenCover(isPresented: $model.showCatch) {
             // На весь экран: лист тянулся бы вниз вместе с миской.
             CatchGameScreen()

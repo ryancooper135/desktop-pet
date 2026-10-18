@@ -18,6 +18,8 @@
 //   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 //   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
+//   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера, шаги автоматизации
+//   ui-76           дочесали: Шиба отряхивается (-shake), потом подпрыгивает (-hop), новая фраза в тосте
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -266,6 +268,21 @@ final class ScreenshotUITests: XCTestCase {
     @MainActor
     func testStates60BrushDone() throws {
         try brushShot("ui-60-brush-done", strokes: 7, expect: "Готово", settleFor: 2.2)
+    }
+
+    /// Привычки (PET_SEED=habits): лист по pet://habits, отметки «Сегодня ✓», «Сегодня 3 из 8», «Было 1 раз».
+    @MainActor
+    func testStates75Habits() throws {
+        try shootOptional("ui-75-habits", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                                "PET_OPEN": "habits"],
+                          marker: "habits.screen")
+    }
+
+    /// Конец расчёсывания (волна 11): тот же сеанс, что ui-60, но снимок раньше — посреди встряхивания и прыжка.
+    @MainActor
+    func testStates76BrushFinale() throws {
+        try brushShot("ui-76-brush-shake", strokes: 7, expect: "Готово", settleFor: 0.45)
+        try brushShot("ui-76-brush-hop", strokes: 7, expect: "Готово", settleFor: 1.15)
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
