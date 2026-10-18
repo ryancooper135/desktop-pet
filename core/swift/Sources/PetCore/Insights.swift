@@ -353,12 +353,13 @@ extension PetEngine {
         }
     }
 
-    /// Тип действия как в JSON: feed, item, pet, play, bath, steps, wake, walk.
+    /// Тип действия как в JSON: feed, item, pet, brush, play, bath, steps, wake, walk.
     public static func actionType(_ a: Action) -> String {
         switch a {
         case .feed: return "feed"
         case .item: return "item"
         case .pet: return "pet"
+        case .brush: return "brush"
         case .play: return "play"
         case .bath: return "bath"
         case .steps: return "steps"

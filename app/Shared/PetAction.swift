@@ -8,6 +8,7 @@ enum PetAction: Codable, Hashable, Sendable {
     case feed(String)
     case item(String)
     case pet
+    case brush          // расчесать: половина ласки «Погладить», откат 6 ч (Brush.swift)
     case play
     case bath
     case wake
@@ -19,6 +20,7 @@ enum PetAction: Codable, Hashable, Sendable {
         case .feed(let id): return .feed(id)
         case .item(let id): return .item(id)
         case .pet: return .pet
+        case .brush: return .brush
         case .play: return .play
         case .bath: return .bath
         case .wake: return .wake
@@ -32,6 +34,7 @@ enum PetAction: Codable, Hashable, Sendable {
         case .feed(let id): self = .feed(id)
         case .item(let id): self = .item(id)
         case .pet: self = .pet
+        case .brush: self = .brush
         case .play: self = .play
         case .bath: self = .bath
         case .wake: self = .wake
@@ -40,7 +43,7 @@ enum PetAction: Codable, Hashable, Sendable {
         }
     }
 
-    /// Тип как в JSON ядра: feed, item, pet, play, bath, steps, wake, walk.
+    /// Тип как в JSON ядра: feed, item, pet, brush, play, bath, steps, wake, walk.
     var kind: String { PetEngine.actionType(core) }
 
     /// Предмет для feed/item.
@@ -62,6 +65,7 @@ enum PetAction: Codable, Hashable, Sendable {
         case "feed": self = .feed(key ?? Catalog.mainFood)
         case "item": self = .item(key ?? Catalog.healItem)
         case "pet": self = .pet
+        case "brush": self = .brush
         case "play": self = .play
         case "bath": self = .bath
         case "wake": self = .wake

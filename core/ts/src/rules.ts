@@ -28,6 +28,13 @@ export interface Rules {
   warnLow: number;
   preset: string | null;  // пресет строгости из care.hearts.presets, null — конфиг без пресетов
   walkOut: WalkOut | null; // прогулка с находкой (care.walk_out), null — в конфиге нет, прогулка недоступна
+  brush: BrushRule | null;    // расчесать (care.actions.brush), null — в конфиге нет, действие недоступно
+}
+
+/** Расчесать: care.actions.brush и care.cooldowns_min.brush. */
+export interface BrushRule {
+  loveShare: number;   // доля ласки «Погладить»
+  cooldownMin: number; // откат, минуты
 }
 
 /** Прогулка с находкой: care.walk_out. */
@@ -140,5 +147,6 @@ export function makeRules(cfg0: any, presetName?: string): Rules {
     warnLow: cfg.levels?.warn_low ?? 30,
     preset,
     walkOut: walkOut(care.walk_out),
+    brush: care.actions.brush ? { loveShare: care.actions.brush.love_share, cooldownMin: care.cooldowns_min.brush ?? 0 } : null,
   };
 }

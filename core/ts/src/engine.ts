@@ -39,6 +39,7 @@ export type Action =
   | { type: 'feed'; item: string }
   | { type: 'item'; item: string }
   | { type: 'pet' }
+  | { type: 'brush' }
   | { type: 'play' }
   | { type: 'bath' }
   | { type: 'steps'; count: number }
@@ -48,6 +49,8 @@ export type Action =
 export interface ActResult { ok: boolean; reason?: string }
 
 export const STEP = 60;
+/** Ключ отката расчёсывания в cooldowns: не «brush» — так зовут расчёску в shop.consumables, а ключ предмета — его id. */
+export const BRUSH_COOLDOWN = 'brushing';
 /** Сколько сытости автокормушка даёт за раз (как миска корма). */
 export const AUTOFEED_PORTION = 20;
 const DH = 1 / 60;
@@ -296,6 +299,20 @@ export function act(s: PetState, r: Rules, o: Owner, a: Action): ActResult {
       if (cooling('pet')) return { ok: false, reason: 'cooldown' };
       s.needs.love = clamp(s.needs.love + r.petLove * x(md, 'love_gain_x'));
       s.cooldowns.pet = t + r.petCooldownMin * 60;
+      return { ok: true };
+    }
+    case 'brush': {
+      // расчесать: доля ласки «Погладить» (с теми же множителями и потолком 100), откат свой, монет ядро не знает
+      const b = r.brush;
+      if (b === null) return { ok: false, reason: 'unavailable' };
+      if (s.bathUntil !== null) return { ok: false, reason: 'bathing' };
+      if (s.napUntil !== null || petNight(t, r, o)) return { ok: false, reason: 'asleep' };
+      if (level(s, r) === 3) return { ok: false, reason: 'unwell' };
+      if (cooling(BRUSH_COOLDOWN)) return { ok: false, reason: 'cooldown' };
+      const before = s.needs.love;
+      const petted = clamp(before + r.petLove * x(md, 'love_gain_x'));
+      s.needs.love = clamp(before + (petted - before) * b.loveShare);
+      s.cooldowns[BRUSH_COOLDOWN] = t + b.cooldownMin * 60;
       return { ok: true };
     }
     case 'play': {

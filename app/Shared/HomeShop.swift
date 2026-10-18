@@ -88,18 +88,21 @@ enum HomeShop {
             case "max_hearts": out.append("Сердечек до \(Int(v))")
             case "fun_decay_x": out.append("Скучает на \(pct(v))% медленнее")
             case "walk_decay_x": out.append("Просится гулять на \(pct(v))% реже")
+            // бафф читает приложение (CatchGame.coinsX), не ядро
+            case CatchGame.buffKey: out.append("Монет за «Лови мячик» на \(pct(v))% больше")
             default: break
             }
         }
         return out
     }
 
-    /// Ключи, которые ядро применяет (core/README), в порядке показа.
+    /// Ключи, которые ядро применяет (core/README), и бафф «Лови мячик» из приложения — в порядке показа.
     static let perkOrder = [
         "bath_min", "clean_decay_x", "fun_after_bath", "look_after_bath",
         "sleep_regen_x", "night_food_decay_x", "love_on_wake",
         "storage", "autofeed_below",
         "heart_damage_x", "heart_regen_x", "max_hearts",
         "fun_decay_x", "walk_decay_x",
+        CatchGame.buffKey,
     ]
 }

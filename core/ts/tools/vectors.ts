@@ -113,6 +113,29 @@ const oKiev = defaultOwner(r, 180);
   { t: s.t, action: { type: 'feed', item: 'stew' } }, { t: s.t + 10 * H, action: { type: 'bath' } },
 ], s.t + 30 * H, 2); }
 
+// 14. расчесать: грязный (love_gain_x 0.7) и почти полная ласка (потолок считается от «Погладить»), откат 6 ч,
+// «Погладить» и «Расчесать» не мешают друг другу, отказы: дрёма, ванна, ночь; потом беда (сердечки ≤ 2) и витаминка
+{
+  const s = startAt(r, 9.25); s.needs.clean = 20; s.needs.love = 97; s.needs.energy = 16;
+  const t = s.t + 17;
+  const A = (dt: number, action: Action): TimedAction => ({ t: t + dt, action });
+  const B: Action = { type: 'brush' };
+  record('brush_misc', o, s, [
+    A(0, B), A(60, B), A(120, { type: 'pet' }), A(180, B),
+    A(30 * 60, B), A(30 * 60 + 60, { type: 'wake' }), A(40 * 60, { type: 'bath' }), A(45 * 60, B),
+    A(6 * H - 60, B), A(6 * H + 60, B), A(6 * H + 120, { type: 'pet' }),
+    A(15 * H, B),
+  ], t + 16 * H, 2);
+}
+{
+  const s = startAt(r, 11); s.hearts = 2; s.needs.love = 30;
+  const t = s.t + 17;
+  const A = (dt: number, action: Action): TimedAction => ({ t: t + dt, action });
+  record('brush_unwell', o, s, [
+    A(0, { type: 'brush' }), A(60, { type: 'item', item: 'vitamin' }), A(120, { type: 'brush' }), A(180, { type: 'item', item: 'brush' }),
+  ], t + 4 * H, 1);
+}
+
 // 11–12. пресеты строгости: Swift строит правила по полю preset
 r = makeRules(cfg, 'medium');
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_medium', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }

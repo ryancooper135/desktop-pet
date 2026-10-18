@@ -187,7 +187,7 @@ struct CatchResult: Hashable, Sendable {
     var score = 0
     var caught = 0
     var missed = 0
-    /// Монеты за игру (после убывания и потолка).
+    /// Монеты за игру (после убывания, баффа дома и потолка).
     var coins = 0
     /// Монеты ухода за «Поиграть» (ядерное действие play, потолок ухода).
     var careCoins = 0
@@ -256,13 +256,23 @@ enum CatchGame {
 
     // MARK: награда
 
+    /// Бафф дома к монетам мини-игр (линия «Игровая», home_upgrades.play): ×1,1 «Игровой комплекс», ×1,15 «Батут и горка».
+    static let buffKey = "minigame_coins_x"
+
+    /// Множитель монет за раунд от дома питомца (произведение по линиям, как mods ядра); 1 — баффа нет.
+    static func coinsX(_ pet: PetState) -> Double {
+        if case .number(let n)? = PetEngine.mods(pet, Catalog.rules)[buffKey], n > 0 { return n }
+        return 1
+    }
+
     /// Сколько монет хочется за раунд: 0 без очков; base…max пропорционально очкам до par_score;
-    /// game — номер раунда за сутки (с 1), с него убывание.
-    static func want(score: Int, game: Int, _ cfg: CatchConfig = .shared) -> Int {
+    /// game — номер раунда за сутки (с 1), с него убывание; buff — бафф дома (coinsX), округление один раз в конце.
+    /// Дневной потолок daily_cap бафф не поднимает: с ним до потолка просто доходят быстрее (DECISIONS.md).
+    static func want(score: Int, game: Int, buff: Double = 1, _ cfg: CatchConfig = .shared) -> Int {
         guard score > 0 else { return 0 }
         let share = Double(Swift.min(score, cfg.parScore)) / Double(cfg.parScore)
         let raw = Double(cfg.base) + Double(cfg.max - cfg.base) * share
-        return Swift.max(0, Int((raw * cfg.factor(game: game)).rounded()))
+        return Swift.max(0, Int((raw * cfg.factor(game: game) * buff).rounded()))
     }
 
     /// Сменились местные сутки — счётчики игры с нуля. Назад не откатываемся, как Economy.rollDay.
@@ -288,7 +298,7 @@ enum CatchGame {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         f.catchGames += 1
-        let wish = want(score: r.score, game: f.catchGames, cfg)
+        let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg)
         let got = Swift.min(wish, Swift.max(0, cfg.dailyCap - f.catchCoins))
         f.catchCoins += got
         f.econ.wallet.coins += got

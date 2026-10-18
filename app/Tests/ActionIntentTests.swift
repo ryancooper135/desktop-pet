@@ -5,7 +5,7 @@ import XCTest
 @testable import Pet
 @preconcurrency import PetCore
 
-private let aAll: [PetAction] = [.feed("kibble"), .feed("fish"), .item("vitamin"), .pet, .play, .bath, .wake, .steps(0), .steps(1200)]
+private let aAll: [PetAction] = [.feed("kibble"), .feed("fish"), .item("vitamin"), .pet, .brush, .play, .bath, .wake, .steps(0), .steps(1200), .walk]
 
 final class ActionIntentTests: XCTestCase {
 
