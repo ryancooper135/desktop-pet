@@ -1,8 +1,8 @@
 // Лист «Трюки» (волна 8): шесть команд в духе Nintendogs — «Сидеть», «Лежать», «Поклон», «Прыжок», «Отряхнись», «Голос».
-// Карточка: значок, команда, точки засчитанных удач (из 5), «Выучен» или замок «Сначала «…»».
+// Карточка в строку: значок слева, справа команда, точки засчитанных удач (из 5), «Выучен» или замок «Сначала «…»».
 // Нажал команду — лист уезжает, пёс пробует в комнате (AppModel.doTrick → сцена: клипы трюка или «Не понял…»).
 // Логика — Tricks (Shared), тут только вид. Открывается круглой кнопкой с лапой в ряду над панелью и по pet://tricks.
-// Решения (Вадим может поменять): сетка в два столбца, чтобы шесть карточек влезали в половину экрана;
+// Решения (Вадим может поменять): сетка в два столбца из низких карточек — все шесть влезают в лист на пол-экрана;
 // когда трюки нельзя (спит, гуляет…), лист всё равно открывается — с плашкой-причиной и серыми карточками.
 
 import SwiftUI
@@ -32,7 +32,8 @@ struct TricksScreen: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 18)
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)
@@ -99,36 +100,39 @@ struct TrickCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            HStack(spacing: 10) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: row.locked ? "lock.fill" : row.trick.symbol)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(row.locked ? PetPalette.soft : PetPalette.accent)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                         .background(Circle().fill((row.locked ? PetPalette.soft : PetPalette.accent).opacity(0.16)))
                     if row.learned {
                         Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(PetPalette.green)
                             .background(Circle().fill(PetPalette.card))
-                            .offset(x: 6, y: -4)
+                            .offset(x: 5, y: -4)
                     }
                 }
-                Text(row.trick.title)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(PetPalette.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                LevelPips(level: row.progress, top: Tricks.needed)
-                Text(status)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(row.learned ? PetPalette.green : PetPalette.soft)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(row.trick.title)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    LevelPips(level: row.progress, top: Tricks.needed)
+                    Text(status)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(row.learned ? PetPalette.green : PetPalette.soft)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
             .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
             .contentShape(RoundedRectangle(cornerRadius: 18))
         }
