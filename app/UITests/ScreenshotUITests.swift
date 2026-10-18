@@ -8,7 +8,7 @@
 //   ui-1N-tab-N     каждая вкладка TabView, если она есть
 //   ui-2N-<имя>     экраны из списка `screens` ниже (по accessibilityIdentifier)
 //   ui-4N-<имя>     состояния с отдельного запуска (testStates*): критично, смерть, шкалы, «Пока тебя не было»,
-//                   тёмная тема, автомат, вкусы в альбоме, открытка дня. Состояние задаёт окружение запуска
+//                   тёмная тема, автомат, вкусы в альбоме, открытка дня, дом, трюки. Состояние задаёт окружение запуска
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
@@ -145,6 +145,33 @@ final class ScreenshotUITests: XCTestCase {
     func testStates49House() throws {
         try shootOptional("ui-49-house", env: ["PET_OPEN": "house"], marker: "house.screen")
         try shootOptional("ui-49-house-dark", env: ["PET_OPEN": "house", "PET_SCHEME": "dark"], marker: "house.screen")
+    }
+
+    /// Лист «Трюки» (светлая тема, полдень — иначе ночью трюки серые): «Сидеть» выучен, «Лежать» 3 из 5, дальше замки.
+    /// ui-51 — после команды «Сидеть» (PET_TRICK_ROLL=0 — всегда выходит): лист уехал, тост, ряд кнопок с лапой.
+    @MainActor
+    func testStates50Tricks() throws {
+        let env = ["PET_SEED": "tricks", "PET_NOW": Self.noon, "PET_SCHEME": "light"]
+        try shootOptional("ui-50-tricks", env: env.merging(["PET_OPEN": "tricks"]) { $1 }, marker: "tricks.screen")
+
+        let app = try shootOptional("ui-51-tricks-main", env: env.merging(["PET_TRICK_ROLL": "0"]) { $1 },
+                                    marker: "open.tricks", keepRunning: true)
+        app.descendants(matching: .any)["open.tricks"].tap()
+        let sit = app.descendants(matching: .any)["trick.sit"]
+        guard sit.waitForExistence(timeout: 5) else {
+            app.terminate()
+            throw XCTSkip("нет trick.sit")
+        }
+        sit.tap()
+        settle(1.2)
+        snap("ui-52-tricks-done")
+        app.terminate()
+    }
+
+    /// Полдень по часам симулятора (PET_NOW): днём пёс не спит.
+    static var noon: String {
+        let t = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+        return String(Int(t.timeIntervalSince1970))
     }
 
     /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.

@@ -179,6 +179,9 @@ enum PetModel {
                     c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
                 case "play":
                     c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
+                case let k where k.hasPrefix("trick."):
+                    // Трюк вышел: подпрыгнул от радости, пониже, чем в игре.
+                    c.hopV += PetSpring.impulse(peak: 0.03 * height, omega: w, zeta: z)
                 default:
                     break
                 }
@@ -248,7 +251,9 @@ enum PetModel {
         var endStance = target
         var reacted = false
         var petting: (offset: Double, length: Double)?
+        var trick: Trick?
         if fresh, let r = reaction {
+            trick = r.ok ? Trick(kind: r.kind) : nil
             let rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
             if r.kind == "pet" && r.ok && target == .stand && !rc.isEmpty {
                 let offset = steps.reduce(0) { $0 + PetChoreo.duration($1) }
@@ -296,7 +301,7 @@ enum PetModel {
         st.busyUntil = st.clock + busy
         st.lockUntil = fresh ? st.busyUntil : st.clock
         // Миска под мордой на время eat, мяч и пробежка после play_bow: игра держит питомца дольше клипов.
-        if let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop) {
+        if let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop, trick: trick) {
             st.busyUntil = max(st.busyUntil, until)
             st.lockUntil = max(st.lockUntil, until)
         }

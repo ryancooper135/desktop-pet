@@ -297,6 +297,12 @@ enum SoundRecipe {
         return choreo(out)
     }
 
+    /// Обычный звук позже на offset секунд, как нота хореографии: его снимает cancelChoreo, если
+    /// анимацию перебили («Голос»: тявк на прыжке, а не на нажатии).
+    static func delayed(_ cue: SoundCue, by offset: Double) -> [Tone] {
+        choreo(tones(cue).map { var t = $0; t.at += max(0, offset); return t })
+    }
+
     private static func choreo(_ tones: [Tone]) -> [Tone] {
         tones.map { var t = $0; t.choreo = true; return t }
     }

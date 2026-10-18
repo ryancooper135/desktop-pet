@@ -35,6 +35,8 @@ final class AppModel {
     var showCapsule = false
     /// Экран «Дом»: улучшения за монеты.
     var showHouse = false
+    /// Лист «Трюки».
+    var showTricks = false
 
     // MARK: волна 5: монеты, вкусы, шерсть, открытки
 
@@ -524,7 +526,7 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -533,13 +535,79 @@ final class AppModel {
         case "album": showAlbum = true
         case "capsule": showCapsule = true
         case "house": showHouse = true
+        case "tricks": showTricks = true
         default:
             showNeeds = false
             showSettings = false
             showAlbum = false
             showCapsule = false
             showHouse = false
+            showTricks = false
             postcard = nil
+        }
+    }
+
+    // MARK: трюки
+
+    /// Команда из листа «Трюки». Лист закрывается, пёс пробует в комнате. Ядро не зовём: исход решает
+    /// Tricks.attempt (бросок, счёт, ласка, монеты за первый раз), сцена играет клипы трюка или «Не понял…».
+    func doTrick(_ t: Trick) {
+        showTricks = false
+        // UI-тесты: PET_TRICK_ROLL=0 — всегда выходит, 0.99 — всегда промах.
+        let forced = Env.isUITest ? Env.value("PET_TRICK_ROLL").flatMap(Double.init) : nil
+        let out: TrickOutcome
+        do {
+            out = try PetStore.shared.mutate { Tricks.attempt(t, in: &$0, now: Clock.now(), roll: forced) }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return
+        }
+        refresh()
+        if let r = out.reason {
+            // Пока лист был открыт, уснул или ушёл: без попытки, только причина.
+            haptic(.warning)
+            SoundKit.shared.play(.refuse)
+            show(Tricks.reasonText(r, for: t), ok: false)
+            return
+        }
+        // Лист ещё уезжает вниз: трюк — когда комнату видно.
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            self?.trickReaction(t, out)
+        }
+        if out.love > 0 || out.coins > 0 {
+            Task { await AppActions.shared.afterChange() }
+        }
+    }
+
+    private func trickReaction(_ t: Trick, _ out: TrickOutcome) {
+        guard out.ok else {
+            reaction = Reaction(id: reaction.id + 1, kind: t.kind, ok: false, reason: nil)
+            haptic(.light)
+            SoundKit.shared.play(.boop)
+            show(Tricks.failText, ok: false)
+            return
+        }
+        react(t.kind)
+        haptic(.success)
+        // «Голос» тявкает сам на прыжке (PetChoreo.begin).
+        if t != .speak { SoundKit.shared.play(.ok) }
+        let love = Int(out.love.rounded())
+        if love > 0 {
+            lastDelta = ["love": love]
+            popDelta(lastDelta)
+        }
+        if out.learnedNow {
+            heartBurst()
+            SoundKit.shared.play(.hearts)
+            let text = "Выучил «\(t.title)»!"
+            if out.coins > 0 {
+                show("\(text) +\(EconText.coins(out.coins))", emoji: "🪙")
+            } else {
+                show(text)
+            }
+        } else {
+            show(t.done)
         }
     }
 
@@ -754,7 +822,8 @@ enum AwayBuilder {
 /// PET_RESET=1 — стереть стор; PET_AWAY_H=<часы> — будто приложение не открывали столько часов;
 /// PET_SEED=critical|dead|nap|bath|walk|walk_back — готовое состояние (walk — гуляет ещё 20 мин,
 /// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
-/// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера).
+/// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера;
+/// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -833,6 +902,22 @@ enum LaunchSeed {
                 let card = Postcards.make(Moment(kind: .firstDay, t: now - 86400, score: 100),
                                           day: day, petId: f.petId, tzOffsetMin: tz)
                 if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
+            case "tricks":
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                var sit = TrickLog.Entry()
+                sit.n = Tricks.needed
+                sit.t = now - 3600
+                sit.tries = 9
+                sit.learned = now - 3600
+                f.tricks[.sit] = sit
+                var lie = TrickLog.Entry()
+                lie.n = 3
+                lie.t = now - 3600
+                lie.tries = 6
+                f.tricks[.lie] = lie
+                f.seen = f.pet
+                f.lastSeenT = now
             default:
                 break
             }

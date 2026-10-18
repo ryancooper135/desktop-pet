@@ -537,8 +537,10 @@ enum PetChoreo {
 
     /// Проигрыватель поставил шаги. Есть eat — миска под морду, есть play_bow — игра с мячом.
     /// Прошлая хореография при этом сворачивается. Возвращает, до какого момента часов занята игра.
+    /// trick — шаги играют удачный трюк: «Поклон» без мяча, «Голос» тявкает на прыжке.
     @discardableResult
-    static func begin(_ pet: Entity, steps: [String], clock: Double, mainLoop: String) -> Double? {
+    static func begin(_ pet: Entity, steps: [String], clock: Double, mainLoop: String,
+                      trick: Trick? = nil) -> Double? {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
         let present = bowlAtSnout(cs, clock)
         interrupt(&cs, clock)
@@ -561,7 +563,10 @@ enum PetChoreo {
             cs.active = true
             SoundKit.shared.eat(from: w.start, to: w.end)
         }
-        if let i = steps.firstIndex(of: "play_bow") {
+        if trick == .speak, let i = steps.firstIndex(of: "hop") {
+            SoundKit.shared.play(.yip, after: steps[..<i].reduce(0) { $0 + duration($1) })
+        }
+        if trick == nil, let i = steps.firstIndex(of: "play_bow") {
             let offset = steps[..<i].reduce(0) { $0 + duration($1) }
             cs.play = .init(start: clock + offset, mainLoop: mainLoop)
             cs.active = true

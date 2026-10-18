@@ -5,13 +5,15 @@
 // • записка «Ушёл гулять, вернусь в 14:20» — бумажкой на месте Шибы, пока его нет;
 // • альбом — шит, ещё открывается по pet://album;
 // • волна 5: круглая кнопка автомата между «Альбомом» и «Гулять» (pet://capsule), в альбоме — «Вкусы» и «Открытки»;
-// • этап 8: рядом с автоматом круглая кнопка «Дом» (pet://house, HouseScreen.swift).
+// • этап 8: рядом с автоматом круглая кнопка «Дом» (pet://house, HouseScreen.swift);
+// • волна 8: за «Домом» круглая кнопка «Трюки» (pet://tricks, TricksScreen.swift). Ряд тесный: если целиком не влезает,
+//   «Альбом» сжимается до значка со счётчиком (ViewThatFits), подпись «Гулять» не трогаем.
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
 @preconcurrency import PetCore
 
-// MARK: - Ряд «Альбом · Автомат · Дом · Гулять»
+// MARK: - Ряд «Альбом · Автомат · Дом · Трюки · Гулять»
 
 struct WalkRow: View {
     @Environment(AppModel.self) private var model
@@ -19,10 +21,22 @@ struct WalkRow: View {
 
     var body: some View {
         let gate = model.file.map { WalkPlan.gate($0, at: snap.t) }
-        HStack(spacing: 8) {
-            AlbumButton(total: Finds.total(albumFinds(model.file, at: snap.t)))
+        let tricks = model.file.map { Tricks.gate($0, at: snap.t) } ?? "store"
+        let total = Finds.total(albumFinds(model.file, at: snap.t))
+        // Сначала с подписью «Альбом»; не влезло — значок; совсем узко — плотнее. Последний вариант берётся всегда.
+        ViewThatFits(in: .horizontal) {
+            row(gate: gate, tricks: tricks, total: total, compact: false, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: true, spacing: 8)
+            row(gate: gate, tricks: tricks, total: total, compact: true, spacing: 5)
+        }
+    }
+
+    private func row(gate: WalkGate?, tricks: String?, total: Int, compact: Bool, spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            AlbumButton(total: total, compact: compact)
             MachineButton()
             HouseButton()
+            TricksButton(gate: tricks)
             Spacer(minLength: 0)
             if let gate {
                 WalkButton(gate: gate)
@@ -102,6 +116,8 @@ struct WalkButton: View {
 struct AlbumButton: View {
     @Environment(AppModel.self) private var model
     let total: Int
+    /// Узкий ряд: без подписи, только книжки и счётчик.
+    var compact = false
 
     var body: some View {
         Button {
@@ -110,8 +126,10 @@ struct AlbumButton: View {
             HStack(spacing: 6) {
                 Image(systemName: "books.vertical.fill")
                     .font(.system(size: 17, weight: .semibold))
-                Text("Альбом")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                if !compact {
+                    Text("Альбом")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
                 if total > 0 {
                     Text("\(total)")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -123,8 +141,8 @@ struct AlbumButton: View {
             }
             .lineLimit(1)
             .foregroundStyle(PetPalette.ink)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 48)
+            .padding(.horizontal, compact && total == 0 ? 0 : 14)
+            .frame(minWidth: 48, minHeight: 48)
             .contentShape(Capsule())
         }
         .buttonStyle(SquishStyle())
