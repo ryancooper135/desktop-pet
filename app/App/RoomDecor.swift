@@ -340,14 +340,14 @@ enum RoomDecor {
 
     /// 1 — лежанка с кантом, 2 — + деревянный бортик и стёжка (и балдахин на стене — canopy),
     /// 3 — королевская перина: фиолетовая, золото, кисти.
-    /// Плоская (верх bedTop): Шиба стоит и спит на ней, ходить не мешает. Оси — как у подставки (yaw3q).
+    /// Плоская (верх mattressTop): Шиба стоит и спит на ней (PetChoreo поднимает его на матрас), ходить не мешает. Оси — как у подставки (yaw3q).
     static func bed(_ level: Int) -> Entity {
         let g = group("decor.bed")
         g.orientation = turn(PetRoom.yaw3q, axisY)
         let C = DecorColors.self
         let c = RoomPlan.bedCenterLocal
         let ax = RoomPlan.bedHalfX, az = RoomPlan.bedHalfZ
-        let top = RoomPlan.bedTop
+        let top = RoomPlan.mattressTop(bed: level)
         let (pad, edge, rim): (UInt32, UInt32, UInt32) = switch level {
         case 1: (C.bedBlue, C.bedBlueEdge, C.wood)
         case 2: (C.bedPink, C.bedPinkEdge, C.wood)

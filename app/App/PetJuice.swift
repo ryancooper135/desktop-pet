@@ -180,6 +180,7 @@ struct JuiceSystem: System {
         JuiceSystem.registerSystem()
         IdleDirectorSystem.registerSystem()
         ChoreoState.registerComponent()
+        HomeLift.registerComponent()
         PetFace.registerComponent()
         PetActSystem.registerSystem()
     }
