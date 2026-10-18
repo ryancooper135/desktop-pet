@@ -31,6 +31,13 @@ const HOME_LINES = ['bath', 'bed', 'kitchen', 'kennel', 'play', 'yard']         
                   
                                                                                                 
                                                                                                             
+                                                                                                          
+ 
+
+/** Расчесать: care.actions.brush и care.cooldowns_min.brush. */
+                            
+                                                
+                                       
  
 
 /** Прогулка с находкой: care.walk_out. */
@@ -143,6 +150,7 @@ function makeRules(cfg0     , presetName         )        {
     warnLow: cfg.levels?.warn_low ?? 30,
     preset,
     walkOut: walkOut(care.walk_out),
+    brush: care.actions.brush ? { loveShare: care.actions.brush.love_share, cooldownMin: care.cooldowns_min.brush ?? 0 } : null,
   };
 }
 
@@ -159,6 +167,7 @@ function makeRules(cfg0     , presetName         )        {
                                   
                                   
                    
+                     
                     
                     
                                     
@@ -168,6 +177,8 @@ function makeRules(cfg0     , presetName         )        {
                                                            
 
 const STEP = 60;
+/** Ключ отката расчёсывания в cooldowns: не «brush» — так зовут расчёску в shop.consumables, а ключ предмета — его id. */
+const BRUSH_COOLDOWN = 'brushing';
 /** Сколько сытости автокормушка даёт за раз (как миска корма). */
 const AUTOFEED_PORTION = 20;
 const DH = 1 / 60;
@@ -416,6 +427,20 @@ function act(s          , r       , o       , a        )            {
       if (cooling('pet')) return { ok: false, reason: 'cooldown' };
       s.needs.love = clamp(s.needs.love + r.petLove * x(md, 'love_gain_x'));
       s.cooldowns.pet = t + r.petCooldownMin * 60;
+      return { ok: true };
+    }
+    case 'brush': {
+      // расчесать: доля ласки «Погладить» (с теми же множителями и потолком 100), откат свой, монет ядро не знает
+      const b = r.brush;
+      if (b === null) return { ok: false, reason: 'unavailable' };
+      if (s.bathUntil !== null) return { ok: false, reason: 'bathing' };
+      if (s.napUntil !== null || petNight(t, r, o)) return { ok: false, reason: 'asleep' };
+      if (level(s, r) === 3) return { ok: false, reason: 'unwell' };
+      if (cooling(BRUSH_COOLDOWN)) return { ok: false, reason: 'cooldown' };
+      const before = s.needs.love;
+      const petted = clamp(before + r.petLove * x(md, 'love_gain_x'));
+      s.needs.love = clamp(before + (petted - before) * b.loveShare);
+      s.cooldowns[BRUSH_COOLDOWN] = t + b.cooldownMin * 60;
       return { ok: true };
     }
     case 'play': {

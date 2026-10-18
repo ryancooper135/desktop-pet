@@ -1,8 +1,11 @@
 // «Расчесать» (волна 9): ведёшь пальцем по спине Шибы от головы к хвосту — мазок засчитан, колтуны уходят.
 // Против шерсти — пёс морщится, мазок не в счёт. Набрал needed мазков — отряхивается, шерсть на стадию лучше.
 // Чистая логика без UI: разбор жеста (BrushTracker), прогресс сеанса (BrushSession), доступность, кулдаун,
-// итог для шерсти и настроения (Brush.finish). Ядро (PetCore) не трогаем: итог — запись журнала «brush»,
-// её читает Coat.trace (Brush.lift), любовь — доля от «Погладить», как у трюков.
+// итог для шерсти и настроения (Brush.finish).
+// С волны 10 итог — ядерное действие brush через PetRunner.apply (как «Погладить»): ядро даёт половину ласки
+// «Погладить» и держит откат 6 ч (care.actions.brush, care.cooldowns_min.brush), в журнале «act.brush» —
+// его читает Coat.trace (Brush.lift), «Пока тебя не было» и открытки. Монет за расчёсывание нет (economy.care.coins).
+// Старые сейвы: откат жил только в BrushLog (f.brush.t) — Brush.adopt переносит его в ядро, BrushLog пишется как раньше.
 // Решения (Вадим может поменять): 8 мазков, не чаще раза в 6 ч, +1 стадия шерсти и полдоли любви от «Погладить», без монет.
 // Только Foundation и PetCore: гоняется на Linux (app/Package.swift).
 
@@ -185,16 +188,20 @@ struct BrushLog: Codable, Hashable, Sendable {
 enum Brush {
     /// Мазков на одно расчёсывание.
     static let needed = 8
-    /// Не чаще раза в cooldownH часов.
-    static let cooldownH: Double = 6
+    /// Не чаще раза в cooldownH часов — откат ядра (care.cooldowns_min.brush).
+    static var cooldownH: Double { (Catalog.rules.brush?.cooldownMin ?? 0) / 60 }
+    /// Отказ ядра cooldown у расчёсывания — свой текст «Шерсть уже расчёсана».
     static let cooldownReason = "brushed"
-    /// Любовь — эта доля от прибавки «Погладить».
-    static let loveShare: Double = 0.5
+    /// Любовь — эта доля от прибавки «Погладить» (care.actions.brush.love_share, считает ядро).
+    static var loveShare: Double { Catalog.rules.brush?.loveShare ?? 0 }
     /// Шерсть: небольшой толчок ухоженности (доля от остатка до 1) и подъём на стадию выше —
     /// за границу + гистерезис + margin, чтобы новая стадия не слетела на следующем шаге сетки.
     static let nudge: Double = 0.05
     static let margin: Double = 0.02
+    /// Вид реакции пса и старые записи журнала (до ядерного действия). Новые записи — actKind.
     static let journalKind = "brush"
+    /// Запись журнала ядерного действия (PetRunner.apply).
+    static let actKind = "act.brush"
 
     /// Колтунов на спине до начала по стадии шерсти.
     static func tufts(_ stage: CoatStage) -> Int {
@@ -208,17 +215,29 @@ enum Brush {
 
     // MARK: доступность
 
-    /// Почему расчесать нельзя. nil — можно. Порядок как у трюков, потом кулдаун.
+    /// Почему расчесать нельзя. nil — можно. Спрашиваем ядро на копии (как CatchGame.gate для play):
+    /// порядок ядра — нет пса → гуляет → моется → спит → беда → откат, как раньше у Tricks.gate + кулдаун.
     static func gate(_ f: SaveFile, at t: Double) -> String? {
-        if let r = Tricks.gate(f, at: t) { return r }
-        if remaining(f, at: t) > 0 { return cooldownReason }
-        return nil
+        var s = PetRunner.peek(f, at: t)
+        adopt(&s, f.brush, at: t)
+        let res = PetEngine.act(&s, Catalog.rules, PetRunner.owner(f, at: t), .brush)
+        if res.ok { return nil }
+        return res.reason == "cooldown" ? cooldownReason : (res.reason ?? "unavailable")
     }
 
-    /// Секунд до следующего раза (0 — можно). Метка из будущего (часы перевели назад) — не держит.
+    /// Секунд до следующего раза (0 — можно) по откату ядра. Часы перевели назад — не больше одного отката.
     static func remaining(_ f: SaveFile, at t: Double) -> Double {
-        guard let last = f.brush.t, t >= last else { return 0 }
-        return max(0, last + cooldownH * 3600 - t)
+        var s = f.pet
+        adopt(&s, f.brush, at: t)
+        guard let end = s.cooldowns[PetEngine.BRUSH_COOLDOWN] else { return 0 }
+        return min(cooldownH * 3600, max(0, end - t))
+    }
+
+    /// Старый сейв: расчёсывали до волны 10, откат был только в BrushLog. Если у ядра своего отката нет —
+    /// берём last + cooldownH. Метка из будущего (часы перевели назад) не держит — как было в BrushLog.
+    static func adopt(_ s: inout PetState, _ log: BrushLog, at t: Double) {
+        guard s.cooldowns[PetEngine.BRUSH_COOLDOWN] == nil, let last = log.t, last <= t else { return }
+        s.cooldowns[PetEngine.BRUSH_COOLDOWN] = last + cooldownH * 3600
     }
 
     static func reasonText(_ reason: String?, remaining: Double = 0) -> String {
@@ -231,17 +250,24 @@ enum Brush {
 
     // MARK: итог
 
-    /// Дочесали: запись в журнал (её читает Coat), метка кулдауна, любовь.
+    /// Дочесали: ядерное действие brush (журнал act.brush — его читает Coat, ласка и откат — ядро), BrushLog.
     static func finish(_ f: inout SaveFile, now: Double) -> BrushOutcome {
         PetRunner.catchUp(&f, now: now)
         let before = Coat.look(f, now: now).stage
+        // Отказ — заранее, без записи в журнал: экран и так не даёт дочесать, когда нельзя.
         if let r = gate(f, at: now) {
             return BrushOutcome(ok: false, reason: r, before: before, after: before, love: 0)
         }
-        f.log(journalKind, t: now, value: before.rank)
+        adopt(&f.pet, f.brush, at: now)
+        let love0 = f.pet.needs[.love] ?? 0
+        let out = PetRunner.apply(.brush, source: .app, to: &f, now: now)
+        guard out.ok else {
+            let r = out.reason == "cooldown" ? cooldownReason : out.reason
+            return BrushOutcome(ok: false, reason: r, before: before, after: before, love: 0)
+        }
         f.brush.t = now
         f.brush.n += 1
-        let love = cheer(&f)
+        let love = (f.pet.needs[.love] ?? love0) - love0
         let after = Coat.look(f, now: now).stage
         return BrushOutcome(ok: true, reason: nil, before: before, after: after, love: love)
     }
@@ -254,17 +280,5 @@ enum Brush {
             r = max(r, Coat.edges[stage.rank] + Coat.hysteresis + margin - bonus)
         }
         return Coat.clamp(r)
-    }
-
-    /// Доля любви от «Погладить» без его кулдауна (как Tricks.cheer).
-    private static func cheer(_ f: inout SaveFile) -> Double {
-        var s = f.pet
-        s.cooldowns["pet"] = nil
-        let before = f.pet.needs[.love] ?? 0
-        guard PetEngine.act(&s, Catalog.rules, f.owner, .pet).ok else { return 0 }
-        let gain = max(0, ((s.needs[.love] ?? before) - before) * loveShare)
-        guard gain > 0 else { return 0 }
-        f.pet.needs[.love] = min(100, before + gain)
-        return min(100, before + gain) - before
     }
 }

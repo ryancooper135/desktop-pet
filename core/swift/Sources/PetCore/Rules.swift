@@ -51,6 +51,12 @@ public struct DistressRule {
 }
 
 /// Прогулка с находкой: care.walk_out.
+/// Расчесать: care.actions.brush и care.cooldowns_min.brush.
+public struct BrushRule {
+    public let loveShare: Double     // доля ласки «Погладить»
+    public let cooldownMin: Double   // откат, минуты
+}
+
 public struct WalkOut {
     public let minMin: Int, maxMin: Int          // длительность от и до, минуты
     public let requires: Cond                    // шкалы, с которыми можно отпустить
@@ -78,6 +84,8 @@ public struct Rules {
     public let preset: String?
     /// Прогулка с находкой (care.walk_out); nil — в конфиге нет, прогулка недоступна.
     public let walkOut: WalkOut?
+    /// Расчесать (care.actions.brush); nil — в конфиге нет, действие недоступно.
+    public let brush: BrushRule?
 
     public func need(_ n: Need, _ key: String) -> Double { needs[n]?[key] ?? 0 }
 
@@ -145,6 +153,9 @@ public struct Rules {
         bathMinutes = care["bath_minutes_by_level"].array.compactMap(\.double)
         petLove = try num(care["actions"]["pet"]["love"], "actions.pet.love")
         petCooldownMin = try num(care["cooldowns_min"]["pet"], "cooldowns_min.pet")
+        let b = care["actions"]["brush"]
+        brush = b.isNull ? nil : BrushRule(loveShare: try num(b["love_share"], "actions.brush.love_share"),
+                                           cooldownMin: care["cooldowns_min"]["brush"].double ?? 0)
         funGain = try num(cfg["minigames"]["fun_gain"], "minigames.fun_gain")
         energyCost = try num(cfg["minigames"]["energy_cost"], "minigames.energy_cost")
         // порог «Просит»; без поля в конфиге — 30, как было

@@ -41,7 +41,7 @@ public struct Outing: Equatable, Sendable {
 }
 
 public enum Action: Equatable, Sendable {
-    case feed(String), item(String), pet, play, bath, steps(Int), wake, walk
+    case feed(String), item(String), pet, brush, play, bath, steps(Int), wake, walk
 }
 
 public struct ActResult: Equatable, Sendable {
@@ -61,6 +61,8 @@ public struct ForecastEvent: Equatable, Sendable {
 
 public enum PetEngine {
     static let STEP: Double = 60
+    /// Ключ отката расчёсывания в cooldowns: не «brush» — так зовут расчёску в shop.consumables, а ключ предмета — его id.
+    public static let BRUSH_COOLDOWN = "brushing"
     /// Сколько сытости автокормушка даёт за раз (как миска корма).
     public static let AUTOFEED_PORTION: Double = 20
     static let DH: Double = 1.0 / 60.0
@@ -305,6 +307,18 @@ public enum PetEngine {
             s.needs[.love] = clamp(s.needs[.love]! + r.petLove * x(md, "love_gain_x"))
             s.cooldowns["pet"] = t + r.petCooldownMin * 60
             return .ok
+        case .brush:
+            // расчесать: доля ласки «Погладить» (с теми же множителями и потолком 100), откат свой, монет ядро не знает
+            guard let b = r.brush else { return .no("unavailable") }
+            if s.bathUntil != nil { return .no("bathing") }
+            if s.napUntil != nil || petNight(t, r, o) { return .no("asleep") }
+            if level(s, r) == 3 { return .no("unwell") }
+            if cooling(BRUSH_COOLDOWN) { return .no("cooldown") }
+            let before = s.needs[.love]!
+            let petted = clamp(before + r.petLove * x(md, "love_gain_x"))
+            s.needs[.love] = clamp(before + (petted - before) * b.loveShare)
+            s.cooldowns[BRUSH_COOLDOWN] = t + b.cooldownMin * 60
+            return .ok
         case .play:
             if s.bathUntil != nil { return .no("bathing") }
             if s.napUntil != nil || petNight(t, r, o) { return .no("asleep") }
@@ -470,6 +484,7 @@ extension Action {
         case "feed": self = .feed(j["item"].string ?? "")
         case "item": self = .item(j["item"].string ?? "")
         case "pet": self = .pet
+        case "brush": self = .brush
         case "play": self = .play
         case "bath": self = .bath
         case "steps": self = .steps(Int(j["count"].double ?? 0))

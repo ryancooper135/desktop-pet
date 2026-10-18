@@ -202,10 +202,14 @@ final class BrushTests: XCTestCase {
         XCTAssertGreaterThan(out.love, 0)
         XCTAssertEqual(f.pet.needs[.love] ?? 0, love0 + out.love, accuracy: 1e-9)
         XCTAssertEqual(f.econ.wallet.coins, coins0, "монет не даёт")
-        let e = try XCTUnwrap(f.journal.last)
-        XCTAssertEqual(e.kind, "brush")
-        XCTAssertEqual(e.value, CoatStage.matted.rank)
-        XCTAssertFalse(e.kind.hasPrefix("act."), "экономика и «Пока тебя не было» не видят")
+        // С волны 10 — действие ядра: запись act.brush, как у «Погладить» (источник — приложение).
+        let e = try XCTUnwrap(f.journal.last { $0.kind == Brush.actKind })
+        XCTAssertEqual(e.ok, true)
+        XCTAssertEqual(e.source, .app)
+        XCTAssertEqual(e.t, f.pet.t)
+        XCTAssertFalse(f.journal.contains { $0.kind == Brush.journalKind }, "старая запись «brush» больше не пишется")
+        XCTAssertEqual(f.pet.cooldowns[PetEngine.BRUSH_COOLDOWN], t + 6 * 3600, "откат держит ядро")
+        XCTAssertEqual(f.lastAction?.kind, "brush")
         XCTAssertEqual(f.brush.t, t)
         XCTAssertEqual(f.brush.n, 1)
         XCTAssertEqual(Coat.look(f, now: t).stage, .shaggy)
@@ -232,10 +236,61 @@ final class BrushTests: XCTestCase {
         XCTAssertEqual(again.reason, Brush.cooldownReason)
         XCTAssertEqual(again.before, again.after)
         XCTAssertEqual(f.brush.n, 1, "отказ не считается")
-        XCTAssertEqual(f.journal.filter { $0.kind == "brush" }.count, 1)
-        // Метка из будущего (часы назад) не держит.
-        XCTAssertEqual(Brush.remaining(f, at: t - 3600), 0)
+        XCTAssertEqual(f.journal.filter { $0.kind == Brush.actKind && $0.ok == true }.count, 1)
+        XCTAssertFalse(f.journal.contains { $0.kind == Brush.actKind && $0.ok == false }, "отказ по откату в журнал не идёт")
+        // Часы назад: ядро ждёт, пока pet.t не пройдёт откат (как у «Погладить»); остаток не больше 6 ч.
+        XCTAssertEqual(Brush.remaining(f, at: t - 3600), 6 * 3600, accuracy: 1e-6)
         XCTAssertEqual(Brush.remaining(f, at: t + 6 * 3600), 0)
+        XCTAssertNil(Brush.gate(f, at: t + 6 * 3600))
+        XCTAssertTrue(Brush.finish(&f, now: t + 6 * 3600).ok)
+        XCTAssertEqual(f.brush.n, 2)
+    }
+
+    /// Сейв до волны 10: откат жил только в BrushLog.t, в ядре его нет — подхватываем.
+    func testLegacySaveKeepsCooldown() {
+        var (f, t) = bDull()
+        f.brush.t = t - 3600
+        f.brush.n = 3
+        XCTAssertNil(f.pet.cooldowns[PetEngine.BRUSH_COOLDOWN])
+        XCTAssertEqual(Brush.gate(f, at: t), Brush.cooldownReason)
+        XCTAssertEqual(Brush.remaining(f, at: t), 5 * 3600, accuracy: 1e-6)
+        let no = Brush.finish(&f, now: t)
+        XCTAssertFalse(no.ok)
+        XCTAssertEqual(no.reason, Brush.cooldownReason)
+        XCTAssertEqual(f.brush.n, 3)
+        let later = t + 5 * 3600
+        XCTAssertNil(Brush.gate(f, at: later))
+        XCTAssertTrue(Brush.finish(&f, now: later).ok)
+        XCTAssertEqual(f.brush.n, 4)
+        XCTAssertEqual(f.brush.t, later)
+        // Метка из будущего (часы переводили назад) больше 6 ч не держит.
+        var g = bDull().0
+        g.brush.t = t + 10 * 3600
+        g.brush.n = 1
+        XCTAssertNil(Brush.gate(g, at: t))
+    }
+
+    /// Ласка — ровно половина «Погладить» в том же состоянии; монет нет и в Economy.settle.
+    func testLoveIsHalfOfPetAndNoCoins() {
+        var (f, t) = bDull()
+        var p = f
+        XCTAssertTrue(PetRunner.apply(.pet, source: .app, to: &p, now: t).ok)
+        let petGain = (p.pet.needs[.love] ?? 0) - (f.pet.needs[.love] ?? 0)
+        let coins0 = f.econ.wallet.coins
+        let out = Brush.finish(&f, now: t)
+        XCTAssertEqual(out.love, petGain / 2, accuracy: 1e-9)
+        XCTAssertEqual(f.econ.wallet.coins, coins0)
+        XCTAssertTrue(Economy.settle(&f).isEmpty, "запись act.brush уже разобрана и без монет")
+    }
+
+    /// Шерсть читает и новые записи act.brush, и старые «brush» из сейвов до волны 10.
+    func testCoatReadsLegacyJournal() {
+        var (f, t) = bDull()
+        var legacy = f
+        _ = Brush.finish(&f, now: t)
+        legacy.log(Brush.journalKind, t: t, value: CoatStage.matted.rank)
+        XCTAssertEqual(Coat.look(legacy, now: t + 60).stage, Coat.look(f, now: t + 60).stage)
+        XCTAssertEqual(Coat.look(legacy, now: t + 60).stage, .shaggy)
     }
 
     func testGateFollowsTricks() {
