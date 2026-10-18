@@ -119,11 +119,14 @@ struct NeedTimerView: View {
         let prefix = Presenter.timerPrefix(kind: timer.kind)
         let tinted = mono || renderingMode != .fullColor
         HStack(spacing: 4) {
+            // Иконка — украшение: VoiceOver читает фразу, а не «Часы».
             Image(systemName: Self.icon(timer.kind))
+                .accessibilityHidden(true)
             if frozenNow != nil {
                 Text(Presenter.timerPhrase(kind: timer.kind, title: name, remaining: remaining))
             } else if Presenter.timerIsLive(remaining: remaining) {
-                if !name.isEmpty { Text(name) }
+                // Те же слова, что у снимка и длинного таймера: «Затоскует через 0:49», «ещё 4:12».
+                Text(name.isEmpty ? prefix : "\(name) \(prefix)")
                 Text(timerInterval: start...end, countsDown: true)
                     .monospacedDigit()
                     .multilineTextAlignment(.leading)
@@ -137,6 +140,7 @@ struct NeedTimerView: View {
         .minimumScaleFactor(0.8)
         .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(PetPalette.soft))
+        .accessibilityElement(children: .combine)
     }
 
     static func icon(_ kind: String) -> String {

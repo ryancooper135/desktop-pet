@@ -66,7 +66,8 @@ private struct RuleRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.icon)
+            // Через symbol: незнакомое системе имя даст лапку, а не пустое место.
+            ThoughtBubble.symbol(item.icon)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(item.id == "last" || item.id == "hearts" ? PetPalette.red : PetPalette.accent)
                 .frame(width: 22)
@@ -74,7 +75,7 @@ private struct RuleRow: View {
                 Text(item.title)
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
-                Text(item.text)
+                Text(Presenter.keepDash(item.text))
                     .font(.system(size: 14, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)

@@ -281,13 +281,17 @@ struct IslandExpandedBottom: View {
 }
 
 /// Live Activity на экране блокировки и в баннере.
+/// Таймер — своей строкой под репликой: рядом с кнопками он обрезался до «Затоскует через…».
+/// Кнопки — отдельным рядом справа (высота всё равно меньше 160 pt, предела системы).
 struct LockScreenActivityView: View {
     var name: String
     var state: IslandState
     var stale = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        let home = state.home(stale: stale)
+        let hasButtons = state.smallAct != nil || state.bigAct.action != nil
+        HStack(alignment: .top, spacing: 12) {
             PetFaceView(pose: state.shownPose(stale: stale))
                 .frame(width: 64, height: 64)
             VStack(alignment: .leading, spacing: 4) {
@@ -303,19 +307,22 @@ struct LockScreenActivityView: View {
                     .foregroundStyle(PetPalette.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
-                HStack(spacing: 8) {
-                    if state.home(stale: stale) {
-                        IslandHomeBadge()
-                    } else if let tm = state.timer {
-                        NeedTimerView(timer: tm, now: state.updatedAt, title: state.islandTimerTitle)
+                if home {
+                    IslandHomeBadge()
+                } else if let tm = state.timer {
+                    NeedTimerView(timer: tm, now: state.updatedAt, title: state.islandTimerTitle)
+                }
+                if hasButtons {
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        if let small = state.smallAct {
+                            IslandSecondaryButton(act: small)
+                        }
+                        if state.bigAct.action != nil {
+                            IslandPrimaryButton(act: state.bigAct, compact: true, critical: state.islandCritical)
+                        }
                     }
-                    Spacer(minLength: 0)
-                    if let small = state.smallAct {
-                        IslandSecondaryButton(act: small)
-                    }
-                    if state.bigAct.action != nil {
-                        IslandPrimaryButton(act: state.bigAct, compact: true, critical: state.islandCritical)
-                    }
+                    .padding(.top, 2)
                 }
             }
         }

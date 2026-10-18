@@ -266,6 +266,11 @@ enum Presenter {
         line.count <= shortLineMax || island.isEmpty ? line : island
     }
 
+    /// Тире не начинает строку: пробел перед «—» неразрывный («Не помог — умрёт» не рвётся на «Не помог / — умрёт»).
+    static func keepDash(_ text: String) -> String {
+        text.replacingOccurrences(of: " \u{2014}", with: "\u{00A0}\u{2014}")
+    }
+
     /// Секунды до конца → «9 ч 25 мин», «40 мин», «2 ч». Минуты вниз, но меньше минуты — «1 мин».
     static func remainingText(_ seconds: Double) -> String {
         guard seconds > 0 else { return "0 мин" }

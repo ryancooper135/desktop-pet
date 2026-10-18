@@ -37,6 +37,7 @@ struct AccessoryCircularView: View {
 }
 
 /// Прямоугольный: мордочка, реплика в две строки, сердечки всегда, таймер — если есть.
+/// Реплика короткая (как у маленького виджета): длинная рвалась на «что-/нибудь» и обрезалась.
 struct AccessoryRectangularView: View {
     var snap: PetSnapshot
 
@@ -45,7 +46,7 @@ struct AccessoryRectangularView: View {
             PetFaceView(pose: snap.pose, mono: true)
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text(snap.line)
+                Text(snap.shortLine)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)

@@ -22,9 +22,11 @@ struct WidgetGuideSheet: View {
                         Text("\(name) всегда рядом")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
-                        Text("С виджетом не надо открывать приложение, чтобы проверить, как он")
+                        // Короче и с полями: длинная фраза шла от края до края.
+                        Text("Видно, как он, даже не открывая приложение")
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)
+                            .padding(.horizontal, 12)
                     }
                     .multilineTextAlignment(.center)
 

@@ -357,4 +357,14 @@ final class ForecastToolsCoverageTests: XCTestCase {
             XCTAssertGreaterThan(next.t, first.t, "строго после")
         }
     }
+
+    // MARK: тире
+
+    func testKeepDashGluesDashToPreviousWord() {
+        XCTAssertEqual(Presenter.keepDash("Не помог — умрёт"), "Не помог\u{00A0}— умрёт")
+        XCTAssertEqual(Presenter.keepDash("а — б — в"), "а\u{00A0}— б\u{00A0}— в", "все тире, не только первое")
+        XCTAssertEqual(Presenter.keepDash("без тире"), "без тире")
+        XCTAssertEqual(Presenter.keepDash("—сразу"), "—сразу", "без пробела перед тире — не трогаем")
+        XCTAssertEqual(Presenter.keepDash("что-нибудь"), "что-нибудь", "дефис не тире")
+    }
 }

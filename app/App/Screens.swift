@@ -23,7 +23,7 @@ struct NeedsSheet: View {
             }
             // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift.
             if let coat = model.coat, snap.alive {
-                Text("Шерсть: \(coat.stage.title)")
+                Text("Шерсть: \(coat.stage.title.lowercased())")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("needs.coat")
@@ -78,7 +78,7 @@ struct AwayScreen: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(PetPalette.accent)
                             .frame(width: 22)
-                        Text(card.text)
+                        Text(Presenter.keepDash(card.text))
                             .font(.system(size: 15, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
                             .fixedSize(horizontal: false, vertical: true)
@@ -90,7 +90,7 @@ struct AwayScreen: View {
             .padding(16)
             .background(RoundedRectangle(cornerRadius: 20).fill(PetPalette.card))
 
-            Text(report.cta)
+            Text(Presenter.keepDash(report.cta))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
@@ -105,7 +105,10 @@ struct AwayScreen: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(PetPalette.accent)
+                // Вторая кнопка — тихая, в тон экрана, а не системно-синяя.
                 Button("Закрыть") { model.away = nil }
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .tint(PetPalette.soft)
                     .frame(minHeight: 44)
             } else {
                 if let _ = model.snap.main.action {
@@ -121,7 +124,8 @@ struct AwayScreen: View {
                     .tint(PetPalette.accent)
                 }
                 Button("Потом") { model.away = nil }
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .tint(PetPalette.soft)
                     .frame(minHeight: 44)
             }
         }
@@ -176,12 +180,12 @@ struct SettingsScreen: View {
                 }
 
                 Section {
-                    Toggle("\(name) в островке", isOn: $island)
+                    Toggle("\(name) в острове", isOn: $island)
                         .listRowBackground(PetPalette.card)
                 } header: {
-                    Text("Островок")
+                    Text("Остров")
                 } footer: {
-                    Text("Островок — тёмная область вокруг камеры вверху экрана. Там и на экране блокировки видно питомца и кнопки ухода.")
+                    Text("Остров — тёмная область вокруг камеры вверху экрана. Там и на экране блокировки видно питомца и кнопки ухода.")
                 }
 
                 Section {

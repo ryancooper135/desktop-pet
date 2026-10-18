@@ -1139,7 +1139,7 @@
       {"id": "u.capsule_pull.01", "text": "Крутить ручку"}
     ],
     "capsule_price_coins": [
-      {"id": "u.capsule_price_coins.01", "text": "За монеты: {count}"}
+      {"id": "u.capsule_price_coins.01", "text": "За монеты"}
     ],
     "capsule_price_ticket": [
       {"id": "u.capsule_price_ticket.01", "text": "За билетик"}

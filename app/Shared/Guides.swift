@@ -101,7 +101,7 @@ enum Guides {
                             text: "Пока ты спишь (\(hm(owner.bedMin))–\(hm(owner.wakeMin))), сердечки не уходят и беды не копятся. Считаются только часы, когда ты не спишь."))
 
         let deathWord = (e?["death"]["permanent"].bool ?? true) ? "Это навсегда — вернуть его будет нельзя." : "Потом его можно будет вернуть."
-        out.append(RuleItem(id: "last", icon: "exclamationmark.heart.fill", title: "Последнее сердечко",
+        out.append(RuleItem(id: "last", icon: "heart.slash.fill", title: "Последнее сердечко",
                             text: "Ниже одного сердечки не падают. Дальше идёт последний шанс: \(hours(r.lastChanceH)) твоего бодрствования, пока \(name) в беде. Не помог — \(name) умрёт. \(deathWord) В первые \(hours(r.noDeathAfterWakeH)) после твоего подъёма этого не случится."))
 
         if let h = ignoreDeathH(r, owner: owner) {
