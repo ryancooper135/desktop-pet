@@ -103,6 +103,7 @@ final class PetStore: @unchecked Sendable {
             // Надетое — вместе с предметами: шарф остаётся на месте и у нового щенка.
             fresh.worn = old.worn
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
+            // Память и характер (memories, care) — тоже нет: они про того пса.
             // Старый файл целиком остаётся в state.broken-<t>.json.
         }
         if fm.fileExists(atPath: stateURL.path) {
@@ -132,6 +133,9 @@ final class PetStore: @unchecked Sendable {
     private func applyUnlocked<T>(_ url: URL, _ body: (inout SaveFile) throws -> T) throws -> T {
         var f = try loadUnlocked(url) ?? SaveFile.fresh(now: Clock.now())
         let out = try body(&f)
+        // Память и характер — из того, что только что записано (новые записи журнала разбираются один раз).
+        Memories.update(&f)
+        Traits.update(&f)
         f.rev += 1
         try writeUnlocked(f, to: url)
         return out

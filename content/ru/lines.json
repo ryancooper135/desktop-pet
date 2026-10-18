@@ -574,6 +574,92 @@
       {"id": "w.coat_sleek.03", "text": "Сияю. Это всё твой уход."},
       {"id": "w.coat_sleek.04", "text": "Пушистый и чистый. Обнимай."}
     ],
+    "memory_met": [
+      {"id": "w.memory_met.01", "text": "Помнишь, как мы познакомились?"},
+      {"id": "w.memory_met.02", "text": "Я помню наш первый день. А ты?"},
+      {"id": "w.memory_met.03", "text": "Ты тогда взял меня на ручки. Помню."}
+    ],
+    "memory_walk": [
+      {"id": "w.memory_walk.01", "text": "Первая прогулка! Принёс {item}"},
+      {"id": "w.memory_walk.02", "text": "Помню первую прогулку. Ух!"},
+      {"id": "w.memory_walk.03", "text": "А помнишь нашу первую прогулку?"}
+    ],
+    "memory_find": [
+      {"id": "w.memory_find.01", "text": "Помнишь, как я нашёл {item}?"},
+      {"id": "w.memory_find.02", "text": "А я помню, где нашёл {item}"},
+      {"id": "w.memory_find.03", "text": "Впервые нашёл {item}. Было дело!"}
+    ],
+    "memory_trick": [
+      {"id": "w.memory_trick.01", "text": "Помнишь, как я выучил «{item}»?"},
+      {"id": "w.memory_trick.02", "text": "«{item}» — я теперь умею!"},
+      {"id": "w.memory_trick.03", "text": "Я помню, как учил «{item}»"}
+    ],
+    "memory_record": [
+      {"id": "w.memory_record.01", "text": "Рекорд — {count}! Побьём?"},
+      {"id": "w.memory_record.02", "text": "Помню наш рекорд: {count}!"},
+      {"id": "w.memory_record.03", "text": "Поймал {count} раз подряд!"}
+    ],
+    "memory_item": [
+      {"id": "w.memory_item.01", "text": "Помнишь? Первая вещь — {item}"},
+      {"id": "w.memory_item.02", "text": "Моя первая вещь — {item}!"},
+      {"id": "w.memory_item.03", "text": "Первая вещь из автомата. Помню!"}
+    ],
+    "memory_home": [
+      {"id": "w.memory_home.01", "text": "Помнишь, как мы обустраивали дом?"},
+      {"id": "w.memory_home.02", "text": "Наш дом всё уютнее. Спасибо!"},
+      {"id": "w.memory_home.03", "text": "Помню каждую новую вещь в доме."}
+    ],
+    "memory_days": [
+      {"id": "w.memory_days.01", "text": "Помнишь наш {count}-й день?"},
+      {"id": "w.memory_days.02", "text": "{count} дней вместе — помню!"},
+      {"id": "w.memory_days.03", "text": "А помнишь {count}-й день? Ура!"}
+    ],
+    "memory_birthday": [
+      {"id": "w.memory_birthday.01", "text": "Помню день рождения: {count}!"},
+      {"id": "w.memory_birthday.02", "text": "Мне {count}. Помнишь праздник?"},
+      {"id": "w.memory_birthday.03", "text": "Помнишь мой день рождения? Ура!"}
+    ],
+    "memory_taste": [
+      {"id": "w.memory_taste.01", "text": "Ты помнишь, я обожаю {item}?"},
+      {"id": "w.memory_taste.02", "text": "Помнишь? Обожаю {item}!"},
+      {"id": "w.memory_taste.03", "text": "Ты узнал, что я люблю {item}!"}
+    ],
+    "trait_playful": [
+      {"id": "w.trait_playful.01", "text": "Побегаем? Лапы так и просятся!"},
+      {"id": "w.trait_playful.02", "text": "Я игривый. Это ты меня так."},
+      {"id": "w.trait_playful.03", "text": "Где мячик? Я готов!"},
+      {"id": "w.trait_playful.04", "text": "Энергия бьёт ключом. Гав!"}
+    ],
+    "trait_calm": [
+      {"id": "w.trait_calm.01", "text": "Посижу тихонько рядом. Хорошо."},
+      {"id": "w.trait_calm.02", "text": "Мне и так спокойно."},
+      {"id": "w.trait_calm.03", "text": "Люблю тишину. И тебя."},
+      {"id": "w.trait_calm.04", "text": "Не спешу. Куда торопиться?"}
+    ],
+    "trait_cuddly": [
+      {"id": "w.trait_cuddly.01", "text": "Погладишь ещё? Я не против."},
+      {"id": "w.trait_cuddly.02", "text": "Рядом с тобой теплее."},
+      {"id": "w.trait_cuddly.03", "text": "Я ласковый. Это ты меня так."},
+      {"id": "w.trait_cuddly.04", "text": "Можно на ручки?"}
+    ],
+    "trait_independent": [
+      {"id": "w.trait_independent.01", "text": "Я сам по себе. Но рад тебе."},
+      {"id": "w.trait_independent.02", "text": "Гуляю где хочу. Но возвращаюсь."},
+      {"id": "w.trait_independent.03", "text": "Обойдусь. Ну, может, разок погладь."},
+      {"id": "w.trait_independent.04", "text": "У меня свои дела. Важные."}
+    ],
+    "trait_tidy": [
+      {"id": "w.trait_tidy.01", "text": "Я чистюля. Ванну люблю!"},
+      {"id": "w.trait_tidy.02", "text": "Шерсть к шерстинке. Порядок!"},
+      {"id": "w.trait_tidy.03", "text": "Расчешешь? Люблю быть красивым."},
+      {"id": "w.trait_tidy.04", "text": "Пахну шампунем. Нравится?"}
+    ],
+    "trait_scruffy": [
+      {"id": "w.trait_scruffy.01", "text": "Немного грязи не помешает."},
+      {"id": "w.trait_scruffy.02", "text": "Лужа? Где лужа? Бегу!"},
+      {"id": "w.trait_scruffy.03", "text": "Я сорванец. Ванна подождёт."},
+      {"id": "w.trait_scruffy.04", "text": "Чистота — это скучно. Гав!"}
+    ],
     "rare": [
       {"id": "w.rare.01", "text": "Поймал бабочку. Отпустил. Я добрый.", "frame": "butterfly"},
       {"id": "w.rare.02", "text": "Обнял тапок. Тапок не против.", "frame": "slipper"},
@@ -831,6 +917,70 @@
     "coat_sleek": [
       {"id": "i.coat_sleek.01", "text": "Шерсть блестит"},
       {"id": "i.coat_sleek.02", "text": "Гладкий как шёлк"}
+    ],
+    "memory_met": [
+      {"id": "i.memory_met.01", "text": "Наш первый день"},
+      {"id": "i.memory_met.02", "text": "Помню нашу встречу"}
+    ],
+    "memory_walk": [
+      {"id": "i.memory_walk.01", "text": "Первая прогулка!"},
+      {"id": "i.memory_walk.02", "text": "Помню ту прогулку"}
+    ],
+    "memory_find": [
+      {"id": "i.memory_find.01", "text": "Помню ту находку"},
+      {"id": "i.memory_find.02", "text": "А помнишь находку?"}
+    ],
+    "memory_trick": [
+      {"id": "i.memory_trick.01", "text": "Помню первый трюк"},
+      {"id": "i.memory_trick.02", "text": "Я умею трюки!"}
+    ],
+    "memory_record": [
+      {"id": "i.memory_record.01", "text": "Наш рекорд!"},
+      {"id": "i.memory_record.02", "text": "Побьём рекорд?"}
+    ],
+    "memory_item": [
+      {"id": "i.memory_item.01", "text": "Моя первая вещь"},
+      {"id": "i.memory_item.02", "text": "Помню подарок"}
+    ],
+    "memory_home": [
+      {"id": "i.memory_home.01", "text": "Наш уютный дом"},
+      {"id": "i.memory_home.02", "text": "Дом всё уютнее"}
+    ],
+    "memory_days": [
+      {"id": "i.memory_days.01", "text": "Столько дней вместе"},
+      {"id": "i.memory_days.02", "text": "Помню наши дни"}
+    ],
+    "memory_birthday": [
+      {"id": "i.memory_birthday.01", "text": "Помню день рождения"},
+      {"id": "i.memory_birthday.02", "text": "Мой праздник!"}
+    ],
+    "memory_taste": [
+      {"id": "i.memory_taste.01", "text": "Помнишь моё любимое?"},
+      {"id": "i.memory_taste.02", "text": "Моё любимое!"}
+    ],
+    "trait_playful": [
+      {"id": "i.trait_playful.01", "text": "Побегаем?"},
+      {"id": "i.trait_playful.02", "text": "Лапы рвутся в бой"}
+    ],
+    "trait_calm": [
+      {"id": "i.trait_calm.01", "text": "Мне спокойно"},
+      {"id": "i.trait_calm.02", "text": "Тишина и покой"}
+    ],
+    "trait_cuddly": [
+      {"id": "i.trait_cuddly.01", "text": "Погладь ещё"},
+      {"id": "i.trait_cuddly.02", "text": "Рядом теплее"}
+    ],
+    "trait_independent": [
+      {"id": "i.trait_independent.01", "text": "Я сам по себе"},
+      {"id": "i.trait_independent.02", "text": "У меня дела"}
+    ],
+    "trait_tidy": [
+      {"id": "i.trait_tidy.01", "text": "Я чистюля"},
+      {"id": "i.trait_tidy.02", "text": "Порядок в шерсти"}
+    ],
+    "trait_scruffy": [
+      {"id": "i.trait_scruffy.01", "text": "Где тут лужа?"},
+      {"id": "i.trait_scruffy.02", "text": "Я сорванец"}
     ],
     "rare": [
       {"id": "i.rare.01", "text": "Поймал бабочку!", "frame": "butterfly"},

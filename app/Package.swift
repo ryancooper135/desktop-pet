@@ -41,6 +41,7 @@ let package = Package(
                 "IslandPlan.swift",
                 "LineRotation.swift",
                 "Lines.swift",
+                "Memories.swift",
                 "NotificationPlanner.swift",
                 "Paths.swift",
                 "PetAction.swift",
@@ -56,6 +57,7 @@ let package = Package(
                 "StableHash.swift",
                 "Synth.swift",
                 "Tastes.swift",
+                "Traits.swift",
                 "Tricks.swift",
                 "Wear.swift",
                 "WearMesh.swift",
@@ -94,6 +96,8 @@ let package = Package(
                 "HomeTextTests.swift",
                 "RoomLightTests.swift",
                 "WearTests.swift",
+                "MemoriesTests.swift",
+                "TraitsTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

@@ -105,6 +105,8 @@
 | `taste_dislike` | дал нелюбимое (`Tastes`, реакция `dislike`) | приложение | 3 | 2 |
 | `taste_open` | вкус открылся: K одинаковых реакций подряд, запись в альбом | приложение | 3 | 2 |
 | `taste_find_love` | вернулся с любимой находкой | приложение | 3 | 2 |
+| `memory_met`, `memory_walk`, `memory_find`, `memory_trick`, `memory_record`, `memory_item`, `memory_home`, `memory_days`, `memory_birthday`, `memory_taste` | воспоминание вместо `ok` (`PetMind`, `Memories`): 2 хода из 8 по 2 часа, память не моложе суток. `{item}` — находка или вкус в винительном, трюк, вещь со строчной; `{count}` — рекорд, день-веха, «1 год». На острове — без подстановок | приложение | 3 | 2 |
+| `trait_playful`, `trait_calm`, `trait_cuddly`, `trait_independent`, `trait_tidy`, `trait_scruffy` | ведущая черта характера вместо `ok` (`PetMind`, `Traits`): 1 ход из 8 | приложение | 4 | 2 |
 | `morning` | всё хорошо, 3 ч после подъёма питомца (`daypart()`) | приложение | 30 | 10 |
 | `evening` | всё хорошо, 3 ч до отбоя хозяина (`daypart()`) | приложение | 30 | 10 |
 | `ok` | всё хорошо | ядро | 44 | 30 |

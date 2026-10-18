@@ -269,6 +269,10 @@ struct AlbumSheet: View {
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
                 if let f = model.file {
+                    let t = model.snap.t
+                    CharacterSection(scores: Traits.scores(f, at: t), summary: Traits.summary(f, at: t),
+                                     done: Traits.total(f, at: t))
+                    MemoriesSection(rows: Memories.album(f))
                     TastesSection(facts: Tastes.album(f), guesses: TasteGuess.list(f))
                     PostcardsSection(cards: Postcards.album(f), opened: $opened)
                 }
