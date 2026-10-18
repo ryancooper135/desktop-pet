@@ -833,6 +833,7 @@ enum AwayBuilder {
 /// walk_back — вернётся через 6 с при открытом приложении, для раскадровки anim-walk;
 /// tastes — один открытый вкус и один «???» в альбоме; postcard — неразобранная открытка за вчера;
 /// room_max — все линии дома на верхнем уровне, room_mid — уровни 1–2 вперемешку, для снимков комнаты;
+/// house_rich — все линии дома на базе и 50 000 монет: в HouseUITests покупка проходит с первого нажатия;
 /// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
@@ -924,6 +925,14 @@ enum LaunchSeed {
                 for line in HomeLine.allCases {
                     f.pet.home[line] = seed == "room_max" ? RoomPlan.maxLevel : mid[line] ?? 1
                 }
+            case "house_rich":
+                // Экран «Дом» (HouseUITests): комната пустая, монет хватит на любой уровень любой линии.
+                PetRunner.catchUp(&f, now: now)
+                for line in HomeLine.allCases { f.pet.home[line] = 0 }
+                Economy.grant(&f, coins: 50_000)
+                for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }
+                f.seen = f.pet
+                f.lastSeenT = now
             case "tricks":
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love] { f.pet.needs[n] = 80 }

@@ -145,6 +145,60 @@ final class RoomPlanTests: XCTestCase {
         XCTAssertLessThanOrEqual(RoomPlan.bedTop, 0.015)
     }
 
+    func testPetStandsOnMattress() {
+        // Дома (середина подставки) лапы на верхней грани матраса любого уровня, а не в нём.
+        XCTAssertEqual(RoomPlan.mattressTop(bed: 0), 0)
+        for level in 1...RoomPlan.maxLevel {
+            var l = RoomPlan.Levels()
+            l.bed = level
+            XCTAssertEqual(RoomPlan.mattressTop(bed: level), RoomPlan.bedTop)
+            XCTAssertEqual(RoomPlan.petLift(l, at: P(0, 0)), RoomPlan.mattressTop(bed: level), accuracy: 1e-6,
+                           "уровень \(level): лапы утопают в матрасе")
+            // Остальные линии на подъём не влияют.
+            var all = RoomPlan.Levels.all(RoomPlan.maxLevel)
+            all.bed = level
+            XCTAssertEqual(RoomPlan.petLift(all, at: P(0, 0)), RoomPlan.petLift(l, at: P(0, 0)))
+        }
+        // Без лежанки — на полу, где бы ни стоял.
+        var noBed = RoomPlan.Levels.all(RoomPlan.maxLevel)
+        noBed.bed = 0
+        for p in [P(0, 0), K.walkTurnAt, K.playTurnAt] {
+            XCTAssertEqual(RoomPlan.petLift(noBed, at: p), 0)
+        }
+    }
+
+    func testPetLiftZeroOffBedAndSmooth() {
+        let l = RoomPlan.Levels.all(RoomPlan.maxLevel)
+        // Ушёл с лежанки (прогулка, пробежка за мячом) — на полу.
+        for p in [K.walkOffstage, K.playRunTo, K.ballFar, K.knockTo, K.ballHome, K.bowlHome] {
+            XCTAssertEqual(RoomPlan.petLift(l, at: p), 0, "\(p) — не на лежанке")
+        }
+        // Сходит с лежанки без ступеньки: по лучам от центра подъём не растёт и меняется по чуть-чуть.
+        let center = RoomPlan.toRoom(RoomPlan.bedCenterLocal)
+        for k in 0..<16 {
+            let a = Float(k) / 16 * 2 * .pi
+            let dir = P(cos(a), sin(a))
+            var prev = RoomPlan.petLift(l, at: center)
+            XCTAssertEqual(prev, RoomPlan.bedTop, accuracy: 1e-6)
+            for i in 1...120 {
+                let h = RoomPlan.petLift(l, at: center + dir * (Float(i) * 0.005))
+                XCTAssertLessThanOrEqual(h, prev + 1e-6, "подъём растёт от центра наружу")
+                XCTAssertLessThan(prev - h, RoomPlan.bedTop * 0.1, "ступенька на краю лежанки")
+                prev = h
+            }
+            XCTAssertEqual(prev, 0, "в 60 см от лежанки всё ещё приподнят")
+        }
+    }
+
+    func testLevelsTag() {
+        // Признак для HouseUITests: все шесть линий по порядку HomeLine.
+        XCTAssertEqual(RoomPlan.Levels().tag, "bath=0,bed=0,kitchen=0,kennel=0,play=0,yard=0")
+        var l = RoomPlan.Levels()
+        l.bed = 1
+        l.yard = 3
+        XCTAssertEqual(l.tag, "bath=0,bed=1,kitchen=0,kennel=0,play=0,yard=3")
+    }
+
     func testStandRoundTrip() {
         let p = P(0.2, -0.4)
         let back = RoomPlan.toRoom(RoomPlan.toStand(p))

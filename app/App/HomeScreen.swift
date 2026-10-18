@@ -46,6 +46,8 @@ struct HomeScreen: View {
             .accessibilityAction { model.act(.pet) }
             .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
             .accessibilityIdentifier("pet.stage")
+            // Только в UI-тестах: какие уровни дома стоят в комнате (HouseUITests). VoiceOver это не читает.
+            .accessibilityValue(Text(Env.isUITest ? model.homeLevels.tag : ""))
 
             if snap.pose == .away, !noteHeld, let note = awayNote {
                 // Записка на месте Шибы, чуть ниже середины сцены: там он обычно стоит.

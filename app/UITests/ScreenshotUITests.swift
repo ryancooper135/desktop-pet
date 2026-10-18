@@ -12,6 +12,7 @@
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 //   ui-5N-room-*    дом в комнате: все линии на максимуме, уровни 1–2 вперемешку, максимум в тёмной теме
 //   ui-50/54/55     трюки: лист, ряд с лапой, тост после «Сидеть»
+//   ui-56           покупка лежанки в «Доме» видна в комнате — HouseUITests
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -254,14 +255,6 @@ final class ScreenshotUITests: XCTestCase {
         return app
     }
 
-    @MainActor
-    func snap(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
     /// Главный экран на месте (по mainMarker), плюс секунда сцене на первый кадр.
     /// Маркера нет (старая сборка) — просто подождать, как раньше.
     @MainActor
@@ -270,11 +263,6 @@ final class ScreenshotUITests: XCTestCase {
             settle(2)
         }
         settle(1)
-    }
-
-    /// Дать анимациям и 3D-сцене дорисоваться.
-    func settle(_ seconds: TimeInterval) {
-        Thread.sleep(forTimeInterval: seconds)
     }
 
     /// Системные алерты рисует SpringBoard, не приложение: снимаем и разрешаем.
@@ -299,5 +287,21 @@ final class ScreenshotUITests: XCTestCase {
             }
             settle(1)
         }
+    }
+}
+
+// Общие помощники снимков: ими пользуются и другие UI-тесты (HouseUITests).
+extension XCTestCase {
+    @MainActor
+    func snap(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// Дать анимациям и 3D-сцене дорисоваться.
+    func settle(_ seconds: TimeInterval) {
+        Thread.sleep(forTimeInterval: seconds)
     }
 }

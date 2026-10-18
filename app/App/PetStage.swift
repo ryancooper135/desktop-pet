@@ -55,6 +55,8 @@ struct PetStage: View {
             content.add(room)
             content.add(PetRoom.camera())
             content.add(PetRoom.lights())
+            // Лапы на матрасе лежанки, а не в нём (RoomPlan.petLift).
+            PetChoreo.setHome(pet, home)
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
             PetModel.prime(pet, reactionId: reaction.id)
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
@@ -72,6 +74,7 @@ struct PetStage: View {
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
                 RoomDecor.apply(home, to: room)
             }
+            PetChoreo.setHome(pet, home)
         }
         .background(PetPalette.bg)
     }

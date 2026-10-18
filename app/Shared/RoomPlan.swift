@@ -56,6 +56,11 @@ enum RoomPlan {
 
         /// Окно на задней стене: есть двор или будка (будка стоит во дворе).
         var window: Bool { yard > 0 || kennel > 0 }
+
+        /// «bath=0,bed=1,kitchen=0,kennel=0,play=0,yard=0» — признак для UI-тестов (значение pet.stage при PET_UI_TEST).
+        var tag: String {
+            HomeLine.allCases.map { "\($0.rawValue)=\(self[$0])" }.joined(separator: ",")
+        }
     }
 
     /// Уровни из сейва, обрезанные в 0…maxLevel (битый сейв не рисует несуществующий уровень).
@@ -158,8 +163,12 @@ enum RoomPlan {
     /// (прогулка назад и вправо, игра назад), шаг не поднимается: 6 мм над матрасом лапы проходят незаметно.
     static let bedRim: Float = 0.022
     static let bedRimHeight: Float = 0.016
-    /// Верх матраса: лапы утопают на столько — мягкая лежанка. Пятно-тень (PetRoom.blobY) выше.
+    /// Верх матраса (на всех уровнях один). Шиба на лежанке стоит на нём — подъём petLift. Пятно-тень (PetRoom.blobY) выше.
     static let bedTop: Float = 0.01
+    /// Подъём petLift полный, пока середина собаки внутри этой доли эллипса матраса, и спадает в 0 к liftZero:
+    /// прогулка и игра уводят Шибу с лежанки — сходит без ступеньки (центр у края — половина лап ещё на матрасе).
+    static let liftFull: Float = 0.75
+    static let liftZero: Float = 1.35
 
     /// Балдахин (уровень 2 «Кроватка с балдахином» и 3) — на задней стене за собакой: ламбрекен над окном
     /// и два подхваченных полога по бокам. У самой лежанки ему места нет: стойки встали бы на пути прогулки
@@ -191,6 +200,22 @@ enum RoomPlan {
         let q = toStand(p) - bedCenterLocal
         let ax = bedHalfX + bedRim + grow, az = bedHalfZ + bedRim + grow
         return (q.x * q.x) / (ax * ax) + (q.z * q.z) / (az * az)
+    }
+
+    /// Верх матраса лежанки уровня level; 0 — лежанки нет, лапы на полу. По нему же строит матрас RoomDecor.bed.
+    static func mattressTop(bed level: Int) -> Float {
+        level > 0 ? bedTop : 0
+    }
+
+    /// На сколько поднять Шибу (по y), когда его середина в точке p комнаты: на лежанке — до верха матраса,
+    /// чтобы лапы не уходили в него; к краю плавно в 0, вне лежанки и без неё — 0.
+    static func petLift(_ l: Levels, at p: P) -> Float {
+        let top = mattressTop(bed: l.bed)
+        guard top > 0 else { return 0 }
+        let q = toStand(p) - bedCenterLocal
+        let r = ((q.x * q.x) / (bedHalfX * bedHalfX) + (q.z * q.z) / (bedHalfZ * bedHalfZ)).squareRoot()
+        let t = min(max((r - liftFull) / (liftZero - liftFull), 0), 1)
+        return top * (1 - t * t * (3 - 2 * t))
     }
 
     // MARK: копия хореографии (сверка — RoomDecorTests на macOS)

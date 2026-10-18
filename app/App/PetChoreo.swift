@@ -505,6 +505,11 @@ struct ChoreoState: Component {
     var ball = PetRoom.ballPos
 }
 
+/// Уровни дома, по которым PetChoreo поднимает Шибу на матрас лежанки (PetChoreo.setHome).
+struct HomeLift: Component {
+    var levels: RoomPlan.Levels
+}
+
 /// Взгляд головой и моргание.
 struct PetFace: Component {
     /// Предел поворота головы, радианы (шея 40%, голова 60%).
@@ -883,9 +888,26 @@ enum PetChoreo {
         prop.scale = SIMD3<Float>(repeating: p.scale)
     }
 
+    /// Уровни дома для подъёма на лежанку (RoomPlan.petLift). Зовётся из PetStage на каждый пересчёт вью:
+    /// те же уровни — ничего; новые (купили лежанку) — стоящего Шибу сразу поднимаем, идущего поднимет place.
+    static func setHome(_ pet: Entity, _ levels: RoomPlan.Levels) {
+        if pet.components[HomeLift.self]?.levels == levels { return }
+        pet.components.set(HomeLift(levels: levels))
+        let cs = pet.components[ChoreoState.self]
+        if cs?.active == true { return }
+        pet.position.y = lift(pet, at: cs?.pos ?? .zero)
+    }
+
+    /// Высота лап над полом, когда середина Шибы в точке p комнаты: верх матраса на лежанке, иначе 0.
+    static func lift(_ pet: Entity, at p: SIMD3<Float>) -> Float {
+        guard let levels = pet.components[HomeLift.self]?.levels else { return 0 }
+        return RoomPlan.petLift(levels, at: RoomPlan.P(p.x, p.z))
+    }
+
     /// Обёртка питомца и пятно-тень (оба в подставке) и мяч (в комнате).
     static func place(_ pet: Entity, _ cs: ChoreoState, _ room: Entity?) {
-        let local = ChoreoPath.toStand(cs.pos)
+        var local = ChoreoPath.toStand(cs.pos)
+        local.y += lift(pet, at: cs.pos)
         let rot = simd_quatf(angle: cs.yaw - PetRoom.yaw3q, axis: ChoreoPath.up)
         pet.position = local
         pet.orientation = rot
