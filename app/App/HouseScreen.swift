@@ -208,13 +208,13 @@ struct LevelPips: View {
     let top: Int
 
     var body: some View {
-        // Чёрточки, пустые — контуром: три серые точки читались как кнопка меню «…».
-        HStack(spacing: 3) {
+        // Плоские сегменты шкалы: три серые точки читались как кнопка меню «…»,
+        // а пустые капсулы контуром — как звенья цепочки.
+        HStack(spacing: 2) {
             ForEach(0..<max(top, 0), id: \.self) { i in
-                Capsule()
-                    .fill(i < level ? PetPalette.accent : Color.clear)
-                    .overlay(Capsule().strokeBorder(i < level ? Color.clear : PetPalette.soft.opacity(0.5), lineWidth: 1.5))
-                    .frame(width: 14, height: 7)
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(i < level ? PetPalette.accent : PetPalette.soft.opacity(0.3))
+                    .frame(width: 16, height: 5)
             }
         }
         .animation(.snappy, value: level)
