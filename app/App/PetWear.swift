@@ -5,6 +5,7 @@
 // Масштаб и сдвиг тела модели подбираются по костям Body и Head и проверяются по остальным: другая модель
 // или скелет не сошёлся — вещи просто стоят на теле (по рамке модели). Заглушка без модели — свой перенос.
 // Перестраивается только при смене надетого; шерсть (PetRoom.applyCoat) вещи не перекрашивает.
+// Тем же устройством — клочки шерсти на спине (CoatFur.tuft, слой fur): колтуны и лохматая стадия, их снимает щётка.
 
 import UIKit
 @preconcurrency import RealityKit
@@ -26,49 +27,119 @@ enum PetWear {
         var key = ""
         weak var root: Entity?
         var parts: [(entity: ModelEntity, joint: Int, pre: simd_float4x4)] = []
+        /// Клочки: сколько было всего и сколько показано (чтобы знать, какой только что сняли).
+        var total = 0
+        var keep = 0
     }
 
-    private static var shown: [Entity.ID: Shown] = [:]
+    /// Слои на питомце: надетое и клочки шерсти (CoatFur.tuft). Устроены одинаково, живут порознь.
+    private enum Layer: Hashable { case wear, fur }
+    private struct Key: Hashable {
+        let pet: Entity.ID
+        let layer: Layer
+    }
+
+    /// Часть слоя: фигура, цвет, имя сущности и кусок заглушки, на который её переносить (WearMesh.stubMap).
+    private typealias Piece = (part: WearPart, color: UInt32, name: String, slot: WearSlot)
+
+    private static var shown: [Key: Shown] = [:]
     /// Рамка тела до первой вещи (для режима без костей): потом вещи сами попадут в рамку.
     private static var restBounds: [Entity.ID: BoundingBox] = [:]
+    /// Где был последний снятый клочок (в координатах petJuice) — оттуда BrushFx пускает шерстинки.
+    private static var lastTuft: [Entity.ID: SIMD3<Float>] = [:]
+
+    static let furRootName = "petFur"
 
     /// Надеть на питомца pet (корень из PetModel.load) то, что в worn. То же самое — ничего не делает.
     static func apply(_ worn: [WearSlot: String], to pet: Entity) {
         let key = worn.keys.sorted().map { "\($0.rawValue)=\(worn[$0] ?? "")" }.joined(separator: ",")
-        let state = shown[pet.id] ?? Shown()
-        if shown[pet.id] == nil {
-            if shown.count > 8 { shown.removeAll(); restBounds.removeAll() }
-            shown[pet.id] = state
+        show(.wear, key: key, on: pet) {
+            var out: [Piece] = []
+            for slot in worn.keys.sorted() {
+                guard let id = worn[slot], let info = Wear.info(id) else { continue }
+                for part in WearMesh.parts(info.shape) {
+                    out.append((part, part.accent ? info.accent : info.color, "wear.\(slot.rawValue)", slot))
+                }
+            }
+            return out
+        }
+    }
+
+    /// Клочки шерсти на спине: показаны последние left из total (снимаются от головы к хвосту), фигура по стадии.
+    /// left = 0 — ни одного. Те же числа — ничего не делает.
+    static func applyTufts(left: Int, total: Int, stage: CoatStage, to pet: Entity) {
+        let n = max(total, left)
+        let keep = max(0, left)
+        let key = keep == 0 ? "" : "\(stage.rawValue):\(n):\(keep)"
+        // Сняли клочок в том же сеансе — запомнить, где он был, пока он ещё в сцене.
+        if let state = shown[Key(pet: pet.id, layer: .fur)], let root = state.root, state.key != key,
+           state.total == n, keep < state.keep {
+            let gone = "tuft.\(n - keep - 1)"
+            let pivot = pet.children.first { $0.name == PetModel.pivotName } ?? pet
+            let boxes = root.children.filter { $0.name == gone && $0.isEnabled }
+                .map { $0.visualBounds(relativeTo: pivot) }.filter { $0.extents.y > 0 }
+            if var b = boxes.first {
+                for other in boxes.dropFirst() { b = b.union(other) }
+                lastTuft[pet.id] = b.center
+            }
+        }
+        show(.fur, key: key, on: pet) {
+            let colors = CoatFur.tuftColors(stage)
+            var out: [Piece] = []
+            for i in max(0, n - keep)..<n {
+                for part in CoatFur.tuft(i, of: n, stage: stage) {
+                    out.append((part, part.accent ? colors.tip : colors.main, "tuft.\(i)", .back))
+                }
+            }
+            return out
+        }
+        if let state = shown[Key(pet: pet.id, layer: .fur)] {
+            state.total = n
+            state.keep = keep
+        }
+    }
+
+    /// Где был только что снятый клочок (в координатах petJuice). Отдаёт один раз.
+    static func takeTuftSpot(_ pet: Entity) -> SIMD3<Float>? {
+        lastTuft.removeValue(forKey: pet.id)
+    }
+
+    /// Перестроить слой, если сменился key. Пустой key — слой снят.
+    private static func show(_ layer: Layer, key: String, on pet: Entity, pieces: () -> [Piece]) {
+        let id = Key(pet: pet.id, layer: layer)
+        let state = shown[id] ?? Shown()
+        if shown[id] == nil {
+            if shown.count > 16 { shown.removeAll(); restBounds.removeAll(); lastTuft.removeAll() }
+            shown[id] = state
         }
         guard let body = pet.findEntity(named: PetModel.bodyName) else { return }
         if restBounds[pet.id] == nil { restBounds[pet.id] = body.visualBounds(relativeTo: body) }
-        if state.key == key, state.root?.parent != nil || worn.isEmpty { return }
+        if state.key == key, state.root?.parent != nil || key.isEmpty { return }
         state.key = key
         state.root?.removeFromParent()
         state.root = nil
         state.parts = []
-        guard !worn.isEmpty else { return }
+        guard !key.isEmpty else { return }
+        let list = pieces()
+        guard !list.isEmpty else { return }
 
         let mode = self.mode(body)
         let root = Entity()
-        root.name = rootName
-        for slot in worn.keys.sorted() {
-            guard let id = worn[slot], let info = Wear.info(id) else { continue }
-            for part in WearMesh.parts(info.shape) {
-                guard let e = entity(part, info: info, slot: slot, mode: mode) else { continue }
-                root.addChild(e)
-                switch mode {
-                case .bones(let skin):
-                    if case let (j, pre)? = bonePre(skin, body: body, joint: part.joint) {
-                        state.parts.append((e, j, pre))
-                    } else {
-                        e.isEnabled = false
-                    }
-                case .still:
-                    if let a = fromBounds(restBounds[pet.id]) { e.transform = Transform(matrix: a) }
-                case .stub:
-                    break
+        root.name = layer == .wear ? rootName : furRootName
+        for piece in list {
+            guard let e = entity(piece, mode: mode) else { continue }
+            root.addChild(e)
+            switch mode {
+            case .bones(let skin):
+                if case let (j, pre)? = bonePre(skin, body: body, joint: piece.part.joint) {
+                    state.parts.append((e, j, pre))
+                } else {
+                    e.isEnabled = false
                 }
+            case .still:
+                if let a = fromBounds(restBounds[pet.id]) { e.transform = Transform(matrix: a) }
+            case .stub:
+                break
             }
         }
         switch mode {
@@ -76,13 +147,18 @@ enum PetWear {
         case .still, .stub: body.addChild(root)
         }
         state.root = root
-        step(pet)
+        step(state)
     }
 
     /// Кадр: части за своими костями. Зовётся из PetActSystem после PetRig (взгляд уже записан в кости).
     static func step(_ pet: Entity) {
-        guard let state = shown[pet.id], !state.parts.isEmpty,
-              let skin = state.root?.parent as? ModelEntity else { return }
+        for layer in [Layer.wear, .fur] {
+            if let state = shown[Key(pet: pet.id, layer: layer)] { step(state) }
+        }
+    }
+
+    private static func step(_ state: Shown) {
+        guard !state.parts.isEmpty, let skin = state.root?.parent as? ModelEntity else { return }
         let tr = skin.jointTransforms
         guard let parents = rigParents[skin.id], tr.count == parents.count else { return }
         var cache: [Int: simd_float4x4] = [:]
@@ -213,10 +289,11 @@ enum PetWear {
 
     // MARK: меш
 
-    private static func entity(_ part: WearPart, info: WearInfo, slot: WearSlot, mode: Mode) -> ModelEntity? {
+    private static func entity(_ piece: Piece, mode: Mode) -> ModelEntity? {
+        let part = piece.part
         var positions = part.positions
         if case .stub = mode {
-            let map = WearMesh.stubMap(slot)
+            let map = WearMesh.stubMap(piece.slot)
             positions = positions.map { map.to + ($0 - map.from) * map.scale }
         }
         var d = MeshDescriptor(name: "wear")
@@ -224,8 +301,8 @@ enum PetWear {
         d.normals = MeshBuffers.Normals(part.normals)
         d.primitives = .triangles(part.indices)
         guard let mesh = try? MeshResource.generate(from: [d]) else { return nil }
-        let e = ModelEntity(mesh: mesh, materials: [PetRoom.matteMaterial(part.accent ? info.accent : info.color)])
-        e.name = "wear.\(slot.rawValue)"
+        let e = ModelEntity(mesh: mesh, materials: [PetRoom.matteMaterial(piece.color)])
+        e.name = piece.name
         return e
     }
 }

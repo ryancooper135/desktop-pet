@@ -8,6 +8,7 @@
 // Числа вынесены в static let, чтобы править по скриншоту ui-home.
 
 import UIKit
+import Metal
 @preconcurrency import RealityKit
 
 @MainActor
@@ -20,6 +21,9 @@ enum PetRoom {
     // поэтому камера на ~2.45 м: собака ~37% высоты и ±70% ширины кадра. Ближе — морда уходит за левый край.
     static let cameraEye = SIMD3<Float>(0.06, 0.78, 2.4)
     static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
+    /// Крупный план спины для снимков шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, вдвое ближе и чуть сверху.
+    static let closeEye = SIMD3<Float>(0.05, 0.66, 1.25)
+    static let closeTarget = SIMD3<Float>(0, 0.24, 0)
 
     /// Поворот обёртки питомца по Y для вида 3/4: морда влево к камере, к камере повёрнут левый бок собаки.
     nonisolated static let yaw3q: Float = -0.55
@@ -168,7 +172,9 @@ enum PetRoom {
         let cam = PerspectiveCamera()
         cam.name = "camera"
         cam.camera.fieldOfViewInDegrees = cameraFov
-        cam.look(at: cameraTarget, from: cameraEye, relativeTo: nil)
+        // Только UI-тесты: PET_CAMERA=close — крупный план (в приложении камеры не крутятся).
+        let close = Env.isUITest && Env.value("PET_CAMERA") == "close"
+        cam.look(at: close ? closeTarget : cameraTarget, from: close ? closeEye : cameraEye, relativeTo: nil)
         return cam
     }
 
@@ -260,6 +266,22 @@ enum PetRoom {
     private static var coatBase: [Entity.ID: [any Material]] = [:]
     /// Какой вид шерсти уже стоит на питомце (по корню), чтобы не перекрашивать без нужды.
     private static var coatShown: [Entity.ID: CoatLook] = [:]
+    /// Модели, у меша которых есть наша развёртка под текстуру шерсти.
+    private static var furUV: Set<Entity.ID> = []
+    /// Меши, которым развёртку уже построили: клоны из PetModel.load делят один меш — второй раз не строим.
+    private static var furMeshes: [ObjectIdentifier: MeshResource] = [:]
+    /// Текстуры шерсти «стадия-цвет основы»: каждая строится один раз (CoatFur.pixels), дальше из кэша.
+    private static var furTextures: [String: TextureResource] = [:]
+    /// Текстура повторяется (tiles раз по длине тела) и сглаживается, мипмапы — чтобы издали не рябило.
+    private static let furSampler: MaterialParameters.Texture.Sampler = {
+        let d = MTLSamplerDescriptor()
+        d.sAddressMode = .repeat
+        d.tAddressMode = .repeat
+        d.minFilter = .linear
+        d.magFilter = .linear
+        d.mipFilter = .linear
+        return MaterialParameters.Texture.Sampler(d)
+    }()
 
     /// Запомнить исходные материалы. Звать сразу после matte, пока глаза открыты.
     static func prepareCoat(_ pet: Entity) {
@@ -269,13 +291,92 @@ enum PetRoom {
         var queue: [Entity] = [pet]
         while !queue.isEmpty {
             let e = queue.removeFirst()
-            if let m = e as? ModelEntity, let mats = m.model?.materials { coatBase[m.id] = mats }
+            if let m = e as? ModelEntity, let mats = m.model?.materials {
+                coatBase[m.id] = mats
+                if !furIndices(mats).isEmpty, prepareFurUV(m) { furUV.insert(m.id) }
+            }
             queue += Array(e.children)
         }
     }
 
-    /// Блеск и грязь на материалах шерсти. Только когда вид поменялся — не каждый кадр.
-    /// Пушистость и колтуны требуют геометрии — здесь их нет.
+    /// Развёртка под текстуру шерсти: у shiba.usdz её нет — строим коробочной проекцией (CoatFur.boxUVs) по рамке
+    /// меша и подменяем содержимое меша (скелет и веса те же). Части с готовой развёрткой (коробки заглушки) не трогаем:
+    /// у них своя, по граням. true — у меша наша развёртка, можно класть текстуру.
+    private static func prepareFurUV(_ m: ModelEntity) -> Bool {
+        guard var model = m.model else { return false }
+        let mesh = model.mesh
+        if furMeshes[ObjectIdentifier(mesh)] != nil { return true }
+        let contents = mesh.contents
+        let skinned = !m.jointNames.isEmpty
+        var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
+        for mm in contents.models {
+            for part in mm.parts {
+                for p in part.positions.elements {
+                    lo = simd_min(lo, p)
+                    hi = simd_max(hi, p)
+                }
+            }
+        }
+        guard lo.x < hi.x, lo.y < hi.y, lo.z < hi.z else { return false }
+        var changed = false
+        var models: [MeshResource.Model] = []
+        for var mm in contents.models {
+            var parts: [MeshResource.Part] = []
+            for var part in mm.parts {
+                // Уже с развёрткой или скин без весов (подмена его сломала бы) — как есть.
+                if part.textureCoordinates == nil, !(skinned && part.jointInfluences == nil) {
+                    let uv = CoatFur.boxUVs(positions: part.positions.elements, normals: part.normals?.elements,
+                                            indices: part.triangleIndices?.elements ?? [], lo: lo, hi: hi)
+                    part.textureCoordinates = MeshBuffers.TextureCoordinates(uv)
+                    changed = true
+                }
+                parts.append(part)
+            }
+            mm.parts = MeshPartCollection(parts)
+            models.append(mm)
+        }
+        guard changed else { return false }
+        var next = contents
+        next.models = MeshModelCollection(models)
+        let joints = m.jointNames.count
+        do {
+            try mesh.replace(with: next)
+        } catch {
+            // Не дал заменить на месте — новый меш с тем же содержимым.
+            guard let fresh = try? MeshResource.generate(from: next) else { return false }
+            model.mesh = fresh
+            m.model = model
+            if m.jointNames.count != joints {
+                model.mesh = mesh
+                m.model = model
+                return false
+            }
+            furMeshes[ObjectIdentifier(fresh)] = fresh
+            return true
+        }
+        // Скелет должен остаться тем же, иначе шерсть без текстуры, но живая.
+        guard m.jointNames.count == joints else {
+            try? mesh.replace(with: contents)
+            return false
+        }
+        if furMeshes.count > 8 { furMeshes.removeAll() }
+        furMeshes[ObjectIdentifier(mesh)] = mesh
+        return true
+    }
+
+    /// Текстура шерсти стадии stage для основы base. Из кэша; nil — не собралась (тогда шерсть плоским цветом).
+    private static func furTexture(_ stage: CoatStage, base: UInt32) -> TextureResource? {
+        let key = "\(stage.rawValue)-\(String(base, radix: 16))"
+        if let t = furTextures[key] { return t }
+        guard let cg = furImage(stage: stage, base: base),
+              let tex = try? TextureResource.generate(from: cg, options: .init(semantic: .color)) else { return nil }
+        if furTextures.count > 16 { furTextures.removeAll() }
+        furTextures[key] = tex
+        return tex
+    }
+
+    /// Текстура штрихами по стадии, блеск и грязь на материалах шерсти. Только когда вид поменялся — не каждый кадр.
+    /// Цвет основы запечён в текстуру, грязь — множителем tint (грязная / чистая по каналам). Клочки — PetWear.applyTufts.
     static func applyCoat(_ look: CoatLook, to pet: Entity) {
         if coatShown[pet.id] == look { return }
         coatShown[pet.id] = look
@@ -288,12 +389,19 @@ enum PetRoom {
             guard let m = e as? ModelEntity, let base = coatBase[m.id], var model = m.model,
                   model.materials.count == base.count else { continue }
             var mats = base
+            let textured = furUV.contains(m.id)
             for i in furIndices(base) {
                 guard var pbr = base[i] as? PhysicallyBasedMaterial else { continue }
                 pbr.roughness = .init(floatLiteral: 1 - 0.4 * shine)
                 pbr.specular = .init(floatLiteral: 0.3 * shine)
                 pbr.metallic = .init(floatLiteral: 0)
-                pbr.baseColor = .init(tint: dirtied(pbr.baseColor.tint, mix), texture: pbr.baseColor.texture)
+                let tint = pbr.baseColor.tint
+                if textured, pbr.baseColor.texture == nil, let rgb = hex(tint), let tex = furTexture(look.stage, base: rgb) {
+                    pbr.baseColor = .init(tint: ratio(dirtied(tint, mix), over: tint),
+                                          texture: MaterialParameters.Texture(tex, sampler: furSampler))
+                } else {
+                    pbr.baseColor = .init(tint: dirtied(tint, mix), texture: pbr.baseColor.texture)
+                }
                 mats[i] = pbr
             }
             model.materials = mats
@@ -323,7 +431,35 @@ enum PetRoom {
         return UIColor(red: r + (d.r - r) * k, green: g + (d.g - g) * k, blue: b + (d.b - b) * k, alpha: a)
     }
 
+    /// Цвет 0xRRGGBB (sRGB) из UIColor.
+    private static func hex(_ c: UIColor) -> UInt32? {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard c.getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+        func ch(_ v: CGFloat) -> UInt32 { UInt32((min(max(v, 0), 1) * 255).rounded()) }
+        return ch(r) << 16 | ch(g) << 8 | ch(b)
+    }
+
+    /// Множитель по каналам: во сколько раз c темнее base (не больше 1 — tint только темнит).
+    private static func ratio(_ c: UIColor, over base: UIColor) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        var r0: CGFloat = 0, g0: CGFloat = 0, b0: CGFloat = 0, a0: CGFloat = 0
+        guard c.getRed(&r, green: &g, blue: &b, alpha: &a),
+              base.getRed(&r0, green: &g0, blue: &b0, alpha: &a0) else { return .white }
+        func k(_ v: CGFloat, _ v0: CGFloat) -> CGFloat { v0 > 0.01 ? min(1, max(0, v / v0)) : 1 }
+        return UIColor(red: k(r, r0), green: k(g, g0), blue: k(b, b0), alpha: 1)
+    }
+
     // MARK: Текстуры (чистые функции, без RealityKit)
+
+    /// Шерсть штрихами (CoatFur.pixels) — в картинку sRGB без альфы.
+    nonisolated static func furImage(stage: CoatStage, base: UInt32, size: Int = CoatFur.size) -> CGImage? {
+        let px = CoatFur.pixels(stage: stage, base: base, size: size)
+        guard size > 0, let provider = CGDataProvider(data: Data(px) as CFData) else { return nil }
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        return CGImage(width: size, height: size, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: size * 4,
+                       space: space, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                       provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+    }
 
     /// Шахматка cells×cells двух цветов пола, size×size пикселей. nil — если не создался контекст.
     nonisolated static func checkerImage(size: Int, cells: Int) -> CGImage? {

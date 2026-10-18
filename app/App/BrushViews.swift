@@ -1,5 +1,5 @@
 // «Расчесать» (волна 9): вид. Логика — Brush (Shared), тут жест, полоса прогресса, карточка в листе «Трюки» и
-// колтуны со шерстинками на спине в 3D (BrushFx).
+// шерстинки на спине в 3D (BrushFx). Колтуны и клочки — геометрия шерсти на костях (PetWear.applyTufts, волна 11).
 // Пока чешем: поверх сцены — площадка жеста (BrushLayer), вместо ряда кнопок — полоса «Расчёсано N%» (BrushPanel).
 // Мазок по шерсти: лёгкая хаптика, «шорх», шерстинки и искры над спиной, колтун пропадает (сначала у головы).
 // Против шерсти: пёс дёргается, «😖», мазок не в счёт. Дочесали — отряхнулся, шерсть на стадию лучше.
@@ -261,15 +261,14 @@ struct BrushCard: View {
     }
 }
 
-// MARK: 3D: колтуны и шерстинки
+// MARK: 3D: шерстинки
 
-/// Колтуны — тёмные приплюснутые комочки вдоль спины, шерстинки и искры — на каждый мазок.
-/// Живут в контейнере под petJuice: дышат и пружинят вместе с питомцем. Анимацию скелета не повторяют —
-/// чешем стоящего пса, так что это не заметно.
+/// Шерстинки и искры — на каждый мазок. Сами колтуны и клочки — геометрия на костях спины (PetWear.applyTufts,
+/// CoatFur.tuft): шерстинки летят оттуда, где только что сняли клочок. Живут в контейнере под petJuice: дышат
+/// и пружинят вместе с питомцем.
 @MainActor
 enum BrushFx {
     static let containerName = "brushFx"
-    static let tuftName = "brushTuft"
     /// Линия спины по высоте рамки: верх рамки дают уши и хвост, спина — около 0,68 (подобрано по ui-59: 0,55 — внутри, 0,79 — висят).
     static let backRatio: Float = 0.68
     /// Последний показанный мазок (AppModel.brushPuff): новые — шерстинки.
@@ -280,37 +279,28 @@ enum BrushFx {
         lastPuff = puff
     }
 
-    /// left — колтунов осталось, total — было в начале, puff — счётчик мазков.
+    /// left — клочков осталось, total — было в начале, puff — счётчик мазков. Звать после PetWear.applyTufts.
     static func apply(left: Int, total: Int, puff: Int, reduceMotion: Bool, to pet: Entity) {
+        let removed = PetWear.takeTuftSpot(pet)
+        defer { lastPuff = puff }
+        guard puff > lastPuff, !reduceMotion else { return }
         let pivot = pet.children.first { $0.name == PetModel.pivotName } ?? pet
         let box: Entity
         if let found = pivot.children.first(where: { $0.name == containerName }) {
             box = found
         } else {
-            guard left > 0 || puff != lastPuff else { return }
             box = Entity()
             box.name = containerName
             pivot.addChild(box)
         }
+        // Шерстинки летят оттуда, где только что был клочок; не нашли его — с линии спины, клочков нет — с середины.
         let n = max(total, left)
-        let pts = n > 0 ? spots(count: n, in: pivot) : []
-        let tufts = box.children.filter { $0.name == tuftName }
-        if tufts.count != left {
-            for t in tufts { t.removeFromParent() }
-            if left > 0 {
-                for i in (n - left)..<n { box.addChild(tuft(at: pts[i], seed: i)) }
-            }
-        }
-        if puff > lastPuff, !reduceMotion {
-            // Шерстинки летят оттуда, где только что был колтун; колтунов нет — с середины спины.
-            let i = n - left - 1
-            let at = i >= 0 && i < pts.count ? pts[i] : backPoint(in: pivot)
-            burst(at: at, in: box, big: left == 0 && total > 0)
-        }
-        lastPuff = puff
+        let i = n - left - 1
+        let at = removed ?? (i >= 0 && i < n ? spots(count: n, in: pivot)[i] : backPoint(in: pivot))
+        burst(at: at, in: box, big: left == 0 && total > 0)
     }
 
-    /// Точки колтунов вдоль спины: от холки к хвосту, чуть вразброс по бокам.
+    /// Точки вдоль спины: от холки к хвосту, чуть вразброс по бокам.
     private static func spots(count n: Int, in pivot: Entity) -> [SIMD3<Float>] {
         let b = bounds(in: pivot)
         let y = b.min.y + b.extents.y * backRatio
@@ -333,23 +323,6 @@ enum BrushFx {
         let b = (body ?? pivot).visualBounds(relativeTo: pivot)
         if b.extents.y > 0 { return b }
         return BoundingBox(min: SIMD3<Float>(-0.1, 0, -0.22), max: SIMD3<Float>(0.1, 0.45, 0.3))
-    }
-
-    private static func tuft(at p: SIMD3<Float>, seed: Int) -> Entity {
-        let root = Entity()
-        root.name = tuftName
-        root.position = p
-        let m = SimpleMaterial(color: color(0xa8662f), roughness: 1, isMetallic: false)
-        let main = ModelEntity(mesh: .generateSphere(radius: 0.024), materials: [m])
-        main.scale = SIMD3<Float>(1.25, 0.55, 1.0)
-        root.addChild(main)
-        // Второй комочек сбоку — колтун неровный.
-        let side = ModelEntity(mesh: .generateSphere(radius: 0.015), materials: [m])
-        side.position = SIMD3<Float>(seed % 2 == 0 ? 0.016 : -0.016, 0.004, seed % 3 == 0 ? 0.01 : -0.01)
-        side.scale = SIMD3<Float>(1.1, 0.6, 1.0)
-        root.addChild(side)
-        root.orientation = simd_quatf(angle: Float(seed) * 0.9, axis: SIMD3<Float>(0, 1, 0))
-        return root
     }
 
     /// Три шерстинки и пара искр вверх и в стороны; через 0,7 с исчезают. big — финал: искр больше.

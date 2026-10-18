@@ -2,6 +2,7 @@
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
 // Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
 // Вещи дома в комнате — RoomDecor по AppModel.homeLevels. Надетое из капсулы — PetWear по AppModel.worn.
+// Шерсть — текстура штрихами по стадии (PetRoom.applyCoat), клочки на спине — PetWear.applyTufts (CoatFur).
 // Вечер и ночь — RoomLighting по AppModel.roomSchedule и теме; поверх сцены — виньетка фазы (без касаний).
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
@@ -41,6 +42,9 @@ struct PetStage: View {
         let brushTotal = model?.brushTufts ?? 0
         let brushLeft = model?.brush?.tufts(of: brushTotal) ?? 0
         let brushPuff = model?.brushPuff ?? 0
+        // Клочки шерсти на спине (PetWear.applyTufts): чешем — сколько осталось в сеансе, иначе — по стадии (CoatLook.tufts).
+        let tufts = brushTotal > 0 ? (left: brushLeft, total: brushTotal) : (left: coat?.tufts ?? 0, total: coat?.tufts ?? 0)
+        let tuftStage = coat?.stage ?? .normal
         let schedule = model?.roomSchedule ?? RoomSchedule.standard
         let dark = colorScheme == .dark
         // Надетое из капсулы (PetWear): шапка, шарф, плащ.
@@ -56,6 +60,7 @@ struct PetStage: View {
             if let coat { PetRoom.applyCoat(coat, to: pet) }
             // После prepareCoat: вещи не попадают в материалы шерсти и не перекрашиваются блеском и грязью.
             PetWear.apply(worn, to: pet)
+            PetWear.applyTufts(left: tufts.left, total: tufts.total, stage: tuftStage, to: pet)
             // Подставка с поворотом 3/4: внутри питомец и пятно-тень (пятно не дышит вместе с ним).
             let stand = Entity()
             stand.name = PetModel.standName
@@ -88,6 +93,7 @@ struct PetStage: View {
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
             PetWear.apply(worn, to: pet)
+            PetWear.applyTufts(left: tufts.left, total: tufts.total, stage: tuftStage, to: pet)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {

@@ -7,6 +7,7 @@
 // ev.distress.dirty = 10, конец = шкала из peek), между ними — убыль по правилам ядра (день/ночь питомца,
 // clean_decay_x). Дрёма, прогулка (×2 грязи) и еда, что трогает чистоту, не учитываются: расхождение со следующим
 // якорем размазывается линейно. Стадии — с гистерезисом, автомат прогоняется по той же траектории.
+// Клочки на спине (CoatLook.tufts, волна 11) — по стадии и последнему расчёсыванию, см. CoatFur.
 // Только Foundation и PetCore: гоняется на Linux (app/Package.swift).
 
 import Foundation
@@ -43,6 +44,8 @@ struct CoatLook: Equatable, Sendable {
     /// Колтуны: комки только у самой запущенной шерсти.
     var mats: Double
     var stage: CoatStage
+    /// Клочков на спине в 3D (CoatFur.restTufts): у колтунов и лохматой, пока недавно не расчесали.
+    var tufts: Int = 0
 
     var hintKey: String { stage.lineKey }
 
@@ -97,7 +100,9 @@ enum Coat {
                         dirt: dirt,
                         shine: clamp((0.7 * clamp((v - 0.55) / 0.35) + 0.3 * fresh) * (1 - dirt)),
                         mats: clamp((0.3 - v) / 0.25),
-                        stage: tr.stage)
+                        stage: tr.stage,
+                        tufts: CoatFur.restTufts(tr.stage, brushedAgo: tr.lastBrush.map { tr.end - $0 },
+                                                 cooldownH: Brush.cooldownH))
     }
 
     /// Следующая стадия по значению: вверх — только за границу + h, вниз — только ниже границы − h.
@@ -127,6 +132,8 @@ enum Coat {
         let lastBathEnd: Double?
         let points: [Point]
         let stage: CoatStage
+        /// Последнее расчёсывание в окне (для клочков: только что расчесали — их нет).
+        var lastBrush: Double? = nil
     }
 
     private struct Anchor {
@@ -267,7 +274,8 @@ enum Coat {
             stage = Self.stage(for: v, from: stage)
             points.append(Point(t: q, clean: c, groom: v))
         }
-        return Trace(end: end, cleanNow: cleanNow, lastBathEnd: bathEnds.last, points: points, stage: stage)
+        return Trace(end: end, cleanNow: cleanNow, lastBathEnd: bathEnds.last, points: points, stage: stage,
+                     lastBrush: brushes.last)
     }
 
     static func clamp(_ v: Double) -> Double { v.isNaN ? 0 : min(1, max(0, v)) }

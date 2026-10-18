@@ -18,6 +18,7 @@
 //   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 //   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
+//   ui-71/72        шерсть текстурой крупным планом (PET_CAMERA=close): лохматая с клочками на спине, она же расчёсанная — гладкая
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -292,6 +293,21 @@ final class ScreenshotUITests: XCTestCase {
             snap("ui-62-wear-list-swap")
         }
         app.terminate()
+    }
+
+    /// Шерсть крупным планом (PET_CAMERA=close, полдень): лохматая — штрихи гуще, тёмные пятна, клочки на спине
+    /// (PET_SEED=fur_shaggy). Сравнивать с ui-59/60.
+    @MainActor
+    func testStates71FurShaggy() {
+        shootState("ui-71-fur-shaggy", env: ["PET_SEED": "fur_shaggy", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                             "PET_CAMERA": "close"], marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Тот же щенок после расчёсывания (PET_SEED=fur_brushed): гладкая шерсть, штрихи редкие и светлые, клочков нет.
+    @MainActor
+    func testStates72FurSleek() {
+        shootState("ui-72-fur-sleek", env: ["PET_SEED": "fur_brushed", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                            "PET_CAMERA": "close"], marker: Self.mainMarker, settleFor: 2.5)
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).
