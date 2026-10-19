@@ -354,7 +354,9 @@ struct NameCard: View {
     @State private var avatarFor: String?
 
     private var critical: Bool { snap.alive && snap.level >= 3 }
-    private var avatarKey: String? { model.characterEntry.map { "\($0.id)|\($0.folder.path)" } }
+    /// С меткой установки: пак переставили в ту же папку — ключ другой, старая картинка не показывается,
+    /// аватар снимается заново без перезапуска (волна 15).
+    private var avatarKey: String? { model.characterEntry.map { "\($0.id)|\($0.stamp)|\($0.folder.path)" } }
     private var shownAvatar: UIImage? { avatarKey != nil && avatarFor == avatarKey ? avatar : nil }
 
     var body: some View {

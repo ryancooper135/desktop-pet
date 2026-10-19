@@ -1,6 +1,7 @@
 // Аватар своего персонажа в шапке (волна 14). Свой avatar.png из пака — если есть. Нет — один раз снимаем
 // морду модели вне экрана (SceneKit, SCNRenderer) и кладём снимок в папку пака (.avatar-snapshot.png):
-// дальше шапка берёт его с диска. Новая установка пака подменяет папку целиком — снимок снимется заново.
+// дальше шапка берёт его с диска. Новая установка пака подменяет папку целиком — снимок снимется заново;
+// шапка узнаёт о переустановке в ту же папку по метке установки (CharacterStore.Entry.stamp, волна 15).
 // У Шибы аватара нет: там рисованная мордочка PetFaceView, она меняется с настроением.
 
 #if canImport(SceneKit) && canImport(UIKit)
@@ -33,6 +34,9 @@ enum CharacterAvatar {
             render(model: model, headBone: headBone, tint: tint)
         }.value
         guard let data else { return nil }
+        // Пока снимали, пак переставили в ту же папку (метка установки другая): снимок старой модели
+        // в новую папку не кладём — шапка снимет новую морду сама (ключ задачи в NameCard сменился).
+        guard CharacterStore.stamp(of: e.folder) == e.stamp else { return nil }
         try? data.write(to: out, options: .atomic)
         return thumbnail(out)
     }
