@@ -44,6 +44,10 @@ struct TricksScreen: View {
 
     private func header(learned: Int, total: Int) -> some View {
         VStack(spacing: 4) {
+            HStack {
+                Spacer()
+                SheetCloseButton(id: "tricks.close")
+            }
             Text("Трюки")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)

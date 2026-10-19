@@ -287,9 +287,13 @@ struct AlbumSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Альбом находок")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(PetPalette.ink)
+                    HStack(alignment: .center) {
+                        Text("Альбом находок")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundStyle(PetPalette.ink)
+                        Spacer()
+                        SheetCloseButton(id: "album.close")
+                    }
                     // Без имени: «Отпусти Шиба» не склоняется. Тире не уходит в начало строки.
                     Text(total == 0 ? Presenter.keepDash("Пока пусто. Отпусти на прогулку — принесёт что-нибудь.")
                          : "Принёс \(total) · разных \(Finds.kinds(finds)) из \(Finds.all.count)")
@@ -364,7 +368,7 @@ struct TastesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center) {
                 Text("Вкусы")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
@@ -443,7 +447,7 @@ struct PostcardsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center) {
                 Text("Открытки")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)

@@ -135,13 +135,14 @@ final class FirstMinutesUITests: XCTestCase {
         snap(name)
     }
 
-    /// Провести пальцем по спине Шибы: медленно, слева направо по середине сцены.
+    /// Провести пальцем по спине Шибы: медленно, слева направо почти во всю сцену — засчитывается от 150 pt
+    /// (StrokeTracker.strokePath, та же длина, что дорожка пальца-учителя).
     @MainActor
     private func stroke(_ app: XCUIApplication) {
         let stage = el(app, "pet.stage")
         let base = stage.exists ? stage : app
-        let a = base.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.55))
-        let b = base.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.55))
+        let a = base.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.55))
+        let b = base.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.55))
         a.press(forDuration: 0.1, thenDragTo: b, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 

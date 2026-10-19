@@ -527,11 +527,34 @@ struct ActionBar: View {
             }
             .frame(maxWidth: .infinity)
         }
+        // Волна 21: бейджи поверх контейнера, а не на самих кнопках — внутри GlassEffectContainer стекло
+        // кнопки ложилось поверх своего бейджа, и от «⏱ 2 мин» торчала только верхушка (ui-94-10).
+        // Ячейки повторяют ряд кнопок: те же зазор и ширина.
+        .overlay {
+            HStack(spacing: fit.spacing) {
+                if nap { badgeSlot(.open, dim: false, cell: cell) }
+                badgeSlot(g["feed"] ?? .open, dim: bathing || away, cell: cell)
+                badgeSlot(g["pet"] ?? .open, dim: bathing || away, cell: cell)
+                badgeSlot(g["play"] ?? .open, dim: bathing || away || snap.pose == .sleep, cell: cell)
+                badgeSlot(g["bath"] ?? .open, dim: bathing || away, cell: cell)
+                if lamp { badgeSlot(.open, dim: false, cell: cell) }
+            }
+            .frame(maxWidth: .infinity)
+            .allowsHitTesting(false)
+        }
         .background {
             GeometryReader { g in
                 Color.clear.onChange(of: g.size.width, initial: true) { _, w in width = w }
             }
         }
+    }
+
+    /// Место под бейдж одной кнопки — той же ширины, что кнопка.
+    private func badgeSlot(_ gate: ActGate, dim: Bool, cell: CGFloat) -> some View {
+        Color.clear
+            .frame(width: cell > 0 ? cell : nil)
+            .frame(maxWidth: cell > 0 ? nil : .infinity)
+            .overlay(alignment: .top) { ActBadge(gate: gate, dim: dim) }
     }
 
     /// Подписи кнопок в порядке панели. Должны совпадать с ActButton в body.
@@ -611,7 +634,6 @@ struct ActButton: View {
     let action: () -> Void
 
     @State private var taps = 0
-    @ScaledMetric(relativeTo: .caption2) private var badgeSize: CGFloat = 10
 
     init(title: String, icon: String, kind: String, dim: Bool, gate: ActGate = .open, labelSize: CGFloat = 13,
          action: @escaping () -> Void) {
@@ -659,24 +681,7 @@ struct ActButton: View {
         .buttonStyle(SquishStyle())
         .glassEffect(live ? .regular.tint(ActTint.color(kind).opacity(0.88)).interactive() : .regular.interactive(),
                      in: Capsule())
-        .overlay(alignment: .top) {
-            if !live, let badge {
-                HStack(spacing: 2) {
-                    Image(systemName: gate.reason == "cooldown" ? "clock.fill" : "lock.fill")
-                    Text(badge)
-                }
-                .font(.system(size: min(badgeSize, 13), weight: .bold, design: .rounded))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1.5)
-                .background(Capsule().fill(PetPalette.soft))
-                .offset(y: -7)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            }
-        }
+        // Бейдж причины рисует ActionBar поверх всего ряда (ActBadge): внутри контейнера стекла он прятался.
         .coachHighlight(kind)
         .phaseAnimator(Self.shake, trigger: model.refusals[kind, default: 0], content: { view, x in
             view.offset(x: x)
@@ -686,6 +691,37 @@ struct ActButton: View {
         .accessibilityLabel(Text(title))
         .accessibilityValue(Text(live ? "" : badge.map { "недоступно, \($0)" } ?? "недоступно"))
         .accessibilityIdentifier("act.\(kind)")
+    }
+}
+
+/// Бейдж причины над кнопкой панели: «⏱ 2 мин», «🔒 спит». Пусто, когда кнопка сработает.
+struct ActBadge: View {
+    let gate: ActGate
+    let dim: Bool
+    @ScaledMetric(relativeTo: .caption2) private var badgeSize: CGFloat = 10
+
+    /// Что показать: ядро сказало своё («3 мин», «спит») или вся панель погашена ванной/прогулкой.
+    static func text(_ gate: ActGate, dim: Bool) -> String? {
+        guard dim || !gate.ok else { return nil }
+        return gate.badge ?? (dim ? "позже" : nil)
+    }
+
+    var body: some View {
+        if let badge = Self.text(gate, dim: dim) {
+            HStack(spacing: 2) {
+                Image(systemName: gate.reason == "cooldown" ? "clock.fill" : "lock.fill")
+                Text(badge)
+            }
+            .font(.system(size: min(badgeSize, 13), weight: .bold, design: .rounded))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(Capsule().fill(PetPalette.soft))
+            .offset(y: -7)
+            .accessibilityHidden(true)
+        }
     }
 }
 

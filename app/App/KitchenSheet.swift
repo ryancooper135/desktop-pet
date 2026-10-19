@@ -302,3 +302,25 @@ private struct Wiggle: ViewModifier {
         })
     }
 }
+
+/// Волна 21: крестик «Закрыть» для листов с кругов над панелью. Автомат и Дом открываются только во весь
+/// экран — без ручки сверху новичок не видел, как вернуться к щенку. Тот же вид, что у Кухни и Лавки.
+struct SheetCloseButton: View {
+    let id: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(PetPalette.soft)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(PetPalette.card))
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityLabel(Text("Закрыть"))
+        .accessibilityIdentifier(id)
+    }
+}
