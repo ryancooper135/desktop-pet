@@ -466,8 +466,7 @@ enum BlockDuo {
 
     /// Сменились местные сутки — счётчики с нуля. Назад не откатываемся, как Economy.rollDay.
     static func rollDay(_ f: inout SaveFile, now: Double) {
-        let d = Economy.day(now)
-        guard d > f.blockduoDay else { return }
+        guard let d = DayKey.newer(than: f.blockduoDay, at: now) else { return }
         f.blockduoDay = d
         f.blockduoCoins = 0
         f.blockduoGames = 0
@@ -475,7 +474,7 @@ enum BlockDuo {
 
     /// Монет за «Блок Дуо» сегодня (до смены суток — 0).
     static func coinsToday(_ f: SaveFile, now: Double) -> Int {
-        Economy.day(now) > f.blockduoDay ? 0 : f.blockduoCoins
+        DayKey.today(f.blockduoCoins, day: f.blockduoDay, at: now)
     }
 
     /// Сколько монет ещё можно получить сегодня: свой потолок и общий потолок мини-игр.
@@ -560,10 +559,8 @@ enum MiniGames {
 
     /// Монет за все мини-игры сегодня (у каждой свои сутки в сейве: вчерашнее не в счёт).
     static func coinsToday(_ f: SaveFile, now: Double) -> Int {
-        let d = Economy.day(now)
-        let c = d > f.catchDay ? 0 : f.catchCoins
-        let b = d > f.blockduoDay ? 0 : f.blockduoCoins
-        let z = d > f.zombieDay ? 0 : f.zombieCoins
-        return c + b + z
+        DayKey.today(f.catchCoins, day: f.catchDay, at: now)
+            + DayKey.today(f.blockduoCoins, day: f.blockduoDay, at: now)
+            + DayKey.today(f.zombieCoins, day: f.zombieDay, at: now)
     }
 }

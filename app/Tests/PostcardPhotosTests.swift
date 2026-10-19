@@ -9,17 +9,17 @@ import XCTest
 
 private let ppPet = "pet-photos"
 private let ppTZ = 120
-private let ppDay = Postcards.day(1_760_000_000, tzOffsetMin: ppTZ)
+private let ppDay = DayKey.of(1_760_000_000, tzOffsetMin: ppTZ)
 
 private func ppFile(createdDay: Int = ppDay - 20) -> SaveFile {
-    var f = SaveFile.fresh(now: Postcards.dayStart(createdDay, tzOffsetMin: ppTZ) + 9 * 3600)
+    var f = SaveFile.fresh(now: DayKey.start(createdDay, tzOffsetMin: ppTZ) + 9 * 3600)
     f.petId = ppPet
     f.owner.tzOffsetMin = ppTZ
     return f
 }
 
 private func at(_ d: Int, _ h: Int, _ m: Int = 0) -> Double {
-    Postcards.dayStart(d, tzOffsetMin: ppTZ) + Double(h * 3600 + m * 60)
+    DayKey.start(d, tzOffsetMin: ppTZ) + Double(h * 3600 + m * 60)
 }
 
 private func shot(_ k: MomentKind, _ t: Double, day: Int = ppDay) -> PostcardShot {
@@ -31,7 +31,7 @@ private func shot(_ k: MomentKind, _ t: Double, day: Int = ppDay) -> PostcardSho
 @discardableResult
 private func take(_ f: inout SaveFile, _ k: MomentKind, _ t: Double) -> PostcardPhotos.Plan {
     let p = PostcardPhotos.plan(f, kind: k, now: t)
-    if p.shoots { PostcardPhotos.commit(shot(k, t, day: Postcards.day(t, tzOffsetMin: ppTZ)), in: &f) }
+    if p.shoots { PostcardPhotos.commit(shot(k, t, day: DayKey.of(t, tzOffsetMin: ppTZ)), in: &f) }
     return p
 }
 

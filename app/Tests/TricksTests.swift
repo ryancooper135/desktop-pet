@@ -282,14 +282,20 @@ final class TricksTests: XCTestCase {
         let first = Tricks.attempt(.sit, in: &f, now: late, roll: 0)
         XCTAssertTrue(first.counted)
         XCTAssertGreaterThan(first.love, 0)
-        // Часы перевели на 10 минут назад: метки в будущем — устаревшие, счёт и ласка идут.
+        // Часы перевели на 10 минут назад (волна 14): счёт не сбрасывается и не дарится — метки из будущего
+        // прижаты к «сейчас», перерыв идёт заново. Ждать, пока часы догонят, не нужно.
         let back = Tricks.attempt(.sit, in: &f, now: kT0, roll: 0)
-        XCTAssertTrue(back.counted)
-        XCTAssertEqual(back.progress, 2)
-        XCTAssertGreaterThan(back.love, 0)
-        // А дальше снова как обычно: раньше gap не засчитывается.
+        XCTAssertFalse(back.counted)
+        XCTAssertEqual(back.progress, 1)
+        XCTAssertEqual(f.tricks[.sit].t, kT0)
+        XCTAssertEqual(f.tricks.joyT, kT0)
         XCTAssertFalse(Tricks.attempt(.sit, in: &f, now: kT0 + 1, roll: 0).counted)
-        XCTAssertTrue(Tricks.attempt(.sit, in: &f, now: kT0 + Tricks.gap, roll: 0).counted)
+        let next = Tricks.attempt(.sit, in: &f, now: kT0 + Tricks.gap, roll: 0)
+        XCTAssertTrue(next.counted)
+        XCTAssertEqual(next.progress, 2)
+        // Ласка от трюка — тоже через свой перерыв от «сейчас», а не от метки из будущего.
+        XCTAssertEqual(next.love, 0)
+        XCTAssertGreaterThan(Tricks.attempt(.sit, in: &f, now: kT0 + Tricks.joyGap, roll: 0).love, 0)
     }
 
     private func teachOutcome(_ t: Trick, _ f: inout SaveFile, from: Double) -> TrickOutcome {

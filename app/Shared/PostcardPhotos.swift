@@ -19,7 +19,7 @@ import Foundation
 
 /// Кадр дня: снят в момент kind, лежит файлом file в каталоге кадров.
 struct PostcardShot: Codable, Hashable, Sendable {
-    /// Местный день снимка (Postcards.day по поясу хозяина).
+    /// Местный день снимка (DayKey по поясу хозяина).
     let day: Int
     /// MomentKind.rawValue строкой: тип из будущей версии не теряется.
     let kind: String
@@ -124,7 +124,7 @@ enum PostcardPhotos {
 
     /// Стоит ли снимать момент kind в момент now (сутки — по поясу хозяина).
     static func plan(_ f: SaveFile, kind: MomentKind, now: Double) -> Plan {
-        plan(f.shots, kind: kind, now: now, day: Postcards.day(now, tzOffsetMin: f.owner.tzOffsetMin))
+        plan(f.shots, kind: kind, now: now, day: DayKey.of(now, tzOffsetMin: f.owner.tzOffsetMin))
     }
 
     static func plan(_ book: ShotBook, kind: MomentKind, now: Double, day: Int) -> Plan {

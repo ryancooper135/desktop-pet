@@ -12,7 +12,7 @@ private let eT0: Double = 1_760_000_000
 /// Момент от t0, после которого ещё 6 часов те же местные сутки (пояс машины).
 private func eMidday() -> Double {
     var t = eT0
-    while Economy.day(t) != Economy.day(t + 6 * 3600) { t += 600 }
+    while DayKey.of(t) != DayKey.of(t + 6 * 3600) { t += 600 }
     return t
 }
 

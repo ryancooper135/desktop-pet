@@ -13,9 +13,13 @@ enum Clock {
     static func now() -> Double { Date().timeIntervalSince1970 + offset }
     static func date() -> Date { Date(timeIntervalSince1970: now()) }
 
+    /// Пояс для тестов (перелёт, летнее время). nil — пояс телефона. В приложении не меняется.
+    nonisolated(unsafe) static var zoneOverride: TimeZone?
+    static var zone: TimeZone { zoneOverride ?? .current }
+
     /// Смещение местного времени от UTC в минутах на момент t (учитывает летнее время).
     static func tzOffsetMin(at t: Double) -> Int {
-        TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: t)) / 60
+        zone.secondsFromGMT(for: Date(timeIntervalSince1970: t)) / 60
     }
 
     static func parse(_ raw: String) -> Double? {

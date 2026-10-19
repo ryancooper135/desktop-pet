@@ -56,7 +56,7 @@ enum CapsuleMachine {
     }
 
     static func coinPullsToday(_ f: SaveFile, at t: Double) -> Int {
-        Economy.day(t) > f.econ.daily.day ? 0 : f.econ.daily.coinPulls
+        DayKey.today(f.econ.daily.coinPulls, day: f.econ.daily.day, at: t)
     }
 
     static func pityProgress(_ c: Econ.CapsuleState, _ cfg: EconomyConfig = .shared) -> Double {
@@ -130,7 +130,7 @@ enum CapsuleMachine {
     static func pull(_ f: inout SaveFile, pay: CapsulePay, now: Double,
                      _ cfg: EconomyConfig = .shared) -> Result<CapsulePull, CapsuleRefusal> {
         let c = cfg.capsule
-        Economy.rollDay(&f.econ, day: Economy.day(now))
+        Economy.rollDay(&f.econ, day: DayKey.of(now))
         let price: Int
         switch pay {
         case .ticket:

@@ -117,12 +117,12 @@ enum Memories {
         }
         // Дни вместе: вехи открыток (7, 30, 50…) и дни рождения — пока пёс жив.
         if f.pet.alive {
-            let born = Postcards.day(f.createdT, tzOffsetMin: tz)
-            let today = Postcards.day(f.pet.t, tzOffsetMin: tz)
+            let born = DayKey.of(f.createdT, tzOffsetMin: tz)
+            let today = DayKey.of(f.pet.t, tzOffsetMin: tz)
             let n = today - born
             if n > 0 {
                 for d in milestones(upTo: n) {
-                    book.add(Memory(id: "days.\(d)", t: Postcards.dayStart(born + d, tzOffsetMin: tz), value: d))
+                    book.add(Memory(id: "days.\(d)", t: DayKey.start(born + d, tzOffsetMin: tz), value: d))
                 }
             }
         }
@@ -195,7 +195,7 @@ enum Memories {
             .sorted { ($0.t, $0.id) > ($1.t, $1.id) }
             .compactMap { m in
                 guard let text = text(m, firstTrick: firstTrick) else { return nil }
-                let day = Postcards.day(m.t, tzOffsetMin: f.owner.tzOffsetMin)
+                let day = DayKey.of(m.t, tzOffsetMin: f.owner.tzOffsetMin)
                 return MemoryRow(id: m.id, t: m.t, emoji: emoji(m), text: text, date: Postcards.dateLabel(day))
             }
     }
@@ -254,14 +254,10 @@ enum Memories {
 
     /// «1 год», «2 года», «5 лет».
     static func years(_ n: Int) -> String {
-        "\(n) \(plural(n, "год", "года", "лет"))"
+        "\(n) \(EconText.plural(n, "год", "года", "лет"))"
     }
 
-    static func dayWord(_ n: Int) -> String { plural(n, "день", "дня", "дней") }
-
-    static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        EconText.plural(n, one, few, many)
-    }
+    static func dayWord(_ n: Int) -> String { EconText.plural(n, "день", "дня", "дней") }
 
     // MARK: реплики
 

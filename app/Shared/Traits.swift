@@ -194,19 +194,19 @@ enum Traits {
             guard counted.contains(kind) else { continue }
             if let prev = tally.last[kind], e.t - prev < gap, e.t >= prev { continue }
             tally.last[kind] = e.t
-            let day = String(Postcards.day(e.t, tzOffsetMin: tz))
+            let day = String(DayKey.of(e.t, tzOffsetMin: tz))
             tally.days[day, default: [:]][kind, default: 0] += 1
         }
         tally.seq = f.seq
         // Храним окно и день про запас (сегодня по часам питомца).
-        let today = Postcards.day(f.pet.t, tzOffsetMin: tz)
+        let today = DayKey.of(f.pet.t, tzOffsetMin: tz)
         tally.days = tally.days.filter { (Int($0.key) ?? .min) > today - windowDays - 1 }
         if tally != f.care { f.care = tally }
     }
 
     /// Сколько раз каждого вида за окно до местного дня t (включительно).
     static func counts(_ f: SaveFile, at t: Double) -> [String: Int] {
-        let today = Postcards.day(t, tzOffsetMin: f.owner.tzOffsetMin)
+        let today = DayKey.of(t, tzOffsetMin: f.owner.tzOffsetMin)
         var out: [String: Int] = [:]
         for (k, byKind) in f.care.days {
             guard let d = Int(k), d <= today, d > today - windowDays else { continue }

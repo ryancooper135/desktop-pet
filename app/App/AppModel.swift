@@ -540,7 +540,7 @@ final class AppModel {
             return
         }
         guard let e = file?.econ.lastEarn, e.capped, e.coins == 0, e.kind == a.kind, now - e.t < 10 else { return }
-        let day = Economy.day(now)
+        let day = DayKey.of(now)
         guard capNoticeDay != day else { return }
         capNoticeDay = day
         if let text = EconText.toast(e) { show(text, emoji: "🪙") }
@@ -1433,12 +1433,7 @@ enum AwayBuilder {
         return "Тебя не было \(Int((h / 24).rounded())) дн"
     }
 
-    static func times(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        if m10 == 1 && m100 != 11 { return "раз" }
-        if (2...4).contains(m10) && !(12...14).contains(m100) { return "раза" }
-        return "раз"
-    }
+    static func times(_ n: Int) -> String { EconText.plural(n, "раз", "раза", "раз") }
 
     static func deathText(_ cause: String?, name: String) -> String {
         switch cause {
@@ -1548,8 +1543,8 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 let tz = f.owner.tzOffsetMin
-                let day = Postcards.day(now, tzOffsetMin: tz) - 1
-                let card = Postcards.make(Moment(kind: .play, t: Postcards.dayStart(day, tzOffsetMin: tz) + 17 * 3600 + 20 * 60,
+                let day = DayKey.of(now, tzOffsetMin: tz) - 1
+                let card = Postcards.make(Moment(kind: .play, t: DayKey.start(day, tzOffsetMin: tz) + 17 * 3600 + 20 * 60,
                                                  score: 35), day: day, petId: f.petId, tzOffsetMin: tz)
                 if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
                 photoCardId = card.id
@@ -1559,15 +1554,15 @@ enum LaunchSeed {
                 // Открытка недельной давности: сегодня её последний день (Postcards.isLastDay).
                 PetRunner.catchUp(&f, now: now)
                 let tz = f.owner.tzOffsetMin
-                let day = Postcards.day(now, tzOffsetMin: tz) - Postcards.lifeDays
-                let m = Moment(kind: .bath, t: Postcards.dayStart(day, tzOffsetMin: tz) + 11 * 3600 + 5 * 60, score: 30)
+                let day = DayKey.of(now, tzOffsetMin: tz) - Postcards.lifeDays
+                let m = Moment(kind: .bath, t: DayKey.start(day, tzOffsetMin: tz) + 11 * 3600 + 5 * 60, score: 30)
                 let card = Postcards.make(m, day: day, petId: f.petId, tzOffsetMin: tz)
                 if f.cards.card(card.id) == nil { f.cards.pending.append(card) }
             case "postcard":
                 // Открытка «первый день» за вчера, ещё не разобрана: карточка на главной.
                 PetRunner.catchUp(&f, now: now)
                 let tz = f.owner.tzOffsetMin
-                let day = Postcards.day(now, tzOffsetMin: tz) - 1
+                let day = DayKey.of(now, tzOffsetMin: tz) - 1
                 // Подпись с дефисом («Начало чего-то хорошего»): на снимке видно, что слово не рвётся.
                 // petId здесь только зерно выбора строки — перебираем, пока не выпадет нужная.
                 let m = Moment(kind: .firstDay, t: now - 86400, score: 100)
@@ -1770,9 +1765,9 @@ enum LaunchSeed {
         f.log("home.buy", t: now - 8 * day, key: HomeLine.bed.rawValue, value: 1)
         // Неделя ухода: много игр и прогулок — игривый, остальное ровно.
         let tz = f.owner.tzOffsetMin
-        let today = Postcards.day(now, tzOffsetMin: tz)
+        let today = DayKey.of(now, tzOffsetMin: tz)
         for ago in 1...6 {
-            var t = Postcards.dayStart(today - ago, tzOffsetMin: tz) + 8 * 3600
+            var t = DayKey.start(today - ago, tzOffsetMin: tz) + 8 * 3600
             for (kind, n) in [("play", 3), ("walk", 2), ("pet", 5), ("bath", 1), ("brush", 1)] {
                 for _ in 0..<n {
                     f.log("act.\(kind)", t: t, source: .app, ok: true)

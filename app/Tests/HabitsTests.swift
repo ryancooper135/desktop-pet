@@ -96,7 +96,7 @@ final class HabitsTests: XCTestCase {
 
     func testCommonCapSharedWithSteps() {
         var f = hFile()
-        Economy.rollDay(&f.econ, day: Economy.day(hT0))
+        Economy.rollDay(&f.econ, day: DayKey.of(hT0))
         f.econ.daily.habits = 65  // шаги уже почти выбрали потолок
         let coins0 = f.econ.wallet.coins
         let o = Habits.checkIn(.workout, in: &f, now: hT0, hCfg(cap: 70))
@@ -125,7 +125,7 @@ final class HabitsTests: XCTestCase {
         XCTAssertEqual(o.text, Habits.lines[.wake]?[1], "второй раз всего — следующая фраза")
         XCTAssertEqual(f.habits.today["water"], nil, "вчерашняя вода не тянется")
         XCTAssertEqual(f.habits.total["wake"], 2)
-        XCTAssertEqual(f.habits.day, Economy.day(hT0 + 86400))
+        XCTAssertEqual(f.habits.day, DayKey.of(hT0 + 86400))
         XCTAssertTrue(Habits.everDone(f, .water))
         XCTAssertFalse(Habits.everDone(f, .home))
     }
@@ -136,7 +136,7 @@ final class HabitsTests: XCTestCase {
         // Часы перевели на сутки назад: «вчера» не наступает заново, отметки сегодняшние.
         let o = Habits.checkIn(.home, in: &f, now: hT0, hCfg())
         XCTAssertFalse(o.ok)
-        XCTAssertEqual(f.habits.day, Economy.day(hT0 + 86400))
+        XCTAssertEqual(f.habits.day, DayKey.of(hT0 + 86400))
     }
 
     func testDeadPetGivesNothing() {

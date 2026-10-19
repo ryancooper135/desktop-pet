@@ -481,8 +481,7 @@ enum ZombieRun {
 
     /// Сменились местные сутки — счётчики с нуля. Назад не откатываемся, как Economy.rollDay.
     static func rollDay(_ f: inout SaveFile, now: Double) {
-        let d = Economy.day(now)
-        guard d > f.zombieDay else { return }
+        guard let d = DayKey.newer(than: f.zombieDay, at: now) else { return }
         f.zombieDay = d
         f.zombieCoins = 0
         f.zombieGames = 0
@@ -490,7 +489,7 @@ enum ZombieRun {
 
     /// Монет за эту игру сегодня (до смены суток — 0).
     static func coinsToday(_ f: SaveFile, now: Double) -> Int {
-        Economy.day(now) > f.zombieDay ? 0 : f.zombieCoins
+        DayKey.today(f.zombieCoins, day: f.zombieDay, at: now)
     }
 
     /// Сколько монет ещё можно получить сегодня: свой потолок и общий потолок мини-игр.
@@ -547,12 +546,7 @@ enum ZombieRun {
     }
 
     /// «3 друга», «1 друг», «5 друзей».
-    static func friendsText(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        if m10 == 1 && m100 != 11 { return "\(n) друг" }
-        if (2...4).contains(m10) && !(12...14).contains(m100) { return "\(n) друга" }
-        return "\(n) друзей"
-    }
+    static func friendsText(_ n: Int) -> String { "\(n) \(EconText.plural(n, "друг", "друга", "друзей"))" }
 
     /// Что Шиба скажет в комнате после раунда. Одна игра — одна фраза.
     static func shibaLine(_ r: ZombieResult) -> String {

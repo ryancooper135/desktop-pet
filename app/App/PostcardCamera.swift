@@ -49,7 +49,7 @@ enum PostcardCamera {
             let now = Clock.now()
             guard let f = try? PetStore.shared.read(), f.pet.alive,
                   PostcardPhotos.plan(f, kind: kind, now: now).shoots else { return }
-            let day = Postcards.day(now, tzOffsetMin: f.owner.tzOffsetMin)
+            let day = DayKey.of(now, tzOffsetMin: f.owner.tzOffsetMin)
             let name = PostcardPhotos.fileName(day: day, t: now, kind: kind)
             guard await shoot(to: name) else { return }
             let s = PostcardShot(day: day, kind: kind.rawValue, t: now, score: PostcardPhotos.score(kind), file: name)

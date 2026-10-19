@@ -118,20 +118,22 @@ final class GuideTests: XCTestCase {
         XCTAssertEqual(Guides.roughly(59.3), "около 2,5 суток")
         XCTAssertEqual(Guides.roughly(20), "около 20 ч")
         XCTAssertEqual(Guides.hm(23 * 60 + 30), "23:30")
-        XCTAssertEqual(Guides.plural(1, "сердечко", "сердечка", "сердечек"), "сердечко")
-        XCTAssertEqual(Guides.plural(3, "сердечко", "сердечка", "сердечек"), "сердечка")
-        XCTAssertEqual(Guides.plural(5, "сердечко", "сердечка", "сердечек"), "сердечек")
-        XCTAssertEqual(Guides.plural(11, "сердечко", "сердечка", "сердечек"), "сердечек")
+        XCTAssertEqual(Guides.heartsWord(1), "сердечко")
+        XCTAssertEqual(Guides.heartsWord(3), "сердечка")
+        XCTAssertEqual(Guides.heartsWord(5), "сердечек")
+        XCTAssertEqual(Guides.heartsWord(11), "сердечек")
+        XCTAssertEqual(Guides.heartsWord(21), "сердечко")
+        XCTAssertEqual(Guides.heartsWord(0.5), "сердечка")
+        XCTAssertEqual(Guides.heartsWord(1.5), "сердечка")
         XCTAssertEqual(Guides.joinRu(["а", "б", "в"]), "а, б и в")
     }
 
-    /// Склонение по числу одно на всё приложение (EconText.plural): копии в Guides, Memories, Cooking,
-    /// Habits и Postcards отвечают так же на любых числах, и на отрицательных тоже.
+    /// Склонение по числу одно на всё приложение (EconText.plural): слова в Memories, Cooking, Habits,
+    /// Postcards и ZombieRun отвечают так же на любых числах, и на отрицательных тоже.
     func testPluralHelpersAgreeWithEconText() {
         for n in -130...230 {
-            let want = EconText.plural(n, "a", "b", "c")
-            XCTAssertEqual(Guides.plural(n, "a", "b", "c"), want, "Guides \(n)")
-            XCTAssertEqual(Memories.plural(n, "a", "b", "c"), want, "Memories \(n)")
+            XCTAssertEqual(Memories.dayWord(n), EconText.plural(n, "день", "дня", "дней"), "Memories \(n)")
+            XCTAssertEqual(ZombieRun.friendsText(n), "\(n) " + EconText.plural(n, "друг", "друга", "друзей"), "Zombie \(n)")
             XCTAssertEqual(Cooking.dishes(n), EconText.plural(n, "блюдо", "блюда", "блюд"), "Cooking \(n)")
             XCTAssertEqual(Habits.times(n), EconText.plural(n, "раз", "раза", "раз"), "Habits \(n)")
             XCTAssertEqual(Postcards.daysWord(n), EconText.plural(n, "день", "дня", "дней"), "Postcards \(n)")

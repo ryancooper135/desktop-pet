@@ -304,8 +304,8 @@ final class WalkTests: XCTestCase {
         XCTAssertLessThanOrEqual(home.title.count, LineLimit.notifTitle)
         XCTAssertFalse(home.body.contains("{"), home.body)
         XCTAssertNotEqual(home.body, "Загляни ко мне", "строки walk_home есть в lines.json")
-        let day = NotificationPlanner.localDay(until, o)
-        let sameDay = notes.filter { NotificationPlanner.localDay($0.date.timeIntervalSince1970, o) == day }
+        let day = DayKey.of(until, tzOffsetMin: o.tzOffsetMin)
+        let sameDay = notes.filter { DayKey.of($0.date.timeIntervalSince1970, tzOffsetMin: o.tzOffsetMin) == day }
         XCTAssertEqual(sameDay.map(\.trigger), ["walk_home"], "лимит 1 в местный день")
         XCTAssertEqual(notes.map(\.date), notes.map(\.date).sorted())
     }
