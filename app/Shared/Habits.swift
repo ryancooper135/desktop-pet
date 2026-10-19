@@ -196,7 +196,7 @@ enum Habits {
         PetRunner.catchUp(&f, now: now)
         guard f.pet.alive else {
             return HabitOutcome(habit: h, ok: false, reason: "dead", coins: 0, capped: false, count: 0,
-                                text: "Шибы пока нет — загляни в приложение")
+                                text: PetNames.adapt("Шибы пока нет — загляни в приложение", name: f.petName))
         }
         rollDay(&f.habits, now: now)
         Economy.rollDay(&f.econ, day: Economy.day(now))
@@ -205,7 +205,7 @@ enum Habits {
         let n = min(max(1, times), max(0, rule.perDay - done))
         guard n > 0 else {
             return HabitOutcome(habit: h, ok: false, reason: enoughReason, coins: 0, capped: false, count: done,
-                                text: enoughText(h))
+                                text: PetNames.adapt(enoughText(h), name: f.petName))
         }
         let want = rule.coins * n
         let got = min(want, max(0, cfg.dailyCap - f.econ.daily.habits))
@@ -219,7 +219,7 @@ enum Habits {
         let total = (f.habits.total[h.rawValue] ?? 0) + n
         f.habits.total[h.rawValue] = total
         return HabitOutcome(habit: h, ok: true, reason: nil, coins: got, capped: got < want, count: done + n,
-                            text: greeting(h, n: total))
+                            text: PetNames.adapt(greeting(h, n: total), name: f.petName))
     }
 
     /// Стор не записался.

@@ -42,7 +42,30 @@ enum HomeText {
     }
 
     /// Что делает питомец, для VoiceOver: «Шиба спокоен». Имя уже внутри фразы.
-    static func poseText(_ pose: Pose) -> String {
+    /// Свой персонаж (волна 14) — его имя в именительном и слова без рода: «Мурка отдыхает», а не «спокоен».
+    static func poseText(_ pose: Pose, name: String = PetNames.shiba) -> String {
+        if PetNames.isShiba(name) { return shibaPoseText(pose) }
+        switch pose {
+        case .happy: return "\(name) радуется"
+        case .idle: return "\(name) отдыхает"
+        case .eating: return "\(name) ест"
+        case .loved: return "\(name) жмурится от ласки"
+        case .sleep: return "\(name) спит"
+        case .nap: return "\(name) дремлет"
+        case .bath: return "\(name) моется"
+        case .hungry: return "\(name) хочет есть"
+        case .dirty: return "\(name) в пыли — пора мыться"
+        case .tired: return "\(name) без сил"
+        case .bored: return "\(name) хочет играть"
+        case .lonely: return "\(name) скучает по тебе"
+        case .sulky: return "\(name) дуется"
+        case .critical: return "\(name): совсем плохо"
+        case .dead: return PetNames.gone(name)
+        case .away: return "\(name) гуляет"
+        }
+    }
+
+    private static func shibaPoseText(_ pose: Pose) -> String {
         switch pose {
         case .happy: return "Шиба радуется"
         case .idle: return "Шиба спокоен"
@@ -63,12 +86,10 @@ enum HomeText {
         }
     }
 
-    /// Подпись сцены для VoiceOver. Фраза позы уже называет питомца («Шиба спокоен»),
-    /// поэтому имя спереди только если оно в ней не звучит (раньше выходило «Шиба: Шиба спокоен»).
+    /// Подпись сцены для VoiceOver. Фраза позы уже называет питомца («Шиба спокоен», «Мурка отдыхает»),
+    /// поэтому имя отдельно спереди не ставим (раньше выходило «Шиба: Шиба спокоен»).
     static func stageLabel(name: String, pose: Pose) -> String {
-        let text = poseText(pose)
-        let stem = String(name.prefix(max(1, name.count - 1)))  // «Шиб» ловит и «Шибе», и «Шибы»
-        return name.isEmpty || text.hasPrefix(stem) ? text : "\(name): \(text)"
+        poseText(pose, name: name)
     }
 
     /// Высота листа под содержимое (detent .height): немного запаса на округление,

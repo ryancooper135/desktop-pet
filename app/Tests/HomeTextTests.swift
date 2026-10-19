@@ -110,8 +110,8 @@ final class HomeTextTests: XCTestCase {
     }
 
     func testStageLabelKeepsOtherName() {
-        // Если когда-нибудь имя станет другим, фраза позы его не называет — имя остаётся спереди.
-        XCTAssertEqual(HomeText.stageLabel(name: "Рыжик", pose: .idle), "Рыжик: Шиба спокоен")
+        // Свой персонаж (волна 14): фраза позы сама называет его по имени, без «Шибы» и без двойного имени.
+        XCTAssertEqual(HomeText.stageLabel(name: "Рыжик", pose: .idle), "Рыжик отдыхает")
         XCTAssertEqual(HomeText.stageLabel(name: "", pose: .sleep), "Шиба спит")
     }
 

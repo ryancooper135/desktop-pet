@@ -285,8 +285,9 @@ enum Brush {
     ]
 
     /// Тост в конце: довольная фраза, а если шерсть поднялась на стадию — и новая стадия («· шерсть «Обычный»»).
-    static func doneText(_ out: BrushOutcome) -> String {
-        let line = doneLines[(max(1, out.count) - 1) % doneLines.count]
+    /// name — кто в комнате (SaveFile.petName): у своего персонажа «питомец отряхнулся» (PetNames).
+    static func doneText(_ out: BrushOutcome, name: String = PetNames.shiba) -> String {
+        let line = PetNames.adapt(doneLines[(max(1, out.count) - 1) % doneLines.count], name: name)
         guard out.after.rank > out.before.rank else { return line }
         return "\(line) · шерсть «\(out.after.title)»"
     }

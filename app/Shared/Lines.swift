@@ -213,11 +213,13 @@ struct Lines: Sendable {
         thoughts[key] ?? Thought(icon: "pawprint", text: "…")
     }
 
-    func notification(_ key: String, seed: String, slot: Int, vars: [String: String] = [:]) -> (title: String, body: String) {
+    /// name — кто в комнате (SaveFile.petName): заголовок без своего и реплики под Шибу — под него (PetNames).
+    func notification(_ key: String, seed: String, slot: Int, vars: [String: String] = [:],
+                      name: String = PetNames.shiba) -> (title: String, body: String) {
         if let it = pick("notifications", key, seed: seed, slot: slot, vars: vars, maxLen: LineLimit.notifBody) {
-            return (it.title ?? "Шиба", it.text)
+            return (PetNames.adapt(it.title ?? name, name: name), PetNames.adapt(it.text, name: name))
         }
-        return ("Шиба", "Загляни ко мне")
+        return (name, "Загляни ко мне")
     }
 
     /// Для ленты «Пока тебя не было»: nil — пункт пропустить.

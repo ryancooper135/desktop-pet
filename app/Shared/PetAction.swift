@@ -93,6 +93,11 @@ struct ActOutcome: Hashable, Sendable {
 
 /// Тексты отказов. В lines.json своих refuse_* пока нет.
 enum RefuseText {
+    /// name — кто в комнате (SaveFile.petName): «Мурка больше не с нами» вместо «Шибы больше нет».
+    static func text(_ reason: String?, name: String) -> String {
+        PetNames.adapt(text(reason), name: name)
+    }
+
     static func text(_ reason: String?) -> String {
         switch reason {
         case "dead": return "Шибы больше нет"
