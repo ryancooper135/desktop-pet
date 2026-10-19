@@ -564,7 +564,7 @@ private struct BowlView: View {
 /// Кнопка «Мини-игры» в ряду над панелью, за «Трюками» (волна 12; в волне 9 тут был один мячик): только значок,
 /// по нажатию — меню «Лови мячик» и «Блок Дуо». Седьмой круг в ряд на iPhone Air уже не влезает, поэтому игры
 /// живут под одной кнопкой. Когда играть нельзя (спит, гуляет, устал…) — серая, но нажимается: тост с причиной,
-/// кнопка качается. Пускает обе игры один и тот же CatchGame.gate. Id — open.games, пункты — open.catch и open.blockduo.
+/// кнопка качается. Пускает обе игры один и тот же CatchGame.gate. Id — open.games, пункты — open.catch, open.blockduo и open.zombie.
 struct GamesButton: View {
     @Environment(AppModel.self) private var model
     /// Время снимка: по нему CatchGame.gate.
@@ -605,6 +605,12 @@ struct GamesButton: View {
                         Label(BlockDuoConfig.shared.name, systemImage: "square.grid.3x3.fill")
                     }
                     .accessibilityIdentifier("open.blockduo")
+                    Button {
+                        model.showZombie = true
+                    } label: {
+                        Label(ZombieConfig.shared.name, systemImage: "teddybear.fill")
+                    }
+                    .accessibilityIdentifier("open.zombie")
                 } label: {
                     icon
                 }
@@ -619,7 +625,7 @@ struct GamesButton: View {
         })
         .accessibilityLabel(Text("Мини-игры"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
-        .accessibilityHint(Text("Лови мячик или Блок Дуо вместе с Шибой"))
+        .accessibilityHint(Text("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой"))
         .accessibilityIdentifier("open.games")
     }
 

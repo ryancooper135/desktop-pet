@@ -43,6 +43,8 @@ final class AppModel {
     var showCatch = false
     /// Мини-игра «Блок Дуо» (волна 12, BlockDuoScreen), на весь экран.
     var showBlockDuo = false
+    /// Мини-игра «Щенок против зомби» (волна 13, ZombieRunScreen), на весь экран.
+    var showZombie = false
     /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
     var showHabits = false
     /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
@@ -470,6 +472,23 @@ final class AppModel {
         }
     }
 
+    /// После «Щенок против зомби» (волна 13): так же, как после «Блок Дуо» — прыжок, виляние и фраза про раунд.
+    func cheerZombie(_ r: ZombieResult, toast: Bool) {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.6))
+            guard let self, !Task.isCancelled else { return }
+            if r.played {
+                self.react(ZombieRun.reactKind)
+                self.haptic(.success)
+                SoundKit.shared.play(.yip)
+            }
+            self.speak(ZombieRun.shibaLine(r))
+            if toast, let reward = ZombieRun.rewardText(r) {
+                self.show("Зомби: \(r.score) очков, \(reward)", emoji: "🧟")
+            }
+        }
+    }
+
     /// Мгновенная реакция сцены, до ответа ядра.
     func react(_ kind: String) {
         reaction = Reaction(id: reaction.id + 1, kind: kind, ok: true, reason: nil)
@@ -786,7 +805,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://blockduo, pet://brush, pet://habits, pet://kitchen, pet://characters
+    /// pet://blockduo, pet://zombie, pet://brush, pet://habits, pet://kitchen, pet://characters
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -805,6 +824,7 @@ final class AppModel {
         case "tricks": showTricks = true
         case "catch": showCatch = true
         case "blockduo": showBlockDuo = true
+        case "zombie": showZombie = true
         case "brush": startBrush()
         case "habits": showHabits = true
         case "kitchen":
@@ -828,6 +848,7 @@ final class AppModel {
             showTricks = false
             showCatch = false
             showBlockDuo = false
+            showZombie = false
             showHabits = false
             showKitchen = false
             showCharacters = false
@@ -1217,7 +1238,7 @@ final class AppModel {
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
               !showNeeds, !showSettings, !showAlbum, !showCapsule, !showShop, !showHouse, !showTricks, !showCatch,
-              !showBlockDuo, !showHabits, !showKitchen else { return false }
+              !showBlockDuo, !showZombie, !showHabits, !showKitchen else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true
@@ -1447,6 +1468,7 @@ enum AwayBuilder {
 /// fur_shaggy — сытый щенок с лохматой шерстью и клочками на спине (ui-71); fur_brushed — он же, расчёсанный
 /// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72);
 /// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80);
+/// zombie — бодрый щенок с рекордом «Щенок против зомби» 300 (ui-83/84);
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82)).
 /// Срабатывает один раз за запуск.
@@ -1597,6 +1619,13 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.blockduoBest = max(f.blockduoBest, 1800)
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "zombie":
+                // «Щенок против зомби» (ui-83/84): бодрый щенок, рекорд 300 — на карточке «Играть» виден рекорд.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.zombieBest = max(f.zombieBest, 300)
                 f.seen = f.pet
                 f.lastSeenT = now
             case "fur_shaggy", "fur_brushed":

@@ -33,6 +33,9 @@
 //                   с монетами, ui-80-blockduo-room — после «Готово» Шиба в комнате радуется и говорит
 //   ui-81/82        свои персонажи (PET_SEED=charpack): «Свой персонаж» — список, «Без стойки» с ошибкой красным;
 //                   комната с «Серым Шибой» из папки (клипы переименованы, рост 0,8, серая шерсть)
+//   ui-83/84        «Щенок против зомби» (волна 13, PET_SEED=zombie, PET_ZOMBIE, сид 7): ui-83-games-menu — меню с тремя
+//                   играми, ui-83-zombie-intro — карточка «Играть» с постером, ui-83-zombie-play — раунд на 21-й секунде
+//                   (PS1-коридор, друзья с игрушками); ui-84-zombie-done — итог с монетами, ui-84-zombie-room — Шиба в комнате
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -385,6 +388,53 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     static var blockDuoEnv: [String: String] { ["PET_SEED": "blockduo", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "blockduo"] }
+
+    // MARK: волна 13 — «Щенок против зомби» (ui-83, ui-84)
+
+    /// Меню «Мини-игры» с третьей игрой, потом её карточка «Играть» с постером (Шиба, за спиной зомби в тумане).
+    @MainActor
+    func testStates83ZombieMenu() throws {
+        let app = try shootOptional("ui-83-games-main", env: ["PET_SEED": "zombie", "PET_NOW": Self.noon,
+                                                              "PET_SCHEME": "light"],
+                                    marker: "open.games", keepRunning: true)
+        app.descendants(matching: .any)["open.games"].firstMatch.tap()
+        let item = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "против зомби")).firstMatch
+        _ = item.waitForExistence(timeout: 5)
+        settle(0.8)
+        snap("ui-83-games-menu")
+        if item.exists {
+            item.tap()
+            if app.descendants(matching: .any)["zombie.play"].firstMatch.waitForExistence(timeout: 10) {
+                settle(1.5)
+                snap("ui-83-zombie-intro")
+            }
+        }
+        app.terminate()
+    }
+
+    /// Раунд на 21-й секунде (автопилот, сид 7): коридор PS1 в тумане, друзья с игрушками, «+очки» над последним.
+    @MainActor
+    func testStates83ZombiePlay() throws {
+        try shootOptional("ui-83-zombie-play", env: Self.zombieEnv.merging(["PET_ZOMBIE": "play"]) { $1 },
+                          marker: "zombie.view")
+    }
+
+    /// Итог: раунд сыгран автопилотом до конца — счёт, друзья, монеты. «Готово» — и Шиба радуется в комнате.
+    @MainActor
+    func testStates84ZombieDone() throws {
+        let app = try shootOptional("ui-84-zombie-done", env: Self.zombieEnv.merging(["PET_ZOMBIE": "done"]) { $1 },
+                                    marker: "zombie.result", keepRunning: true)
+        let done = app.descendants(matching: .any)["zombie.done"].firstMatch
+        if done.waitForExistence(timeout: 5) {
+            done.tap()
+            // Экран уезжает, через 0,6 с Шиба подпрыгивает и говорит.
+            settle(1.3)
+            snap("ui-84-zombie-room")
+        }
+        app.terminate()
+    }
+
+    static var zombieEnv: [String: String] { ["PET_SEED": "zombie", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "zombie"] }
 
     // MARK: - Волна 12: свои персонажи (ui-81/82)
 
