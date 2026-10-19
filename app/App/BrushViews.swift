@@ -26,7 +26,7 @@ struct BrushLayer: View {
                     .onEnded { g in ended(g) }
             )
             .accessibilityElement()
-            .accessibilityLabel(Text("Спина Шибы"))
+            .accessibilityLabel(Text(PetNames.adapt("Спина Шибы", name: model.snap.name)))
             .accessibilityValue(Text(model.brush?.text ?? ""))
             .accessibilityHint(Text("Веди пальцем от головы к хвосту"))
             .accessibilityAddTraits(.allowsDirectInteraction)

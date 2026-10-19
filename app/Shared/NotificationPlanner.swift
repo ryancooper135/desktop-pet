@@ -41,7 +41,7 @@ enum NotificationPlanner {
             let day = localDay(p.at, o)
             var vars: [String: String] = ["item": Catalog.name(Catalog.mainFood)]
             if p.trigger == .miss_you { vars["count"] = "\(max(1, Int(((p.at - (f.lastSeenT ?? now)) / 86400).rounded())))" }
-            let text = Lines.shared.notification(p.trigger.rawValue, seed: f.petId, slot: day, vars: vars)
+            let text = Lines.shared.notification(p.trigger.rawValue, seed: f.petId, slot: day, vars: vars, name: f.petName)
             out.append(PlannedNote(
                 id: "\(prefix)\(p.trigger.rawValue).\(Int(p.at))", date: Date(timeIntervalSince1970: p.at),
                 title: String(text.title.prefix(LineLimit.notifTitle)), body: text.body,
@@ -86,7 +86,8 @@ enum NotificationPlanner {
         if let ls = lastSent, localDay(ls, o) == day { return nil }
         let soft: Set<String> = ["low", "absent"]
         if core.contains(where: { localDay($0.at, o) == day && !soft.contains($0.kind) }) { return nil }
-        let text = Lines.shared.notification("walk_home", seed: f.petId, slot: day, vars: ["item": Finds.name(out.find)])
+        let text = Lines.shared.notification("walk_home", seed: f.petId, slot: day, vars: ["item": Finds.name(out.find)],
+                                             name: f.petName)
         return PlannedNote(
             id: "\(prefix)walk_home.\(Int(at))", date: Date(timeIntervalSince1970: at),
             title: String(text.title.prefix(LineLimit.notifTitle)), body: text.body,
@@ -107,7 +108,7 @@ enum NotificationPlanner {
     static func buildNotes(_ f: SaveFile, now: Double) -> [PlannedNote] {
         guard let exp = f.build?.expiresT else { return [] }
         let items: [(h: Double, title: String, body: String)] = [
-            (48, "Подпись кончается", "Через 2 дня приложение перестанет открываться. Переустанови его, \(f.name) подождёт."),
+            (48, "Подпись кончается", "Через 2 дня приложение перестанет открываться. Переустанови его, \(f.petName) подождёт."),
             (24, "Остался день", "Завтра подпись кончится. Переустанови приложение, чтобы не потерять \(f.name)."),
         ]
         return items.compactMap { (it: (h: Double, title: String, body: String)) -> PlannedNote? in

@@ -128,7 +128,7 @@ struct KitchenSheet: View {
                     Text(Cooking.gainsText(r))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.green)
-                    Text(Cooking.stateText(st, r, now: now, cfg) ?? "Из запаса кухни: \(Int(r.pantry))")
+                    Text(Cooking.stateText(st, r, now: now, cfg, name: model.snap.name) ?? "Из запаса кухни: \(Int(r.pantry))")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(ready ? PetPalette.soft : PetPalette.red)
                         .fixedSize(horizontal: false, vertical: true)

@@ -271,14 +271,15 @@ enum Cooking {
     /// Приготовить и дать блюдо. Пишет только в f: шкалы, запас кухни, отметки, журнал, бонус.
     @discardableResult
     static func cook(_ id: String, in f: inout SaveFile, now: Double, _ cfg: CookConfig = .shared) -> CookOutcome {
-        guard let r = cfg.recipe(id) else { return refusal(id, "unknown_item", cfg) }
+        let name = f.petName
+        guard let r = cfg.recipe(id) else { return refusal(id, "unknown_item", cfg, name: name) }
         PetRunner.catchUp(&f, now: now)
         switch state(r, f, now: now, cfg) {
         case .ready: break
-        case .blocked(let why): return refusal(id, why, cfg)
-        case .cooldown: return refusal(id, reasons.cooldown, cfg)
-        case .needsItem: return refusal(id, reasons.noItem, cfg)
-        case .lowPantry: return refusal(id, reasons.pantry, cfg)
+        case .blocked(let why): return refusal(id, why, cfg, name: name)
+        case .cooldown: return refusal(id, reasons.cooldown, cfg, name: name)
+        case .needsItem: return refusal(id, reasons.noItem, cfg, name: name)
+        case .lowPantry: return refusal(id, reasons.pantry, cfg, name: name)
         }
         // Блюдо любимой еды сытнее, нелюбимой — скромнее (тот же множитель, что у кормёжки).
         let x = Tastes.reaction(.food, r.taste, in: f).needX
@@ -325,12 +326,12 @@ enum Cooking {
         f.lastAction = SaveFile.LastAction(kind: reactKind, source: .app, t: now, ok: true, reason: nil)
         if OwnerSleep.counts(.app) { OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin) }
         return CookOutcome(recipe: id, ok: true, reason: nil, gains: gains, coins: coins, openedTaste: opened,
-                           text: dishLine(id, n: total))
+                           text: PetNames.adapt(dishLine(id, n: total), name: f.petName))
     }
 
-    private static func refusal(_ id: String, _ why: String, _ cfg: CookConfig) -> CookOutcome {
+    private static func refusal(_ id: String, _ why: String, _ cfg: CookConfig, name: String) -> CookOutcome {
         CookOutcome(recipe: id, ok: false, reason: why, gains: [:], coins: 0, openedTaste: nil,
-                    text: reasonText(why, cfg))
+                    text: reasonText(why, cfg, name: name))
     }
 
     /// Стор не записался.
@@ -358,7 +359,12 @@ enum Cooking {
                           "Печенье из желудей — Шиба прыгает от радости"],
     ]
 
-    static func reasonText(_ why: String?, _ cfg: CookConfig = .shared) -> String {
+    /// name — кто в комнате (SaveFile.petName): «Ночью кухня закрыта: Мурка спит».
+    static func reasonText(_ why: String?, _ cfg: CookConfig = .shared, name: String = PetNames.shiba) -> String {
+        PetNames.adapt(shibaReasonText(why, cfg), name: name)
+    }
+
+    private static func shibaReasonText(_ why: String?, _ cfg: CookConfig) -> String {
         switch why {
         case reasons.noKitchen: return "Готовить можно на «Кухне шефа»"
         case reasons.enough:
@@ -381,10 +387,11 @@ enum Cooking {
     }
 
     /// Строка под рецептом: что нужно и почему нельзя.
-    static func stateText(_ st: State, _ r: CookRecipe, now: Double, _ cfg: CookConfig = .shared) -> String? {
+    static func stateText(_ st: State, _ r: CookRecipe, now: Double, _ cfg: CookConfig = .shared,
+                          name: String = PetNames.shiba) -> String? {
         switch st {
         case .ready: return nil
-        case .blocked(let why): return reasonText(why, cfg)
+        case .blocked(let why): return reasonText(why, cfg, name: name)
         case .cooldown(let until): return "Плита остывает · \(waitText(until - now).lowercased())"
         case .needsItem(let item): return "Нужно: \(itemName(item)) из капсул"
         case .lowPantry(let have): return "Запас \(have) из \(Int(r.pantry)) — сначала покорми"

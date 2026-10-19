@@ -17,6 +17,9 @@ import SwiftUI
 struct BlockDuoScreen: View {
     @Environment(AppModel.self) private var model
 
+    /// Реплика под Шибу — под того, кто в комнате (свой персонаж, волна 14).
+    private func say(_ s: String) -> String { PetNames.adapt(s, name: model.snap.name) }
+
     private enum Phase: Equatable {
         case intro
         case playing
@@ -125,7 +128,7 @@ struct BlockDuoScreen: View {
                 .accessibilityLabel(Text("Общий счёт: \(game.score)"))
                 .accessibilityIdentifier("blockduo.score")
             GameChip(icon: "pawprint.fill", tint: PetPalette.fur, text: "\(game.shiba)")
-                .accessibilityLabel(Text("Очки Шибы: \(game.shiba)"))
+                .accessibilityLabel(Text(say("Очки Шибы: \(game.shiba)")))
                 .accessibilityIdentifier("blockduo.shiba")
             Spacer(minLength: 0)
             if game.combo > 1 {
@@ -342,7 +345,7 @@ struct BlockDuoScreen: View {
         pinned = nil
         busy = false
         pop = nil
-        status = Self.hint(g)
+        status = say(Self.hint(g))
     }
 
     /// «Ещё 2 фигуры — потом ходит Шиба».
@@ -366,14 +369,14 @@ struct BlockDuoScreen: View {
             await show(turn.mine)
             if turn.dealt {
                 if let s = turn.shiba {
-                    status = "Шиба думает, куда поставить…"
+                    status = say("Шиба думает, куда поставить…")
                     try? await Task.sleep(for: .milliseconds(450))
                     guard !Task.isCancelled else { return }
                     await show(s)
                     shibaMark = Set(s.cells).subtracting(s.cleared)
-                    status = s.lines > 0 ? "Шиба убрал линию! Гав!" : "Шиба поставил свою фигурку"
+                    status = say(s.lines > 0 ? "Шиба убрал линию! Гав!" : "Шиба поставил свою фигурку")
                 } else if turn.shibaSkipped {
-                    status = "Шибе некуда поставить — пропускает ход"
+                    status = say("Шибе некуда поставить — пропускает ход")
                     model.haptic(.light)
                     try? await Task.sleep(for: .milliseconds(500))
                 }
@@ -381,7 +384,7 @@ struct BlockDuoScreen: View {
                 withAnimation(.spring(duration: 0.35, bounce: 0.3)) { shownTray = after.tray }
                 bounce += 1
             } else {
-                status = Self.hint(after)
+                status = say(Self.hint(after))
             }
             shown = after.board
             busy = false
@@ -401,7 +404,7 @@ struct BlockDuoScreen: View {
         model.haptic(m.who == .me ? .light : .medium)
         SoundKit.shared.play(.boop)
         guard !m.cleared.isEmpty else {
-            if m.who == .shiba { showPop(ScorePop(text: "+\(m.gained)", sub: "Шиба", shiba: true)) }
+            if m.who == .shiba { showPop(ScorePop(text: "+\(m.gained)", sub: model.snap.name, shiba: true)) }
             try? await Task.sleep(for: .milliseconds(m.who == .me ? 120 : 350))
             return
         }
@@ -411,7 +414,7 @@ struct BlockDuoScreen: View {
         model.haptic(.success)
         SoundKit.shared.play(.yip)
         var sub: [String] = []
-        if m.who == .shiba { sub.append("Шиба") }
+        if m.who == .shiba { sub.append(model.snap.name) }
         if m.combo > 1 { sub.append("комбо ×\(m.combo)") }
         if m.perfect { sub.append("чистое поле!") }
         showPop(ScorePop(text: "+\(m.gained)", sub: sub.isEmpty ? nil : sub.joined(separator: " · "), shiba: m.who == .shiba))
@@ -642,6 +645,7 @@ private struct TraySlot: View {
 
 /// «Играть»: правила в две строки, рекорд, сколько монет ещё дадут сегодня.
 private struct BlockIntroCard: View {
+    @Environment(AppModel.self) private var model
     let gate: String?
     let best: Int
     let left: Int
@@ -655,11 +659,11 @@ private struct BlockIntroCard: View {
                 PieceView(form: BlockShape("X\nX\nX", 1), color: 4, cell: 20, gap: 2)
             }
             .accessibilityHidden(true)
-            Text("Собирай линии вместе с Шибой")
+            Text(PetNames.adapt("Собирай линии вместе с Шибой", name: model.snap.name))
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
-            Text("Тащи фигуры на поле. Полная строка или столбец исчезают. После каждых трёх фигур свою ставит Шиба — счёт общий.")
+            Text(PetNames.adapt("Тащи фигуры на поле. Полная строка или столбец исчезают. После каждых трёх фигур свою ставит Шиба — счёт общий.", name: model.snap.name))
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
@@ -696,6 +700,7 @@ private struct BlockIntroCard: View {
 
 /// Итог: заголовок, общий счёт, кто сколько, линии и комбо, награда, «Ещё раз» и «Готово».
 private struct BlockDoneCard: View {
+    @Environment(AppModel.self) private var model
     let result: BlockDuoResult
     let again: Bool
     let start: () -> Void
@@ -723,7 +728,7 @@ private struct BlockDoneCard: View {
                 .accessibilityIdentifier("blockduo.final")
             HStack(spacing: 10) {
                 GamePill(icon: "hand.point.up.left.fill", tint: PetPalette.accent, text: "Ты \(result.mine.formatted())")
-                GamePill(icon: "pawprint.fill", tint: PetPalette.fur, text: "Шиба \(result.shiba.formatted())")
+                GamePill(icon: "pawprint.fill", tint: PetPalette.fur, text: "\(model.snap.name) \(result.shiba.formatted())")
             }
             Text("Линий \(result.lines) · лучшее комбо ×\(max(result.maxCombo, 1)) · рекорд \(result.best)")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -739,7 +744,7 @@ private struct BlockDoneCard: View {
                     .accessibilityIdentifier("blockduo.reward")
             }
             if result.played {
-                Text("Шибе было весело!")
+                Text(PetNames.adapt("Шибе было весело!", name: model.snap.name))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(PetPalette.green)
             }

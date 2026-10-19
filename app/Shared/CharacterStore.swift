@@ -20,7 +20,31 @@ struct CharacterStore: Sendable {
         var name: String { config?.name ?? id }
         var ok: Bool { config != nil && check.ok }
         var modelURL: URL? { config.map { folder.appendingPathComponent(CharacterPack.modelName($0)) } }
+
+        /// Аватар для шапки (волна 14): avatar.png из пака, иначе снимок морды, отрисованный приложением
+        /// один раз (avatarCacheURL). nil — ни того ни другого: шапка рисует мордочку Шибы, пока снимка нет.
+        var avatarURL: URL? {
+            let fm = FileManager.default
+            let own = folder.appendingPathComponent(CharacterStore.avatarName)
+            if fm.fileExists(atPath: own.path) { return own }
+            let cache = avatarCacheURL
+            return fm.fileExists(atPath: cache.path) ? cache : nil
+        }
+
+        /// Свой avatar.png в паке — снимок не нужен.
+        var hasOwnAvatar: Bool {
+            FileManager.default.fileExists(atPath: folder.appendingPathComponent(CharacterStore.avatarName).path)
+        }
+
+        /// Куда кладём снимок морды. С точки: при переустановке из «Файлов» не копируется (install пропускает
+        /// скрытые), а вместе со старой папкой уходит — новая модель снимается заново.
+        var avatarCacheURL: URL { folder.appendingPathComponent(CharacterStore.avatarCacheName) }
     }
+
+    /// Необязательная картинка пака для шапки.
+    static let avatarName = "avatar.png"
+    /// Снимок морды, отрисованный приложением (CharacterAvatar).
+    static let avatarCacheName = ".avatar-snapshot.png"
 
     static var standard: CharacterStore {
         let env = ProcessInfo.processInfo.environment
@@ -105,32 +129,94 @@ struct CharacterStore: Sendable {
         }
     }
 
+    /// Удалить пак: сначала переименовать в «.trash-…» — из списка он пропадает целиком и сразу, — потом стереть.
+    /// Не стёрлось до конца — хвост уберёт recover. Переименовать не вышло — ошибка, пак на месте.
     func delete(_ id: String) throws {
-        guard CharacterPack.isSafeFileName(id) else { return }
+        guard Self.isPackName(id) else { return }
+        let fm = FileManager.default
         let folder = root.appendingPathComponent(id, isDirectory: true)
-        if FileManager.default.fileExists(atPath: folder.path) {
-            try FileManager.default.removeItem(at: folder)
+        guard fm.fileExists(atPath: folder.path) else { return }
+        let trash = root.appendingPathComponent("\(Self.trashPrefix)\(UUID().uuidString)", isDirectory: true)
+        do {
+            try fm.moveItem(at: folder, to: trash)
+        } catch {
+            throw CharacterPackError("Не удалился: \(error.localizedDescription)")
         }
+        try? fm.removeItem(at: trash)
     }
 
-    /// Положить пак целиком: копия во временную папку рядом, потом на место. Сбой — старый пак не тронут.
+    /// Положить пак целиком: копия во временную папку «.incoming-…» рядом, потом подмена переименованиями.
+    /// Старый пак на время подмены уходит в «.old-<uuid>.<id>»; не встал новый — старый возвращается на место.
+    /// Сбой посреди копирования (кончилось место, файл не читается) — временная папка стирается, старый пак цел.
+    /// Убили между переименованиями — recover при следующей установке или открытии списка вернёт старый.
     @discardableResult
     func place(id: String, fill: (URL) throws -> Void) throws -> Entry {
+        guard Self.isPackName(id) else { throw CharacterPackError("Плохое имя папки персонажа: \(id)") }
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
-        let tmp = root.appendingPathComponent(".incoming-\(UUID().uuidString)", isDirectory: true)
+        recover()
+        let tmp = root.appendingPathComponent("\(Self.incomingPrefix)\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+        func fail(_ error: Error) -> Error {
+            try? fm.removeItem(at: tmp)
+            return (error as? CharacterPackError) ?? CharacterPackError("Не скопировалось: \(error.localizedDescription)")
+        }
+        do { try fill(tmp) } catch { throw fail(error) }
+        let dest = root.appendingPathComponent(id, isDirectory: true)
+        var backup: URL?
+        if fm.fileExists(atPath: dest.path) {
+            let b = root.appendingPathComponent("\(Self.oldPrefix)\(UUID().uuidString).\(id)", isDirectory: true)
+            do { try fm.moveItem(at: dest, to: b) } catch { throw fail(error) }
+            backup = b
+        }
         do {
-            try fill(tmp)
-            let dest = root.appendingPathComponent(id, isDirectory: true)
-            if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
             try fm.moveItem(at: tmp, to: dest)
         } catch {
-            try? fm.removeItem(at: tmp)
-            throw (error as? CharacterPackError) ?? CharacterPackError("Не скопировалось: \(error.localizedDescription)")
+            if let b = backup { try? fm.moveItem(at: b, to: dest) }
+            throw fail(error)
         }
+        if let b = backup { try? fm.removeItem(at: b) }
         guard let e = entry(id) else { throw CharacterPackError("Не скопировалось") }
         return e
+    }
+
+    // MARK: хвосты прерванных установок и удалений
+
+    static let incomingPrefix = ".incoming-"
+    static let oldPrefix = ".old-"
+    static let trashPrefix = ".trash-"
+
+    /// Имя папки пака: безопасное и не служебное (служебные начинаются с точки).
+    static func isPackName(_ id: String) -> Bool {
+        CharacterPack.isSafeFileName(id) && !id.hasPrefix(".")
+    }
+
+    /// «.incoming-…» (недокопированное) и «.trash-…» (недостёртое) — стереть; «.old-<uuid>.<id>» — вернуть
+    /// на место, если пака <id> нет (подмену прервали), иначе стереть. Всё зовётся с главного потока
+    /// (AppModel), поэтому чужое копирование посреди работы не заденет. Возвращает, сколько хвостов разобрано.
+    @discardableResult
+    func recover() -> Int {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: root.path) else { return 0 }
+        var n = 0
+        for name in names.sorted() {
+            let url = root.appendingPathComponent(name, isDirectory: true)
+            if name.hasPrefix(Self.incomingPrefix) || name.hasPrefix(Self.trashPrefix) {
+                try? fm.removeItem(at: url)
+                n += 1
+            } else if name.hasPrefix(Self.oldPrefix) {
+                let rest = name.dropFirst(Self.oldPrefix.count)
+                let id = rest.firstIndex(of: ".").map { String(rest[rest.index(after: $0)...]) } ?? ""
+                let dest = root.appendingPathComponent(id, isDirectory: true)
+                if Self.isPackName(id), !fm.fileExists(atPath: dest.path) {
+                    try? fm.moveItem(at: url, to: dest)
+                } else {
+                    try? fm.removeItem(at: url)
+                }
+                n += 1
+            }
+        }
+        return n
     }
 
     private func checkSize(_ bytes: Int) throws {

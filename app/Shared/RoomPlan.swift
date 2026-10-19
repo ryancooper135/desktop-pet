@@ -91,6 +91,19 @@ enum RoomPlan {
         var width: Float { maxX - minX }
         var depth: Float { maxZ - minZ }
 
+        /// Точки по периметру (по 5 на сторону): не накрывает ли их пятно питомца.
+        func outline() -> [P] {
+            var out: [P] = []
+            for i in 0...4 {
+                let t = Float(i) / 4
+                out.append(P(minX + width * t, minZ))
+                out.append(P(minX + width * t, maxZ))
+                out.append(P(minX, minZ + depth * t))
+                out.append(P(maxX, minZ + depth * t))
+            }
+            return out
+        }
+
         func intersects(_ o: Rect) -> Bool {
             minX < o.maxX && o.minX < maxX && minZ < o.maxZ && o.minZ < maxZ
         }
@@ -144,15 +157,19 @@ enum RoomPlan {
     /// Предел высоты предметов перед ковром (проверка — RoomDecorTests.testPlayIsLow по рамке сцены).
     static let playMaxHeight: Float = 0.07
 
-    /// Что стоит на полу при этих уровнях (лежанка отдельно — она под собакой).
-    static func floorItems(_ l: Levels) -> [(line: HomeLine, rect: Rect)] {
-        var out: [(HomeLine, Rect)] = []
+    /// Что стоит на полу при этих уровнях (лежанка отдельно — она под собакой). Места подобраны под Шибу;
+    /// у своего персонажа (body) вещь, на которую он наступал бы или в которую упирался бы мяч, не ставится
+    /// (Zone.clear): комната без неё, зато питомец не проходит сквозь холодильник. У Шибы стоит всё.
+    static func floorItems(_ l: Levels, body: PetBody = .shiba) -> [(line: HomeLine, rect: Rect)] {
+        var out: [(line: HomeLine, rect: Rect)] = []
         if l.kitchen > 0 { out.append((.kitchen, kitchen)) }
         if l.bath > 0 { out.append((.bath, bath)) }
         if l.play > 0 { out.append((.play, playBasket)) }
         if l.play > 1 { out.append((.play, playCenter)) }
         if l.play > 2 { out.append((.play, playSlide)) }
-        return out
+        guard body != .shiba else { return out }
+        let zone = Zone(body)
+        return out.filter { zone.clear($0.rect) }
     }
 
     // MARK: лежанка
@@ -246,6 +263,121 @@ enum RoomPlan {
         static let knockTo = P(0.096, -0.958)
         static let flyCurve = P(0.34, -0.10)
         static let backCurve = P(0.30, -0.35)
+    }
+
+    // MARK: зона питомца под его размер (волна 14)
+
+    /// Площадка в кадре — копия ChoreoPath.Area и playArea: трапеция по z, x на краях линейно.
+    struct Area: Sendable {
+        var nearZ: Float, nearMinX: Float, nearMaxX: Float
+        var farZ: Float, farMinX: Float, farMaxX: Float
+
+        func xRange(_ z: Float) -> (min: Float, max: Float) {
+            let t = (nearZ - z) / (nearZ - farZ)
+            return (nearMinX + (farMinX - nearMinX) * t, nearMaxX + (farMaxX - nearMaxX) * t)
+        }
+
+        /// Как ChoreoPath.Area.clamp: z между краями, x не ближе inset к краю (не влезает — середина).
+        func clamp(_ p: P, inset: Float) -> P {
+            let z = min(max(p.z, farZ), nearZ)
+            let r = xRange(z)
+            let lo = r.min + inset, hi = r.max - inset
+            return P(lo <= hi ? min(max(p.x, lo), hi) : (r.min + r.max) / 2, z)
+        }
+    }
+
+    static let playArea = Area(nearZ: 0.35, nearMinX: -0.27, nearMaxX: 0.25,
+                               farZ: -1.0, farMinX: -0.48, farMaxX: 0.37)
+
+    /// Где ходит питомец с этим телом и куда летает мяч — те же формулы, что в ChoreoPath, с поправкой
+    /// на длину и ширину (PetBody из рамки модели). Zone(.shiba) совпадает с Keep (RoomPlanTests),
+    /// Zone(body) с ChoreoPath при том же body — RoomDecorTests на macOS. clear — с теми же запасами,
+    /// что проверяют тесты Шибы.
+    struct Zone: Sendable {
+        var halfLength: Float, halfWidth: Float
+        var bowlUnderSnoutLocal: P, dropLocal: P
+        var playTurnAt: P, playRunTo: P, ballFar: P, knockTo: P
+
+        init(_ body: PetBody = .shiba) {
+            let len = Float(body.length), wid = Float(body.width)
+            halfLength = Keep.petHalfLength * len
+            halfWidth = Keep.petHalfWidth * wid
+            bowlUnderSnoutLocal = P(0, 0.30 * len)
+            dropLocal = P(0, 0.36 * len)
+            let reach = (halfLength * halfLength + halfWidth * halfWidth).squareRoot()
+            playTurnAt = RoomPlan.playArea.clamp(P(-0.04, -0.30), inset: reach)
+            ballFar = RoomPlan.playArea.clamp(P(0.08, -0.88), inset: Keep.ballRadius)
+            let d = ballFar - playTurnAt
+            let dir = d.length > 0 ? d * (1 / d.length) : P(0, -1)
+            playRunTo = RoomPlan.playArea.clamp(ballFar - dir * (0.30 * len), inset: reach)
+            knockTo = RoomPlan.playArea.clamp(ballFar + dir * 0.08, inset: Keep.ballRadius)
+        }
+
+        var reachMax: Float { (halfLength * halfLength + halfWidth * halfWidth).squareRoot() }
+        var walkTurnAt: P { Keep.walkTurnAt }
+        var walkOffstage: P { Keep.walkOffstage }
+
+        /// Путь мяча в игре (центры): вылет, откат, возврат.
+        func ballPath(steps: Int = 24) -> [P] {
+            var out: [P] = []
+            for i in 0...steps {
+                let t = Float(i) / Float(steps)
+                out.append(RoomPlan.bezier(Keep.ballHome, Keep.flyCurve, ballFar, t))
+                out.append(ballFar + (knockTo - ballFar) * t)
+                out.append(RoomPlan.bezier(knockTo, Keep.backCurve, Keep.ballHome, t))
+            }
+            return out
+        }
+
+        /// Пятно питомца в p с поворотом yaw содержит точку q с запасом pad (как RoomPlan.petCovers).
+        func covers(at p: P, yaw: Float, point q: P, pad: Float) -> Bool {
+            let d = q - p
+            let fwd = P(sin(yaw), cos(yaw))
+            let along = d.x * fwd.x + d.z * fwd.z
+            let across = d.x * fwd.z - d.z * fwd.x
+            return abs(along) <= halfLength + pad && abs(across) <= halfWidth + pad
+        }
+
+        /// Позы (точка и поворот) прогулки и игры по формулам PetChoreo; смягчение не важно — сетка.
+        func poses(steps n: Int = 20) -> [(P, Float)] {
+            let y0 = Keep.yaw3q
+            let yawOut = RoomPlan.yaw(toward: walkOffstage - walkTurnAt)
+            let yawIn = RoomPlan.yaw(toward: P(0, 0) - walkOffstage)
+            let yawRun = RoomPlan.yaw(toward: ballFar - playTurnAt)
+            let yawBack = RoomPlan.yaw(toward: P(0, 0) - playRunTo)
+            var out: [(P, Float)] = []
+            for i in 0...n {
+                let s = Float(i) / Float(n)
+                out.append((walkTurnAt * s, y0 + (yawOut - y0) * s))
+                out.append((walkTurnAt + (walkOffstage - walkTurnAt) * s, yawOut))
+                out.append((walkOffstage * (1 - s), yawIn))
+                out.append((P(0, 0), yawIn + (y0 - yawIn) * s))
+                out.append((playTurnAt * s, y0 + (yawRun - y0) * s))
+                out.append((playTurnAt + (playRunTo - playTurnAt) * s, yawRun))
+                out.append((playRunTo, yawRun + (yawBack - yawRun) * s))
+                out.append((playRunTo * (1 - s), yawBack))
+                out.append((P(0, 0), yawBack + (y0 - yawBack) * s))
+            }
+            return out
+        }
+
+        /// Вещь на полу в r не мешает: не у миски (дома и под мордой), не у мяча и его пути, не там, куда
+        /// ложится находка, не под пятном питомца ни в одной позе и не в его размахе там, где он разворачивается.
+        func clear(_ r: Rect) -> Bool {
+            if r.distance(to: Keep.bowlHome) <= Keep.bowlRadius + 0.04 { return false }
+            if r.distance(to: RoomPlan.toRoom(bowlUnderSnoutLocal)) <= Keep.bowlRadius + 0.04 { return false }
+            if r.distance(to: Keep.ballHome) <= Keep.ballRadius + 0.1 { return false }
+            if r.distance(to: RoomPlan.toRoom(dropLocal)) <= 0.1 { return false }
+            for p in ballPath() where r.distance(to: p) <= Keep.ballRadius + 0.03 { return false }
+            for turn in [P(0, 0), walkTurnAt, playTurnAt, playRunTo] where r.distance(to: turn) <= reachMax + 0.04 {
+                return false
+            }
+            let edge = r.outline()
+            for (p, a) in poses() {
+                for q in edge where covers(at: p, yaw: a, point: q, pad: 0.04) { return false }
+            }
+            return true
+        }
     }
 
     /// Квадратичная Безье — как PetChoreo.bezier.

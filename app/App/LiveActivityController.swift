@@ -41,11 +41,13 @@ enum LiveActivityController {
                                       staleDate: Date(timeIntervalSince1970: staleT - Clock.offset))
 
         let tooOld = f.island.startedT.map { now - $0 > restartAfter } ?? true
-        if running.isEmpty || (tooOld && allowStart) {
+        // Имя в острове задаётся при запуске: сменили персонажа (волна 14) — перезапускаем при открытии.
+        let renamed = running.contains { $0.attributes.name != f.petName }
+        if running.isEmpty || ((tooOld || renamed) && allowStart) {
             guard allowStart, systemEnabled else { return }
             for a in running { await a.end(nil, dismissalPolicy: .immediate) }
             do {
-                let activity = try Activity.request(attributes: PetAttributes(name: f.name), content: content, pushType: nil)
+                let activity = try Activity.request(attributes: PetAttributes(name: f.petName), content: content, pushType: nil)
                 let id = activity.id
                 _ = try? PetStore.shared.mutate { (g: inout SaveFile) -> Void in
                     g.island.startedT = now

@@ -11,6 +11,8 @@ import UIKit
 /// Какие уровни сейчас стоят в комнате.
 struct RoomDecorShown: Component {
     var levels: RoomPlan.Levels
+    /// Под какое тело расставлены (волна 14): у крупного своего персонажа часть вещей не встаёт.
+    var body: PetBody = .shiba
 }
 
 /// Что стоит на полке вещиц (волна 11).
@@ -29,17 +31,18 @@ enum RoomDecor {
     static let rootName = "roomDecor"
     private static var registered = false
 
-    /// Поставить вещи по уровням. Те же уровни — ничего не делает (зовётся из update на каждый пересчёт вью).
+    /// Поставить вещи по уровням. Те же уровни и тело — ничего не делает (зовётся из update на каждый пересчёт вью).
+    /// body — тело питомца в комнате (ChoreoPath.body): вещи, которые ему мешали бы, не ставятся (RoomPlan.floorItems).
     /// true — вещи перестроены: новым деталям нужен текущий свет комнаты (RoomLighting).
     @discardableResult
-    static func apply(_ levels: RoomPlan.Levels, to room: Entity) -> Bool {
+    static func apply(_ levels: RoomPlan.Levels, body: PetBody = ChoreoPath.body, to room: Entity) -> Bool {
         registerOnce()
         let old = room.children.first(where: { $0.name == rootName })
-        if old?.components[RoomDecorShown.self]?.levels == levels { return false }
+        if let shown = old?.components[RoomDecorShown.self], shown.levels == levels, shown.body == body { return false }
         old?.removeFromParent()
         if levels == RoomPlan.Levels() { return old != nil }
-        let root = build(levels)
-        root.components.set(RoomDecorShown(levels: levels))
+        let root = build(levels, body: body)
+        root.components.set(RoomDecorShown(levels: levels, body: body))
         room.addChild(root)
         return true
     }
@@ -53,15 +56,21 @@ enum RoomDecor {
         registered = true
     }
 
-    static func build(_ l: RoomPlan.Levels) -> Entity {
+    /// Вещи по уровням. Что на полу — только то, что RoomPlan.floorItems оставил для этого тела:
+    /// у Шибы всё, у крупного своего персонажа кухня, ванна или часть игрового угла могут не встать.
+    static func build(_ l: RoomPlan.Levels, body: PetBody = .shiba) -> Entity {
         let root = Entity()
         root.name = rootName
-        if l.kitchen > 0 { root.addChild(kitchen(l.kitchen)) }
-        if l.bath > 0 { root.addChild(bath(l.bath)) }
+        let floor = RoomPlan.floorItems(l, body: body).map(\.rect)
+        let fits = { (r: RoomPlan.Rect) in floor.contains(r) }
+        if l.kitchen > 0, fits(RoomPlan.kitchen) { root.addChild(kitchen(l.kitchen)) }
+        if l.bath > 0, fits(RoomPlan.bath) { root.addChild(bath(l.bath)) }
         if l.window { root.addChild(window(yard: l.yard, kennel: l.kennel)) }
         if l.bed > 0 { root.addChild(bed(l.bed)) }
         if l.bed >= 2 { root.addChild(canopy(l.bed)) }
-        if l.play > 0 { root.addChild(play(l.play)) }
+        if l.play > 0, floor.contains(where: { [RoomPlan.playBasket, RoomPlan.playCenter, RoomPlan.playSlide].contains($0) }) {
+            root.addChild(play(l.play, fits: fits))
+        }
         return root
     }
 
@@ -476,24 +485,27 @@ enum RoomDecor {
 
     /// 1 — корзина игрушек, 2 — + туннель, 3 — батут вместо туннеля и горка. Всё ниже playMaxHeight
     /// (RoomDecorTests.testPlayIsLow): мяч на батуте, кость в корзине и верх ската — с запасом в пару мм.
-    static func play(_ level: Int) -> Entity {
+    /// fits — встаёт ли вещь на своё место (RoomPlan.floorItems под тело питомца); у Шибы — все.
+    static func play(_ level: Int, fits: (RoomPlan.Rect) -> Bool = { _ in true }) -> Entity {
         let g = group("decor.play")
         let C = DecorColors.self
-        // Корзина справа: плетёная, игрушки торчат.
-        let b = RoomPlan.playBasket.center
-        part(cyl(0.042, 0.045), C.wicker, [b.x, 0.021, b.z], in: g)
-        part(cyl(0.008, 0.048), C.wicker, [b.x, 0.04, b.z], in: g, shade: 0.8)
-        part(ball(0.018), C.toyRed, [b.x - 0.016, 0.048, b.z - 0.006], in: g)
-        part(ball(0.015), C.toyBlue, [b.x + 0.02, 0.046, b.z + 0.008], in: g)
-        let bone = group("bone", in: g)
-        bone.position = [b.x + 0.004, 0.05, b.z - 0.012]
-        bone.orientation = turn(0.5, axisZ)
-        part(box(0.036, 0.009, 0.009), C.bone, .zero, in: bone)
-        for ex: Float in [-0.019, 0.019] {
-            part(ball(0.007), C.bone, [ex, 0, 0], in: bone)
+        if fits(RoomPlan.playBasket) {
+            // Корзина справа: плетёная, игрушки торчат.
+            let b = RoomPlan.playBasket.center
+            part(cyl(0.042, 0.045), C.wicker, [b.x, 0.021, b.z], in: g)
+            part(cyl(0.008, 0.048), C.wicker, [b.x, 0.04, b.z], in: g, shade: 0.8)
+            part(ball(0.018), C.toyRed, [b.x - 0.016, 0.048, b.z - 0.006], in: g)
+            part(ball(0.015), C.toyBlue, [b.x + 0.02, 0.046, b.z + 0.008], in: g)
+            let bone = group("bone", in: g)
+            bone.position = [b.x + 0.004, 0.05, b.z - 0.012]
+            bone.orientation = turn(0.5, axisZ)
+            part(box(0.036, 0.009, 0.009), C.bone, .zero, in: bone)
+            for ex: Float in [-0.019, 0.019] {
+                part(ball(0.007), C.bone, [ex, 0, 0], in: bone)
+            }
         }
         let m = RoomPlan.playCenter.center
-        if level == 2 {
+        if level == 2, fits(RoomPlan.playCenter) {
             // Туннель вдоль x: цилиндр наполовину в полу, полосатый, тёмные лазы по концам.
             let r: Float = 0.042, seg: Float = 0.045
             for (i, hex) in [C.tunnelBlue, C.tunnelYellow, C.tunnelBlue].enumerated() {
@@ -504,7 +516,7 @@ enum RoomDecor {
                     .orientation = turn(.pi / 2, axisZ)
             }
         }
-        if level >= 3 {
+        if level >= 3, fits(RoomPlan.playCenter) {
             // Батут: ножки, синяя рама, тёмная сетка.
             for k in 0..<4 {
                 let a = Float.pi / 4 + Float(k) * .pi / 2
@@ -513,6 +525,8 @@ enum RoomDecor {
             part(cyl(0.01, 0.064), C.trampFrame, [m.x, 0.04, m.z], in: g)
             part(cyl(0.012, 0.052), C.trampMat, [m.x, 0.041, m.z], in: g)
             part(ball(0.011), C.toyRed, [m.x + 0.012, 0.057, m.z - 0.01], in: g)
+        }
+        if level >= 3, fits(RoomPlan.playSlide) {
             // Горка слева: площадка-лесенка и скат к собаке.
             let s = RoomPlan.playSlide
             let sz = s.center.z

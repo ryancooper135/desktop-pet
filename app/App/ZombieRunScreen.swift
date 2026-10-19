@@ -221,7 +221,7 @@ struct ZombieRunScreen: View {
 
     @ViewBuilder
     private var hint: some View {
-        let text = round.t < 5 ? "Веди пальцем — Шиба сам кидает игрушки"
+        let text = round.t < 5 ? PetNames.adapt("Веди пальцем — Шиба сам кидает игрушки", name: model.snap.name)
             : (round.canBark ? "Шкала полная — гавкни!" : ZombieRun.friendsText(round.friends))
         Text(text)
             .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -589,6 +589,7 @@ private struct ZombiePoster: View {
 
 /// «Играть»: постер, правила, рекорд, сколько монет ещё дадут сегодня.
 private struct ZombieIntroCard: View {
+    @Environment(AppModel.self) private var model
     let poster: CGImage?
     let gate: String?
     let best: Int
@@ -602,7 +603,7 @@ private struct ZombieIntroCard: View {
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
-            Text("Веди Шибу пальцем — он сам кидает игрушки. Попал — зомби стал другом. Друзья копят «Гав!»: лай отгоняет всех рядом. Дошёл до Шибы — обслюнявил, минус сердечко.")
+            Text(PetNames.adapt("Веди Шибу пальцем — он сам кидает игрушки. Попал — зомби стал другом. Друзья копят «Гав!»: лай отгоняет всех рядом. Дошёл до Шибы — обслюнявил, минус сердечко.", name: model.snap.name))
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
@@ -640,6 +641,7 @@ private struct ZombieIntroCard: View {
 
 /// Итог: постер с друзьями, заголовок, счёт, друзья и сердечки, награда, «Ещё раз» и «Готово».
 private struct ZombieDoneCard: View {
+    @Environment(AppModel.self) private var model
     let poster: CGImage?
     let result: ZombieResult
     let again: Bool
@@ -680,7 +682,7 @@ private struct ZombieDoneCard: View {
                     .accessibilityIdentifier("zombie.reward")
             }
             if result.played {
-                Text("Шибе было весело!")
+                Text(PetNames.adapt("Шибе было весело!", name: model.snap.name))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(PetPalette.green)
             }

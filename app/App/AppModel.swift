@@ -204,7 +204,7 @@ final class AppModel {
                 return (report, paused)
             }
             if let report = result.report, away == nil { away = report }
-            if result.paused { show("Пока подпись не работала, время для \(snap.name) стояло") }
+            if result.paused { show("Пока подпись не работала, время в комнате стояло") }
         } catch {
             storeError = error.localizedDescription
         }
@@ -687,10 +687,30 @@ final class AppModel {
     private func noteCharacter(_ id: String?) {
         character = id
         characterEntry = id.flatMap { CharacterStore.standard.entry($0) }
+        syncCharacterName()
     }
 
+    /// Имя активного пака — в сохранение (SaveFile.characterName): шапка, виджет, остров и уведомления пак
+    /// не читают. Нужна и для сохранений волн 12–13, где имени ещё нет, и после переустановки с новым именем.
+    private func syncCharacterName() {
+        guard let f = file, let id = f.character, let e = characterEntry, e.id == id, e.ok,
+              f.characterName != e.name else { return }
+        let name = e.name
+        guard let g = try? PetStore.shared.mutate({ (g: inout SaveFile) -> SaveFile in
+            if g.character == id { g.characterName = name }
+            return g
+        }) else { return }
+        file = g
+        snap = Presenter.make(g, at: Clock.now(), reactionWindow: Self.reactionWindow)
+        Task { await AppActions.shared.afterChange() }
+    }
+
+    /// Список паков. Сначала разбираем хвосты прерванной установки или удаления (убили посреди копирования):
+    /// недокопированное стираем, старый пак из «.old-…» возвращаем на место.
     func reloadCharacterPacks() {
-        characterPacks = CharacterStore.standard.list()
+        let store = CharacterStore.standard
+        store.recover()
+        characterPacks = store.list()
     }
 
     /// Сделать персонажа активным (nil — вернуть Шибу). Пак с ошибками не ставим — причина тостом.
@@ -703,8 +723,10 @@ final class AppModel {
         do {
             try PetStore.shared.mutate { (f: inout SaveFile) -> Void in
                 f.character = entry?.id
+                f.characterName = entry?.name
             }
             refresh()
+            Task { await AppActions.shared.afterChange() }
             show(entry.map { "В комнате — \($0.name)" } ?? "Снова Шиба", emoji: "🐾")
         } catch {
             show(RefuseText.text("store"), ok: false)
@@ -744,22 +766,43 @@ final class AppModel {
         }
     }
 
+    /// Удалить пак. Выбранный — сначала вернуть Шибу (даже если стереть потом не выйдет: наполовину
+    /// стёртого в сцену не ставим), так что сбой посреди удаления не оставит сохранение со ссылкой в пустоту.
     func deleteCharacter(_ id: String) {
-        if id == character { setCharacter(nil) }
+        let wasActive = id == character || file?.character == id
+        if wasActive {
+            _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+                f.character = nil
+                f.characterName = nil
+            }
+            refresh()
+            noteCharacter(nil)
+            Task { await AppActions.shared.afterChange() }
+        }
+        var failed: Error?
         do {
             try CharacterStore.standard.delete(id)
         } catch {
-            show("Не удалился: \(error.localizedDescription)", ok: false)
+            failed = error
         }
         reloadCharacterPacks()
+        if let failed {
+            show((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)", ok: false)
+        } else if wasActive {
+            show("Удалён. Снова Шиба", emoji: "🐾")
+        }
     }
 
     /// Сцена не смогла поставить своего персонажа и показала Шибу. Выбор снимаем, чтобы не ругаться на каждом
     /// запуске; пак остаётся в списке — его можно поправить и поставить заново.
     func characterFailed(_ reason: String) {
         let name = characterEntry?.name ?? "Свой персонаж"
-        _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.character = nil }
+        _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+            f.character = nil
+            f.characterName = nil
+        }
         refresh()
+        Task { await AppActions.shared.afterChange() }
         show("\(name) не загрузился: \(reason). Вернул Шибу.", ok: false)
     }
 
@@ -1005,7 +1048,7 @@ final class AppModel {
             lastDelta = ["love": love]
             popDelta(lastDelta)
         }
-        show(Brush.doneText(out), emoji: "✨")
+        show(Brush.doneText(out, name: snap.name), emoji: "✨")
         Task { await AppActions.shared.afterChange() }
     }
 
@@ -1362,8 +1405,8 @@ enum AwayBuilder {
         if s.died {
             let cause = s.events.last(where: { $0.kind == "death" })?.key
             cards.append(AwayReport.Card(id: "death", icon: "heart.slash",
-                                         text: deathText(cause, name: f.name)))
-            return AwayReport(id: "away-\(Int(now))", greet: "\(f.name) больше нет",
+                                         text: deathText(cause, name: f.petName)))
+            return AwayReport(id: "away-\(Int(now))", greet: PetNames.gone(f.petName),
                               subtitle: subtitle(s.awayH), cards: cards,
                               cta: "Можно начать заново с новым щенком.", died: true)
         }
@@ -1436,6 +1479,15 @@ enum AwayBuilder {
     static func times(_ n: Int) -> String { EconText.plural(n, "раз", "раза", "раз") }
 
     static func deathText(_ cause: String?, name: String) -> String {
+        // Свой персонаж (волна 14): род имени не знаем — фразы без «был» и «дождался».
+        if !PetNames.isShiba(name) {
+            switch cause {
+            case "starve": return "Слишком долго без еды."
+            case "dirty": return "Слишком долго без мытья."
+            case "toska": return "Слишком долго без тебя — тоска взяла своё."
+            default: return "Помощь не успела."
+            }
+        }
         switch cause {
         case "starve": return "\(name) слишком долго был голодным."
         case "dirty": return "\(name) слишком долго был грязным."
@@ -1673,6 +1725,7 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
                 f.character = seedCharacters()
+                f.characterName = f.character.flatMap { CharacterStore.standard.entry($0)?.name }
                 f.seen = f.pet
                 f.lastSeenT = now
             case "items":

@@ -118,6 +118,86 @@ final class RoomPlanTests: XCTestCase {
         }
     }
 
+    // MARK: зона под размер питомца (волна 14)
+
+    private func near(_ a: P, _ b: P, _ what: String, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(a.x, b.x, accuracy: 1e-3, what, file: file, line: line)
+        XCTAssertEqual(a.z, b.z, accuracy: 1e-3, what, file: file, line: line)
+    }
+
+    private func body(_ length: Double, _ width: Double) -> PetBody {
+        PetBody(height: length, length: length, width: width)
+    }
+
+    /// Зона Шибы — те же точки, что Keep: формулы копии сходятся с выверенными числами.
+    func testZoneOfShibaIsKeep() {
+        let z = RoomPlan.Zone(.shiba)
+        XCTAssertEqual(z.halfLength, K.petHalfLength)
+        XCTAssertEqual(z.halfWidth, K.petHalfWidth)
+        XCTAssertEqual(z.reachMax, K.petReachMax, accuracy: 1e-6)
+        near(z.bowlUnderSnoutLocal, K.bowlUnderSnoutLocal, "миска у морды")
+        near(z.dropLocal, K.dropLocal, "находка")
+        near(z.playTurnAt, K.playTurnAt, "разворот игры")
+        near(z.playRunTo, K.playRunTo, "пробежка игры")
+        near(z.ballFar, K.ballFar, "мяч далеко")
+        near(z.knockTo, K.knockTo, "мяч после толчка")
+        XCTAssertEqual(z.poses().count, petPoses().count)
+        for (a, b) in zip(z.poses(), petPoses()) {
+            near(a.0, b.0, "поза")
+            XCTAssertEqual(a.1, b.1, accuracy: 2e-3, "поворот: Keep округлён до мм")
+        }
+        for (a, b) in zip(z.ballPath(), RoomPlan.ballPath()) { near(a, b, "мяч") }
+    }
+
+    func testShibaKeepsEveryItem() {
+        for l in allLevels {
+            XCTAssertEqual(RoomPlan.floorItems(l, body: .shiba).map(\.rect), RoomPlan.floorItems(l).map(\.rect))
+        }
+        let z = RoomPlan.Zone(.shiba)
+        for (line, r) in RoomPlan.floorItems(.all(RoomPlan.maxLevel)) {
+            XCTAssertTrue(z.clear(r), "\(line): у Шибы всё на местах")
+        }
+    }
+
+    /// Мелкий персонаж ходит там же, где Шиба, и ничего не теряет.
+    func testSmallBodyKeepsEveryItem() {
+        let full = RoomPlan.floorItems(.all(RoomPlan.maxLevel)).count
+        for k in [0.5, 0.7, 0.9] {
+            XCTAssertEqual(RoomPlan.floorItems(.all(RoomPlan.maxLevel), body: body(k, k)).count, full, "×\(k)")
+        }
+    }
+
+    /// Крупный — длиннее и шире: игровой угол перед ковром оказывается в его размахе дома и не ставится.
+    func testBigBodyDropsItemsInItsWay() {
+        let full = RoomPlan.floorItems(.all(RoomPlan.maxLevel))
+        let big = RoomPlan.floorItems(.all(RoomPlan.maxLevel), body: body(2, 2))
+        XCTAssertLessThan(big.count, full.count)
+        XCTAssertFalse(big.contains { $0.rect == RoomPlan.playCenter }, "батут в размахе крупного дома")
+        // Остальное — по проверкам зазоров для его тела (как тесты Шибы выше, но с его размером).
+        let z = RoomPlan.Zone(body(2, 2))
+        for (line, r) in big {
+            XCTAssertGreaterThan(r.distance(to: P(0, 0)), z.reachMax + 0.04, "\(line) в размахе дома")
+            XCTAssertGreaterThan(r.distance(to: RoomPlan.toRoom(z.bowlUnderSnoutLocal)), K.bowlRadius + 0.04, "\(line) у миски")
+            for (p, yaw) in z.poses() {
+                for q in r.outline() {
+                    XCTAssertFalse(z.covers(at: p, yaw: yaw, point: q, pad: 0.04), "\(line) под питомцем в \(p)")
+                }
+            }
+        }
+    }
+
+    /// Чем больше тело, тем вещей не больше; длинный и узкий (такса) теряет не больше, чем такой же длинный и широкий.
+    func testItemsShrinkWithBody() {
+        var last = Int.max
+        for k in stride(from: 0.5, through: 2.0, by: 0.1) {
+            let n = RoomPlan.floorItems(.all(RoomPlan.maxLevel), body: body(k, k)).count
+            XCTAssertLessThanOrEqual(n, last, "×\(k)")
+            last = n
+            let narrow = RoomPlan.floorItems(.all(RoomPlan.maxLevel), body: body(k, 1)).count
+            XCTAssertGreaterThanOrEqual(narrow, n, "×\(k) узкий")
+        }
+    }
+
     // MARK: лежанка
 
     func testBedUnderPetNotUnderBowlOrBall() {

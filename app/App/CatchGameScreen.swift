@@ -347,6 +347,7 @@ private struct IntroCard: View {
 
 /// Итог: очки, заголовок, награда, «Ещё раз» и «Готово».
 private struct DoneCard: View {
+    @Environment(AppModel.self) private var model
     let result: CatchResult
     let again: Bool
     let start: () -> Void
@@ -389,7 +390,7 @@ private struct DoneCard: View {
                     .accessibilityIdentifier("catch.reward")
             }
             if result.played {
-                Text("Шибе было весело!")
+                Text(PetNames.adapt("Шибе было весело!", name: model.snap.name))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(PetPalette.green)
             }
@@ -625,7 +626,7 @@ struct GamesButton: View {
         })
         .accessibilityLabel(Text("Мини-игры"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
-        .accessibilityHint(Text("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой"))
+        .accessibilityHint(Text(PetNames.adapt("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой", name: model.snap.name)))
         .accessibilityIdentifier("open.games")
     }
 

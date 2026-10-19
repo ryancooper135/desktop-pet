@@ -34,7 +34,7 @@ final class AppActions {
         // Кулдаун ласки из приложения уже виден анимацией и иконкой — без тоста.
         let quiet = source == .app && a == .pet && out.reason == "cooldown"
         if !out.ok && source != .steps && !quiet {
-            model.show(RefuseText.text(out.reason), ok: false)
+            model.show(RefuseText.text(out.reason, name: model.snap.name), ok: false)
         }
         await afterChange()
         // Разрешение на уведомления спрашиваем не на старте, а после первой удачной кормёжки.

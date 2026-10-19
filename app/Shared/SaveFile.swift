@@ -122,6 +122,17 @@ struct SaveFile: Codable, Sendable {
     /// Волна 12. Свой персонаж вместо Шибы (CharacterStore, id папки), nil — Шиба. nil в файл не пишется,
     /// новому щенку переходит: это выбор хозяина, как вещи.
     var character: String?
+    /// Волна 14. Имя своего персонажа из его character.json — для шапки, виджета, острова и реплик, когда
+    /// character задан. Пишется при выборе и переустановке пака (виджет пак не читает: модель ему не нужна).
+    /// nil в файл не пишется, переходит щенку вместе с character.
+    var characterName: String?
+
+    /// Как зовут того, кто в комнате: имя своего персонажа, если он выбран, иначе name («Шиба»).
+    var petName: String {
+        guard character != nil,
+              let n = characterName?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty else { return name }
+        return n
+    }
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -180,7 +191,7 @@ struct SaveFile: Codable, Sendable {
         case shelf, toy, shop
         case habits
         case cooking
-        case character
+        case character, characterName
     }
 
     init(from decoder: Decoder) throws {
@@ -246,6 +257,7 @@ struct SaveFile: Codable, Sendable {
         habits = (try? c.decodeIfPresent(HabitLog.self, forKey: .habits)) ?? HabitLog()
         cooking = (try? c.decodeIfPresent(CookLog.self, forKey: .cooking)) ?? CookLog()
         character = try? c.decodeIfPresent(String.self, forKey: .character)
+        characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -299,6 +311,7 @@ struct SaveFile: Codable, Sendable {
         if !habits.isEmpty { try c.encode(habits, forKey: .habits) }
         if !cooking.isEmpty { try c.encode(cooking, forKey: .cooking) }
         try c.encodeIfPresent(character, forKey: .character)
+        try c.encodeIfPresent(characterName, forKey: .characterName)
     }
 }
 

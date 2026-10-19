@@ -186,10 +186,12 @@ enum Presenter {
             main = .pet
         }
 
+        // Свой персонаж (волна 14): его имя в шапке, виджете и острове; реплики под Шибу — под него (PetNames).
+        let name = f.petName
         return PetSnapshot(
-            t: t, name: f.name, pose: pose, mood: mood.rawValue,
+            t: t, name: name, pose: pose, mood: mood.rawValue,
             want: want, wantIcon: thought?.icon, wantText: thought?.text, urgent: urgent,
-            line: line, islandLine: islandLine,
+            line: PetNames.adapt(line, name: name), islandLine: PetNames.adapt(islandLine, name: name),
             hearts: s.hearts, heartsMax: PetEngine.maxHearts(s, r), level: level, main: main,
             timer: timer(s, r, o, at: t, upcoming: upcoming), needs: s.needs, alive: s.alive,
             buildDaysLeft: f.build.map { Int(((($0.expiresT - t) / 86400)).rounded(.up)) },
