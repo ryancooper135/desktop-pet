@@ -279,7 +279,7 @@ final class ScreenshotUITests: XCTestCase {
         // Низ листа: шаги «Автоматизации» и кнопка «Открыть «Команды»».
         try shootOptional("ui-75-habits-howto", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
                                                       "PET_OPEN": "habits"],
-                          marker: "habits.openShortcuts", scrollIn: "habits.screen")
+                          marker: "habits.openShortcuts", lazyIn: "habits.screen")
     }
 
     /// Конец расчёсывания (волна 11): тот же сеанс, что ui-60, но снимок раньше — посреди встряхивания и прыжка.
@@ -361,17 +361,30 @@ final class ScreenshotUITests: XCTestCase {
 
     /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.
     /// scrollIn — контейнер, который листаем вверх, пока маркер не станет видимым.
+    /// lazyIn — ленивый экран (Form): ждём его, листаем всё приложение, пока маркер не появится.
     @MainActor
     @discardableResult
     func shootOptional(_ name: String, env: [String: String], marker: String, scrollIn: String? = nil,
-                       keepRunning: Bool = false) throws -> XCUIApplication {
+                       lazyIn: String? = nil, keepRunning: Bool = false) throws -> XCUIApplication {
         let app = Self.makeApp()
         for (k, v) in env { app.launchEnvironment[k] = v }
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         acceptSystemAlerts()
         let element = app.descendants(matching: .any)[marker]
-        let found = element.waitForExistence(timeout: 20)
+        var found: Bool
+        if let lazyIn {
+            // Нижние строки Form создаются лениво: маркера может не быть, пока не прокрутишь.
+            _ = app.descendants(matching: .any)[lazyIn].firstMatch.waitForExistence(timeout: 20)
+            settle(1.0)
+            for _ in 0..<5 where !(element.exists && element.isHittable) {
+                app.swipeUp()
+                settle(0.6)
+            }
+            found = element.exists
+        } else {
+            found = element.waitForExistence(timeout: 20)
+        }
         if found, let scrollIn {
             let box = app.descendants(matching: .any)[scrollIn]
             for _ in 0..<4 where !element.isHittable {
