@@ -9,21 +9,10 @@ import Foundation
 
 /// Затухающая пружина, решённая точно на шаге dt (без ошибки интегратора, стабильна при любом dt).
 enum PetSpring {
-    /// Новые (x, v) через dt. zeta ≥ 1 считается как критическое демпфирование.
+    /// Новые (x, v) через dt. zeta ≥ 1 считается как критическое демпфирование. Формула — SoftSpring (Shared):
+    /// её же гоняют логические тесты отклика на тап (TapWiggleTests).
     static func step(x: Float, v: Float, target: Float, omega: Float, zeta: Float, dt: Float) -> (Float, Float) {
-        let z = min(max(zeta, 0), 1)
-        let x0 = x - target
-        if z >= 0.999 {
-            let e = exp(-omega * dt)
-            let c = v + omega * x0
-            return (target + e * (x0 + c * dt), e * (v - omega * c * dt))
-        }
-        let a = z * omega
-        let wd = omega * (1 - z * z).squareRoot()
-        let e = exp(-a * dt)
-        let cs = cos(wd * dt), sn = sin(wd * dt)
-        let b = (v + a * x0) / wd
-        return (target + e * (x0 * cs + b * sn), e * (v * cs - (a * b + x0 * wd) * sn))
+        SoftSpring.step(x: x, v: v, target: target, omega: omega, zeta: zeta, dt: dt)
     }
 
     /// Скорость толчка, после которого пружина из покоя отклонится на peak.

@@ -42,6 +42,8 @@
 //                   имя пака «Серый Шиба» и аватар-снимок морды; ui-86-char-header-card — плашка крупно
 //   ui-87           главный экран на крупном шрифте (волна 15): ui-87-dynamic-type — Dynamic Type AccessibilityL
 //                   (-UIPreferredContentSizeCategoryName); подписи кнопок и реплика не должны вылезать и рваться
+//   ui-88           тап по питомцу крупно (волна 18, PET_CAMERA=face): ui-88-tap-before — покой, ui-88-tap-mid — через
+//                   ~0,3 с после тапа слева (голова чуть набок, уши назад), ui-88-tap-after — снова покой
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -517,6 +519,34 @@ final class ScreenshotUITests: XCTestCase {
         settle(1.5)
         snap("ui-87-dynamic-type")
         XCTAssertTrue(found, "ui-87: нет реплики на главном экране")
+        app.terminate()
+    }
+
+    // MARK: - Волна 18: тап по питомцу (ui-88)
+
+    /// Тап по сцене слева от центра (PET_CAMERA=face, полдень): -before — морда в покое, -mid — через ~0,3 с голова
+    /// чуть склонилась влево (не больше 7°), уши отведены, взгляд на палец не дальше ~21°; -after — через 1,6 с снова покой.
+    @MainActor
+    func testStates88TapMid() throws {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_CAMERA": "face"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        waitForMain(app)
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
+        guard stage.waitForExistence(timeout: 10) else {
+            snap("ui-88-tap-before")
+            app.terminate()
+            throw XCTSkip("ui-88: нет pet.stage")
+        }
+        settle(1)
+        snap("ui-88-tap-before")
+        stage.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.45)).tap()
+        settle(0.15)
+        snap("ui-88-tap-mid")
+        settle(1.4)
+        snap("ui-88-tap-after")
         app.terminate()
     }
 
