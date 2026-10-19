@@ -750,6 +750,8 @@ final class AppModel {
             try PetStore.shared.startOver(now: Clock.now())
             storeError = nil
             away = nil
+            // Сеанс расчёсывания старого пса не достаётся щенку (полоса и жест по спине висели поверх).
+            endBrush()
             refresh()
             Task { await AppActions.shared.afterChange() }
         } catch {

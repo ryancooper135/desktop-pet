@@ -76,7 +76,7 @@ struct BlockDuoScreen: View {
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .onAppear { uiTestSetup() }
-        .onDisappear { anim?.cancel() }
+        .onDisappear { closedFromOutside() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("blockduo.screen")
     }
@@ -473,6 +473,15 @@ struct BlockDuoScreen: View {
             model.showBlockDuo = false
             model.cheerBlockDuo(r, toast: false)
         }
+    }
+
+    /// Экран закрыли не крестиком (ссылка виджета pet://home, острова или уведомления сбрасывает все экраны):
+    /// партия с очками засчитывается так же, как по крестику, иначе монеты и рекорд терялись молча.
+    private func closedFromOutside() {
+        anim?.cancel()
+        guard phase == .playing, game.score > 0, !Env.isUITest || pinned == nil else { return }
+        finish()
+        if case .done(let r) = phase { model.cheerBlockDuo(r, toast: true) }
     }
 
     /// PET_BLOCKDUO=play|done — детерминированные снимки (сид 7, автопилот).

@@ -53,8 +53,9 @@ struct HomeScreen: View {
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
             StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
 
-            if model.brush != nil {
-                // Расчёсывание (BrushViews): жест по спине вместо обычных касаний.
+            if model.brush != nil && snap.alive {
+                // Расчёсывание (BrushViews): жест по спине вместо обычных касаний. Пёс умер посреди сеанса —
+                // слой убираем вместе с полосой (её и так нет), иначе он перехватывал касания сцены.
                 BrushLayer()
                     .ignoresSafeArea()
             }

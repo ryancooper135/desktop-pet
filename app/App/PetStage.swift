@@ -57,13 +57,17 @@ struct PetStage: View {
         let toy = model?.toy
         // Свой персонаж: разбор папки уже готов (CharacterStore.Entry — Sendable), модель грузим здесь.
         let character = model?.characterEntry
+        // В сейве свой персонаж, а папки пака нет (удалили через «Файлы», не переустановили после переноса):
+        // раньше молча стоял Шиба, а выбор в сейве оставался — список паков не отмечал никого, новый щенок
+        // наследовал пустой id. Снимаем выбор тем же путём, что и при сломанном паке.
+        let missing = model?.character != nil && character == nil
         let app = model
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
             RoomLighting.registerOnce()
             let (pet, failed) = await PetModel.load(character: character)
-            if let failed { app?.characterFailed(failed) }
+            if let failed { app?.characterFailed(failed) } else if missing { app?.characterFailed("папки пака больше нет") }
             pet.name = PetModel.petName
             PetRoom.matte(pet)
             PetRoom.prepareCoat(pet)
