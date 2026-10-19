@@ -91,6 +91,17 @@ struct ShopSheet: View {
         return m >= 60 ? "\(m / 60) ч \(m % 60) мин" : "\(m) мин"
     }
 
+    /// Куда пойдёт вещь — теми же словами, что в коллекции (CapsuleScreen.use): «на шею», «на полку в комнате».
+    /// Раньше лавка писала «надеть»/«на полку», а коллекция — место, и одна вещь звалась по-разному.
+    static func roleNote(_ o: ShopOffer) -> String? {
+        switch o.role {
+        case .wear: return Wear.info(o.id)?.slot.place ?? ItemRole.wear.title
+        case .decor: return "на полку в комнате"
+        case .toy: return "мячик для «Поиграть»"
+        case nil: return nil
+        }
+    }
+
     private func card(_ o: ShopOffer) -> some View {
         let done = o.state == .sold || o.state == .owned
         return HStack(spacing: 12) {
@@ -106,8 +117,8 @@ struct ShopSheet: View {
                     Text(EconText.rarityName(o.item.rarity))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(rarityColor(o.item.rarity))
-                    if let role = o.role {
-                        Text(role.title)
+                    if let note = Self.roleNote(o) {
+                        Text(note)
                             .font(.system(size: 12, weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)
                     }

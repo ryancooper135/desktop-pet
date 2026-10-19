@@ -301,8 +301,9 @@ struct CapsuleScreen: View {
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .lineLimit(1)
                 .foregroundStyle(on ? PetPalette.accent : .white)
-                .padding(.horizontal, 12)
-                .frame(minWidth: 78, minHeight: 32)
+                // 86, а не 78: «На полку» шире прочих и раздувала свою кнопку — столбец кнопок шёл лесенкой.
+                .padding(.horizontal, 10)
+                .frame(minWidth: 86, minHeight: 32)
                 .background(Capsule().fill(on ? PetPalette.card : PetPalette.accent))
                 .overlay { Capsule().strokeBorder(PetPalette.accent, lineWidth: on ? 1.5 : 0) }
         }

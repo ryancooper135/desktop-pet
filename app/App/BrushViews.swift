@@ -146,7 +146,8 @@ struct BrushPanel: View {
     }
 
     private func hint(_ s: BrushSession) -> String {
-        if s.done { return "Блестит! Пёс отряхнулся" }
+        // Не «Пёс отряхнулся»: это же говорит тост в конце, а «пёс» вместо имени звучит чуждо.
+        if s.done { return "Блестит! Шерсть как шёлк" }
         if s.against > 0 && s.counted == 0 { return "Не против шерсти — от головы к хвосту" }
         return "Веди пальцем по спине от головы к хвосту"
     }
@@ -217,7 +218,8 @@ struct BrushCard: View {
         let remaining = model.file.map { Brush.remaining($0, at: now) } ?? 0
         let stage = model.file.map { Coat.look($0, now: now).stage }
         let status = gate.map { Brush.reasonText($0, remaining: remaining) }
-            ?? stage.map { "Шерсть: «\($0.title)» · колтунов \(Brush.tufts($0))" } ?? ""
+            // «Шерсть: «Колтуны» · колтунов 6» повторяло слово; теперь стадия и сколько клочков на спине.
+            ?? stage.map { "\($0.title) · клочков шерсти: \(Brush.tufts($0))" } ?? ""
         Button {
             model.haptic(.light)
             SoundKit.shared.play(.button)

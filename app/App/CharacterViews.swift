@@ -20,8 +20,10 @@ struct CharacterSection: View {
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
             }
+            // Пока характер складывается — это пояснение, а не итог: кегль как у подписей соседних разделов
+            // («Пока пусто. Отпусти на прогулку…»), иначе два серых абзаца крупнее заголовков осей.
             Text(headline)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.system(size: scores == nil ? 13 : 15, weight: scores == nil ? .medium : .semibold, design: .rounded))
                 .foregroundStyle(scores == nil ? PetPalette.soft : PetPalette.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("album.character.summary")
