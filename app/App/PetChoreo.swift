@@ -542,7 +542,7 @@ struct HomeLift: Component {
 
 /// Взгляд головой и моргание.
 struct PetFace: Component {
-    /// Предел поворота головы, радианы (шея 40%, голова 60%).
+    /// Предел поворота головы за мячом в игре, радианы (шея 40%, голова 60%). К пальцу — SoftLook.fingerLimit.
     static let limit: Float = 0.6
     /// Куда повернуть голову, радианы: + — вправо по экрану. Пишет PetModel.apply из lookX.
     var target: Float = 0
@@ -563,6 +563,8 @@ struct PetFace: Component {
     /// Угол челюсти поверх клипа и его скорость (пружина).
     var jaw: Float = 0
     var jawSpeed: Float = 0
+    /// Отклик на тап и щекотку поверх клипа (волна 18): запускает PetModel.apply, шагает PetRig.step.
+    var wiggle = TapWiggle()
 }
 
 // MARK: - Хореография
@@ -978,12 +980,24 @@ final class PetRig {
     private static var rigs: [Entity.ID: PetRig] = [:]
 
     private weak var skin: ModelEntity?
-    /// Neck3 и Head, доля поворота каждой.
+    /// Кости, которые сцена поворачивает поверх клипа: Neck3 и Head (взгляд и наклон набок), уши и хвост
+    /// (отклик на тап, TapWiggle). Своя запись кости в last: если клип кость не перезаписал, основа — прежняя.
+    private enum Role {
+        /// Шея или голова, доля поворота взгляда и наклона.
+        case look(Float)
+        /// Ухо, доля «уши назад».
+        case ear(Float)
+        /// Звено хвоста 0…2.
+        case tail(Int)
+    }
     private var joints: [Int] = []
-    private let share: [Float] = [0.4, 0.6]
+    private var roles: [Role] = []
     private var parents: [Int] = []
     private var base: [simd_quatf] = []
     private var last: [simd_quatf?] = []
+    /// Кость головы и кончик морды (TongueTip, иначе Jaw): по ним ось «вперёд» для наклона и ушей.
+    private var head: Int?
+    private var snout: Int?
 
     /// Челюсть (волна 13, mouth.py): кость Jaw и ось «открыть рот» в её своей системе. Нет Jaw или TongueTip
     /// (старая модель, свой персонаж) — talk ничего не делает.
@@ -1039,8 +1053,20 @@ final class PetRig {
         }
         skin = m
         joints = [neck, head]
+        roles = [.look(0.4), .look(0.6)]
+        // Уши и хвост — для отклика на тап; нет какой-то кости (свой персонаж) — без неё.
+        let ears: [(String, Float)] = [("Ear1.L", 1), ("Ear1.R", 1), ("Ear2.L", 0.4), ("Ear2.R", 0.4)]
+        for (leaf, share) in ears {
+            if let j = find(leaf), !joints.contains(j) { joints.append(j); roles.append(.ear(share)) }
+        }
+        for (k, leaf) in ["Tail1", "Tail2", "Tail3"].enumerated() {
+            if let j = find(leaf), !joints.contains(j) { joints.append(j); roles.append(.tail(k)) }
+        }
         base = joints.map { m.jointTransforms[$0].rotation }
-        last = [nil, nil]
+        last = joints.map { _ in nil }
+        self.head = head
+        snout = find("TongueTip") ?? find("Jaw")
+        if snout == head { snout = nil }
         setUpJaw(m)
     }
 
@@ -1181,25 +1207,64 @@ final class PetRig {
         return r + g + b
     }
 
-    /// Поворот шеи и головы вокруг вертикали сцены. Анимация пишет кости каждый кадр — добавку кладём поверх
-    /// её позы; если кость не перезаписали (стоит наша прошлая запись), берём прошлую основу, а не копим поворот.
-    func look(_ angle: Float) {
-        guard let m = skin, joints.count == 2 else { return }
-        if abs(angle) < 1e-4 && last.allSatisfy({ $0 == nil }) { return }
+    /// Поворот шеи и головы вокруг вертикали сцены (взгляд), наклон набок вокруг оси морды, уши и хвост
+    /// (TapWiggle). Анимация пишет кости каждый кадр — добавку кладём поверх её позы; если кость не перезаписали
+    /// (стоит наша прошлая запись), берём прошлую основу, а не копим поворот. Оси считаются по позе клипа
+    /// в системе модели и переводятся в систему каждой кости — не зависим от того, как экспорт повернул кости.
+    func look(_ angle: Float, wiggle w: TapWiggle.Pose = .zero) {
+        guard let m = skin, joints.count >= 2 else { return }
+        let moving = abs(angle) >= 1e-4 || abs(w.roll) >= 1e-5 || abs(w.ear) >= 1e-5
+            || w.tail.contains { abs($0) >= 1e-5 }
+        if !moving && last.allSatisfy({ $0 == nil }) { return }
         var tr = m.jointTransforms
         guard tr.count == parents.count else { return }
-        for k in 0..<2 {
+        for k in joints.indices {
             let cur = tr[joints[k]].rotation
             if let l = last[k], Self.same(cur, l) { continue }
             base[k] = cur
         }
+        if !moving {
+            // Всё вернулось: кладём позу клипа и больше не пишем, пока снова не позовут.
+            for k in joints.indices {
+                tr[joints[k]].rotation = base[k]
+                last[k] = nil
+            }
+            m.jointTransforms = tr
+            return
+        }
         var rot = tr.map(\.rotation)
-        for k in 0..<2 { rot[joints[k]] = base[k] }
+        for k in joints.indices { rot[joints[k]] = base[k] }
         let up = simd_normalize(m.convert(direction: ChoreoPath.up, from: nil))
-        for k in 0..<2 {
+        // «Вперёд» — от головы к морде по позе клипа, без вертикальной части. Нет морды — без наклона и ушей.
+        var fwd: SIMD3<Float>?
+        if let h = head, let n = snout, w.roll != 0 || w.ear != 0 {
+            var pose = tr
+            for j in joints { pose[j].rotation = rot[j] }
+            let d = position(n, pose) - position(h, pose)
+            let flat = d - simd_dot(d, up) * up
+            if simd_length(flat) > 1e-6, flat.x.isFinite { fwd = simd_normalize(flat) }
+        }
+        // Поворот вокруг side = fwd × up ведёт вертикаль назад: уши прижимаются (+).
+        let side = fwd.map { simd_normalize(simd_cross($0, up)) }
+        let none = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
+        func spin(_ j: Int, _ axis: SIMD3<Float>, _ a: Float) -> simd_quatf {
+            guard abs(a) >= 1e-6 else { return none }
+            let local = simd_normalize(global(j, rot).inverse.act(axis))
+            guard local.x.isFinite, local.y.isFinite, local.z.isFinite else { return none }
+            return simd_quatf(angle: a, axis: local)
+        }
+        for k in joints.indices {
             let j = joints[k]
-            let axis = simd_normalize(global(j, rot).inverse.act(up))
-            let q = base[k] * simd_quatf(angle: angle * share[k], axis: axis)
+            var q = base[k]
+            switch roles[k] {
+            case .look(let share):
+                q = q * spin(j, up, angle * share)
+                if let f = fwd { q = q * spin(j, f, w.roll * share) }
+            case .ear(let share):
+                if let sd = side { q = q * spin(j, sd, w.ear * share) }
+            case .tail(let i):
+                if i < w.tail.count { q = q * spin(j, up, w.tail[i]) }
+            }
             tr[j].rotation = q
             last[k] = q
         }
@@ -1247,10 +1312,18 @@ final class PetRig {
         if face.still {
             face.angle = goal
             face.speed = 0
-        } else {
+        } else if face.follow != nil {
+            // За мячом — бодро, как раньше.
             (face.angle, face.speed) = PetSpring.step(x: face.angle, v: face.speed, target: goal,
                                                       omega: 10, zeta: 0.9, dt: Float(dt))
+        } else {
+            // К пальцу и обратно — мягко, с разгоном и без перелёта (волна 18).
+            (face.angle, face.speed) = PetSpring.step(x: face.angle, v: face.speed, target: goal,
+                                                      omega: SoftLook.omega, zeta: SoftLook.zeta, dt: Float(dt))
         }
+        // Отклик на тап: наклон, уши, хвост. При Reduce Motion — ничего.
+        if face.still { face.wiggle = TapWiggle() }
+        let wiggle = face.still ? TapWiggle.Pose.zero : face.wiggle.step(dt: dt)
         var shut = false
         let st = pet.components[ClipState.self]
         if let st, st.stance == .sleep, st.clock >= st.busyUntil - 0.4 {
@@ -1280,7 +1353,7 @@ final class PetRig {
         }
         pet.components.set(face)
         guard let rig = rig(for: pet) else { return }
-        rig.look(face.angle)
+        rig.look(face.angle, wiggle: wiggle)
         rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
     }

@@ -122,6 +122,30 @@ final class AnimationUITests: XCTestCase {
         attachSheet(frames, name: "anim-stroke")
     }
 
+    /// Тапы по питомцу (волна 18): слева, справа и два быстрых подряд, после каждого — кадры раз в 0,12 с.
+    /// Голова склоняется плавно и чуть-чуть, хвост виляет, цикл простоя не перезапускается рывком.
+    @MainActor
+    func testTapFrames() throws {
+        let app = Self.makeApp(noon: true)
+        let stage = try launch(app)
+        let crop = stage.frame
+        let start = Date()
+        var frames: [Frame] = []
+        let left = stage.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.45))
+        let right = stage.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.45))
+        left.tap()
+        frames += capture(app, crop: crop, count: 6, step: 0.12, since: start)
+        Thread.sleep(forTimeInterval: 0.6)
+        right.tap()
+        frames += capture(app, crop: crop, count: 6, step: 0.12, since: start)
+        Thread.sleep(forTimeInterval: 0.6)
+        right.tap()
+        Thread.sleep(forTimeInterval: 0.25)
+        right.tap()
+        frames += capture(app, crop: crop, count: 8, step: 0.12, since: start)
+        attachSheet(frames, name: "anim-tap")
+    }
+
     /// Покой без действий: 16 кадров раз в 2 с (полминуты жизни на сцене).
     @MainActor
     func testIdleFrames() throws {

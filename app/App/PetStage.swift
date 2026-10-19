@@ -351,12 +351,20 @@ enum PetModel {
             default: c.sway = 0.07; c.lie = 0
             }
         }
-        // Взгляд: телом чуть-чуть, остальное — шея и голова (PetFace). Мёртвый не смотрит.
+        // Взгляд на палец: телом чуть-чуть, остальное — шея и голова (PetFace), мягко и не дальше SoftLook.fingerLimit
+        // (волна 18: на 0,6 рад с пружиной omega 10 морда «косилась» и дёргалась). Мёртвый не смотрит.
         let look: Float = pose == .dead ? 0 : min(max(lookX ?? 0, -1), 1)
-        c.yawTarget = look * (hasClips ? 0.15 : 0.35)
+        c.yawTarget = look * (hasClips ? SoftLook.bodyShare : 0.35)
         var face = pet.components[PetFace.self] ?? PetFace()
-        face.target = look * PetFace.limit
+        face.target = look * SoftLook.fingerLimit
         face.still = reduceMotion
+        if let r = reaction, r.id != c.lastReactionId, r.ok, !reduceMotion, pose != .dead,
+           let kind = TapWiggle.kind(of: r.kind) {
+            // Тап и щекотка: голова чуть набок, уши, хвост — добавкой к позе (TapWiggle), клип не перезапускаем.
+            // Спит — только ухо дёрнулось.
+            let asleep = pose == .sleep || pose == .nap
+            face.wiggle.trigger(kind, sideHint: lookX, earsOnly: asleep)
+        }
         pet.components.set(face)
         c.still = reduceMotion
         if reduceMotion { c.amount = 0; c.targetAmount = 0 }
@@ -405,6 +413,9 @@ enum PetModel {
             st.lastReactionId = r.id
             fresh = true
         }
+        // Тап и щекотка (волна 18): основа отклика — добавка TapWiggle (PetModel.apply). Клип черты играем, только
+        // если пёс свободен, мягким переходом и не обрывая игру, миску или ласку.
+        let soft = fresh && reaction.flatMap { TapWiggle.kind(of: $0.kind) } != nil
         st.reduceMotion = reduceMotion
         let poseChanged = key != st.current
         guard fresh || poseChanged else {
@@ -451,7 +462,13 @@ enum PetModel {
         var trick: Trick?
         if fresh, let r = reaction {
             trick = r.ok ? Trick(kind: r.kind) : nil
-            let rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
+            var rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
+            if soft {
+                let choreo = pet.components[ChoreoState.self]?.active ?? false
+                if choreo || st.clock < st.busyUntil || st.stance != target { rc = [] }
+                // Цикл не меняем: режиссёр мог сменить idle на idle_2 — тап не возвращает прежний рывком.
+                if !poseChanged && !st.loop.isEmpty && st.stance == target { mainLoop = st.loop }
+            }
             if r.kind == "pet" && r.ok && target == .stand && !rc.isEmpty {
                 let offset = steps.reduce(0) { $0 + PetChoreo.duration($1) }
                 petting = (offset, rc.reduce(0) { $0 + PetChoreo.duration($1) })
@@ -480,6 +497,11 @@ enum PetModel {
             st.reactionSteps = []
         }
 
+        if soft && steps.isEmpty && !poseChanged {
+            // Тап без клипа: только добавка к позе, цикл и хореография не трогаются.
+            pet.components.set(st)
+            return
+        }
         if steps.isEmpty && !initial && mainLoop == st.loop && !st.current.hasSuffix("~") {
             // Играть нечего, цикл тот же (реакция без клипа, happy→loved): не перезапускаем его.
             // После Reduce Motion («~») стоит замерший кадр — его перезапускать надо.
@@ -489,7 +511,9 @@ enum PetModel {
             return
         }
 
-        let transition: TimeInterval = initial ? 0 : (fresh ? 0.15 : 0.25)
+        // Тап — переходом длиннее: клип черты вплывает, а не щёлкает (было 0,15 с). Ласка — тоже мягче.
+        let transition: TimeInterval = initial ? 0 : soft ? 0.35 : reaction?.kind == "pet" && fresh ? 0.3
+            : (fresh ? 0.15 : 0.25)
         let busy = ClipPlayer.play(steps, then: mainLoop, on: pet, transition: transition,
                                    randomSpeed: steps.isEmpty, initial: initial) ?? 0
         st.current = key
@@ -498,7 +522,9 @@ enum PetModel {
         st.busyUntil = st.clock + busy
         st.lockUntil = fresh ? st.busyUntil : st.clock
         // Миска под мордой на время eat, мяч и пробежка после play_bow: игра держит питомца дольше клипов.
-        if let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop, trick: trick) {
+        // Клип тапа играет только у свободного пса — сворачивать нечего, begin не зовём (если поза не сменилась).
+        if !(soft && !poseChanged),
+           let until = PetChoreo.begin(pet, steps: steps, clock: st.clock, mainLoop: mainLoop, trick: trick) {
             st.busyUntil = max(st.busyUntil, until)
             st.lockUntil = max(st.lockUntil, until)
         }

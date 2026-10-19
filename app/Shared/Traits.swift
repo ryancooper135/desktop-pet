@@ -270,13 +270,14 @@ enum Traits {
         return Trait(rawValue: String(kind.dropFirst(4)))
     }
 
-    /// Клипы отклика на тап стоя: игривый подпрыгнул, спокойный повёл ухом, ласковый склонил голову и вильнул,
-    /// сам по себе оглянулся, чистюля отряхнулся, сорванец что-то унюхал.
+    /// Клипы отклика на тап стоя: игривый подпрыгнул, спокойный повёл ухом, ласковый вильнул и улыбнулся,
+    /// сам по себе оглянулся, чистюля отряхнулся, сорванец что-то унюхал. Голову набок на любой тап склоняет
+    /// добавка TapWiggle (волна 18): клип head_tilt клал шею на 18° и вместе с ней читался перекошенной мордой.
     static func tapClips(_ t: Trait) -> [String] {
         switch t {
         case .playful: ["hop"]
         case .calm: ["ear_flick"]
-        case .cuddly: ["head_tilt", "happy_wag"]
+        case .cuddly: ["happy_wag"]
         case .independent: ["look_l"]
         case .tidy: ["shake"]
         case .scruffy: ["sniff"]
