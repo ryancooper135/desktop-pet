@@ -554,6 +554,7 @@ enum MiniGames {
         let d = Economy.day(now)
         let c = d > f.catchDay ? 0 : f.catchCoins
         let b = d > f.blockduoDay ? 0 : f.blockduoCoins
-        return c + b
+        let z = d > f.zombieDay ? 0 : f.zombieCoins
+        return c + b + z
     }
 }

@@ -168,7 +168,7 @@
     "energy_cost": 6,
     "fun_gain": 18,
     "daily_cap": 60,
-    "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames в BlockDuo.swift): «Лови мячик» и «Блок Дуо» вместе; у каждой ещё свой daily_cap",
+    "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames в BlockDuo.swift): «Лови мячик», «Блок Дуо» и «Щенок против зомби» вместе; у каждой ещё свой daily_cap",
     "list": {
       "blockduo":   { "name": "Блок Дуо",            "base": 5,  "max": 40, "par_score": 3000, "daily_cap": 60,
                       "_note": "BlockDuo.swift, волна 12: своя игра вместе с Шибой вместо веб-версии в браузере. Очки как в веб-версии (клетка 1, линии 40·n·(n+1)·комбо, пустое поле +500), счёт общий с Шибой; монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x; свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
@@ -179,7 +179,8 @@
       "simon":      { "name": "Повторюшка",          "base": 8,  "max": 50, "par_score": 9 },
       "hide_seek":  { "name": "Прятки",              "base": 10, "max": 45, "per_hiding_spot": 2, "_note": "больше мебели = больше укрытий = больше награда" },
       "dig":        { "name": "Копай!",              "per_day": 3, "loot": "dig_table", "requires_upgrade": "yard>=2" },
-      "zombie_run": { "name": "Щенок против зомби",  "base": 10, "max": 60, "par_score": 800 }
+      "zombie_run": { "name": "Щенок против зомби",  "base": 5,  "max": 40, "par_score": 350, "daily_cap": 60, "round_seconds": 50, "hearts": 3,
+                      "_note": "ZombieRun.swift, волна 13 (стиль C, PS1): зомби-друг 10 очков, мелкий 15, большой (три попадания) 30; дошёл до Шибы — минус сердечко; раунд round_seconds или до последнего сердечка. Монеты — формула catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x; свой daily_cap и общий minigames.daily_cap. par_score ≈ 0,9 от автопилота (≈ 395). Настроение — ядерным play" }
     },
     "dig_table": [ [40, "coins:10"], [25, "coins:25"], [15, "food:common"], [10, "treasure:common"], [6, "treasure:rare"], [3, "tickets:1"], [1, "treasure:epic"] ]
   },

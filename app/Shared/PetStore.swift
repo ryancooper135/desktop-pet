@@ -105,6 +105,10 @@ final class PetStore: @unchecked Sendable {
             fresh.blockduoDay = old.blockduoDay
             fresh.blockduoCoins = old.blockduoCoins
             fresh.blockduoGames = old.blockduoGames
+            fresh.zombieBest = old.zombieBest
+            fresh.zombieDay = old.zombieDay
+            fresh.zombieCoins = old.zombieCoins
+            fresh.zombieGames = old.zombieGames
             // Надетое — вместе с предметами: шарф остаётся на месте и у нового щенка.
             fresh.worn = old.worn
             // Сон хозяина (OwnerSleep) — тоже: выученное окно про человека, а не про собаку.

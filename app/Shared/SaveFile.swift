@@ -87,6 +87,11 @@ struct SaveFile: Codable, Sendable {
     var blockduoDay = 0
     var blockduoCoins = 0
     var blockduoGames = 0
+    /// «Щенок против зомби» (ZombieRun.swift, волна 13): рекорд и счётчики суток. Нули в файл не пишутся.
+    var zombieBest = 0
+    var zombieDay = 0
+    var zombieCoins = 0
+    var zombieGames = 0
     /// Расчёсывание: когда последний раз и сколько всего (Brush.swift). Пустое в файл не пишется.
     var brush = BrushLog()
     /// Настройка «Комната вечером» (RoomEveningMode.rawValue). nil — по умолчанию (RoomEveningMode.standard);
@@ -167,6 +172,7 @@ struct SaveFile: Codable, Sendable {
         case cards, shots
         case catchBest, catchDay, catchCoins, catchGames
         case blockduoBest, blockduoDay, blockduoCoins, blockduoGames
+        case zombieBest, zombieDay, zombieCoins, zombieGames
         case roomEvening
         case worn
         case sleep
@@ -224,6 +230,10 @@ struct SaveFile: Codable, Sendable {
         blockduoDay = (try? c.decodeIfPresent(Int.self, forKey: .blockduoDay)) ?? 0
         blockduoCoins = (try? c.decodeIfPresent(Int.self, forKey: .blockduoCoins)) ?? 0
         blockduoGames = (try? c.decodeIfPresent(Int.self, forKey: .blockduoGames)) ?? 0
+        zombieBest = (try? c.decodeIfPresent(Int.self, forKey: .zombieBest)) ?? 0
+        zombieDay = (try? c.decodeIfPresent(Int.self, forKey: .zombieDay)) ?? 0
+        zombieCoins = (try? c.decodeIfPresent(Int.self, forKey: .zombieCoins)) ?? 0
+        zombieGames = (try? c.decodeIfPresent(Int.self, forKey: .zombieGames)) ?? 0
         roomEvening = try? c.decodeIfPresent(String.self, forKey: .roomEvening)
         worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
         sleep = (try? c.decodeIfPresent(SleepLog.self, forKey: .sleep)) ?? SleepLog()
@@ -273,6 +283,10 @@ struct SaveFile: Codable, Sendable {
         if blockduoDay != 0 { try c.encode(blockduoDay, forKey: .blockduoDay) }
         if blockduoCoins != 0 { try c.encode(blockduoCoins, forKey: .blockduoCoins) }
         if blockduoGames != 0 { try c.encode(blockduoGames, forKey: .blockduoGames) }
+        if zombieBest != 0 { try c.encode(zombieBest, forKey: .zombieBest) }
+        if zombieDay != 0 { try c.encode(zombieDay, forKey: .zombieDay) }
+        if zombieCoins != 0 { try c.encode(zombieCoins, forKey: .zombieCoins) }
+        if zombieGames != 0 { try c.encode(zombieGames, forKey: .zombieGames) }
         try c.encodeIfPresent(roomEvening, forKey: .roomEvening)
         if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
         if !sleep.isEmpty { try c.encode(sleep, forKey: .sleep) }

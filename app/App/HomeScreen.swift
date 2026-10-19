@@ -245,6 +245,11 @@ struct HomeScreen: View {
             BlockDuoScreen()
                 .environment(model)
         }
+        .fullScreenCover(isPresented: $model.showZombie) {
+            // Как мячик — на весь экран: палец ведёт Шибу по всему полю.
+            ZombieRunScreen()
+                .environment(model)
+        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)
