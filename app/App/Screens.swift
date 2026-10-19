@@ -257,6 +257,23 @@ struct SettingsScreen: View {
                     Text("«\(HabitsScreen.appName), я дома», «я выпил воды» — Siri и автоматизации отмечают твой день, \(name) отвечает и даёт монеты.")
                 }
 
+                // Свой персонаж (волна 12): папка из «Файлов» вместо Шибы в комнате.
+                Section {
+                    NavigationLink {
+                        CharacterPacksScreen()
+                    } label: {
+                        LabeledContent {
+                            Text(model.characterEntry?.name ?? "Шиба")
+                        } label: {
+                            Label("Свой персонаж", systemImage: "figure.walk.circle")
+                        }
+                    }
+                    .listRowBackground(PetPalette.card)
+                    .accessibilityIdentifier("settings.character")
+                } footer: {
+                    Text("Папка из «Файлов»: модель с анимациями и character.json — имя, клипы, рост, цвет. Характер, вещи и сохранение остаются, меняется только облик.")
+                }
+
                 if Self.showDevTools {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }
@@ -276,6 +293,8 @@ struct SettingsScreen: View {
             .toolbarBackground(PetPalette.bg, for: .navigationBar)
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
+            // pet://characters (UI-тесты): сразу экран «Свой персонаж» поверх настроек.
+            .navigationDestination(isPresented: Bindable(model).showCharacters) { CharacterPacksScreen() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Закрыть") { dismiss() }

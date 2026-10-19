@@ -209,12 +209,38 @@ enum CoatFur {
 
     /// Цвета клочка (основной, кончики) по стадии: колтун — бурый комок, лохматый — рыжий пучок, у ухоженной —
     /// светлый пух (его видно, только пока чешем: Brush.tufts даёт 1–2).
-    static func tuftColors(_ stage: CoatStage) -> (main: UInt32, tip: UInt32) {
-        switch stage {
-        case .matted: (0x9c5f2e, 0xc27a3c)
-        case .shaggy: (0xd08440, 0xf0b070)
-        case .normal, .sleek: (0xf3c08a, 0xfff1de)
+    /// fur — цвет шерсти своего персонажа (character.json color): тогда те же ступени от него, а не рыжие —
+    /// иначе у серого пса на спине торчат шибьи пучки.
+    static func tuftColors(_ stage: CoatStage, fur: UInt32? = nil) -> (main: UInt32, tip: UInt32) {
+        if let fur {
+            // Колтун темнее шерсти, ухоженный пух — как она; кончики к белому.
+            let k: (dark: Float, light: Float) = switch stage {
+            case .matted: (0.62, 0.15)
+            case .shaggy: (0.85, 0.4)
+            case .normal, .sleek: (1, 0.7)
+            }
+            return (shade(fur, k.dark), toWhite(fur, k.light))
         }
+        switch stage {
+        case .matted: return (0x9c5f2e, 0xc27a3c)
+        case .shaggy: return (0xd08440, 0xf0b070)
+        case .normal, .sleek: return (0xf3c08a, 0xfff1de)
+        }
+    }
+
+    /// Каждый канал 0xRRGGBB умножить на k.
+    private static func shade(_ c: UInt32, _ k: Float) -> UInt32 {
+        func ch(_ s: UInt32) -> UInt32 { UInt32(min(255, max(0, (Float((c >> s) & 0xff) * k).rounded()))) << s }
+        return ch(16) | ch(8) | ch(0)
+    }
+
+    /// Каждый канал 0xRRGGBB сдвинуть к белому на t.
+    private static func toWhite(_ c: UInt32, _ t: Float) -> UInt32 {
+        func ch(_ s: UInt32) -> UInt32 {
+            let v = Float((c >> s) & 0xff)
+            return UInt32(min(255, max(0, (v + (255 - v) * t).rounded()))) << s
+        }
+        return ch(16) | ch(8) | ch(0)
     }
 
     /// Где клочок i из n: от холки (i = 0) к хвосту, больше на левом боку (к камере), чуть вразброс.

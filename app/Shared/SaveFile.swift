@@ -114,6 +114,9 @@ struct SaveFile: Codable, Sendable {
     /// Кухня шефа (Cooking.swift): сколько блюд сегодня, когда последнее, всего, день бонуса. Пустое не пишется,
     /// новому щенку переходит — кухня остаётся вместе с домом.
     var cooking = CookLog()
+    /// Волна 12. Свой персонаж вместо Шибы (CharacterStore, id папки), nil — Шиба. nil в файл не пишется,
+    /// новому щенку переходит: это выбор хозяина, как вещи.
+    var character: String?
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -171,6 +174,7 @@ struct SaveFile: Codable, Sendable {
         case shelf, toy, shop
         case habits
         case cooking
+        case character
     }
 
     init(from decoder: Decoder) throws {
@@ -230,6 +234,7 @@ struct SaveFile: Codable, Sendable {
         shop = try? c.decodeIfPresent(ShopDay.self, forKey: .shop)
         habits = (try? c.decodeIfPresent(HabitLog.self, forKey: .habits)) ?? HabitLog()
         cooking = (try? c.decodeIfPresent(CookLog.self, forKey: .cooking)) ?? CookLog()
+        character = try? c.decodeIfPresent(String.self, forKey: .character)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -278,6 +283,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(shop, forKey: .shop)
         if !habits.isEmpty { try c.encode(habits, forKey: .habits) }
         if !cooking.isEmpty { try c.encode(cooking, forKey: .cooking) }
+        try c.encodeIfPresent(character, forKey: .character)
     }
 }
 

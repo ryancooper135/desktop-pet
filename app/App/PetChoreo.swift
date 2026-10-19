@@ -975,7 +975,8 @@ final class PetRig {
     /// Пути костей вида «Body/…/Neck3/Head»: родитель — путь без последнего звена.
     private func setUpJoints(_ m: ModelEntity) {
         let names = m.jointNames
-        func find(_ leaf: String) -> Int? { names.firstIndex { $0 == leaf || $0.hasSuffix("/" + leaf) } }
+        // Свой персонаж — по псевдонимам костей из character.json.
+        func find(_ leaf: String) -> Int? { PetModel.boneIndex(names, leaf) }
         guard let neck = find("Neck3"), let head = find("Head"), m.jointTransforms.count == names.count else { return }
         var index: [String: Int] = [:]
         for (i, n) in names.enumerated() { index[n] = i }

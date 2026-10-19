@@ -71,6 +71,15 @@ final class AppModel {
     /// Вещица на полке и мячик для «Поиграть» (ItemCatalog): сцена перестраивает только при смене.
     private(set) var shelf: String? = nil
     private(set) var toy: String? = nil
+    /// Свой персонаж вместо Шибы (волна 12): id папки в CharacterStore и её разбор для сцены; nil — Шиба.
+    private(set) var character: String? = nil
+    private(set) var characterEntry: CharacterStore.Entry? = nil
+    /// Растёт на каждую установку активного пака заново: id тот же, файлы новые — сцена грузит модель снова.
+    private(set) var characterRev = 0
+    /// Установленные паки для экрана «Свой персонаж». Читаем диск только при открытии экрана и после правок.
+    private(set) var characterPacks: [CharacterStore.Entry] = []
+    /// Экран «Свой персонаж» внутри настроек (pet://characters).
+    var showCharacters = false
     /// Открытка дня, которую ещё не сохранили и не выбросили.
     private(set) var pendingCard: Postcard? = nil
     /// Открытка на экране (лист). Из альбома — сохранённая.
@@ -158,6 +167,7 @@ final class AppModel {
             worn = Wear.worn(f)
             shelf = ItemCatalog.shelf(f)
             toy = ItemCatalog.toy(f)
+            noteCharacter(f.character)
             knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
@@ -236,6 +246,7 @@ final class AppModel {
             let sh = ItemCatalog.shelf(f), ty = ItemCatalog.toy(f)
             if sh != shelf { shelf = sh }
             if ty != toy { toy = ty }
+            if f.character != character { noteCharacter(f.character) }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
             noteOwnerSleep(f, now: now)
@@ -652,6 +663,87 @@ final class AppModel {
         }
     }
 
+    // MARK: свой персонаж (волна 12)
+
+    private func noteCharacter(_ id: String?) {
+        character = id
+        characterEntry = id.flatMap { CharacterStore.standard.entry($0) }
+    }
+
+    func reloadCharacterPacks() {
+        characterPacks = CharacterStore.standard.list()
+    }
+
+    /// Сделать персонажа активным (nil — вернуть Шибу). Пак с ошибками не ставим — причина тостом.
+    func setCharacter(_ id: String?) {
+        let entry = id.flatMap { CharacterStore.standard.entry($0) }
+        if let entry, !entry.ok {
+            show("«\(entry.name)»: \(entry.check.errors.first ?? "пак не прошёл проверку")", ok: false)
+            return
+        }
+        do {
+            try PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+                f.character = entry?.id
+            }
+            refresh()
+            show(entry.map { "В комнате — \($0.name)" } ?? "Снова Шиба", emoji: "🐾")
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+    }
+
+    /// Папки и файлы из «Файлов» (fileImporter). URL чужие: доступ открываем на время копирования и сразу
+    /// закрываем. Папка — пак целиком; отдельные файлы — один пак по character.json среди них.
+    func installCharacters(_ urls: [URL]) {
+        let opened = urls.map { $0.startAccessingSecurityScopedResource() }
+        defer {
+            for (url, ok) in zip(urls, opened) where ok { url.stopAccessingSecurityScopedResource() }
+        }
+        let store = CharacterStore.standard
+        func isFolder(_ u: URL) -> Bool { (try? u.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
+        var last: CharacterStore.Entry?
+        do {
+            for u in urls where isFolder(u) { last = try store.install(folder: u) }
+            let files = urls.filter { !isFolder($0) }
+            if !files.isEmpty { last = try store.install(files: files) }
+        } catch {
+            reloadCharacterPacks()
+            show((error as? CharacterPackError)?.message ?? error.localizedDescription, ok: false)
+            return
+        }
+        reloadCharacterPacks()
+        guard let e = last else { return }
+        if e.id == character {
+            // Переставили активный: сцена берёт новые файлы, сломанный — Шиба с тостом при загрузке.
+            noteCharacter(character)
+            characterRev += 1
+        }
+        if e.ok {
+            show("«\(e.name)» установлен", emoji: "📦")
+        } else {
+            show("«\(e.name)» установлен, но с ошибками — см. список", ok: false)
+        }
+    }
+
+    func deleteCharacter(_ id: String) {
+        if id == character { setCharacter(nil) }
+        do {
+            try CharacterStore.standard.delete(id)
+        } catch {
+            show("Не удалился: \(error.localizedDescription)", ok: false)
+        }
+        reloadCharacterPacks()
+    }
+
+    /// Сцена не смогла поставить своего персонажа и показала Шибу. Выбор снимаем, чтобы не ругаться на каждом
+    /// запуске; пак остаётся в списке — его можно поправить и поставить заново.
+    func characterFailed(_ reason: String) {
+        let name = characterEntry?.name ?? "Свой персонаж"
+        _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.character = nil }
+        refresh()
+        show("\(name) не загрузился: \(reason). Вернул Шибу.", ok: false)
+    }
+
     /// Новый щенок: после смерти или при испорченном сторе. Старый файл уходит в state.broken-<t>.json.
     func startOver() {
         do {
@@ -692,7 +784,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://blockduo, pet://brush, pet://habits, pet://kitchen
+    /// pet://blockduo, pet://brush, pet://habits, pet://kitchen, pet://characters
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -720,6 +812,10 @@ final class AppModel {
                 try? await Task.sleep(for: .seconds(0.8))
                 self?.showKitchen = true
             }
+        case "characters":
+            // Экран внутри стека настроек: сначала настройки, потом переход (SettingsScreen.navigationDestination).
+            showSettings = true
+            showCharacters = true
         default:
             showNeeds = false
             showSettings = false
@@ -732,6 +828,7 @@ final class AppModel {
             showBlockDuo = false
             showHabits = false
             showKitchen = false
+            showCharacters = false
             postcard = nil
         }
     }
@@ -1347,7 +1444,9 @@ enum AwayBuilder {
 /// items — 14 предметов всех ролей, кубок на полке, теннисный мячик, корона и бабочка, 5000 монет (ui-67/68);
 /// fur_shaggy — сытый щенок с лохматой шерстью и клочками на спине (ui-71); fur_brushed — он же, расчёсанный
 /// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72);
-/// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80)).
+/// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80);
+/// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
+/// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1544,6 +1643,12 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "memories":
                 seedMemories(&f, now: now)
+            case "charpack":
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+                f.character = seedCharacters()
+                f.seen = f.pet
+                f.lastSeenT = now
             case "items":
                 // Волна 11: коллекция всех трёх ролей с иконками, кубок на полке, теннисный мячик вместо жёлтого,
                 // корона и бабочка на собаке; 5000 монет — в лавке «Купить» с первого нажатия.
@@ -1580,6 +1685,27 @@ enum LaunchSeed {
                 break
             }
         }
+    }
+
+    /// Сид charpack: два пака из шибы бандла (ничего не качаем), старые паки стираем. Возвращает id рабочего.
+    @MainActor
+    private static func seedCharacters() -> String? {
+        guard let model = Bundle.main.url(forResource: "shiba", withExtension: "usdz"),
+              let clips = Bundle.main.url(forResource: "shiba.clips", withExtension: "json"),
+              let data = try? Data(contentsOf: clips),
+              let timeline = try? JSONDecoder().decode(CharacterPack.Timeline.self, from: data) else { return nil }
+        let store = CharacterStore.standard
+        try? FileManager.default.removeItem(at: store.root)
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        func put(_ c: CharacterConfig) -> String? {
+            try? store.place(id: CharacterStore.id(for: c.name)) { dir in
+                try FileManager.default.copyItem(at: model, to: dir.appendingPathComponent(CharacterPack.defaultModel))
+                try enc.encode(c).write(to: dir.appendingPathComponent(CharacterPack.configName))
+            }.id
+        }
+        _ = put(CharacterPack.sample(timeline, name: "Без стойки", without: ["idle", "happy_wag", "yawn"]))
+        return put(CharacterPack.sample(timeline))
     }
 
     /// Сид memories. Открытки за прошлые дни не всплывают: catchUp — до того, как createdT уходит в прошлое

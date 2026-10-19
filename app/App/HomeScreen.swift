@@ -204,7 +204,8 @@ struct HomeScreen: View {
             NeedsSheet()
                 .environment(model)
         }
-        .sheet(isPresented: $model.showSettings) {
+        // Закрыли настройки — «Свой персонаж» (pet://characters) в следующий раз не открывается сам.
+        .sheet(isPresented: $model.showSettings, onDismiss: { model.showCharacters = false }) {
             SettingsScreen()
                 .environment(model)
         }

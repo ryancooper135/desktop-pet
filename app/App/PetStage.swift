@@ -6,6 +6,8 @@
 // Шерсть — текстура штрихами по стадии (PetRoom.applyCoat), клочки на спине — PetWear.applyTufts (CoatFur).
 // Вечер и ночь — RoomLighting по AppModel.roomSchedule и теме; поверх сцены — виньетка фазы (без касаний).
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
+// Свой персонаж (волна 12, AppModel.characterEntry) — вместо Шибы: модель и клипы из его папки, рост, подъём,
+// поворот, кости и цвет из character.json. Не загрузился — Шиба, причина — тостом (AppModel.characterFailed).
 
 import SwiftUI
 import UIKit
@@ -53,11 +55,15 @@ struct PetStage: View {
         // Вещица на полке и мячик для игры (волна 11, ItemCatalog).
         let shelf = model?.shelf
         let toy = model?.toy
+        // Свой персонаж: разбор папки уже готов (CharacterStore.Entry — Sendable), модель грузим здесь.
+        let character = model?.characterEntry
+        let app = model
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
             RoomLighting.registerOnce()
-            let pet = await PetModel.load()
+            let (pet, failed) = await PetModel.load(character: character)
+            if let failed { app?.characterFailed(failed) }
             pet.name = PetModel.petName
             PetRoom.matte(pet)
             PetRoom.prepareCoat(pet)
@@ -111,6 +117,8 @@ struct PetStage: View {
             }
             PetChoreo.setHome(pet, home)
         }
+        // Сменили персонажа или переставили его папку — сцена собирается заново (make, а не update).
+        .id("\(character?.id ?? "shiba")#\(model?.characterRev ?? 0)")
         .overlay { RoomVignette(schedule: schedule, dark: dark) }
         .background(PetPalette.bg)
     }
@@ -151,20 +159,85 @@ enum PetModel {
         JuiceSystem.registerOnce()
     }
 
+    /// Кости персонажа под нашими именами (CharacterPack.boneAliases): PetWear и PetRig ищут через boneIndex.
+    /// У Шибы пусто. Ставит load — сцена одна, персонаж в ней один.
+    static var boneAlias: [String: String] = [:]
+
+    /// Цвет шерсти своего персонажа (character.json color): по нему красятся клочки на спине (PetWear.applyTufts).
+    /// У Шибы и без color — nil, пучки рыжие. Ставит load.
+    static var furColor: UInt32?
+
+    /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head».
+    static func boneIndex(_ names: [String], _ leaf: String) -> Int? {
+        let leaf = boneAlias[leaf] ?? leaf
+        return names.firstIndex { $0 == leaf || $0.hasSuffix("/" + leaf) }
+    }
+
+    /// Как поставить модель: у Шибы — константы, у своего персонажа — из character.json.
+    @MainActor private struct Look {
+        var height: Float = PetModel.height
+        var lift: Float = 0
+        var yaw: Float = 0
+        var deathShift: Float = PetModel.shibaDeathShiftX
+        var bones: [String: String] = [:]
+        var color: UInt32? = nil
+        var table: ClipTable? = ClipTable.shiba
+    }
+
+    /// Свой персонаж, если он есть и загрузился, иначе Шиба. failed — почему не свой (для тоста).
+    static func load(character: CharacterStore.Entry?) async -> (pet: Entity, failed: String?) {
+        guard let ch = character else { return (await load(), nil) }
+        guard ch.ok, let c = ch.config, let url = ch.modelURL else {
+            return (await load(), ch.check.errors.first ?? "пак не прошёл проверку")
+        }
+        let model: Entity
+        do {
+            model = try await Entity(contentsOf: url)
+        } catch {
+            return (await load(), "\(url.lastPathComponent) не открылся (\(error.localizedDescription))")
+        }
+        // Клипы — куски одного таймлайна: без анимации в файле пёс стоял бы статуей во всех позах.
+        guard !model.availableAnimations.isEmpty else { return (await load(), "в модели нет анимации") }
+        guard model.visualBounds(relativeTo: nil).extents.y > 0 else { return (await load(), "модель пустая") }
+        var look = Look()
+        look.height = Float(CharacterPack.height(c, base: Double(height)))
+        look.lift = Float(c.lift ?? 0)
+        look.yaw = Float((c.yaw ?? 0) * .pi / 180)
+        look.deathShift = Float(c.deathShift ?? 0)
+        look.bones = CharacterPack.boneAliases(c.bones)
+        look.color = c.color.flatMap(CharacterPack.rgb)
+        look.table = ClipTable(character: ch.check, fps: c.fps ?? ClipTable.shiba?.fps ?? 24)
+        return (assemble(model, look: look), nil)
+    }
+
     /// Корень с JuiceComponent → petJuice → модель, приведённая к росту height и поставленная на пол.
     static func load() async -> Entity {
-        let wrapper = Entity()
         var model: Entity?
         if Bundle.main.url(forResource: "shiba", withExtension: "usdz") != nil {
             model = try? await Entity(named: "shiba", in: Bundle.main)
         }
+        return assemble(model, look: Look())
+    }
+
+    private static func assemble(_ model: Entity?, look: Look) -> Entity {
+        let wrapper = Entity()
+        // Таблица клипов, сдвиг лёжа и кости — этой модели: их читают проигрыватель, режиссёр и вещи.
+        ClipTable.shared = look.table
+        deathShiftX = look.deathShift
+        boneAlias = look.bones
+        furColor = look.color
         let body = model ?? StubDog.make()
         body.name = bodyName
+        if let rgb = look.color { PetRoom.recolorFur(body, rgb) }
         let bounds = body.visualBounds(relativeTo: nil)
         if model != nil, bounds.extents.y > 0 {
-            let k = height / bounds.extents.y
+            let k = look.height / bounds.extents.y
+            let turn = simd_quatf(angle: look.yaw, axis: SIMD3<Float>(0, 1, 0))
             body.scale = SIMD3<Float>(repeating: k)
-            body.position = SIMD3<Float>(-bounds.center.x * k, -bounds.min.y * k, -bounds.center.z * k)
+            body.orientation = turn
+            // Центр рамки после поворота — на ось подставки, низ — на пол (плюс lift).
+            let c = turn.act(bounds.center * k)
+            body.position = SIMD3<Float>(-c.x, -bounds.min.y * k + look.lift, -c.z)
         }
         let pivot = Entity()
         pivot.name = pivotName
@@ -402,7 +475,9 @@ enum PetModel {
     /// Клип death валит собаку на бок, и центр уезжает вбок почти на полроста: замер скина по исходнику
     /// (tools/assets/source/shiba.glb) — середина рамки с 0 до +1.36 ед. по X модели при росте 3.09.
     /// Без поправки мёртвый лежит у края экрана головой на мяче. Сдвигаем модель обратно, пока он лежит.
-    static let deathShiftX: Float = -1.36
+    static let shibaDeathShiftX: Float = -1.36
+    /// Сдвиг текущей модели: у своего персонажа — deathShift из character.json (нет — 0). Ставит load.
+    static var deathShiftX: Float = shibaDeathShiftX
 
     static func deathShift(_ pet: Entity, _ st: inout ClipState, animated: Bool) {
         let want = st.stance == .dead
@@ -578,11 +653,26 @@ struct ClipTable: Decodable, Sendable {
     var fps: Double
     var clips: [String: Clip]
 
-    static let shared: ClipTable? = {
+    static let shiba: ClipTable? = {
         guard let url = Bundle.main.url(forResource: "shiba.clips", withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return (try? JSONDecoder().decode(ClipTable.self, from: data))?.addingEatParts()
     }()
+
+    /// Таблица модели в сцене: Шиба или свой персонаж. Пишет только PetModel.load на главном потоке,
+    /// до первого клипа новой модели; читают проигрыватель и режиссёр там же.
+    nonisolated(unsafe) static var shared: ClipTable? = shiba
+
+    init(fps: Double, clips: [String: Clip]) {
+        self.fps = fps
+        self.clips = clips
+    }
+
+    /// Таблица своего персонажа: клипы уже под нашими именами и с подстановками (CharacterPack.check).
+    init(character check: CharacterCheck, fps: Double) {
+        self.init(fps: fps, clips: check.clips.mapValues { Clip(start: $0.start, end: $0.end, loop: $0.loop ?? false) })
+        self = addingEatParts()
+    }
 
     /// Таблица плюс части eat (EatClip): опустил голову / жуёт по кругу / поднял. Своих частей в файле нет —
     /// режем eat по кадрам EatClip.chewFrom/chewTo. Уже есть или eat слишком короткий — таблица как была.

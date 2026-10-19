@@ -84,7 +84,7 @@ enum PetWear {
             }
         }
         show(.fur, key: key, on: pet) {
-            let colors = CoatFur.tuftColors(stage)
+            let colors = CoatFur.tuftColors(stage, fur: PetModel.furColor)
             var out: [Piece] = []
             for i in max(0, n - keep)..<n {
                 for part in CoatFur.tuft(i, of: n, stage: stage) {
@@ -204,8 +204,9 @@ enum PetWear {
         return nil
     }
 
+    /// У своего персонажа кости могут зваться иначе — псевдонимы из character.json (PetModel.boneAlias).
     private static func leafIndex(_ names: [String], _ leaf: String) -> Int? {
-        names.firstIndex { $0 == leaf || $0.hasSuffix("/" + leaf) }
+        PetModel.boneIndex(names, leaf)
     }
 
     /// invBind кости из скелета меша (по имени: пути у скелета и у модели могут отличаться префиксом).
