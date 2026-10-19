@@ -118,6 +118,7 @@ let package = Package(
                 "ItemsTests.swift",
                 "HabitsTests.swift",
                 "CookingTests.swift",
+                "TimeDayTests.swift",
                 "BlockDuoTests.swift",
                 "ZombieRunTests.swift",
                 "CharacterPackTests.swift",

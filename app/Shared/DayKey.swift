@@ -32,7 +32,10 @@ enum DayKey {
     }
 
     /// Следующая местная полночь после t. Сутки перевода часов — 23 или 25 часов.
-    static func nextMidnight(after t: Double) -> Double { max(t + 60, start(of(t) + 1)) }
+    static func nextMidnight(after t: Double) -> Double {
+        let m = start(of(t) + 1)
+        return m > t ? m : t + 60   // запасной ход: в пределах пояса m всегда впереди
+    }
 
     /// Счётчик «сегодня» без записи: сутки сменились — 0. Сохранённый день из будущего (часы назад) — счётчик тот же.
     static func today(_ count: Int, day stored: Int, at t: Double) -> Int {
