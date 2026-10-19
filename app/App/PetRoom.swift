@@ -21,9 +21,11 @@ enum PetRoom {
     // поэтому камера на ~2.45 м: собака ~37% высоты и ±70% ширины кадра. Ближе — морда уходит за левый край.
     static let cameraEye = SIMD3<Float>(0.06, 0.78, 2.4)
     static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
-    /// Крупный план спины для снимков шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, вдвое ближе и чуть сверху.
-    static let closeEye = SIMD3<Float>(0.05, 0.7, 1.4)
-    static let closeTarget = SIMD3<Float>(0, 0.24, 0)
+    /// Крупный план шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, но так, чтобы весь пёс от носа до хвоста
+    /// влез по ширине портрета (нос ~-0.73, круп ~+0.74 в NDC) и не залезал под шапку и кнопки.
+    /// Раньше (0.05, 0.7, 1.4) резало голову левым краем (волна 16).
+    static let closeEye = SIMD3<Float>(0.03, 0.70, 1.67)
+    static let closeTarget = SIMD3<Float>(-0.03, 0.22, 0)
     /// Морда крупно для снимков рта (ui-85, PET_CAMERA=face): камера чуть спереди-слева, смотрит на нос.
     static let faceEye = SIMD3<Float>(-0.04, 0.42, 1.2)
     static let faceTarget = SIMD3<Float>(-0.1, 0.3, 0.15)
@@ -134,6 +136,8 @@ enum PetRoom {
         let ball = ModelEntity(mesh: .generateSphere(radius: 0.05), materials: [matteMaterial(RoomColors.ball)])
         ball.name = "ball"
         ball.position = ballPos
+        // На крупном плане шерсти мяч оказался бы у правого края под полупрозрачными кнопками — там он не нужен.
+        ball.isEnabled = !(Env.isUITest && Env.value("PET_CAMERA") == "close")
         root.addChild(ball)
 
         return root
