@@ -45,8 +45,9 @@
 //   ui-88           тап по питомцу крупно (волна 18, PET_CAMERA=face): ui-88-tap-before — покой, ui-88-tap-mid — через
 //                   ~0,3 с после тапа слева (голова чуть набок, уши назад), ui-88-tap-after — снова покой
 //   ui-88           подсказки (волна 18, PET_SEED=walk_blocked): ui-88-hint-plate — «Лапы чешутся», «Гулять» с замком,
-//                   плашка «Сначала покормить → Гулять», цветные кнопки; ui-88-walk-locked — тап по «Гулять»: тост
-//                   и подсветка «Покормить»
+//                   плашка «Сначала подкормить → Гулять» и «Сытость 35, для прогулки нужно 40» (волна 20), цветные
+//                   кнопки; ui-88-walk-locked — тап по «Гулять»: тост «…подкормить: сытость 35, нужно 40» и подсветка
+//                   «Покормить»
 //   ui-89           обучение ласке (PET_SEED=wants_pet, PET_TIPS=1): палец по спине и «Проведи пальцем по Шибе»,
 //                   плашка «Погладить», ручка «Шкалы» под панелью
 //   ui-91           знакомство (волна 19, PET_GUIDE=intro): ui-91-intro-1..3 — три карточки («Знакомься», «Как ухаживать»,
@@ -54,6 +55,9 @@
 //   ui-92           пояснения (волна 19): ui-92-settings-hints — раздел «Подсказки» в настройках; -reopen — знакомство,
 //                   открытое оттуда снова; ui-92-capsule-legend — строчка «🪙 монеты — … ✂️ клочки — …» в автомате
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
+//   ui-93           согласованность (волна 20, PET_SEED=walk_hungry): еды 20 — ui-93-hungry-plate: плашка «Покормить»
+//                   «Голодный — …», строка статуса не «Проголодается», а «Совсем оголодает через…»; ui-93-hungry-walk-locked —
+//                   тап по «Гулять»: тост «Для прогулки сначала покормить: сытость 20, нужно 40»
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
 import XCTest
@@ -589,6 +593,30 @@ final class ScreenshotUITests: XCTestCase {
     func testStates89PetTutor() {
         shootState("ui-89-pet-tutor", env: ["PET_SEED": "wants_pet", "PET_TIPS": "1", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
                    marker: "tip.pet", settleFor: 2)
+    }
+
+    // MARK: - Волна 20: согласованность подсказок (ui-93)
+
+    /// Уже голодный и хочет гулять: плашка «Покормить», таймер беды «Совсем оголодает», тост замка с числами.
+    @MainActor
+    func testStates93HungryWalkLock() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_SEED": "walk_hungry", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let plate = app.descendants(matching: .any)["hint.plate"].firstMatch
+        let found = plate.waitForExistence(timeout: 20)
+        settle(1.5)
+        snap("ui-93-hungry-plate")
+        XCTAssertTrue(found, "ui-93: нет плашки hint.plate")
+        let walk = app.descendants(matching: .any)["act.walk"].firstMatch
+        if walk.waitForExistence(timeout: 5) {
+            walk.tap()
+            settle(0.6)
+            snap("ui-93-hungry-walk-locked")
+        }
+        app.terminate()
     }
 
     // MARK: - Волна 19: понятность (ui-91/92)

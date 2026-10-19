@@ -23,14 +23,24 @@ enum ForecastTools {
         }
     }
 
+    /// Волна 20: low — шкала опустится ниже warnLow (до этого он «ещё не голодный»), distress — беда ядра, когда шкала
+    /// уже давно низкая (сытость 0, чистота < 10). Раньше обе писались одним словом, и при сытости 20 плашка говорила
+    /// «Голодный», а строка статуса — «Проголодается через 3 ч». Теперь у беды своё слово.
     static func title(_ e: ForecastEvent) -> String {
         switch e.kind {
-        case .low, .distress:
+        case .low:
             switch e.key {
-            case "food", "starve": return "Проголодается"
-            case "clean", "dirty": return "Испачкается"
+            case "food": return "Проголодается"
+            case "clean": return "Испачкается"
             case "fun": return "Заскучает"
-            case "love", "toska": return "Затоскует"
+            case "love": return "Затоскует"
+            default: return "Попросит"
+            }
+        case .distress:
+            switch e.key {
+            case "starve": return "Совсем оголодает"
+            case "dirty": return "Завоняет"
+            case "toska": return "Затоскует"
             default: return "Попросит"
             }
         case .last_chance: return "Последний шанс"

@@ -258,4 +258,25 @@ final class IslandPlanTests: XCTestCase {
         XCTAssertEqual(old.bigAct, IslandAct.from(old.main))
         XCTAssertEqual(old.shownPose(stale: true), old.pose)
     }
+
+    /// Волна 20: остров говорит те же слова, что приложение: мысль («Хрустик бы…», пока не голодный) и таймер
+    /// (у беды «Совсем оголодает», а не «Проголодается» — по одной шкале «food» не отличить).
+    func testIslandWordsMatchApp() {
+        let t = moment(night: false)
+        for food in [35.0, 20] {
+            var f = file(at: t, [.food: food])
+            f.lastSeenT = t
+            let snap = Presenter.make(f, at: t)
+            let st = PetAttributes.ContentState.make(f, at: t, events: ForecastTools.upcoming(f, at: t, horizonH: 12))
+            XCTAssertEqual(st.wantText, snap.wantText, "food \(food)")
+            if snap.timer?.kind == "low" {
+                XCTAssertEqual(st.islandTimerTitle, snap.timer?.title, "food \(food)")
+            }
+        }
+        var old = PetAttributes.ContentState(Presenter.make(file(at: t), at: t))
+        old.timerTitle = nil
+        old.timerKind = "low"
+        old.timerNeed = "food"
+        XCTAssertEqual(old.islandTimerTitle, "Проголодается", "старое состояние без заголовка — по шкале")
+    }
 }

@@ -160,13 +160,18 @@ final class WalkTests: XCTestCase {
         let hungry = WalkPlan.gate(wFile(at: t, [.food: 35]), at: t)
         XCTAssertFalse(hungry.ok)
         XCTAssertEqual(hungry.reason, "not_ready")
-        XCTAssertEqual(hungry.hint, "сначала покормить")
-        XCTAssertEqual(hungry.toast, "Для прогулки сначала покормить")
+        // Волна 20: сытость 35 — ещё не «голодный» (< 30), поэтому «подкормить», и в тосте — шкала и число.
+        XCTAssertEqual(hungry.hint, "сначала подкормить")
+        XCTAssertEqual(hungry.toast, "Для прогулки сначала подкормить: сытость 35, нужно 40")
 
         let two = WalkPlan.gate(wFile(at: t, [.food: 35, .clean: 20]), at: t)
         XCTAssertEqual(two.reason, "not_ready")
-        XCTAssertEqual(two.hint, "сначала покормить и помыть")
-        XCTAssertLessThanOrEqual(two.hint.count, 26)
+        XCTAssertEqual(two.hint, "сначала подкормить и помыть")
+        XCTAssertEqual(two.toast, "Для прогулки сначала подкормить и помыть: сытость 35 (нужно 40), чистота 20 (нужно 30)")
+        XCTAssertLessThanOrEqual(two.hint.count, 27, "подпись под кнопкой ужимается до 0.85 — длиннее не влезет")
+
+        let low = WalkPlan.gate(wFile(at: t, [.food: 20]), at: t)
+        XCTAssertEqual(low.hint, "сначала покормить", "голодный (< 30) — «покормить»")
 
         let f = wFile(at: t, [.food: 35, .clean: 20, .energy: 10])
         XCTAssertEqual(WalkPlan.lacking(PetRunner.peek(f, at: t), Catalog.rules), [.food, .clean, .energy])

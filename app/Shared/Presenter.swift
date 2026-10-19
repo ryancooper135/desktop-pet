@@ -143,7 +143,9 @@ enum Presenter {
             want = w.key.rawValue
             urgent = w.urgent
         }
-        let thought = want.map { lines.thought($0) }
+        // Волна 20: ядро хочет есть и при сытости 30–37 — а строка статуса тогда ещё пишет «Проголодается через…».
+        // «Хочу есть» — только голодному (NeedHints.isLow), раньше — «Хрустик бы…» (thoughts.treat).
+        let thought = want.map { lines.thought(thoughtKey($0, s, r)) }
 
         // Реплика.
         let tier = self.tier(t, o)
@@ -233,6 +235,12 @@ enum Presenter {
         if toBed <= 60 { return 3 }
         if toBed <= 180 { return 2 }
         return 1
+    }
+
+    /// Ключ мысли в пузыре (lines.json thoughts) для желания ядра. Сытость ещё не «голодная» — «treat».
+    static func thoughtKey(_ want: String, _ s: PetState, _ r: Rules) -> String {
+        if want == "food", !NeedHints.isLow(.food, s.needs[.food] ?? 0, r) { return "treat" }
+        return want
     }
 
     static func timer(_ s: PetState, _ r: Rules, _ o: Owner, at t: Double, upcoming: [ForecastEvent]?) -> NeedTimer? {
@@ -360,7 +368,7 @@ enum Presenter {
     }
 
     /// Заголовок таймера, когда известна только шкала (остров: в ContentState нет title).
-    /// Те же слова, что ForecastTools.title для событий low/distress.
+    /// Те же слова, что ForecastTools.title для событий low; у беды (distress) слово своё — его остров берёт из ContentState.timerTitle.
     static func timerTitle(kind: String, need: String?) -> String {
         switch kind {
         case "bath": return "Моется"

@@ -96,7 +96,7 @@ struct WalkGate: Equatable, Sendable {
     var ok: Bool
     /// Причина отказа ядра: away, bathing, asleep, unwell, not_ready, too_late, unavailable, dead.
     var reason: String?
-    /// Подпись под кнопкой: «1–3 ч, с находкой», «вернётся в 14:20», «сначала покормить».
+    /// Подпись под кнопкой: «1–3 ч, с находкой», «вернётся в 14:20», «сначала подкормить».
     var hint: String
     /// Тост по тапу на неактивную кнопку (почему нельзя и что сделать).
     var toast: String
@@ -105,6 +105,17 @@ struct WalkGate: Equatable, Sendable {
     /// Волна 18. Не готов: кнопка панели, что первой исправит (feed, bath, play, pet) — её подсвечивают по тапу
     /// на неактивную «Гулять» и к ней ведёт плашка «что нужно сейчас». nil — нечего нажать (не хватает сил) или не not_ready.
     var fix: String? = nil
+}
+
+/// Волна 20. Чего не хватает для прогулки: шкала, сколько на ней сейчас и сколько нужно.
+struct WalkLack: Equatable, Sendable {
+    let need: Need
+    /// Сейчас, целым — как на шкалах (round), но всегда ниже required: «39,6» не печатается как «40, нужно 40».
+    let value: Int
+    /// Первое целое, с которым ядро пускает (WalkPlan.required).
+    let required: Int
+    /// Шкала уже «плохая» (NeedHints.isLow): сытость ниже порога, где он голодный.
+    let low: Bool
 }
 
 enum WalkPlan {
@@ -130,11 +141,16 @@ enum WalkPlan {
         let reason = res.reason ?? "unavailable"
         switch reason {
         case "not_ready":
-            let need = lacking(s, r)
-            let todo = need.map(todoWord)
-            let list = todo.isEmpty ? "покормить и почистить" : joined(todo)
+            // Волна 20: называем ту шкалу, что на самом деле держит, и её число — как на шкалах. «Покормить» —
+            // только если он и правда голодный (NeedHints.isLow), иначе «подкормить»: строка статуса в это время
+            // пишет «Проголодается через…», и «покормить» спорило бы с ней.
+            let lacks = self.lacks(s, r)
+            let todo = lacks.map(todoWord)
+            let list = todo.isEmpty ? "позаботиться" : joined(todo)
+            let why = lacks.isEmpty ? "" : ": " + numbers(lacks)
             return WalkGate(ok: false, reason: reason, hint: "сначала \(list)",
-                            toast: "Для прогулки сначала \(list)", until: nil, fix: need.lazy.compactMap(fixKind).first)
+                            toast: "Для прогулки сначала \(list)\(why)", until: nil,
+                            fix: lacks.lazy.compactMap { fixKind($0.need) }.first)
         case "asleep":
             return WalkGate(ok: false, reason: reason, hint: "спит", toast: RefuseText.text(reason), until: nil)
         case "too_late":
@@ -155,11 +171,39 @@ enum WalkPlan {
     static func lacking(_ s: PetState, _ r: Rules) -> [Need] {
         guard let w = r.walkOut else { return [] }
         return [Need.food, .clean, .energy, .fun, .love, .walk].filter { n in
-            var v: [Need: Double] = [:]
-            for k in Need.allCases { v[k] = 100 }
-            v[n] = s.needs[n] ?? 0
-            return !w.requires(v)
+            !w.requires(alone(n, s.needs[n] ?? 0))
         }
+    }
+
+    /// Чего не хватает, с числами: сколько сейчас и сколько нужно (волна 20).
+    static func lacks(_ s: PetState, _ r: Rules) -> [WalkLack] {
+        lacking(s, r).map { n in
+            let v = s.needs[n] ?? 0
+            let need = required(n, r) ?? 100
+            // Шкалы пишут round(v); 39,6 на шкале — «40», а ядро не пускает. Не печатаем «40, нужно 40».
+            let shown = min(Int(v.rounded()), max(0, need - 1))
+            return WalkLack(need: n, value: shown, required: need, low: NeedHints.isLow(n, v, r))
+        }
+    }
+
+    /// Сколько нужно по этой шкале: первое целое 0…100, с которым ядро пускает (остальные на 100). nil — шкала не мешает.
+    /// Порог из самого условия конфига, а не копией числа: поправят конфиг — поправятся и слова.
+    static func required(_ n: Need, _ r: Rules) -> Int? {
+        guard let w = r.walkOut else { return nil }
+        return (0...100).first { w.requires(alone(n, Double($0))) }
+    }
+
+    /// Все шкалы на 100, кроме одной.
+    private static func alone(_ n: Need, _ v: Double) -> [Need: Double] {
+        var out: [Need: Double] = [:]
+        for k in Need.allCases { out[k] = 100 }
+        out[n] = v
+        return out
+    }
+
+    /// Что сделать хозяину. Сытость не ниже «голодного» порога — «подкормить»: он не голодный, просто для прогулки мало.
+    static func todoWord(_ l: WalkLack) -> String {
+        l.need == .food && !l.low ? "подкормить" : todoWord(l.need)
     }
 
     static func todoWord(_ n: Need) -> String {
@@ -171,6 +215,15 @@ enum WalkPlan {
         case .love: return "погладить"
         default: return "позаботиться"
         }
+    }
+
+    /// «сытость 35, нужно 40»; несколько — «сытость 20 (нужно 40), чистота 25 (нужно 30)».
+    static func numbers(_ lacks: [WalkLack]) -> String {
+        if lacks.count == 1, let l = lacks.first {
+            return "\(Catalog.needName(l.need).lowercased()) \(l.value), нужно \(l.required)"
+        }
+        return lacks.map { "\(Catalog.needName($0.need).lowercased()) \($0.value) (нужно \($0.required))" }
+            .joined(separator: ", ")
     }
 
     /// Кнопка панели, которая поднимает шкалу: food → feed, clean → bath, fun → play, love → pet. Силы — nil.

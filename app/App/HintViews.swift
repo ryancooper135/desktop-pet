@@ -146,7 +146,7 @@ final class Coach {
     /// После удачной ласки — следующая невиданная подсказка жеста (щекотка, свайп), через паузу, на gestureTipFor секунд.
     private func offerGestureTip(_ model: AppModel) {
         guard Self.enabled, gestureTip == nil, let f = try? PetStore.shared.read() else { return }
-        guard let tip = Tips.nextGesture(f.tips) else { return }
+        guard let tip = Tips.nextGesture(f.tips, name: f.petName) else { return }
         tipTask?.cancel()
         tipTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
@@ -330,6 +330,8 @@ struct NeedHintPlate: View {
 /// Палец ходит по спине Шибы туда-обратно, под ним дорожка длиной с засчитанную ласку и подпись.
 /// Касания не ловит: гладить сквозь него. Reduce Motion — палец стоит, дорожка со стрелками.
 struct PetTutorOverlay: View {
+    /// Кто в комнате (snap.name): своему персонажу — «Проведи пальцем по питомцу».
+    var name: String = PetNames.shiba
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .subheadline) private var textSize: CGFloat = 15
     /// Дорожка = StrokeTracker.strokePath: столько пути и засчитывает одна ласка.
@@ -355,7 +357,7 @@ struct PetTutorOverlay: View {
                     .position(center)
                 finger
                     .position(x: center.x, y: center.y + 26)
-                Text("Проведи пальцем по Шибе")
+                Text(Tips.petTutorText(name: name))
                     .font(.system(size: min(textSize, 20), weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                     .multilineTextAlignment(.center)
@@ -368,7 +370,7 @@ struct PetTutorOverlay: View {
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Подсказка: проведи пальцем по Шибе, чтобы погладить"))
+        .accessibilityLabel(Text(Tips.petTutorLabel(name: name)))
         .accessibilityIdentifier("tip.pet")
     }
 

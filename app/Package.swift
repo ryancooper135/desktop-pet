@@ -136,7 +136,7 @@ let package = Package(
                 "JawTalkTests.swift",
                 "RenderPauseTests.swift",
                 "TextGrammarTests.swift",
-                "NeedHintTests.swift",
+                "NeedHintTests.swift", "HintConsistencyTests.swift",
                 "ClarityTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]

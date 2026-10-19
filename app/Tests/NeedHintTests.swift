@@ -80,7 +80,10 @@ final class NeedHintTests: XCTestCase {
         let h = try XCTUnwrap(hint(f, at: t))
         XCTAssertEqual(h.key, "walk")
         XCTAssertEqual(h.go, .feed)
-        XCTAssertEqual(h.title, "Сначала покормить")
+        // Волна 20: еды 35 — ещё не голодный (строка статуса: «Проголодается через…»), поэтому «подкормить»
+        // и настоящая причина с числом со шкалы.
+        XCTAssertEqual(h.title, "Сначала подкормить")
+        XCTAssertEqual(h.detail, "Сытость 35, для прогулки нужно 40")
         XCTAssertEqual(h.then, "Гулять")
     }
 
@@ -98,6 +101,8 @@ final class NeedHintTests: XCTestCase {
         XCTAssertEqual(h.key, "walk")
         XCTAssertTrue(h.quiet)
         XCTAssertEqual(h.then, "Гулять")
+        XCTAssertEqual(h.title, "Сначала пусть отдохнёт")
+        XCTAssertEqual(h.detail, "Энергия 25, для прогулки нужно 30")
     }
 
     func testHintSilentWhileNappingBathingAway() throws {
@@ -167,7 +172,7 @@ final class NeedHintTests: XCTestCase {
         }
         XCTAssertEqual(fix([.food: 30]), "feed")
         XCTAssertEqual(fix([.clean: 20]), "bath")
-        XCTAssertEqual(fix([.food: 30, .clean: 20]), "feed", "первым — как в подписи «покормить и помыть»")
+        XCTAssertEqual(fix([.food: 30, .clean: 20]), "feed", "первым — как в подписи «подкормить и помыть»")
         XCTAssertNil(fix([.energy: 20]), "силы кнопкой не поднять")
         XCTAssertNil(fix([:]), "готов — исправлять нечего")
     }

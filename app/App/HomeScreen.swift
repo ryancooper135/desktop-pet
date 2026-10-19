@@ -369,7 +369,7 @@ struct PetTutorLayer: View {
         let show = Coach.shared.showTutor(file: model.file, snap: snap, petReady: ready, sceneClear: model.sceneClear)
         ZStack {
             if show {
-                PetTutorOverlay()
+                PetTutorOverlay(name: snap.name)
                     .transition(.opacity)
             }
         }
