@@ -203,6 +203,19 @@ final class CoatFurTests: XCTestCase {
         XCTAssertLessThan(lum(CoatFur.tuftColors(.shaggy).main), lum(CoatFur.tuftColors(.sleek).main))
     }
 
+    func testTuftColorsFollowCharacterFur() {
+        // Серый свой персонаж: пучки серые (каналы равны), колтун темнее, кончики светлее; без цвета — как было.
+        let grey: UInt32 = 0x8a8f99
+        let normal = CoatFur.tuftColors(.normal, fur: grey)
+        XCTAssertEqual(normal.main, grey)
+        XCTAssertGreaterThan(normal.tip & 0xff, grey & 0xff)
+        let matted = CoatFur.tuftColors(.matted, fur: grey)
+        XCTAssertLessThan((matted.main >> 16) & 0xff, (grey >> 16) & 0xff)
+        XCTAssertLessThan(matted.main & 0xff, grey & 0xff)
+        XCTAssertEqual(CoatFur.tuftColors(.shaggy, fur: 0xffffff).tip, 0xffffff)
+        XCTAssertEqual(CoatFur.tuftColors(.matted, fur: nil).main, 0x9c5f2e)
+    }
+
     // MARK: шерсть из сейва
 
     func testLookCarriesTuftsAndBrushClearsThem() {

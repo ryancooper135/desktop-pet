@@ -84,7 +84,7 @@ enum PetWear {
             }
         }
         show(.fur, key: key, on: pet) {
-            let colors = CoatFur.tuftColors(stage)
+            let colors = CoatFur.tuftColors(stage, fur: PetModel.furColor)
             var out: [Piece] = []
             for i in max(0, n - keep)..<n {
                 for part in CoatFur.tuft(i, of: n, stage: stage) {

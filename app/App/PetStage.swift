@@ -163,6 +163,10 @@ enum PetModel {
     /// У Шибы пусто. Ставит load — сцена одна, персонаж в ней один.
     static var boneAlias: [String: String] = [:]
 
+    /// Цвет шерсти своего персонажа (character.json color): по нему красятся клочки на спине (PetWear.applyTufts).
+    /// У Шибы и без color — nil, пучки рыжие. Ставит load.
+    static var furColor: UInt32?
+
     /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head».
     static func boneIndex(_ names: [String], _ leaf: String) -> Int? {
         let leaf = boneAlias[leaf] ?? leaf
@@ -221,6 +225,7 @@ enum PetModel {
         ClipTable.shared = look.table
         deathShiftX = look.deathShift
         boneAlias = look.bones
+        furColor = look.color
         let body = model ?? StubDog.make()
         body.name = bodyName
         if let rgb = look.color { PetRoom.recolorFur(body, rgb) }
