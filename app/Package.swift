@@ -29,6 +29,8 @@ let package = Package(
                 "Capsule.swift",
                 "CatchGame.swift",
                 "Catalog.swift",
+                "CharacterPack.swift",
+                "CharacterStore.swift",
                 "Clock.swift",
                 "Coat.swift",
                 "CoatFur.swift",
@@ -108,6 +110,7 @@ let package = Package(
                 "TraitsTests.swift",
                 "ItemsTests.swift",
                 "HabitsTests.swift",
+                "CharacterPackTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

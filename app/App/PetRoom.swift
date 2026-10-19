@@ -422,6 +422,26 @@ enum PetRoom {
         }
     }
 
+    /// Цвет шерсти своего персонажа (character.json color) — до matte и prepareCoat: от него потом считаются
+    /// блеск, грязь и текстура штрихами. У модели как Шиба (шесть подмножеств) — только Main, светлое брюхо
+    /// остаётся; у других — все светлые материалы, а нет светлых — первый.
+    static func recolorFur(_ root: Entity, _ rgb: UInt32) {
+        var queue: [Entity] = [root]
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            if let m = e as? ModelEntity, var model = m.model, !model.materials.isEmpty {
+                let fur = model.materials.count == 6 ? [0] : furIndices(model.materials)
+                for i in fur.isEmpty ? [0] : fur {
+                    guard var pbr = model.materials[i] as? PhysicallyBasedMaterial else { continue }
+                    pbr.baseColor = .init(tint: uiColor(rgb), texture: pbr.baseColor.texture)
+                    model.materials[i] = pbr
+                }
+                m.model = model
+            }
+            queue += Array(e.children)
+        }
+    }
+
     /// Подмешать грязь: k от 0 до dirtMaxMix.
     private static func dirtied(_ c: UIColor, _ k: CGFloat) -> UIColor {
         guard k > 0.001 else { return c }

@@ -106,6 +106,9 @@ struct SaveFile: Codable, Sendable {
     /// Привычки хозяина из «Команд» (Habits.swift): сегодня, последний раз и всего. Пустое в файл не пишется,
     /// новому щенку переходит — это отметки хозяина, не пса.
     var habits = HabitLog()
+    /// Волна 12. Свой персонаж вместо Шибы (CharacterStore, id папки), nil — Шиба. nil в файл не пишется,
+    /// новому щенку переходит: это выбор хозяина, как вещи.
+    var character: String?
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -161,6 +164,7 @@ struct SaveFile: Codable, Sendable {
         case memories, care
         case shelf, toy, shop
         case habits
+        case character
     }
 
     init(from decoder: Decoder) throws {
@@ -215,6 +219,7 @@ struct SaveFile: Codable, Sendable {
         toy = try? c.decodeIfPresent(String.self, forKey: .toy)
         shop = try? c.decodeIfPresent(ShopDay.self, forKey: .shop)
         habits = (try? c.decodeIfPresent(HabitLog.self, forKey: .habits)) ?? HabitLog()
+        character = try? c.decodeIfPresent(String.self, forKey: .character)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -258,6 +263,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(toy, forKey: .toy)
         try c.encodeIfPresent(shop, forKey: .shop)
         if !habits.isEmpty { try c.encode(habits, forKey: .habits) }
+        try c.encodeIfPresent(character, forKey: .character)
     }
 }
 

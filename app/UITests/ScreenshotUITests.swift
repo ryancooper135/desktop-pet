@@ -26,6 +26,8 @@
 //   ui-71/72        шерсть текстурой крупным планом (PET_CAMERA=close): лохматая с клочками на спине, она же расчёсанная — гладкая
 //   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера; -howto — шаги автоматизации
 //   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
+//   ui-81/82        свои персонажи (PET_SEED=charpack): «Свой персонаж» — список, «Без стойки» с ошибкой красным;
+//                   комната с «Серым Шибой» из папки (клипы переименованы, рост 0,8, серая шерсть)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -296,7 +298,38 @@ final class ScreenshotUITests: XCTestCase {
                       then: [("ui-76-brush-2", 0.5), ("ui-76-brush-3", 0.5), ("ui-76-brush-4", 0.5)])
     }
 
+    // MARK: - Волна 12: свои персонажи (ui-81/82)
+
+    /// «Свой персонаж» (PET_SEED=charpack, pet://characters): Шиба, «Без стойки» с ошибкой про idle,
+    /// «Серый Шиба» активен (галочка). -add — кнопка «Добавить из «Файлов»» и шпаргалка формата внизу.
+    @MainActor
+    func testStates81CharacterPacks() throws {
+        let env = ["PET_SEED": "charpack", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "characters"]
+        let app = try shootOptional("ui-81-characters", env: env, marker: "characters.screen", keepRunning: true)
+        let error = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "characters.error.")).firstMatch
+        XCTAssertTrue(error.waitForExistence(timeout: 5), "ui-81: у сломанного пака нет ошибки")
+        let howTo = app.descendants(matching: .any)["characters.add"]
+        for _ in 0..<4 where !(howTo.exists && howTo.isHittable) {
+            app.swipeUp()
+            settle(0.5)
+        }
+        app.swipeUp()
+        settle(0.8)
+        snap("ui-81-characters-add")
+        app.terminate()
+    }
+
+    /// Комната со своим персонажем (PET_SEED=charpack): «Серый Шиба» — та же модель из папки, ниже ростом и серый.
+    /// Не загрузился бы — была бы рыжая Шиба и тост «не загрузился».
+    @MainActor
+    func testStates82CharacterRoom() {
+        shootState("ui-82-character-room", env: ["PET_SEED": "charpack", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
+
     @MainActor
     func testStates61Wear() {
         shootState("ui-61-wear", env: ["PET_SEED": "wear", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
