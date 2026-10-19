@@ -4,7 +4,7 @@
   "Main":       {"color": "#E9A15B", "what": "рыжая шерсть"},
   "Main_Light": {"color": "#FFF1DE", "what": "кремовые щёки, грудь, лапы (в исходнике серые)"},
   "Black":      {"color": "#4B3A36", "what": "нос и полость рта"},
-  "Eyes_White": {"color": "#FFFFFF", "what": "белок/блик"},
+  "Eyes_White": {"color": "#5A3B2A", "what": "край глаза: тёмно-карий, не белый (белые серпы читались как закатанные глаза, волна 16)"},
   "Eyes_Pupil": {"color": "#3B2A22", "what": "радужка"},
   "Eyes_Black": {"color": "#231B1E", "what": "зрачок"},
   "Tongue":     {"color": "#E98C93", "what": "язык (добавлен в mouth.py)"}

@@ -2,9 +2,9 @@
 // с находкой, взгляд головой и моргание.
 // ChoreoPath — чистые траектории без RealityKit (их покрывает PetChoreoTests). PetChoreo ведёт их по часам
 // ClipState: двигает обёртку питомца с пятном-тенью, миску и мяч и ставит клипы на границах отрезков игры.
-// PetRig поворачивает шею и голову к взгляду (кости Neck3 и Head) и моргает подменой материалов глаз.
+// PetRig поворачивает шею и голову к взгляду (кости Neck3 и Head) и моргает веками (PetRig.lids).
 // Время — секунды от начала реакции; координаты мировые, +y вверх, питомец дома стоит в нуле.
-// Челюсти и век в shiba.usdz нет: «закрытый глаз» — материал шерсти на месте глаза (style_a eyes_closed).
+// Век в shiba.usdz нет: «закрытый глаз» — копия глаз цвета шерсти поверх них (PetRoom.eyeLid).
 
 import Foundation
 import simd
@@ -993,9 +993,13 @@ final class PetRig {
     private var jawLast: simd_quatf?
 
     private weak var eyes: ModelEntity?
-    private var open: [any Material] = []
-    private var closed: [any Material] = []
+    /// Веки: подмножества глаз 3…5 отдельным скинованным мешем на том же скелете, чуть впереди глаз, цвета шерсти.
+    /// Глаз закрываем, включая веки, а не подменой материалов глаз: обратная подмена на скинованной Шибе до кадра
+    /// не доходила — ModelComponent уже с открытыми глазами, а на экране веко навсегда (волны 15–16, прогоны
+    /// 39259023360 и 39266177342; новый ModelComponent, снять-поставить, свежие материалы — то же самое).
+    private var lids: ModelEntity?
     private var eyesClosed = false
+    static let lidsName = "petEyeLids"
 
     static func rig(for pet: Entity) -> PetRig? {
         let id = pet.id
@@ -1101,15 +1105,73 @@ final class PetRig {
     }
 
     /// Порядок подмножеств: Main, Main_Light, Black, Eyes_White, Eyes_Pupil, Eyes_Black. Проверяем по цвету,
-    /// что 3 светлее шерсти, а 4 и 5 темнее; не сошлось — не моргаем.
+    /// что 4 и 5 темнее шерсти, а 3 на шерсть не похож; не сошлось — не моргаем. С волны 16 «белок» у Шибы
+    /// тёмно-карий (style_a: белые серпы по бокам радужки читались как закатанные глаза), поэтому 3 может быть
+    /// и светлее шерсти (свои персонажи Quaternius), и темнее.
+    /// Веко — шерсть плоским цветом (PetRoom.eyeLid): у текстурной шерсти tint почти белый, и глаз
+    /// закрывался белым пятном (ui-55, ui-63 волны 15).
     private func setUpEyes(_ m: ModelEntity, _ mats: [any Material]) {
+        guard let lid = PetRoom.eyeLid(m, mats) else { return }
         let light = mats.map(Self.brightness)
-        guard let fur = light[0], let white = light[3], let pupil = light[4], let black = light[5],
-              white > fur + 0.1, pupil < fur, black < fur else { return }
+        guard let fur = Self.brightness(lid), let white = light[3], let pupil = light[4], let black = light[5],
+              Self.looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black),
+              let mesh = Self.lidMesh(m) else { return }
+        let e = ModelEntity(mesh: mesh, materials: [lid])
+        guard e.jointNames == m.jointNames else { return }
+        e.name = Self.lidsName
+        e.isEnabled = false
+        m.addChild(e)
         eyes = m
-        open = mats
-        closed = mats
-        for i in 3...5 { closed[i] = mats[0] }
+        lids = e
+    }
+
+    /// Меш век: части глаз (3…5) с теми же весами костей, сдвинутые по нормалям наружу на 3% размера глаз —
+    /// поверх глаза без мерцания, кайма (Black) вокруг остаётся видна. nil — глаз нет или меш не собрался.
+    private static func lidMesh(_ m: ModelEntity) -> MeshResource? {
+        guard let contents = m.model?.mesh.contents else { return nil }
+        var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
+        var models: [MeshResource.Model] = []
+        for var mm in contents.models {
+            let parts = mm.parts.filter {
+                (3...5).contains($0.materialIndex) && $0.jointInfluences != nil
+                    && $0.normals?.elements.count == $0.positions.elements.count
+            }
+            guard !parts.isEmpty else { continue }
+            for part in parts {
+                for p in part.positions.elements {
+                    lo = simd_min(lo, p)
+                    hi = simd_max(hi, p)
+                }
+            }
+            mm.parts = MeshPartCollection(parts)
+            models.append(mm)
+        }
+        guard !models.isEmpty, lo.x < hi.x else { return nil }
+        let push = 0.03 * max(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
+        for k in models.indices {
+            var parts: [MeshResource.Part] = []
+            for var part in models[k].parts {
+                let normals = part.normals?.elements ?? []
+                let moved = zip(part.positions.elements, normals).map { p, n -> SIMD3<Float> in
+                    let l = simd_length(n)
+                    return l > 1e-6 ? p + n / l * push : p
+                }
+                part.positions = MeshBuffers.Positions(moved)
+                part.materialIndex = 0
+                parts.append(part)
+            }
+            models[k].parts = MeshPartCollection(parts)
+        }
+        let ids = Set(models.map(\.id))
+        var next = contents
+        next.models = MeshModelCollection(models)
+        next.instances = MeshInstanceCollection(contents.instances.filter { ids.contains($0.model) })
+        return try? MeshResource.generate(from: next)
+    }
+
+    /// Подмножества 3…5 — глаза, а не часть шерсти: радужка и зрачок темнее шерсти, «белок» заметно отличается от неё.
+    nonisolated static func looksLikeEyes(fur: CGFloat, white: CGFloat, pupil: CGFloat, black: CGFloat) -> Bool {
+        pupil < fur && black < fur && abs(white - fur) > 0.1
     }
 
     private static func brightness(_ m: any Material) -> CGFloat? {
@@ -1144,22 +1206,19 @@ final class PetRig {
         m.jointTransforms = tr
     }
 
-    /// Шерсть перекрасили (PetRoom.applyCoat): открытые и закрытые глаза берут новые материалы.
+    /// Шерсть перекрасили (PetRoom.applyCoat): веки берут новую шерсть (ModelComponent целиком, не подменой).
     func recolor(_ m: ModelEntity, _ mats: [any Material]) {
-        guard let e = eyes, e === m, mats.count == open.count, mats.count >= 6 else { return }
-        open = mats
-        closed = mats
-        for i in 3...5 { closed[i] = mats[0] }
-        if eyesClosed, var model = e.model {
-            model.materials = closed
-            e.model = model
-        }
+        guard let e = eyes, e === m, let l = lids, let mesh = l.model?.mesh,
+              let lid = PetRoom.eyeLid(m, mats) else { return }
+        l.components.set(ModelComponent(mesh: mesh, materials: [lid]))
     }
 
+    /// Каждый кадр после взгляда и челюсти: веки включены, пока глаз закрыт, и повторяют позу скелета.
     func setEyes(closed shut: Bool) {
-        guard shut != eyesClosed, let e = eyes, var model = e.model else { return }
-        model.materials = shut ? closed : open
-        e.model = model
+        guard let e = eyes, let l = lids else { return }
+        if shut { l.jointTransforms = e.jointTransforms }
+        guard shut != eyesClosed else { return }
+        l.isEnabled = shut
         eyesClosed = shut
     }
 
