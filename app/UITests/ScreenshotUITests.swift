@@ -44,6 +44,11 @@
 //                   (-UIPreferredContentSizeCategoryName); подписи кнопок и реплика не должны вылезать и рваться
 //   ui-88           тап по питомцу крупно (волна 18, PET_CAMERA=face): ui-88-tap-before — покой, ui-88-tap-mid — через
 //                   ~0,3 с после тапа слева (голова чуть набок, уши назад), ui-88-tap-after — снова покой
+//   ui-88           подсказки (волна 18, PET_SEED=walk_blocked): ui-88-hint-plate — «Лапы чешутся», «Гулять» с замком,
+//                   плашка «Сначала покормить → Гулять», цветные кнопки; ui-88-walk-locked — тап по «Гулять»: тост
+//                   и подсветка «Покормить»
+//   ui-89           обучение ласке (PET_SEED=wants_pet, PET_TIPS=1): палец по спине и «Проведи пальцем по Шибе»,
+//                   плашка «Погладить», ручка «Шкалы» под панелью
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -548,6 +553,38 @@ final class ScreenshotUITests: XCTestCase {
         settle(1.4)
         snap("ui-88-tap-after")
         app.terminate()
+    }
+
+    // MARK: - Волна 18: подсказки и жесты (ui-88/89)
+
+    /// Хочет гулять, а еды мало: плашка ведёт к миске, на «Гулять» замок с миской. Тап по «Гулять» — тост и подсветка.
+    @MainActor
+    func testStates88HintPlate() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_SEED": "walk_blocked", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let plate = app.descendants(matching: .any)["hint.plate"].firstMatch
+        let found = plate.waitForExistence(timeout: 20)
+        settle(1.5)
+        snap("ui-88-hint-plate")
+        XCTAssertTrue(found, "ui-88: нет плашки hint.plate")
+        let walk = app.descendants(matching: .any)["act.walk"].firstMatch
+        if walk.waitForExistence(timeout: 5) {
+            walk.tap()
+            settle(0.6)
+            snap("ui-88-walk-locked")
+        }
+        XCTAssertTrue(app.descendants(matching: .any)["open.needs"].exists, "ui-88: нет ручки «Шкалы»")
+        app.terminate()
+    }
+
+    /// Просит ласки, новичок: палец ходит по спине, подпись «Проведи пальцем по Шибе».
+    @MainActor
+    func testStates89PetTutor() {
+        shootState("ui-89-pet-tutor", env: ["PET_SEED": "wants_pet", "PET_TIPS": "1", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: "tip.pet", settleFor: 2)
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.

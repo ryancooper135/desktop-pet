@@ -32,11 +32,12 @@ final class StrokeTrackerTests: XCTestCase {
         XCTAssertEqual(T.tapMaxPath, 12)
         XCTAssertEqual(T.tapMaxTime, 0.3)
         XCTAssertEqual(T.tickStep, 50)
-        XCTAssertEqual(T.strokePath, 220)
+        XCTAssertEqual(T.strokePath, 150)
         XCTAssertEqual(T.tickleTaps, 4)
         XCTAssertEqual(T.tickleWindow, 1.5)
         XCTAssertEqual(T.swipeUp, 80)
-        XCTAssertEqual(T.swipeSide, 60)
+        XCTAssertEqual(T.upRatio, 1.5)
+        XCTAssertEqual(T.upLock, 30)
     }
 
     func testShortTouchIsTap() {
@@ -105,5 +106,69 @@ final class StrokeTrackerTests: XCTestCase {
         s.begin(at: CGPoint(x: 200, y: 400), time: 0)
         let ev = s.end(at: CGPoint(x: 300, y: 300), time: 0.2)
         XCTAssertFalse(ev.contains(.swipeUp))
+    }
+
+    /// Ведение пальцем из from в to по шагам (по прямой).
+    private func line(_ s: inout StrokeTracker, from: CGPoint, to: CGPoint, steps: Int = 30) -> [StrokeEvent] {
+        s.begin(at: from, time: 0)
+        var out: [StrokeEvent] = []
+        for i in 1...steps {
+            let k = CGFloat(i) / CGFloat(steps)
+            out += s.move(to: CGPoint(x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k), time: Double(i) * 0.016)
+        }
+        out += s.end(at: to, time: Double(steps + 1) * 0.016)
+        return out
+    }
+
+    // Волна 18: длинный свайп вверх раньше набирал путь ласки (220) и вместо шкал гладил.
+    func testLongSwipeUpOpensNeedsNotStroke() {
+        var s = StrokeTracker()
+        let ev = line(&s, from: CGPoint(x: 200, y: 700), to: CGPoint(x: 220, y: 250))
+        XCTAssertEqual(ev, [.swipeUp], "450 pt вверх — только свайп: ни тиков, ни ласки")
+    }
+
+    func testSlantedSwipeUpStillSwipe() {
+        var s = StrokeTracker()
+        // ~30° от вертикали: |dy| 300, |dx| 160 (≥ 1.5·|dx|).
+        let ev = line(&s, from: CGPoint(x: 100, y: 600), to: CGPoint(x: 260, y: 300))
+        XCTAssertTrue(ev.contains(.swipeUp))
+        XCTAssertFalse(ev.contains(.stroke))
+    }
+
+    func testDiagonalUpIsStrokeNotSwipe() {
+        var s = StrokeTracker()
+        // 45°: вбок столько же, сколько вверх — это ласка, шкалы не открываем.
+        let ev = line(&s, from: CGPoint(x: 50, y: 500), to: CGPoint(x: 250, y: 300))
+        XCTAssertTrue(ev.contains(.stroke))
+        XCTAssertFalse(ev.contains(.swipeUp))
+    }
+
+    func testStrokeThenFlickUpGivesBoth() {
+        var s = StrokeTracker()
+        s.begin(at: CGPoint(x: 100, y: 500), time: 0)
+        var ev: [StrokeEvent] = []
+        // Погладил вбок и обратно (путь 300) — ласка засчитана…
+        ev += s.move(to: CGPoint(x: 250, y: 500), time: 0.2)
+        ev += s.move(to: CGPoint(x: 100, y: 500), time: 0.4)
+        XCTAssertEqual(ev.filter { $0 == .stroke }.count, 1)
+        // …потом увёл палец вверх: от касания в основном вверх — свайп тоже.
+        _ = s.move(to: CGPoint(x: 110, y: 350), time: 0.5)
+        XCTAssertTrue(s.end(at: CGPoint(x: 110, y: 300), time: 0.6).contains(.swipeUp))
+    }
+
+    func testUpThenSidewaysResumesTicks() {
+        var s = StrokeTracker()
+        s.begin(at: CGPoint(x: 200, y: 500), time: 0)
+        XCTAssertEqual(s.move(to: CGPoint(x: 200, y: 400), time: 0.1), [], "вверх — молчим")
+        // Ушёл вбок: от касания уже не «в основном вверх», набранный путь догоняет тиками.
+        let ev = s.move(to: CGPoint(x: 400, y: 400), time: 0.3)
+        XCTAssertEqual(ev, [.tick(1), .tick(2), .tick(3), .tick(4), .tick(5), .tick(6), .stroke])
+        XCTAssertFalse(s.end(at: CGPoint(x: 400, y: 400), time: 0.4).contains(.swipeUp))
+    }
+
+    func testShortStrokeCountsAt150() {
+        var s = StrokeTracker()
+        XCTAssertEqual(drag(&s, length: 140).filter { $0 == .stroke }.count, 0)
+        XCTAssertEqual(drag(&s, length: 150).filter { $0 == .stroke }.count, 1)
     }
 }

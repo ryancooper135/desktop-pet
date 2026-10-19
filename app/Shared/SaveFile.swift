@@ -130,6 +130,9 @@ struct SaveFile: Codable, Sendable {
     /// там, где он родился: перелёт и смена пояса его не сдвигают. nil — сейв старше волны 15: PetStore при
     /// первой записи ставит пояс телефона на момент рождения. Новому щенку — свой, не переходит.
     var birthTz: Int?
+    /// Волна 18. Чему хозяин уже научился (NeedHint.swift, Tips): поглаживания пальцем и разовые подсказки жестов.
+    /// Пустое в файл не пишется, новому щенку переходит: это знание хозяина, а не собаки.
+    var tips = TipLog()
 
     /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
@@ -201,6 +204,7 @@ struct SaveFile: Codable, Sendable {
         case cooking
         case character, characterName
         case birthTz
+        case tips
     }
 
     init(from decoder: Decoder) throws {
@@ -268,6 +272,7 @@ struct SaveFile: Codable, Sendable {
         character = try? c.decodeIfPresent(String.self, forKey: .character)
         characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
         birthTz = try? c.decodeIfPresent(Int.self, forKey: .birthTz)
+        tips = (try? c.decodeIfPresent(TipLog.self, forKey: .tips)) ?? TipLog()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -323,6 +328,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(character, forKey: .character)
         try c.encodeIfPresent(characterName, forKey: .characterName)
         try c.encodeIfPresent(birthTz, forKey: .birthTz)
+        if !tips.isEmpty { try c.encode(tips, forKey: .tips) }
     }
 }
 

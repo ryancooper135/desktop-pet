@@ -3,6 +3,8 @@
 // Стекло (Liquid Glass) только на панели действий, остальное — непрозрачные «бумажные» плашки.
 // Прогулка (WalkViews.swift): над панелью ряд «Альбом · Автомат · Гулять», пока гуляет — записка на месте Шибы.
 // Волна 5: кошелёк у шестерёнки (тап — автомат), «Открытка дня» под верхним рядом, карточка «Вкус открыт!».
+// Волна 18 (HintViews.swift): плашка «что нужно сейчас» над рядом «Гулять», ручка «Шкалы» под панелью,
+// палец-подсказка ласки поверх Шибы, пузырь-мысль нажимается (ведёт туда же, куда плашка).
 
 import SwiftUI
 import UIKit
@@ -50,12 +52,18 @@ struct HomeScreen: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { model.act(.pet) }
             .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
+            // Волна 18: жесты без пальца — щекотка и «что нужно сейчас» (как тап по плашке или пузырю).
+            .accessibilityAction(named: Text("Пощекотать")) { model.tickle() }
+            .accessibilityAction(named: Text("Что нужно сейчас")) { Coach.shared.tapThought(model) }
             .accessibilityIdentifier("pet.stage")
             // Только в UI-тестах: какие уровни дома стоят в комнате (HouseUITests). VoiceOver это не читает.
             .accessibilityValue(Text(Env.isUITest ? model.homeLevels.tag : ""))
 
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
             StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
+
+            // Обучение ласке: палец по спине. Касаний не ловит — гладят сквозь него.
+            PetTutorLayer(snap: snap)
 
             if model.brush != nil && snap.alive {
                 // Расчёсывание (BrushViews): жест по спине вместо обычных касаний. Пёс умер посреди сеанса —
@@ -120,9 +128,19 @@ struct HomeScreen: View {
                 // Мысль и реплика — сверху, на стене над питомцем: там иначе пусто, а низ остаётся кнопкам.
                 VStack(spacing: 6) {
                     if let icon = snap.wantIcon, snap.alive {
-                        ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
-                            .accessibilityIdentifier("pet.thought")
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                        // Волна 18: «Погладь меня» нажимается — покажет, как гладить; «Хочу есть» — покормит.
+                        Button {
+                            Coach.shared.tapThought(model)
+                        } label: {
+                            ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
+                                .frame(minHeight: 32)
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(SquishStyle())
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint(Text(snap.want == "pet" ? "Покажет, как погладить" : "Покажет, что сделать"))
+                        .accessibilityIdentifier("pet.thought")
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                     Text(model.sayLine ?? snap.line)
                         .font(.system(size: min(lineSize, Self.lineMax), weight: .medium, design: .rounded))
@@ -152,6 +170,11 @@ struct HomeScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
+                if let tip = Coach.shared.gestureTip, snap.alive, model.brush == nil {
+                    GestureTipChip(tip: tip)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 if rescue {
                     RescueButton(main: snap.main) { model.doMain() }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -161,12 +184,16 @@ struct HomeScreen: View {
                     BrushPanel()
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if snap.alive && !rescue {
+                    NeedHintPlate(snap: snap)
                     WalkRow(snap: snap)
                         .transition(.opacity)
                 }
 
                 if snap.alive {
-                    if model.brush == nil { ActionBar(snap: snap) }
+                    if model.brush == nil {
+                        ActionBar(snap: snap)
+                        NeedsHandle()
+                    }
                 } else {
                     Button {
                         confirmStartOver = true
@@ -192,6 +219,7 @@ struct HomeScreen: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: model.tasteOpened)
         .animation(.snappy, value: model.pendingCard?.id)
         .animation(.snappy, value: model.brush != nil)
+        .animation(.snappy, value: Coach.shared.gestureTip)
         .onChange(of: snap.pose == .away) { was, now in
             guard now, !was else { return }
             noteHeld = true
@@ -315,15 +343,39 @@ struct HomeScreen: View {
                 SoundKit.shared.strokeTick(n)
                 model.pop("", at: p, symbol: "heart.fill")
             case .stroke:
-                model.act(.pet)
+                // Coach засчитает ласку в обучение (палец уйдёт) и отдаст .pet ядру.
+                Coach.shared.stroked(model)
             case .tap:
                 model.tapPet()
             case .tickle:
                 model.tickle()
+                Coach.shared.performed("tickle")
             case .swipeUp:
+                Coach.shared.performed("swipe")
                 model.showNeeds = true
             }
         }
+    }
+}
+
+/// Палец-подсказка ласки (PetTutorOverlay) — отдельный вид: решение читает стор и сцену, а HomeScreen
+/// перерисовывается на каждое движение пальца (lookX).
+struct PetTutorLayer: View {
+    @Environment(AppModel.self) private var model
+    let snap: PetSnapshot
+
+    var body: some View {
+        let ready = model.file.map { NeedHints.gates($0, at: snap.t)["pet"]?.ok ?? false } ?? false
+        let show = Coach.shared.showTutor(file: model.file, snap: snap, petReady: ready, sceneClear: model.sceneClear)
+        ZStack {
+            if show {
+                PetTutorOverlay()
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: show)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
@@ -424,6 +476,7 @@ struct NameCard: View {
 }
 
 /// Нижняя панель действий. Кнопка, которая сейчас откажет, полупрозрачная, но нажимается и объясняет причину тостом.
+/// Волна 18: активные — цветное стекло с белой иконкой (ActTint), неактивные — бесцветные с бейджем причины.
 /// Все кнопки одной ширины, подписи одним кеглем: кегль подбирается по самой длинной подписи, а не каждой отдельно.
 struct ActionBar: View {
     @Environment(AppModel.self) private var model
@@ -449,19 +502,21 @@ struct ActionBar: View {
         let fit = Self.fit(titles: titles, total: width, maxSize: baseLabel)
         let cell = fit.cell
         let label = fit.label
+        // Волна 18: почему кнопка сейчас не сработает — бейдж «3 мин», «спит», «моется» прямо на кнопке.
+        let g = model.file.map { NeedHints.gates($0, at: snap.t) } ?? [:]
         GlassEffectContainer(spacing: fit.spacing) {
             HStack(spacing: fit.spacing) {
                 if nap {
                     ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
                         .frame(width: cell > 0 ? cell : nil)
                 }
-                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing || away, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
+                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing || away, gate: g["feed"] ?? .open, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing || away, labelSize: label) { model.act(.pet) }
+                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing || away, gate: g["pet"] ?? .open, labelSize: label) { model.act(.pet) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || away || snap.pose == .sleep, labelSize: label) { model.act(.play) }
+                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || away || snap.pose == .sleep, gate: g["play"] ?? .open, labelSize: label) { model.act(.play) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing || away, labelSize: label) { model.act(.bath) }
+                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing || away, gate: g["bath"] ?? .open, labelSize: label) { model.act(.bath) }
                     .frame(width: cell > 0 ? cell : nil)
                 if lamp {
                     ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {
@@ -549,20 +604,30 @@ struct ActButton: View {
     let icon: String
     let kind: String
     let dim: Bool
+    /// Волна 18: что скажет ядро (NeedHints.gate). Не ok — кнопка бесцветная, в углу бейдж причины.
+    let gate: ActGate
     /// Кегль подписи: панель задаёт один на все кнопки.
     let labelSize: CGFloat
     let action: () -> Void
 
     @State private var taps = 0
+    @ScaledMetric(relativeTo: .caption2) private var badgeSize: CGFloat = 10
 
-    init(title: String, icon: String, kind: String, dim: Bool, labelSize: CGFloat = 13, action: @escaping () -> Void) {
+    init(title: String, icon: String, kind: String, dim: Bool, gate: ActGate = .open, labelSize: CGFloat = 13,
+         action: @escaping () -> Void) {
         self.title = title
         self.icon = icon
         self.kind = kind
         self.dim = dim
+        self.gate = gate
         self.labelSize = labelSize
         self.action = action
     }
+
+    /// Нажатие сейчас сработает.
+    private var live: Bool { !dim && gate.ok }
+    /// Бейдж причины: ядро сказало своё («3 мин», «спит») или вся панель погашена ванной/прогулкой.
+    private var badge: String? { gate.badge ?? (dim ? "позже" : nil) }
 
     /// Смещения по x за одно покачивание.
     private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
@@ -584,20 +649,42 @@ struct ActButton: View {
                     .minimumScaleFactor(0.75)
                     .allowsTightening(true)
             }
-            .foregroundStyle(PetPalette.ink)
+            // Активная: белое на цветном стекле. Неактивная: приглушённые чернила на бесцветном.
+            .foregroundStyle(live ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(0.5)))
+            .shadow(color: live ? .black.opacity(0.18) : .clear, radius: 1, y: 1)
             .padding(.horizontal, 2)
             .frame(maxWidth: .infinity, minHeight: 56)
             .contentShape(Capsule())
         }
         .buttonStyle(SquishStyle())
-        .opacity(dim ? 0.45 : 1)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .glassEffect(live ? .regular.tint(ActTint.color(kind).opacity(0.88)).interactive() : .regular.interactive(),
+                     in: Capsule())
+        .overlay(alignment: .top) {
+            if !live, let badge {
+                HStack(spacing: 2) {
+                    Image(systemName: gate.reason == "cooldown" ? "clock.fill" : "lock.fill")
+                    Text(badge)
+                }
+                .font(.system(size: min(badgeSize, 13), weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1.5)
+                .background(Capsule().fill(PetPalette.soft))
+                .offset(y: -7)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+        .coachHighlight(kind)
         .phaseAnimator(Self.shake, trigger: model.refusals[kind, default: 0], content: { view, x in
             view.offset(x: x)
         }, animation: { _ in
             .linear(duration: 0.06)
         })
         .accessibilityLabel(Text(title))
+        .accessibilityValue(Text(live ? "" : badge.map { "недоступно, \($0)" } ?? "недоступно"))
         .accessibilityIdentifier("act.\(kind)")
     }
 }

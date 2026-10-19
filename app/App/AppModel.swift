@@ -1775,6 +1775,19 @@ enum LaunchSeed {
                 }
                 f.seen = f.pet
                 f.lastSeenT = now
+            case "wants_pet", "walk_blocked":
+                // Волна 18 (ui-88/89): «Погладь меня» — ласки 10, остальное 80; «Лапы чешутся», но еды 35 < 40 —
+                // «Гулять» с замком, плашка «Сначала покормить → Гулять».
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                if seed == "wants_pet" {
+                    f.pet.needs[.love] = 10
+                } else {
+                    f.pet.needs[.walk] = 0
+                    f.pet.needs[.food] = 35
+                }
+                f.seen = f.pet
+                f.lastSeenT = now
             default:
                 break
             }

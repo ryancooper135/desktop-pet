@@ -162,6 +162,8 @@ final class PetStore: @unchecked Sendable {
             // Свой персонаж (CharacterStore) — выбор хозяина: новый щенок в том же облике.
             fresh.character = old.character
             fresh.characterName = old.characterName
+            // Подсказки жестов (волна 18) — знание хозяина: второй раз учить гладить не надо.
+            fresh.tips = old.tips
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
             // Память и характер (memories, care) — тоже нет: они про того пса.
             // Старый файл целиком остаётся в state.broken-<t>.json.
