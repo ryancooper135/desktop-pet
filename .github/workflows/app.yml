@@ -25,7 +25,7 @@ concurrency:
 jobs:
   app:
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: app
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build ipa
         if: ${{ env.RUN_IPA == '1' }}
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           xcodebuild -project Pet.xcodeproj -scheme Pet \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \

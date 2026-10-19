@@ -323,7 +323,7 @@ struct BuyButton: View {
         }
         .buttonStyle(SquishStyle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Купить \(next.name), \(EconText.coins(next.price))"))
+        .accessibilityLabel(Text("\(next.name): купить за \(EconText.coins(next.price))"))
         .accessibilityValue(Text(row.canBuy ? "" : title))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("house.buy.\(row.id.rawValue)")

@@ -396,7 +396,7 @@ enum Presenter {
     static func statusText(at t: Double = Clock.now()) -> String {
         let f = PetStore.load()
         let snap = make(f, at: t)
-        if !snap.alive { return "\(snap.name) больше нет с нами. Открой приложение." }
+        if !snap.alive { return "\(PetNames.gone(snap.name)). Открой приложение." }
         var parts = ["\(snap.name): \(snap.line)"]
         parts.append("Сердечки: \(heartsSpoken(snap.hearts, of: snap.heartsMax)).")
         if let w = snap.wantText { parts.append("Хочет: \(w).") }

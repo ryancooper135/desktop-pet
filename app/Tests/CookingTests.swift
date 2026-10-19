@@ -75,7 +75,7 @@ final class CookingTests: XCTestCase {
         let e = try XCTUnwrap(f.journal.last { $0.kind == "food.buy" })
         XCTAssertEqual(e.key, "carrot")
         XCTAssertEqual(e.value, 3)
-        XCTAssertEqual(Cooking.buyText(r, name: "Морковка"), "Угостили: Морковка за \(EconText.coins(3))")
+        XCTAssertEqual(Cooking.buyText(r, name: "Морковка"), "Угощение: морковка за \(EconText.coins(3))")
     }
 
     func testBuyFoodFullPriceWithoutBuff() {
@@ -246,7 +246,8 @@ final class CookingTests: XCTestCase {
         XCTAssertEqual(c.coins, 15, "тогда — монеты")
         XCTAssertEqual(f.econ.wallet.coins, coins0 + 15)
         XCTAssertEqual(f.econ.lastEarn?.kind, Cooking.reactKind)
-        XCTAssertEqual(Cooking.reply(c), "\(c.text) · +\(EconText.coins(15))")
+        XCTAssertEqual(Cooking.bonusText(c), "Подарок за первое блюдо дня: +\(EconText.coins(15))")
+        XCTAssertFalse(Cooking.bonusText(c)?.contains(c.text) ?? true, "фраза про блюдо — только в пузыре, в тосте её нет")
     }
 
     // MARK: тексты и конфиг
@@ -271,7 +272,7 @@ final class CookingTests: XCTestCase {
         XCTAssertEqual(Cooking.statusText(f, now: cT0, cCfg()), "Сегодня 0 из 2 · первое блюдо дня с подарком")
         Cooking.cook("stew_home", in: &f, now: cT0, cCfg())
         XCTAssertEqual(Cooking.statusText(f, now: cT0, cCfg()), "Сегодня 1 из 2")
-        XCTAssertEqual(Cooking.stateText(.needsItem("acorn_jar"), stew, now: cT0)?.hasPrefix("Нужно: "), true)
+        XCTAssertEqual(Cooking.stateText(.needsItem("acorn_jar"), stew, now: cT0), "Нужна вещь из капсул: банка желудей")
         XCTAssertNil(Cooking.stateText(.ready, stew, now: cT0))
     }
 

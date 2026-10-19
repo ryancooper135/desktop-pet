@@ -212,7 +212,7 @@ enum Cooking {
 
     static func buyText(_ r: BuyResult, name: String) -> String {
         switch r {
-        case .ok(let p, _): return "Угостили: \(name) за \(EconText.coins(p))"
+        case .ok(let p, _): return "Угощение: \(EconText.lowerFirst(name)) за \(EconText.coins(p))"
         case .noCoins(let need): return EconText.notEnough(need: need)
         case .refused(let reason): return RefuseText.text(reason)
         case .unknown: return RefuseText.text("unknown_item")
@@ -344,7 +344,7 @@ enum Cooking {
 
     /// Фраза после блюда. n — который раз это блюдо: по кругу, детерминированно (тесты, снимки).
     static func dishLine(_ id: String, n: Int) -> String {
-        let list = lines[id] ?? ["Шиба уплетает за обе щеки — миска блестит!"]
+        let list = lines[id] ?? ["Шиба уплетает за обе щёки — миска блестит!"]
         return list[(max(1, n) - 1) % list.count]
     }
 
@@ -393,7 +393,7 @@ enum Cooking {
         case .ready: return nil
         case .blocked(let why): return reasonText(why, cfg, name: name)
         case .cooldown(let until): return "Плита остывает · \(waitText(until - now).lowercased())"
-        case .needsItem(let item): return "Нужно: \(itemName(item)) из капсул"
+        case .needsItem(let item): return "Нужна вещь из капсул: \(EconText.lowerFirst(itemName(item)))"
         case .lowPantry(let have): return "Запас \(have) из \(Int(r.pantry)) — сначала покорми"
         }
     }
@@ -412,10 +412,11 @@ enum Cooking {
         return bonusLeft(f, now: now) ? "\(base) · первое блюдо дня с подарком" : base
     }
 
-    /// Ответ целиком для тоста: фраза пса и бонус.
-    static func reply(_ o: CookOutcome) -> String {
-        if o.coins > 0 { return "\(o.text) · +\(EconText.coins(o.coins))" }
-        return o.text
+    /// Тост бонуса: только монеты за первое блюдо дня. Фразу про блюдо говорит пёс в пузыре — в тосте её
+    /// не повторяем (волна 17: раньше одна мысль была на экране дважды). nil — бонуса нет.
+    static func bonusText(_ o: CookOutcome) -> String? {
+        guard o.ok, o.coins > 0 else { return nil }
+        return "Подарок за первое блюдо дня: +\(EconText.coins(o.coins))"
     }
 
     static func itemName(_ id: String) -> String {

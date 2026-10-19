@@ -391,6 +391,20 @@ enum EconText {
         return many
     }
 
+    /// «3 раза», «5 раз», «21 раз» — для {times} в строках («Поймал {times} подряд!»).
+    static func times(_ n: Int) -> String { "\(n) \(plural(n, "раз", "раза", "раз"))" }
+    /// «1 день», «3 дня», «21 день» — для {days} в строках («Мы вместе уже {days}.»).
+    static func days(_ n: Int) -> String { "\(n) \(plural(n, "день", "дня", "дней"))" }
+    /// «1 очко», «3 очка», «5 очков».
+    static func points(_ n: Int) -> String { "\(n) \(plural(n, "очко", "очка", "очков"))" }
+
+    /// Название после двоеточия с маленькой буквы: «Угощение: морковка». Имя в именительном падеже
+    /// после двоеточия читается естественно, а склонять названия из данных не нужно (волна 17).
+    static func lowerFirst(_ s: String) -> String {
+        guard let c = s.first else { return s }
+        return c.lowercased() + s.dropFirst()
+    }
+
     static func word(_ base: String, _ n: Int, lines: Lines = .shared) -> String {
         plural(n, ui("\(base)_one", lines: lines), ui("\(base)_few", lines: lines), ui("\(base)_many", lines: lines))
     }

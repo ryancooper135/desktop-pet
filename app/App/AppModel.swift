@@ -498,7 +498,7 @@ final class AppModel {
             }
             self.speak(ZombieRun.shibaLine(r))
             if toast, let reward = ZombieRun.rewardText(r) {
-                self.show("Зомби: \(r.score) очков, \(reward)", emoji: "🧟")
+                self.show("Зомби: \(EconText.points(r.score)), \(reward)", emoji: "🧟")
             }
         }
     }
@@ -1279,7 +1279,8 @@ final class AppModel {
         notePhoto(.treat, delay: PostcardCamera.actionDelay)
         // Открылся вкус — его карточка и реплика важнее фразы про блюдо.
         if out.openedTaste == nil { speak(out.text) }
-        if out.coins > 0 { show(Cooking.reply(out), emoji: "🪙") }
+        // Тост — только бонус: фраза про блюдо уже в пузыре, второй раз её не показываем (волна 17).
+        if let bonus = Cooking.bonusText(out) { show(bonus, emoji: "🪙") }
         // Окно позы «ест» 12 с, тикер — раз в 30 с: пересчитать снимок вовремя (как settle).
         poseTask?.cancel()
         poseTask = Task { [weak self] in
