@@ -997,43 +997,12 @@ final class PetRig {
     private var closed: [any Material] = []
     private var eyesClosed = false
 
-    // ВРЕМЕННО (волна 16): диагностика моргания для UI-тестов.
-    static var debugLine = "-"
-    private var created = 0
-    private var candidates = 0
-    private var closes = 0
-    private var opens = 0
-    private var recolors = 0
-    private static var made = 0
-    /// 0 — как было, 1 — новый ModelComponent, 2 — снять и поставить, 3 — новые значения материалов, 4 — без UV шерсти.
-    static let variant = Int.random(in: 0..<5)
-
-    private func debug(_ face: PetFace, _ shut: Bool, _ st: ClipState?) {
-        func at(_ a: [any Material]?, _ i: Int) -> (any Material)? {
-            guard let a, i < a.count else { return nil }
-            return a[i]
-        }
-        func b(_ m: (any Material)?) -> String {
-            guard let m, let v = Self.brightness(m) else { return "?" }
-            return String(format: "%.2f", v)
-        }
-        let cur = eyes?.model?.materials
-        Self.debugLine = String(format: "V%d rig#%d/%d r=%d cand=%d e=%d sk=%d\nc=%d s=%d t=%.1f b=%.1f n=%.1f\n", Self.variant,
-                                created, Self.made, Self.rigs.count, candidates, eyes == nil ? 0 : 1, skin == nil ? 0 : 1,
-                                eyesClosed ? 1 : 0, shut ? 1 : 0, face.time, face.blinkUntil, face.nextBlink)
-            + "st=\(st?.stance.rawValue ?? "-") bliss=\(face.bliss ? 1 : 0) still=\(face.still ? 1 : 0) "
-            + "cl=\(closes) op=\(opens) rc=\(recolors)\nn=\(cur?.count ?? -1) cur3=\(b(at(cur, 3))) "
-            + "open3=\(b(at(open, 3)))\nclosed3=\(b(at(closed, 3))) cur0=\(b(at(cur, 0)))"
-    }
-
     static func rig(for pet: Entity) -> PetRig? {
         let id = pet.id
         if let r = rigs[id] { return r }
         guard let body = pet.findEntity(named: PetModel.bodyName) else { return nil }
         if rigs.count > 8 { rigs.removeAll() }
         let r = PetRig(body)
-        made += 1
-        r.created = made
         rigs[id] = r
         return r
     }
@@ -1044,7 +1013,6 @@ final class PetRig {
             let e = queue.removeFirst()
             if let m = e as? ModelEntity {
                 if skin == nil, !m.jointNames.isEmpty { setUpJoints(m) }
-                if let mats = m.model?.materials, PetRoom.shibaMaterials.contains(mats.count) { candidates += 1 }
                 if eyes == nil, let mats = m.model?.materials, PetRoom.shibaMaterials.contains(mats.count) {
                     setUpEyes(m, mats)
                 }
@@ -1193,7 +1161,6 @@ final class PetRig {
         open = mats
         closed = mats
         for i in 3...5 { closed[i] = lid }
-        recolors += 1
         if eyesClosed, var model = e.model {
             model.materials = closed
             e.model = model
@@ -1202,29 +1169,9 @@ final class PetRig {
 
     func setEyes(closed shut: Bool) {
         guard shut != eyesClosed, let e = eyes, var model = e.model else { return }
-        var mats = shut ? closed : open
-        switch Self.variant {
-        case 1:
-            e.components.set(ModelComponent(mesh: model.mesh, materials: mats))
-        case 2:
-            e.components.remove(ModelComponent.self)
-            model.materials = mats
-            e.components.set(model)
-        case 3:
-            let k = Float(closes + opens) * 0.0001
-            for i in 3...5 {
-                guard var p = mats[i] as? PhysicallyBasedMaterial else { continue }
-                p.roughness = .init(floatLiteral: 1 - k)
-                mats[i] = p
-            }
-            model.materials = mats
-            e.model = model
-        default:
-            model.materials = mats
-            e.model = model
-        }
+        model.materials = shut ? closed : open
+        e.model = model
         eyesClosed = shut
-        if shut { closes += 1 } else { opens += 1 }
     }
 
     private func global(_ j: Int, _ rot: [simd_quatf]) -> simd_quatf {
@@ -1265,9 +1212,7 @@ final class PetRig {
             shut = true
         } else if !face.still {
             if face.time >= face.nextBlink {
-                // Моргаем только на коротком кадре: при редких кадрах (подвисание, симулятор CI) закрытый глаз висел бы
-                // весь длинный кадр — на снимках волны 15 пёс почти всегда был с закрытыми глазами.
-                face.blinkUntil = dt < 0.1 ? face.time + 0.13 : face.time
+                face.blinkUntil = face.time + 0.13
                 // Иногда двойное моргание.
                 face.nextBlink = face.time + (Double.random(in: 0..<1) < 0.2 ? 0.3 : Double.random(in: 2.5...6))
             }
@@ -1290,7 +1235,6 @@ final class PetRig {
         rig.look(face.angle)
         rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
-        if Env.isUITest { rig.debug(face, shut, st) }
     }
 }
 

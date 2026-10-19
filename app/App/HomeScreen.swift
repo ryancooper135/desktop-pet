@@ -57,20 +57,6 @@ struct HomeScreen: View {
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
             StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
 
-            // ВРЕМЕННО (волна 16, диагностика моргания): состояние глаз поверх сцены в UI-тестах.
-            if Env.isUITest {
-                TimelineView(.periodic(from: .now, by: 0.2)) { _ in
-                    Text(PetRig.debugLine)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.black)
-                        .padding(2)
-                        .background(.white)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-            }
-
             if model.brush != nil && snap.alive {
                 // Расчёсывание (BrushViews): жест по спине вместо обычных касаний. Пёс умер посреди сеанса —
                 // слой убираем вместе с полосой (её и так нет), иначе он перехватывал касания сцены.
