@@ -4,7 +4,7 @@
 // ClipState: двигает обёртку питомца с пятном-тенью, миску и мяч и ставит клипы на границах отрезков игры.
 // PetRig поворачивает шею и голову к взгляду (кости Neck3 и Head) и моргает подменой материалов глаз.
 // Время — секунды от начала реакции; координаты мировые, +y вверх, питомец дома стоит в нуле.
-// Челюсти и век в shiba.usdz нет: «закрытый глаз» — материал шерсти на месте глаза (style_a eyes_closed).
+// Челюсти и век в shiba.usdz нет: «закрытый глаз» — шерсть плоским цветом на месте глаза (PetRoom.eyeLid).
 
 import Foundation
 import simd
@@ -1104,14 +1104,17 @@ final class PetRig {
     /// что 4 и 5 темнее шерсти, а 3 на шерсть не похож; не сошлось — не моргаем. С волны 16 «белок» у Шибы
     /// тёмно-карий (style_a: белые серпы по бокам радужки читались как закатанные глаза), поэтому 3 может быть
     /// и светлее шерсти (свои персонажи Quaternius), и темнее.
+    /// Закрытый глаз — шерсть плоским цветом (PetRoom.eyeLid): у текстурной шерсти tint почти белый, и глаз
+    /// закрывался белым пятном (ui-55, ui-63 волны 15).
     private func setUpEyes(_ m: ModelEntity, _ mats: [any Material]) {
+        guard let lid = PetRoom.eyeLid(m, mats) else { return }
         let light = mats.map(Self.brightness)
-        guard let fur = light[0], let white = light[3], let pupil = light[4], let black = light[5],
+        guard let fur = Self.brightness(lid), let white = light[3], let pupil = light[4], let black = light[5],
               Self.looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black) else { return }
         eyes = m
         open = mats
         closed = mats
-        for i in 3...5 { closed[i] = mats[0] }
+        for i in 3...5 { closed[i] = lid }
     }
 
     /// Подмножества 3…5 — глаза, а не часть шерсти: радужка и зрачок темнее шерсти, «белок» заметно отличается от неё.
@@ -1153,10 +1156,11 @@ final class PetRig {
 
     /// Шерсть перекрасили (PetRoom.applyCoat): открытые и закрытые глаза берут новые материалы.
     func recolor(_ m: ModelEntity, _ mats: [any Material]) {
-        guard let e = eyes, e === m, mats.count == open.count, mats.count >= 6 else { return }
+        guard let e = eyes, e === m, mats.count == open.count, mats.count >= 6,
+              let lid = PetRoom.eyeLid(m, mats) else { return }
         open = mats
         closed = mats
-        for i in 3...5 { closed[i] = mats[0] }
+        for i in 3...5 { closed[i] = lid }
         if eyesClosed, var model = e.model {
             model.materials = closed
             e.model = model

@@ -277,6 +277,9 @@ enum PetRoom {
     private static var coatShown: [Entity.ID: CoatLook] = [:]
     /// Модели, у меша которых есть наша развёртка под текстуру шерсти.
     private static var furUV: Set<Entity.ID> = []
+    /// «Веко» для моргания (PetRig): шерсть Main плоским цветом с той же грязью, без текстуры. Текстурная шерсть
+    /// на крошечных частях глаза ложилась белым пятном (tint у неё почти белый, цвет запечён в текстуру) — волна 16.
+    private static var coatLid: [Entity.ID: any Material] = [:]
     /// Меши, которым развёртку уже построили: клоны из PetModel.load делят один меш — второй раз не строим.
     private static var furMeshes: [ObjectIdentifier: MeshResource] = [:]
     /// Текстуры шерсти «стадия-цвет основы»: каждая строится один раз (CoatFur.pixels), дальше из кэша.
@@ -302,6 +305,7 @@ enum PetRoom {
             let e = queue.removeFirst()
             if let m = e as? ModelEntity, let mats = m.model?.materials {
                 coatBase[m.id] = mats
+                coatLid[m.id] = nil
                 if !furIndices(mats).isEmpty, prepareFurUV(m) { furUV.insert(m.id) }
             }
             queue += Array(e.children)
@@ -415,9 +419,26 @@ enum PetRoom {
             }
             model.materials = mats
             m.model = model
+            if var lid = base.first as? PhysicallyBasedMaterial {
+                lid.roughness = .init(floatLiteral: 1 - 0.4 * shine)
+                lid.specular = .init(floatLiteral: 0.3 * shine)
+                lid.metallic = .init(floatLiteral: 0)
+                lid.baseColor = .init(tint: dirtied(lid.baseColor.tint, mix), texture: nil)
+                if coatLid.count > 64 { coatLid.removeAll() }
+                coatLid[m.id] = lid
+            }
             // Глаза моргают подменой материалов — пусть берут новую шерсть.
             PetRig.rig(for: pet)?.recolor(m, mats)
         }
+    }
+
+    /// Чем закрыть глаз модели m: шерсть плоским цветом (без текстуры). До первой покраски — исходная шерсть;
+    /// не знаем модель — шерсть из mats без текстуры.
+    static func eyeLid(_ m: ModelEntity, _ mats: [any Material]) -> (any Material)? {
+        if let lid = coatLid[m.id] { return lid }
+        guard var fur = (coatBase[m.id]?.first ?? mats.first) as? PhysicallyBasedMaterial else { return mats.first }
+        fur.baseColor = .init(tint: fur.baseColor.tint, texture: nil)
+        return fur
     }
 
     /// Сколько подмножеств у Шибы из usdz: шесть, с волны 13 седьмое — язык (Tongue, mouth.py). Порядок прежний,
