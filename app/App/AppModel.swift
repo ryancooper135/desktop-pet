@@ -1433,12 +1433,7 @@ enum AwayBuilder {
         return "Тебя не было \(Int((h / 24).rounded())) дн"
     }
 
-    static func times(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        if m10 == 1 && m100 != 11 { return "раз" }
-        if (2...4).contains(m10) && !(12...14).contains(m100) { return "раза" }
-        return "раз"
-    }
+    static func times(_ n: Int) -> String { EconText.plural(n, "раз", "раза", "раз") }
 
     static func deathText(_ cause: String?, name: String) -> String {
         switch cause {

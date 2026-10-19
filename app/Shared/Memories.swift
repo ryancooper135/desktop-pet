@@ -254,14 +254,10 @@ enum Memories {
 
     /// «1 год», «2 года», «5 лет».
     static func years(_ n: Int) -> String {
-        "\(n) \(plural(n, "год", "года", "лет"))"
+        "\(n) \(EconText.plural(n, "год", "года", "лет"))"
     }
 
-    static func dayWord(_ n: Int) -> String { plural(n, "день", "дня", "дней") }
-
-    static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        EconText.plural(n, one, few, many)
-    }
+    static func dayWord(_ n: Int) -> String { EconText.plural(n, "день", "дня", "дней") }
 
     // MARK: реплики
 

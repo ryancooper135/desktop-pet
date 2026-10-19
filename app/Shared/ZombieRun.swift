@@ -546,12 +546,7 @@ enum ZombieRun {
     }
 
     /// «3 друга», «1 друг», «5 друзей».
-    static func friendsText(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        if m10 == 1 && m100 != 11 { return "\(n) друг" }
-        if (2...4).contains(m10) && !(12...14).contains(m100) { return "\(n) друга" }
-        return "\(n) друзей"
-    }
+    static func friendsText(_ n: Int) -> String { "\(n) \(EconText.plural(n, "друг", "друга", "друзей"))" }
 
     /// Что Шиба скажет в комнате после раунда. Одна игра — одна фраза.
     static func shibaLine(_ r: ZombieResult) -> String {

@@ -78,7 +78,7 @@ enum Guides {
     static func rulesItems(_ r: Rules, economy e: JSONValue?, name: String, owner: Owner) -> [RuleItem] {
         var out: [RuleItem] = []
         let maxH = Int(r.heartsMax.rounded())
-        out.append(RuleItem(id: "hearts", icon: "heart.fill", title: "\(maxH) \(plural(maxH, "сердечко", "сердечка", "сердечек"))",
+        out.append(RuleItem(id: "hearts", icon: "heart.fill", title: "\(maxH) \(EconText.plural(maxH, "сердечко", "сердечка", "сердечек"))",
                             text: "Это его жизнь. Пока есть хоть одно — \(name) с тобой."))
 
         for d in Distress.allCases {
@@ -112,7 +112,7 @@ enum Guides {
 
         var help = "Когда ему плохо, жми «Спасти» — там самое срочное."
         if let item = r.items[Catalog.healItem], case .number(let plus)? = item["hearts"] {
-            var line = "\(Catalog.name(Catalog.healItem)) даёт +\(num(plus)) \(plus == 1 ? "сердечко" : "сердечка")"
+            var line = "\(Catalog.name(Catalog.healItem)) даёт +\(num(plus)) \(heartsWord(plus))"
             if case .number(let cd)? = item["cooldown_h"] { line += ", не чаще раза в \(hours(cd))" }
             help = line + ". " + help
         }
@@ -159,6 +159,13 @@ enum Guides {
     }
 
     /// 2 → «2», 0.5 → «0,5».
+    /// «1 сердечко», «2 сердечка», «5 сердечек»; дробное — «0,5 сердечка».
+    static func heartsWord(_ x: Double) -> String {
+        let r = (x * 10).rounded() / 10
+        guard r == r.rounded() else { return "сердечка" }
+        return EconText.plural(Int(r), "сердечко", "сердечка", "сердечек")
+    }
+
     static func num(_ x: Double) -> String {
         let r = (x * 10).rounded() / 10
         if r == r.rounded() { return String(Int(r)) }
@@ -176,10 +183,6 @@ enum Guides {
     static func hm(_ minutes: Int) -> String {
         let m = ((minutes % 1440) + 1440) % 1440
         return String(format: "%02d:%02d", m / 60, m % 60)
-    }
-
-    static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        EconText.plural(n, one, few, many)
     }
 
     /// [a, b, c] → «a, b и c».
