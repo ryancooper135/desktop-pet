@@ -16,6 +16,7 @@ import SwiftUI
 
 struct ZombieRunScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum Phase: Equatable {
         case intro
@@ -37,6 +38,8 @@ struct ZombieRunScreen: View {
     @State private var runID = 0
     /// Снимок UI-теста: раунд стоит.
     @State private var frozen = false
+    /// Приложение активно — зеркало scenePhase для цикла кадров: окружение, взятое задачей, не обновляется.
+    @State private var live = true
     @State private var posterIntro: CGImage? = nil
     @State private var posterDone: CGImage? = nil
     @State private var slobber = 0
@@ -70,6 +73,7 @@ struct ZombieRunScreen: View {
         .background(Self.night.ignoresSafeArea())
         .environment(\.colorScheme, .dark)
         .task(id: runID) { await loop() }
+        .onChange(of: scenePhase, initial: true) { _, p in live = p == .active }
         .task { await makePosters() }
         .onAppear { uiTestSetup() }
         .accessibilityElement(children: .contain)
@@ -298,16 +302,16 @@ struct ZombieRunScreen: View {
         frame = nil
     }
 
-    /// Кадры примерно по 1/60 с. Время раунда — сумма шагов, а не часы: в фоне и на подвисании оно стоит.
+    /// Кадры примерно по 1/60 с. Время раунда — сумма шагов, а не часы: в фоне, вне активного состояния
+    /// и на подвисании оно стоит (FrameClock), и кадр тогда не рисуется.
     /// Кадр рисуется вне главного потока; пока рисуется, раунд идёт дальше со следующего шага.
     private func loop() async {
         guard phase == .playing, !frozen else { return }
-        var last = Date()
+        var clock = FrameClock(now: ProcessInfo.processInfo.systemUptime)
         while !Task.isCancelled, phase == .playing, !round.isOver {
-            try? await Task.sleep(for: .milliseconds(16))
-            let now = Date()
-            let dt = min(now.timeIntervalSince(last), 0.05)
-            last = now
+            try? await Task.sleep(for: .milliseconds(FrameClock.waitMs(running: live)))
+            let dt = clock.tick(now: ProcessInfo.processInfo.systemUptime, running: live)
+            guard dt > 0 else { continue }
             handle(round.advance(to: round.t + dt, target: target))
             pops.removeAll { round.t - $0.t > ZombiePop.life }
             await draw()
