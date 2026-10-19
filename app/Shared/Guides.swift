@@ -6,8 +6,9 @@ import Foundation
 @preconcurrency import PetCore
 
 /// Какую подсказку показать. Identifiable — для .sheet(item:).
+/// intro — знакомство при первом запуске (волна 19, Onboarding).
 enum GuideKind: String, Identifiable, Hashable, Sendable {
-    case rules, widget
+    case intro, rules, widget
     var id: String { rawValue }
 }
 

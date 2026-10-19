@@ -315,7 +315,7 @@ private struct IntroCard: View {
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
-            Text("Мячик — 1 очко, косточка — 2. Три промаха — и всё.")
+            Text("Води миску пальцем. Мячик — 1 очко, косточка — 2. Три промаха — и всё.")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)

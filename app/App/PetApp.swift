@@ -50,9 +50,10 @@ struct RootView: View {
             AwayScreen(report: report)
                 .environment(model)
         }
-        // Подсказки «Правила» и «Виджет и остров» (GuideCenter): ждут, пока экран свободен.
+        // Знакомство, подсказки «Правила» и «Виджет и остров» (GuideCenter): ждут, пока экран свободен.
         .sheet(item: $guide.sheet, onDismiss: { guide.check() }) { kind in
             switch kind {
+            case .intro: IntroScreen(onDone: { guide.close() }).environment(model)
             case .rules: RulesScreen(onDone: { guide.ackRules() }).environment(model)
             case .widget: WidgetGuideSheet(onDone: { guide.close() }).environment(model)
             }

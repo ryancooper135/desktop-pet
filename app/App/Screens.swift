@@ -37,9 +37,9 @@ struct NeedsSheet: View {
             ForEach(VisibleNeeds.all, id: \.self) { n in
                 NeedBar(need: n, value: snap.needs[n] ?? 0)
             }
-            // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift.
+            // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift. Волна 19: лохматая — где расчесать.
             if let coat = model.coat, snap.alive {
-                Text("Шерсть: \(coat.stage.title.lowercased())")
+                Text(Onboarding.coatLine(coat.stage))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("needs.coat")
@@ -161,6 +161,8 @@ struct SettingsScreen: View {
     @State private var roomEvening = RoomEveningMode.standard
     @State private var loaded = false
     @State private var confirmStartOver = false
+    /// Волна 19: знакомство, правила или гайд виджета, открытые снова из раздела «Подсказки».
+    @State private var guide: GuideKind?
     /// Звук только на этом телефоне (UserDefaults), по умолчанию включён. Читает SoundKit.
     @AppStorage(SoundKit.enabledKey) private var sound = true
 
@@ -274,6 +276,26 @@ struct SettingsScreen: View {
                     Text("Папка из «Файлов»: модель с анимациями и character.json — имя, клипы, рост, цвет. Характер, вещи и сохранение остаются, меняется только облик.")
                 }
 
+                // Волна 19: всё, что показывалось один раз, можно открыть снова.
+                Section {
+                    Button { guide = .intro } label: {
+                        Label("Как тут всё устроено", systemImage: "questionmark.circle")
+                    }
+                    .accessibilityIdentifier("settings.intro")
+                    Button { guide = .rules } label: {
+                        Label("Честно о главном: сердечки", systemImage: "heart.text.square")
+                    }
+                    .accessibilityIdentifier("settings.rules")
+                    Button { guide = .widget } label: {
+                        Label("Виджет и остров", systemImage: "square.grid.2x2")
+                    }
+                    .accessibilityIdentifier("settings.widgetGuide")
+                } header: {
+                    Text("Подсказки")
+                }
+                .foregroundStyle(PetPalette.ink)
+                .listRowBackground(PetPalette.card)
+
                 if Self.showDevTools {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }
@@ -330,6 +352,13 @@ struct SettingsScreen: View {
                     dismiss()
                 }
                 Button("Отмена", role: .cancel) {}
+            }
+            .sheet(item: $guide) { kind in
+                switch kind {
+                case .intro: IntroScreen(onDone: { guide = nil }).environment(model)
+                case .rules: RulesScreen(onDone: { GuideCenter.shared.ackRules(); guide = nil }).environment(model)
+                case .widget: WidgetGuideSheet(onDone: { guide = nil }).environment(model)
+                }
             }
         }
         .presentationBackground(PetPalette.bg)
