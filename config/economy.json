@@ -167,8 +167,11 @@
     "diminishing": [ { "games_from": 1, "x": 1.0 }, { "games_from": 7, "x": 0.5 }, { "games_from": 13, "x": 0.2 } ],
     "energy_cost": 6,
     "fun_gain": 18,
+    "daily_cap": 60,
+    "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames в BlockDuo.swift): «Лови мячик» и «Блок Дуо» вместе; у каждой ещё свой daily_cap",
     "list": {
-      "block_duo":  { "name": "Блок Дуо",            "formula": "min(70, 10 + floor(sqrt(score)/2.2))", "record_bonus": 20, "url": "https://blockduo.spotify-together.workers.dev/?embed=pet" },
+      "blockduo":   { "name": "Блок Дуо",            "base": 5,  "max": 40, "par_score": 3000, "daily_cap": 60,
+                      "_note": "BlockDuo.swift, волна 12: своя игра вместе с Шибой вместо веб-версии в браузере. Очки как в веб-версии (клетка 1, линии 40·n·(n+1)·комбо, пустое поле +500), счёт общий с Шибой; монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x; свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
       "catch":      { "name": "Лови мячик",          "base": 5,  "max": 30, "par_score": 40, "daily_cap": 60, "round_seconds": 30, "misses": 3,
                       "_note": "CatchGame.swift: мячик 1 очко, косточка 2; монеты = base + (max − base)·min(очки, par_score)/par_score, × diminishing по номеру раунда за сутки × minigame_coins_x дома (линия play), округление в конце; не больше daily_cap в сутки (бафф потолок не поднимает); 0 очков — 0 монет. Настроение — ядерным play (fun_gain/energy_cost)" },
       "fetch":      { "name": "Апорт",               "base": 10, "max": 50, "par_score": 12, "walk_gain": 15 },

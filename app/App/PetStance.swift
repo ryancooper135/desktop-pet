@@ -150,7 +150,8 @@ enum PetStance {
             if stance == .sleep { return [] }
             return pick(stance == .stand ? Traits.tapClips(trait) : ["ear_flick"], available: available)
         }
-        if kind == Habits.reactKind {
+        // Отметка привычки и итог «Блок Дуо» (волна 12) — одна радость: подпрыгнул и виляет.
+        if kind == Habits.reactKind || kind == BlockDuo.reactKind {
             return habitClips(stance: stance, available: available)
         }
         if !ok {

@@ -28,6 +28,9 @@
 //   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
 //   ui-77/78        кухня шефа (PET_SEED=kitchen): лист «Кухня» — рецепты и еда со скидкой (старая цена зачёркнута);
 //                   после «Приготовить» Шиба ест рагу и говорит фразу; «Угостить» морковкой за 3 вместо 4
+//   ui-79/80        «Блок Дуо» (волна 12, PET_SEED=blockduo, PET_BLOCKDUO, сид 7): ui-79-games-menu — меню «Мини-игры»,
+//                   ui-79-blockduo-play — партия на 10-м ходу, фигура над местом с подсветкой; ui-80-blockduo-done — итог
+//                   с монетами, ui-80-blockduo-room — после «Готово» Шиба в комнате радуется и говорит
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -339,6 +342,47 @@ final class ScreenshotUITests: XCTestCase {
         }
         shop.terminate()
     }
+
+    // MARK: волна 12 — «Блок Дуо» (ui-79, ui-80)
+
+    /// Меню кнопки «Мини-игры» на главной: «Лови мячик» и «Блок Дуо».
+    @MainActor
+    func testStates79GamesMenu() throws {
+        let app = try shootOptional("ui-79-games-main", env: ["PET_SEED": "blockduo", "PET_NOW": Self.noon,
+                                                              "PET_SCHEME": "light"],
+                                    marker: "open.games", keepRunning: true)
+        app.descendants(matching: .any)["open.games"].firstMatch.tap()
+        let item = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Блок Дуо")).firstMatch
+        _ = item.waitForExistence(timeout: 5)
+        settle(0.8)
+        snap("ui-79-games-menu")
+        app.terminate()
+    }
+
+    /// Партия на 10-м ходу (автопилот, сид 7): фигура висит над своим местом, линии, которые исчезнут, подсвечены,
+    /// клетки Шибы рыжие с лапкой.
+    @MainActor
+    func testStates79BlockDuo() throws {
+        try shootOptional("ui-79-blockduo-play", env: Self.blockDuoEnv.merging(["PET_BLOCKDUO": "play"]) { $1 },
+                          marker: "blockduo.board")
+    }
+
+    /// Итог: партия сыграна автопилотом до конца — счёт, «Ты · Шиба», монеты. «Готово» — и Шиба радуется в комнате.
+    @MainActor
+    func testStates80BlockDuoDone() throws {
+        let app = try shootOptional("ui-80-blockduo-done", env: Self.blockDuoEnv.merging(["PET_BLOCKDUO": "done"]) { $1 },
+                                    marker: "blockduo.result", keepRunning: true)
+        let done = app.descendants(matching: .any)["blockduo.done"].firstMatch
+        if done.waitForExistence(timeout: 5) {
+            done.tap()
+            // Экран уезжает, через 0,6 с Шиба подпрыгивает и говорит.
+            settle(1.3)
+            snap("ui-80-blockduo-room")
+        }
+        app.terminate()
+    }
+
+    static var blockDuoEnv: [String: String] { ["PET_SEED": "blockduo", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "blockduo"] }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
     @MainActor

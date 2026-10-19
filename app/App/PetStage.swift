@@ -247,7 +247,7 @@ enum PetModel {
                 switch r.kind {
                 case "pet", "feed", "item", "brush", Cooking.reactKind:
                     c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
-                case "play", Habits.reactKind:
+                case "play", Habits.reactKind, BlockDuo.reactKind:
                     c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
                 case "tap.playful":
                     // Игривый на тап подскакивает сам — пониже, чем в игре.
