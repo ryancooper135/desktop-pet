@@ -201,8 +201,9 @@ struct SaveFile: Codable, Sendable {
         lastSeenT = try c.decodeIfPresent(Double.self, forKey: .lastSeenT)
         lastStepsT = try c.decodeIfPresent(Double.self, forKey: .lastStepsT)
         lastAction = try? c.decodeIfPresent(LastAction.self, forKey: .lastAction)
-        journal = (try? c.decodeIfPresent([JournalEntry].self, forKey: .journal)) ?? []
-        outbox = (try? c.decodeIfPresent([JournalEntry].self, forKey: .outbox)) ?? []
+        // Поштучно: одна непрочитанная запись (новый источник из будущей сборки) не обнуляет весь журнал и outbox.
+        journal = ((try? c.decodeIfPresent([LossyEntry].self, forKey: .journal)) ?? []).compactMap(\.value)
+        outbox = ((try? c.decodeIfPresent([LossyEntry].self, forKey: .outbox)) ?? []).compactMap(\.value)
         build = try? c.decodeIfPresent(BuildInfo.self, forKey: .build)
         island = (try? c.decodeIfPresent(IslandInfo.self, forKey: .island)) ?? IslandInfo()
         flags = (try? c.decodeIfPresent(Flags.self, forKey: .flags)) ?? Flags()
@@ -303,6 +304,29 @@ struct JournalEntry: Codable, Hashable, Sendable {
         guard kind.hasPrefix("act.") else { return nil }
         return PetAction(kind: String(kind.dropFirst(4)), key: key, value: value)
     }
+}
+
+extension JournalEntry {
+    enum CodingKeys: String, CodingKey { case id, t, kind, source, ok, reason, key, value }
+
+    /// id, t и kind обязательны; незнакомый источник или кривое поле — nil, запись остаётся.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        t = try c.decode(Double.self, forKey: .t)
+        kind = try c.decode(String.self, forKey: .kind)
+        source = try? c.decodeIfPresent(ActionSource.self, forKey: .source)
+        ok = try? c.decodeIfPresent(Bool.self, forKey: .ok)
+        reason = try? c.decodeIfPresent(String.self, forKey: .reason)
+        key = try? c.decodeIfPresent(String.self, forKey: .key)
+        value = try? c.decodeIfPresent(Int.self, forKey: .value)
+    }
+}
+
+/// Запись журнала, которая не валит весь массив, если сама не разобралась.
+private struct LossyEntry: Decodable {
+    let value: JournalEntry?
+    init(from decoder: Decoder) throws { value = try? JournalEntry(from: decoder) }
 }
 
 /// PetState и Owner ↔ JSONValue в формате core/vectors. Опционалы пишутся как null.

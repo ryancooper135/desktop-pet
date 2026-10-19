@@ -102,6 +102,29 @@ final class SaveFileCoverageTests: XCTestCase {
         XCTAssertNil(try sfObject(d)["future"], "чужие ключи при записи не тащим")
     }
 
+    func testJournalSurvivesUnknownSourceAndBrokenEntry() throws {
+        // Волна 13: новая сборка записала незнакомый источник, пользователь откатился —
+        // раньше весь журнал и outbox (ещё не отправленное) молча обнулялись.
+        var f = SaveFile.fresh(now: sfT0)
+        f.log("act.feed", t: sfT0, source: .app, key: "kibble")
+        f.log("act.bath", t: sfT0 + 1, source: .widget)
+        f.log("act.walk", t: sfT0 + 2, source: .island)
+        var obj = try sfObject(f)
+        for k in ["journal", "outbox"] {
+            var arr = try XCTUnwrap(obj[k] as? [[String: Any]])
+            XCTAssertEqual(arr.count, 3)
+            arr[2]["source"] = "watch"
+            arr.append(["t": sfT0 + 3, "kind": "act.pet"])  // без id — такую запись не прочесть
+            obj[k] = arr
+        }
+        let d = try sfDecodeObject(obj)
+        for (name, list) in [("journal", d.journal), ("outbox", d.outbox)] {
+            XCTAssertEqual(list.map(\.kind), ["act.feed", "act.bath", "act.walk"], name)
+            XCTAssertEqual(list.map(\.source), [.app, .widget, nil], name)
+            XCTAssertEqual(list.first?.key, "kibble", name)
+        }
+    }
+
     func testBrokenPetIsReadError() throws {
         let f = SaveFile.fresh(now: sfT0)
         let bad: [(String, Any)] = [
