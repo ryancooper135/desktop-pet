@@ -81,6 +81,13 @@ struct CapsuleScreen: View {
                     .contentTransition(.numericText())
                     .accessibilityLabel(Text("\(EconText.coins(w.coins)), \(EconText.tickets(w.tickets)), \(EconText.shards(w.shards))"))
                     .accessibilityIdentifier("capsule.wallet")
+                // Волна 19: что за три значка — с первого взгляда было непонятно.
+                Text(Onboarding.walletLegend)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(PetPalette.soft)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("capsule.walletHelp")
             }
         }
     }

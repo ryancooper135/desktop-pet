@@ -49,6 +49,10 @@
 //                   и подсветка «Покормить»
 //   ui-89           обучение ласке (PET_SEED=wants_pet, PET_TIPS=1): палец по спине и «Проведи пальцем по Шибе»,
 //                   плашка «Погладить», ручка «Шкалы» под панелью
+//   ui-91           знакомство (волна 19, PET_GUIDE=intro): ui-91-intro-1..3 — три карточки («Знакомься», «Как ухаживать»,
+//                   «Что где» с легендой ряда значков и монет); после «Понятно, поехали» знакомство закрывается
+//   ui-92           пояснения (волна 19): ui-92-settings-hints — раздел «Подсказки» в настройках; -reopen — знакомство,
+//                   открытое оттуда снова; ui-92-capsule-legend — строчка «🪙 монеты — … ✂️ клочки — …» в автомате
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -585,6 +589,59 @@ final class ScreenshotUITests: XCTestCase {
     func testStates89PetTutor() {
         shootState("ui-89-pet-tutor", env: ["PET_SEED": "wants_pet", "PET_TIPS": "1", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
                    marker: "tip.pet", settleFor: 2)
+    }
+
+    // MARK: - Волна 19: понятность (ui-91/92)
+
+    /// Знакомство при первом запуске (PET_GUIDE=intro): три карточки по «Дальше», потом «Понятно, поехали».
+    /// В остальных UI-тестах знакомства нет: GuideCenter молчит, пока PET_GUIDE не задан.
+    @MainActor
+    func testStates91Intro() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_GUIDE": "intro", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let next = app.buttons["intro.next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 20), "ui-91: знакомство не показалось")
+        settle(1.2)
+        snap("ui-91-intro-1")
+        for k in 2...3 {
+            guard app.buttons["intro.next"].exists else { break }
+            app.buttons["intro.next"].tap()
+            settle(0.9)
+            snap("ui-91-intro-\(k)")
+        }
+        let done = app.buttons["intro.done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "ui-91: нет «Понятно, поехали» на последней карточке")
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5), "ui-91: знакомство не закрылось")
+        app.terminate()
+    }
+
+    /// Раздел «Подсказки» в настройках и знакомство, открытое оттуда снова.
+    @MainActor
+    func testStates92Hints() throws {
+        let app = try shootOptional("ui-92-settings-hints",
+                                    env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "settings"],
+                                    marker: "settings.intro", lazyIn: "settings.habits", keepRunning: true)
+        let row = app.descendants(matching: .any)["settings.intro"]
+        if row.exists && row.isHittable {
+            row.tap()
+            if app.buttons["intro.next"].waitForExistence(timeout: 5) {
+                settle(1)
+                snap("ui-92-settings-intro-reopen")
+            }
+        }
+        app.terminate()
+    }
+
+    /// Автомат: под кошельком строчка, что такое 🪙, 🎟 и ✂️.
+    @MainActor
+    func testStates92CapsuleLegend() throws {
+        try shootOptional("ui-92-capsule-legend",
+                          env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "capsule"],
+                          marker: "capsule.walletHelp")
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.

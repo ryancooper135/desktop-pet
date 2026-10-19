@@ -1,6 +1,8 @@
-// Кто и когда показывает подсказки «Правила» и «Виджет и остров». Решения — в Guides (Shared).
+// Кто и когда показывает знакомство, подсказки «Правила» и «Виджет и остров». Решения — в Guides и Onboarding (Shared).
+// Знакомство (волна 19) — первым и один раз: засчитывается в момент показа, смахнул — не вернётся (его можно
+// открыть снова в настройках).
 // Правила считаются прочитанными только по «Понятно»; гайд виджета засчитывается в момент показа.
-// В тестах молчит; PET_GUIDE=rules|widget показывает нужную подсказку один раз — для скриншотов.
+// В тестах молчит; PET_GUIDE=intro|rules|widget показывает нужную подсказку один раз — для скриншотов.
 
 import Foundation
 import Observation
@@ -89,6 +91,14 @@ final class GuideCenter {
         guard let f = model.file else { return }
         let now = Clock.now()
         let snap = model.snap
+
+        if Onboarding.shouldShowIntro(tips: f.tips, alive: snap.alive) {
+            _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in Tips.markSeen(&f.tips, Onboarding.introKey) }
+            model.refresh()
+            widgetDue = false
+            sheet = .intro
+            return
+        }
 
         if Guides.shouldShowRules(flags: f.flags, createdT: f.createdT, now: now, tzOffsetMin: f.owner.tzOffsetMin,
                                   level: snap.level, alive: snap.alive) {
