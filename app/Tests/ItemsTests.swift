@@ -252,6 +252,22 @@ final class ShopDailyTests: XCTestCase {
         XCTAssertNil(f.econ.items[notHere])
     }
 
+    func testClockBackKeepsShelf() {
+        // Волна 13: перевод часов назад (или перелёт на запад) не даёт новую витрину.
+        var f = iFile(coins: 50_000)
+        let offers = ShopDaily.offers(f, now: iT0)
+        let o = offers[2]
+        XCTAssertEqual(ShopDaily.buy(o.id, in: &f, now: iT0), .ok(price: o.price))
+        ShopDaily.roll(&f, now: iT0 - 86_400)
+        XCTAssertEqual(f.shop?.bought, [o.id], "вчерашняя витрина не затёрла сегодняшнюю")
+        let back = ShopDaily.offers(f, now: iT0)
+        XCTAssertEqual(back.map(\.id), offers.map(\.id))
+        XCTAssertEqual(back[2].state, .sold)
+        // Новые сутки — новая витрина, как раньше.
+        ShopDaily.roll(&f, now: iT0 + 86_400)
+        XCTAssertEqual(f.shop?.day, Economy.day(iT0 + 86_400))
+    }
+
     func testOwnedAndNoCoins() {
         var f = iFile()
         f.econ.wallet.coins = 10

@@ -106,9 +106,11 @@ enum ShopDaily {
     }
 
     /// Витрина сегодня без записи: сохранённая за эти сутки или новая.
+    /// Часы ушли назад (перевели руками, перелёт на запад) — остаётся сохранённая: назад не откатываемся,
+    /// иначе каждый перевод давал бы свежую витрину с новыми редкостями.
     static func today(_ f: SaveFile, now: Double, cfg: CapsuleConfig = EconomyConfig.shared.capsule) -> ShopDay {
         let day = Economy.day(now)
-        if let s = f.shop, s.day == day, !s.ids.isEmpty { return s }
+        if let s = f.shop, s.day >= day, !s.ids.isEmpty { return s }
         return ShopDay(day: day, ids: pick(petId: f.petId, day: day, owned: Set(f.econ.items.keys), cfg: cfg))
     }
 
