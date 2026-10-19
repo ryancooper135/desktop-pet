@@ -427,7 +427,7 @@ enum PetRoom {
                 if coatLid.count > 64 { coatLid.removeAll() }
                 coatLid[m.id] = lid
             }
-            // Глаза моргают подменой материалов — пусть берут новую шерсть.
+            // Веки (PetRig.lids) — плоская шерсть: пусть берут новую.
             PetRig.rig(for: pet)?.recolor(m, mats)
         }
     }
