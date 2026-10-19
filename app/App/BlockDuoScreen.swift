@@ -710,8 +710,8 @@ private struct BlockDoneCard: View {
                 .accessibilityLabel(Text("Общий счёт: \(result.score)"))
                 .accessibilityIdentifier("blockduo.final")
             HStack(spacing: 10) {
-                GamePill(icon: "hand.point.up.left.fill", tint: PetPalette.accent, text: "Ты \(result.mine)")
-                GamePill(icon: "pawprint.fill", tint: PetPalette.fur, text: "Шиба \(result.shiba)")
+                GamePill(icon: "hand.point.up.left.fill", tint: PetPalette.accent, text: "Ты \(result.mine.formatted())")
+                GamePill(icon: "pawprint.fill", tint: PetPalette.fur, text: "Шиба \(result.shiba.formatted())")
             }
             Text("Линий \(result.lines) · лучшее комбо ×\(max(result.maxCombo, 1)) · рекорд \(result.best)")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
