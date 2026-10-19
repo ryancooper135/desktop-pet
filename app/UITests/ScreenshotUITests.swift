@@ -38,6 +38,8 @@
 //                   (PS1-коридор, друзья с игрушками); ui-84-zombie-done — итог с монетами, ui-84-zombie-room — Шиба в комнате
 //   ui-85           рот крупно (PET_CAMERA=face, волна 13): -face-idle — морда в покое, -face-talk-N — после «Блок Дуо»
 //                   Шиба говорит реплику, челюсть Jaw открывается по гласным (-face-result — служебный кадр итога)
+//   ui-86           свой персонаж в шапке (волна 14, PET_SEED=charpack): ui-86-char-header — главный экран, в шапке
+//                   имя пака «Серый Шиба» и аватар-снимок морды; ui-86-char-header-card — плашка крупно
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -466,6 +468,33 @@ final class ScreenshotUITests: XCTestCase {
     func testStates82CharacterRoom() {
         shootState("ui-82-character-room", env: ["PET_SEED": "charpack", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
                    marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    // MARK: - Волна 14: свой персонаж в шапке (ui-86)
+
+    /// Шапка со своим персонажем (PET_SEED=charpack): имя пака «Серый Шиба» и круглый аватар — снимок морды
+    /// модели (avatar.png в паке нет). Снимок снимается в фоне при первом показе — ждём «name.card.avatar».
+    /// -card — сама плашка крупно.
+    @MainActor
+    func testStates86CharacterHeader() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_SEED": "charpack", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        waitForMain(app)
+        let card = app.descendants(matching: .any)["name.card.avatar"].firstMatch
+        let found = card.waitForExistence(timeout: 20)
+        settle(1.5)
+        snap("ui-86-char-header")
+        if found {
+            let shot = XCTAttachment(screenshot: card.screenshot())
+            shot.name = "ui-86-char-header-card"
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+        XCTAssertTrue(found, "ui-86: в шапке нет аватара своего персонажа")
+        app.terminate()
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
