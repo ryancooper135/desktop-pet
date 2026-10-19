@@ -329,7 +329,6 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
-
     @MainActor
     func testStates61Wear() {
         shootState("ui-61-wear", env: ["PET_SEED": "wear", "PET_NOW": Self.noon, "PET_SCHEME": "light"],

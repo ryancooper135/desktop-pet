@@ -798,7 +798,6 @@ final class AppModel {
             showHabits = false
             showCharacters = false
             postcard = nil
-
         }
     }
 
@@ -1565,8 +1564,7 @@ enum LaunchSeed {
         return put(CharacterPack.sample(timeline))
     }
 
-    /// Сид memories. Открытки за прошлые дни не всплывают
-: catchUp — до того, как createdT уходит в прошлое
+    /// Сид memories. Открытки за прошлые дни не всплывают: catchUp — до того, как createdT уходит в прошлое
     /// (doneDay уже вчерашний). petId перебираем, пока в момент now пузырь не станет воспоминанием (PetMind).
     @MainActor
     private static func seedMemories(_ f: inout SaveFile, now: Double) {

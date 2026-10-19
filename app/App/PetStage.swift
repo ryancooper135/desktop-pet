@@ -669,7 +669,6 @@ struct ClipTable: Decodable, Sendable {
         self = addingEatParts()
     }
 
-
     /// Таблица плюс части eat (EatClip): опустил голову / жуёт по кругу / поднял. Своих частей в файле нет —
     /// режем eat по кадрам EatClip.chewFrom/chewTo. Уже есть или eat слишком короткий — таблица как была.
     func addingEatParts() -> ClipTable {
