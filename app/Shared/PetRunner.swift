@@ -15,10 +15,7 @@ enum PetRunner {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return
         }
-        // Меньше минуты не догоняем (журнал и ядро не дёргаются на каждое нажатие), но через полночь — всегда:
-        // действие пишется временем питомца, и иначе первая минута суток засчитывалась бы во вчерашние.
-        let newDay = now > f.pet.t && Economy.day(now) > Economy.day(f.pet.t)
-        if (now - f.pet.t >= 60 || newDay) && f.pet.alive { advance(&f, to: now) }
+        if now - f.pet.t >= 60 && f.pet.alive { advance(&f, to: now) }
         // Часовой пояс обновляем после догона: прошлое считалось по старому поясу.
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.

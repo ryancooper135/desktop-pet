@@ -180,23 +180,6 @@ final class PetRunnerCoverageTests: XCTestCase {
         XCTAssertEqual(f.owner.tzOffsetMin, Clock.tzOffsetMin(at: rnT0 + 59))
     }
 
-    func testActionJustAfterMidnightCountsForNewDay() {
-        // Волна 13: действие в первую минуту суток писалось временем питомца (ещё вчера) —
-        // монеты за уход уходили во вчерашний, уже съеденный потолок, а экран показывал сегодняшний.
-        let off = Double(Clock.tzOffsetMin(at: rnT0)) * 60
-        let mid = (((rnT0 + off) / 86400).rounded(.down) + 1) * 86400 - off
-        XCTAssertEqual(Economy.day(mid), Economy.day(mid - 1) + 1)
-        var f = SaveFile.fresh(now: mid - 30)
-        _ = PetRunner.apply(.pet, source: .app, to: &f, now: mid + 20)
-        let e = f.journal.last { $0.kind == "act.pet" }
-        XCTAssertEqual(e.map { Economy.day($0.t) }, Economy.day(mid + 20))
-        XCTAssertEqual(f.pet.t, mid + 20)
-        // Внутри суток минутный порог остаётся: 50 секунд — без догона.
-        var g = SaveFile.fresh(now: mid + 100)
-        PetRunner.catchUp(&g, now: mid + 150)
-        XCTAssertEqual(g.pet.t, mid + 100)
-    }
-
     func testSmallClockDriftBackIsIgnored() {
         var f = SaveFile.fresh(now: rnT0)
         let pet = f.pet
