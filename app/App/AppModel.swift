@@ -354,9 +354,9 @@ final class AppModel {
         }
     }
 
-    /// Шерсть: перекрашивать сцену только при смене стадии или заметной разнице грязи и блеска.
+    /// Шерсть: перекрашивать сцену только при смене стадии, клочков или заметной разнице грязи и блеска.
     private func noteCoat(_ c: CoatLook) {
-        if let old = coat, old.stage == c.stage, abs(old.dirt - c.dirt) < 0.02, abs(old.shine - c.shine) < 0.02 { return }
+        if let old = coat, old.stage == c.stage, old.tufts == c.tufts, abs(old.dirt - c.dirt) < 0.02, abs(old.shine - c.shine) < 0.02 { return }
         coat = c
     }
 
@@ -1222,7 +1222,9 @@ enum AwayBuilder {
 /// wear — в коллекции шапочка, бантик, бандана, шарф, плащ и миска, надеты шапочка, шарф и плащ (ui-61/62);
 /// memories — месяц вместе: прогулки, трюки, рекорд, вещь, кровать, любимая еда и неделя игр — игривый характер,
 /// а в полдень (PET_NOW) пузырь — воспоминание (ui-73/74);
-/// items — 14 предметов всех ролей, кубок на полке, теннисный мячик, корона и бабочка, 5000 монет (ui-67/68)).
+/// items — 14 предметов всех ролей, кубок на полке, теннисный мячик, корона и бабочка, 5000 монет (ui-67/68);
+/// fur_shaggy — сытый щенок с лохматой шерстью и клочками на спине (ui-71); fur_brushed — он же, расчёсанный
+/// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1364,6 +1366,19 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.pet.needs[.look] = 0
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "fur_shaggy", "fur_brushed":
+                // С PET_RESET щенок новорождённый: look 50 — ухоженность 0,30, «лохматая» (CoatFur: 4 клочка).
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.pet.needs[.look] = 50
+                if seed == "fur_brushed" {
+                    // Расчёсывание поднимает на одну стадию: прошлое (лохматая → обычная) и сейчас (→ гладкая).
+                    f.createdT = min(f.createdT, now - 3 * 3600)
+                    f.log(Brush.actKind, t: now - 2 * 3600, source: .app, ok: true)
+                    _ = Brush.finish(&f, now: now)
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             case "wear":
