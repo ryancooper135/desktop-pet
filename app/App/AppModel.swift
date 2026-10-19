@@ -33,6 +33,8 @@ final class AppModel {
     var showAlbum = false
     /// Автомат с капсулами.
     var showCapsule = false
+    /// «Лавка» дня — лист поверх автомата (ShopDaily).
+    var showShop = false
     /// Экран «Дом»: улучшения за монеты.
     var showHouse = false
     /// Лист «Трюки».
@@ -60,6 +62,9 @@ final class AppModel {
     private(set) var roomSchedule = RoomSchedule.standard
     /// Надетое на собаке (Wear.worn): сцена вешает на кости только при смене.
     private(set) var worn: [WearSlot: String] = [:]
+    /// Вещица на полке и мячик для «Поиграть» (ItemCatalog): сцена перестраивает только при смене.
+    private(set) var shelf: String? = nil
+    private(set) var toy: String? = nil
     /// Открытка дня, которую ещё не сохранили и не выбросили.
     private(set) var pendingCard: Postcard? = nil
     /// Открытка на экране (лист). Из альбома — сохранённая.
@@ -145,6 +150,8 @@ final class AppModel {
             homeLevels = RoomPlan.levels(f)
             roomSchedule = f.roomSchedule
             worn = Wear.worn(f)
+            shelf = ItemCatalog.shelf(f)
+            toy = ItemCatalog.toy(f)
             knownTastes = Set(f.tastes.opened.keys)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
@@ -220,6 +227,9 @@ final class AppModel {
             if schedule != roomSchedule { roomSchedule = schedule }
             let w = Wear.worn(f)
             if w != worn { worn = w }
+            let sh = ItemCatalog.shelf(f), ty = ItemCatalog.toy(f)
+            if sh != shelf { shelf = sh }
+            if ty != toy { toy = ty }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
             noteOwnerSleep(f, now: now)
@@ -657,7 +667,7 @@ final class AppModel {
         }
     }
 
-    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://house, pet://tricks, pet://catch, pet://brush
+    /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch, pet://brush
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -665,6 +675,13 @@ final class AppModel {
         case "settings": showSettings = true
         case "album": showAlbum = true
         case "capsule": showCapsule = true
+        case "shop":
+            // Лавка — лист поверх автомата: сначала автомат, потом лист (два листа сразу SwiftUI не покажет).
+            showCapsule = true
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(0.8))
+                self?.showShop = true
+            }
         case "house": showHouse = true
         case "tricks": showTricks = true
         case "catch": showCatch = true
@@ -674,6 +691,7 @@ final class AppModel {
             showSettings = false
             showAlbum = false
             showCapsule = false
+            showShop = false
             showHouse = false
             showTricks = false
             showCatch = false
@@ -881,6 +899,84 @@ final class AppModel {
         }
     }
 
+    // MARK: волна 11: полка, мячик, лавка
+
+    /// «На полку / Убрать» из коллекции.
+    func toggleShelf(_ id: String) {
+        do {
+            let r = try ItemCatalog.performShelf(id)
+            refresh()
+            let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
+            switch r {
+            case .success(true):
+                haptic(.success)
+                SoundKit.shared.play(.ok)
+                show("«\(name)» на полке", emoji: ItemCatalog.emoji(id))
+                Task { await AppActions.shared.afterChange() }
+            case .success(false):
+                haptic(.light)
+                show("Убрали «\(name)» с полки")
+                Task { await AppActions.shared.afterChange() }
+            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
+            case .failure(.wrongRole): show("Это на полку не ставят", ok: false)
+            }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+    }
+
+    /// «Играть этим / Обычный мячик» из коллекции.
+    func toggleToy(_ id: String) {
+        do {
+            let r = try ItemCatalog.performToy(id)
+            refresh()
+            let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
+            switch r {
+            case .success(true):
+                haptic(.success)
+                SoundKit.shared.play(.ok)
+                show("Играем: «\(name)»", emoji: ItemCatalog.emoji(id))
+                Task { await AppActions.shared.afterChange() }
+            case .success(false):
+                haptic(.light)
+                show("Снова обычный мячик")
+                Task { await AppActions.shared.afterChange() }
+            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
+            case .failure(.wrongRole): show("Этим не поиграешь", ok: false)
+            }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+        }
+    }
+
+    /// Открыли лавку: витрина суток закрепляется в файле.
+    func openShop() {
+        try? ShopDaily.open()
+        refresh()
+    }
+
+    /// Купить с витрины. Купили — тост и кошелёк сразу; отказ экран показывает сам. nil — стор не записался.
+    func buyShop(_ id: String) -> ShopDaily.BuyResult? {
+        do {
+            let r = try ShopDaily.perform(id)
+            refresh()
+            if case .ok = r {
+                haptic(.success)
+                SoundKit.shared.play(.hearts)
+                let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
+                show("Купили «\(name)»", emoji: ItemCatalog.emoji(id))
+                Task { await AppActions.shared.afterChange() }
+            } else {
+                haptic(.warning)
+                SoundKit.shared.play(.refuse)
+            }
+            return r
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return nil
+        }
+    }
+
     /// Купить следующий уровень линии дома. Купили — снимок, кошелёк и виджеты сразу; отказ экран показывает сам.
     /// nil — стор не записался.
     func buyHome(_ id: HomeLine) -> HomeShop.BuyResult? {
@@ -900,7 +996,7 @@ final class AppModel {
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
-              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showHouse, !showTricks, !showCatch else { return false }
+              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showShop, !showHouse, !showTricks, !showCatch else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true
@@ -1125,7 +1221,8 @@ enum AwayBuilder {
 /// brush — сытый бодрый щенок со свалявшейся шерстью, для снимков расчёсывания;
 /// wear — в коллекции шапочка, бантик, бандана, шарф, плащ и миска, надеты шапочка, шарф и плащ (ui-61/62);
 /// memories — месяц вместе: прогулки, трюки, рекорд, вещь, кровать, любимая еда и неделя игр — игривый характер,
-/// а в полдень (PET_NOW) пузырь — воспоминание (ui-73/74)).
+/// а в полдень (PET_NOW) пузырь — воспоминание (ui-73/74);
+/// items — 14 предметов всех ролей, кубок на полке, теннисный мячик, корона и бабочка, 5000 монет (ui-67/68)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1295,6 +1392,22 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "memories":
                 seedMemories(&f, now: now)
+            case "items":
+                // Волна 11: коллекция всех трёх ролей с иконками, кубок на полке, теннисный мячик вместо жёлтого,
+                // корона и бабочка на собаке; 5000 монет — в лавке «Купить» с первого нажатия.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+                for id in ["leaf_hat", "bow_blue", "bell_collar", "beret_red", "bowtie_dots", "wreath_autumn",
+                           "crown_champion", "raincoat", "bowl_plain", "pumpkin_small", "lamp_mushroom", "trophy_cup",
+                           "ball_tennis", "ball_star"] {
+                    f.econ.items[id] = 1
+                }
+                for id in ["crown_champion", "bowtie_dots"] { _ = Wear.put(&f, id) }
+                _ = ItemCatalog.toggleShelf(&f, "trophy_cup")
+                _ = ItemCatalog.toggleToy(&f, "ball_tennis")
+                f.econ.wallet.coins = 5000
+                f.seen = f.pet
+                f.lastSeenT = now
             default:
                 break
             }

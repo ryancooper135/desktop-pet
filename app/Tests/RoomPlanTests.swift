@@ -245,6 +245,16 @@ final class RoomPlanTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(c.maxX - RoomPlan.canopyDrape, RoomPlan.kennelSlot.maxX - 0.005)
     }
 
+    func testDecorShelfClearOfWindowCanopyAndTowel() {
+        // Полка вещиц — в правом углу над ванной: мимо окна и полога, выше полотенца, внутри экрана.
+        let s = RoomPlan.decorShelf
+        XCTAssertGreaterThanOrEqual(s.minX, RoomPlan.window.maxX)
+        XCTAssertGreaterThanOrEqual(s.minX, RoomPlan.canopy.maxX + RoomPlan.canopyFlare)
+        XCTAssertGreaterThan(s.minY, RoomPlan.bathTowel.maxY + 0.05, "вещица на полке не лезет на полотенце")
+        XCTAssertLessThanOrEqual(s.maxX, RoomPlan.bath.maxX + 1e-4, "правее режет край экрана")
+        XCTAssertEqual(s.minY, RoomPlan.kitchenShelf.minY, "на одной высоте с кухонной")
+    }
+
     // MARK: помощники
 
     private func corners(_ r: RoomPlan.Rect) -> [P] {

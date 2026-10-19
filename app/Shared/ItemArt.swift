@@ -1,0 +1,278 @@
+// Волна 11: свои иконки предметов в стиле A (плоские фигуры, без градиентов) вместо эмодзи.
+// Только данные: фигуры в квадрате 0…1 (y вниз, как в SwiftUI) и цвета. Рисует их app/Shared/Views/ItemIcon.swift,
+// одной функцией для коллекции, автомата и лавки. Нет строки — ItemIcon покажет эмодзи (ItemCatalog.emoji).
+// Цвета одежды — те же, что у 3D-вещи (Wear.table), чтобы иконка и собака совпадали.
+
+import Foundation
+
+enum ArtShape: Hashable, Sendable {
+    case poly([SIMD2<Double>])
+    case circle(SIMD2<Double>, Double)
+    case ellipse(SIMD2<Double>, rx: Double, ry: Double)
+    /// Прямоугольник x, y, ширина, высота; corner — скругление в долях иконки.
+    case rect(Double, Double, Double, Double, corner: Double)
+
+    /// Крайние точки фигуры: тест проверяет, что иконка не вылезает за квадрат.
+    var bounds: (lo: SIMD2<Double>, hi: SIMD2<Double>) {
+        switch self {
+        case .poly(let p):
+            let lo = p.reduce(SIMD2(repeating: Double.infinity)) { pointwiseMin($0, $1) }
+            let hi = p.reduce(SIMD2(repeating: -Double.infinity)) { pointwiseMax($0, $1) }
+            return (lo, hi)
+        case .circle(let c, let r): return (c - r, c + r)
+        case .ellipse(let c, let rx, let ry): return (c - SIMD2(rx, ry), c + SIMD2(rx, ry))
+        case .rect(let x, let y, let w, let h, _): return (SIMD2(x, y), SIMD2(x + w, y + h))
+        }
+    }
+}
+
+struct ArtLayer: Hashable, Sendable {
+    let shape: ArtShape
+    let color: UInt32
+}
+
+enum ItemArt {
+    static func layers(_ id: String) -> [ArtLayer]? { table[id] }
+
+    // MARK: построители
+
+    private static func L(_ s: ArtShape, _ c: UInt32) -> ArtLayer { ArtLayer(shape: s, color: c) }
+    private static func p(_ pts: [(Double, Double)]) -> ArtShape { .poly(pts.map { SIMD2($0.0, $0.1) }) }
+    private static func c(_ x: Double, _ y: Double, _ r: Double) -> ArtShape { .circle(SIMD2(x, y), r) }
+    private static func e(_ x: Double, _ y: Double, _ rx: Double, _ ry: Double) -> ArtShape {
+        .ellipse(SIMD2(x, y), rx: rx, ry: ry)
+    }
+    private static func r(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ k: Double = 0) -> ArtShape {
+        .rect(x, y, w, h, corner: k)
+    }
+
+    /// Звезда из n лучей: внешний радиус r1, внутренний r2, первый луч вверх.
+    private static func star(_ x: Double, _ y: Double, _ r1: Double, _ r2: Double, n: Int = 5) -> ArtShape {
+        .poly((0..<(2 * n)).map { k in
+            let a = Double(k) * .pi / Double(n) - .pi / 2
+            let rr = k % 2 == 0 ? r1 : r2
+            return SIMD2(x + rr * cos(a), y + rr * sin(a))
+        })
+    }
+
+    /// Дуга-полоса: центр, радиус, углы в градусах (0 — вправо, по часовой — вниз), толщина.
+    private static func arc(_ x: Double, _ y: Double, _ rad: Double, _ a0: Double, _ a1: Double, _ w: Double) -> ArtShape {
+        let n = 10
+        func pt(_ a: Double, _ rr: Double) -> SIMD2<Double> {
+            let t = a * .pi / 180
+            return SIMD2(x + rr * cos(t), y + rr * sin(t))
+        }
+        let outer = (0...n).map { pt(a0 + (a1 - a0) * Double($0) / Double(n), rad + w / 2) }
+        let inner = (0...n).reversed().map { pt(a0 + (a1 - a0) * Double($0) / Double(n), rad - w / 2) }
+        return .poly(outer + inner)
+    }
+
+    /// Полукруг (верхняя половина) — шляпка гриба, арка двери.
+    private static func dome(_ x: Double, _ y: Double, _ rx: Double, _ ry: Double) -> ArtShape {
+        .poly((0...12).map { k in
+            let a = Double.pi + Double.pi * Double(k) / 12
+            return SIMD2(x + rx * cos(a), y + ry * sin(a))
+        })
+    }
+
+    /// Ромб-листик вдоль угла a (градусы) с центром (x, y).
+    private static func leaf(_ x: Double, _ y: Double, _ len: Double, _ wid: Double, _ a: Double) -> ArtShape {
+        let t = a * .pi / 180
+        let d = SIMD2(cos(t), sin(t)), n = SIMD2(-sin(t), cos(t))
+        let o = SIMD2(x, y)
+        return .poly([o - d * len, o + n * wid, o + d * len, o - n * wid])
+    }
+
+    // MARK: иконки
+
+    static let table: [String: [ArtLayer]] = {
+        var t: [String: [ArtLayer]] = [:]
+
+        // Обычные
+        t["bandana_red"] = [
+            L(r(0.1, 0.22, 0.8, 0.12, 0.04), 0xC2433A),
+            L(p([(0.14, 0.3), (0.86, 0.3), (0.5, 0.86)]), 0xE2554B),
+            L(c(0.4, 0.44, 0.045), 0xF6E7D2), L(c(0.6, 0.44, 0.045), 0xF6E7D2), L(c(0.5, 0.62, 0.045), 0xF6E7D2),
+        ]
+        t["bow_blue"] = [
+            L(p([(0.5, 0.5), (0.1, 0.26), (0.06, 0.5), (0.1, 0.74)]), 0x5B8FE0),
+            L(p([(0.5, 0.5), (0.9, 0.26), (0.94, 0.5), (0.9, 0.74)]), 0x5B8FE0),
+            L(r(0.41, 0.39, 0.18, 0.22, 0.05), 0x3E6CB8),
+        ]
+        t["leaf_hat"] = [
+            L(r(0.47, 0.76, 0.06, 0.16, 0.02), 0x8A5A3B),
+            L(p([(0.5, 0.1), (0.76, 0.32), (0.82, 0.54), (0.5, 0.84), (0.18, 0.54), (0.24, 0.32)]), 0x7DBB5A),
+            L(p([(0.48, 0.22), (0.52, 0.22), (0.52, 0.78), (0.48, 0.78)]), 0x5E9A40),
+            L(p([(0.5, 0.42), (0.68, 0.32), (0.69, 0.35), (0.5, 0.47)]), 0x5E9A40),
+            L(p([(0.5, 0.58), (0.3, 0.46), (0.29, 0.49), (0.5, 0.63)]), 0x5E9A40),
+        ]
+        t["bowl_plain"] = [
+            L(c(0.36, 0.42, 0.08), 0xA0673E), L(c(0.52, 0.38, 0.08), 0xB97A4A), L(c(0.66, 0.43, 0.07), 0xA0673E),
+            L(p([(0.12, 0.48), (0.88, 0.48), (0.76, 0.82), (0.24, 0.82)]), 0x7F9DC4),
+            L(r(0.09, 0.44, 0.82, 0.09, 0.04), 0xA8C0DE),
+        ]
+        t["mat_check"] = {
+            var out = [L(r(0.1, 0.28, 0.8, 0.48, 0.05), 0xC9505A)]
+            for row in 0..<3 {
+                for col in 0..<5 where (row + col) % 2 == 0 {
+                    out.append(L(r(0.1 + Double(col) * 0.16, 0.28 + Double(row) * 0.16, 0.16, 0.16), 0xF3E2C7))
+                }
+            }
+            out.append(L(r(0.1, 0.76, 0.8, 0.05), 0xA63C47))
+            return out
+        }()
+        t["bell_collar"] = [
+            L(r(0.1, 0.22, 0.8, 0.14, 0.06), 0xD24B45),
+            L(r(0.44, 0.34, 0.12, 0.08, 0.02), 0xD9A21B),
+            L(c(0.5, 0.6, 0.19), 0xF2C14E),
+            L(r(0.36, 0.62, 0.28, 0.04, 0.02), 0xD9A21B),
+            L(c(0.5, 0.71, 0.045), 0x6B4428),
+        ]
+        t["pumpkin_small"] = [
+            L(r(0.46, 0.16, 0.08, 0.16, 0.02), 0x5E8C3A),
+            L(leaf(0.62, 0.22, 0.1, 0.05, -20), 0x7DBB5A),
+            L(e(0.32, 0.58, 0.2, 0.26), 0xE07A22), L(e(0.68, 0.58, 0.2, 0.26), 0xE07A22),
+            L(e(0.5, 0.58, 0.2, 0.28), 0xF39A3A),
+        ]
+        t["ball_tennis"] = [
+            L(c(0.5, 0.5, 0.38), 0xD7E84A),
+            L(arc(0.08, 0.5, 0.32, -55, 55, 0.05), 0xF6F2E6),
+            L(arc(0.92, 0.5, 0.32, 125, 235, 0.05), 0xF6F2E6),
+        ]
+
+        // Редкие
+        t["scarf_knit"] = [
+            L(r(0.56, 0.36, 0.2, 0.48, 0.03), 0xC9506A),
+            L(r(0.56, 0.7, 0.2, 0.08), 0xF6E7D2),
+            L(r(0.12, 0.2, 0.76, 0.2, 0.08), 0xC9506A),
+            L(r(0.28, 0.2, 0.08, 0.2), 0xF6E7D2), L(r(0.56, 0.2, 0.08, 0.2), 0xF6E7D2),
+            L(r(0.58, 0.84, 0.03, 0.06), 0xC9506A), L(r(0.645, 0.84, 0.03, 0.06), 0xC9506A),
+            L(r(0.71, 0.84, 0.03, 0.06), 0xC9506A),
+        ]
+        t["collar_star"] = [
+            L(r(0.1, 0.2, 0.8, 0.14, 0.06), 0x3D6FD1),
+            L(r(0.48, 0.32, 0.04, 0.1), 0xD9A21B),
+            L(star(0.5, 0.62, 0.25, 0.1), 0xF2C14E),
+        ]
+        t["lamp_mushroom"] = [
+            L(e(0.5, 0.52, 0.42, 0.42), 0xFFE9A8),
+            L(r(0.3, 0.82, 0.4, 0.07, 0.03), 0x8A5A3B),
+            L(r(0.42, 0.48, 0.16, 0.36, 0.04), 0xF3E2C7),
+            L(dome(0.5, 0.5, 0.34, 0.32), 0xD9534F),
+            L(c(0.38, 0.36, 0.05), 0xF6F2E6), L(c(0.58, 0.28, 0.06), 0xF6F2E6), L(c(0.66, 0.42, 0.04), 0xF6F2E6),
+        ]
+        t["raincoat"] = [
+            L(p([(0.32, 0.26), (0.68, 0.26), (0.86, 0.86), (0.14, 0.86)]), 0xF4C430),
+            L(e(0.5, 0.26, 0.2, 0.15), 0xD9A21B),
+            L(r(0.48, 0.38, 0.04, 0.48), 0xD9A21B),
+            L(c(0.42, 0.5, 0.03), 0x6B4428), L(c(0.42, 0.66, 0.03), 0x6B4428),
+        ]
+        t["beret_red"] = [
+            L(r(0.47, 0.24, 0.06, 0.12, 0.02), 0x3A2A22),
+            L(e(0.5, 0.52, 0.4, 0.2), 0xC8323C),
+            L(e(0.42, 0.46, 0.18, 0.07), 0xDE5560),
+            L(r(0.22, 0.62, 0.56, 0.08, 0.04), 0x9E2530),
+        ]
+        t["bowtie_dots"] = [
+            L(p([(0.5, 0.5), (0.08, 0.26), (0.08, 0.74)]), 0x2F5FA8),
+            L(p([(0.5, 0.5), (0.92, 0.26), (0.92, 0.74)]), 0x2F5FA8),
+            L(r(0.41, 0.39, 0.18, 0.22, 0.05), 0x244C88),
+            L(c(0.2, 0.44, 0.035), 0xF6E7D2), L(c(0.25, 0.6, 0.035), 0xF6E7D2),
+            L(c(0.8, 0.44, 0.035), 0xF6E7D2), L(c(0.75, 0.6, 0.035), 0xF6E7D2),
+        ]
+        t["acorn_jar"] = [
+            L(r(0.24, 0.28, 0.52, 0.6, 0.08), 0xBFD9E6),
+            L(e(0.38, 0.72, 0.08, 0.1), 0xA0673E), L(e(0.6, 0.74, 0.08, 0.1), 0xA0673E),
+            L(e(0.5, 0.56, 0.08, 0.1), 0xB97A4A),
+            L(r(0.3, 0.6, 0.16, 0.05, 0.02), 0x6B4428), L(r(0.52, 0.62, 0.16, 0.05, 0.02), 0x6B4428),
+            L(r(0.42, 0.44, 0.16, 0.05, 0.02), 0x6B4428),
+            L(r(0.3, 0.34, 0.06, 0.4, 0.03), 0xE4F0F6),
+            L(r(0.2, 0.18, 0.6, 0.12, 0.03), 0x8A5A3B),
+        ]
+        t["ball_pumpkin"] = [
+            L(r(0.46, 0.12, 0.08, 0.14, 0.02), 0x5E8C3A),
+            L(c(0.5, 0.56, 0.36), 0xF08A2A),
+            L(e(0.5, 0.56, 0.17, 0.35), 0xD06F1A),
+            L(e(0.5, 0.56, 0.1, 0.34), 0xF08A2A),
+            L(e(0.38, 0.42, 0.06, 0.04), 0xF7B060),
+        ]
+
+        // Эпические
+        t["hoodie_pumpkin"] = [
+            L(p([(0.3, 0.28), (0.7, 0.28), (0.88, 0.5), (0.8, 0.86), (0.2, 0.86), (0.12, 0.5)]), 0xF08A2A),
+            L(e(0.5, 0.28, 0.22, 0.14), 0xD06F1A),
+            L(r(0.32, 0.6, 0.36, 0.14, 0.04), 0xD06F1A),
+            L(r(0.2, 0.8, 0.6, 0.06), 0x5E8C3A),
+            L(r(0.47, 0.16, 0.06, 0.08, 0.02), 0x5E8C3A),
+        ]
+        t["sofa_mini"] = [
+            L(r(0.18, 0.26, 0.64, 0.34, 0.08), 0x3F8A84),
+            L(r(0.1, 0.5, 0.8, 0.22, 0.06), 0x4F9A94),
+            L(r(0.06, 0.42, 0.14, 0.32, 0.06), 0x3F8A84), L(r(0.8, 0.42, 0.14, 0.32, 0.06), 0x3F8A84),
+            L(r(0.14, 0.72, 0.06, 0.1), 0x6B4428), L(r(0.8, 0.72, 0.06, 0.1), 0x6B4428),
+            L(r(0.26, 0.48, 0.22, 0.06, 0.03), 0x6CB5AE), L(r(0.52, 0.48, 0.22, 0.06, 0.03), 0x6CB5AE),
+        ]
+        t["backpack_mini"] = [
+            L(r(0.22, 0.3, 0.56, 0.58, 0.12), 0xC98A4B),
+            L(r(0.34, 0.6, 0.32, 0.2, 0.05), 0xDDA468),
+            L(e(0.5, 0.32, 0.32, 0.14), 0x6B4428),
+            L(r(0.47, 0.1, 0.06, 0.12, 0.02), 0x6B4428),
+            L(r(0.44, 0.58, 0.12, 0.04, 0.02), 0x6B4428),
+        ]
+        t["wreath_autumn"] = {
+            var out: [ArtLayer] = []
+            let colors: [UInt32] = [0xE08A2E, 0xC9502E, 0xE8B33A]
+            for k in 0..<10 {
+                let a = Double(k) * 36
+                let x = 0.5 + 0.3 * cos(a * .pi / 180), y = 0.5 + 0.3 * sin(a * .pi / 180)
+                out.append(L(leaf(x, y, 0.13, 0.06, a + 90), colors[k % 3]))
+            }
+            for k in 0..<5 {
+                let a = (Double(k) * 72 + 18) * .pi / 180
+                out.append(L(c(0.5 + 0.3 * cos(a), 0.5 + 0.3 * sin(a), 0.04), 0xB8322B))
+            }
+            return out
+        }()
+        t["trophy_cup"] = [
+            L(arc(0.24, 0.36, 0.1, 90, 270, 0.05), 0xD9A21B),
+            L(arc(0.76, 0.36, 0.1, -90, 90, 0.05), 0xD9A21B),
+            L(p([(0.24, 0.18), (0.76, 0.18), (0.66, 0.52), (0.34, 0.52)]), 0xF2B01E),
+            L(r(0.45, 0.5, 0.1, 0.18), 0xD9A21B),
+            L(r(0.3, 0.68, 0.4, 0.08, 0.02), 0xF2B01E),
+            L(r(0.26, 0.76, 0.48, 0.1, 0.02), 0x8A5A3B),
+            L(star(0.5, 0.33, 0.09, 0.04), 0xFFF1C2),
+        ]
+        t["ball_star"] = [
+            L(c(0.5, 0.5, 0.38), 0x3D6FD1),
+            L(star(0.5, 0.52, 0.2, 0.08), 0xF2C14E),
+            L(c(0.26, 0.36, 0.035), 0xF2C14E), L(c(0.74, 0.36, 0.035), 0xF2C14E),
+            L(c(0.3, 0.72, 0.035), 0xF2C14E), L(c(0.7, 0.72, 0.035), 0xF2C14E),
+        ]
+
+        // Легендарные
+        t["cape_champion"] = [
+            L(p([(0.3, 0.2), (0.7, 0.2), (0.9, 0.88), (0.5, 0.8), (0.1, 0.88)]), 0xC23B4A),
+            L(r(0.26, 0.14, 0.48, 0.1, 0.05), 0xF2B01E),
+            L(star(0.5, 0.5, 0.13, 0.055), 0xF2B01E),
+        ]
+        t["kennel_castle"] = [
+            L(r(0.22, 0.4, 0.56, 0.46), 0xB9B3A8),
+            L(r(0.1, 0.28, 0.2, 0.58), 0xA39C90), L(r(0.7, 0.28, 0.2, 0.58), 0xA39C90),
+            L(r(0.1, 0.22, 0.06, 0.07), 0xA39C90), L(r(0.17, 0.22, 0.06, 0.07), 0xA39C90),
+            L(r(0.24, 0.22, 0.06, 0.07), 0xA39C90),
+            L(r(0.7, 0.22, 0.06, 0.07), 0xA39C90), L(r(0.77, 0.22, 0.06, 0.07), 0xA39C90),
+            L(r(0.84, 0.22, 0.06, 0.07), 0xA39C90),
+            L(r(0.4, 0.62, 0.2, 0.24), 0x4A3428), L(dome(0.5, 0.62, 0.1, 0.1), 0x4A3428),
+            L(r(0.19, 0.06, 0.02, 0.16), 0x6B4428), L(p([(0.21, 0.06), (0.32, 0.1), (0.21, 0.14)]), 0xC23B4A),
+            L(r(0.79, 0.06, 0.02, 0.16), 0x6B4428), L(p([(0.81, 0.06), (0.92, 0.1), (0.81, 0.14)]), 0xC23B4A),
+        ]
+        t["crown_champion"] = [
+            L(p([(0.12, 0.76), (0.12, 0.3), (0.31, 0.5), (0.5, 0.2), (0.69, 0.5), (0.88, 0.3), (0.88, 0.76)]),
+              0xF2B01E),
+            L(r(0.12, 0.68, 0.76, 0.1), 0xD9A21B),
+            L(c(0.12, 0.28, 0.05), 0xF2B01E), L(c(0.5, 0.18, 0.05), 0xF2B01E), L(c(0.88, 0.28, 0.05), 0xF2B01E),
+            L(c(0.5, 0.55, 0.06), 0xC23B4A), L(c(0.3, 0.6, 0.04), 0x3D6FD1), L(c(0.7, 0.6, 0.04), 0x3D6FD1),
+        ]
+        return t
+    }()
+}

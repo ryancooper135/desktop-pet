@@ -21,6 +21,8 @@
 //   ui-69/70        сон хозяина: настройки с выученным окном «Я сплю примерно 00:40–08:10» (и экран «Я сплю»),
 //                   «Доброе утро» при первом заходе утром (PET_SEED=sleep_learned / good_morning)
 //   ui-73/74        характер и память (PET_SEED=memories): «Характер» и «Помню» в альбоме; пузырь-воспоминание на главной
+//   ui-67           предметы: коллекция с иконками и кнопками по роли; комната с кубком на полке и теннисным мячиком
+//   ui-68           лавка дня: три карточки за монеты, потом одна куплена
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -358,6 +360,35 @@ final class ScreenshotUITests: XCTestCase {
     func testStates74MemoryLine() {
         shootState("ui-74-memory-line", env: ["PET_SEED": "memories", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
                    marker: "pet.line", settleFor: 2.5)
+    }
+
+    /// Предметы (PET_SEED=items): сначала комната — кубок на полке, теннисный мячик, корона с бабочкой на собаке;
+    /// потом коллекция в автомате — иконки на плитках редкости, «Надеть / На полку / Играть».
+    @MainActor
+    func testStates67Items() throws {
+        shootState("ui-67-items-room", env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+        try shootOptional("ui-67-items-list",
+                          env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "capsule"],
+                          marker: "shelf.trophy_cup", scrollIn: "capsule.screen")
+    }
+
+    /// Лавка дня (PET_OPEN=shop открывает автомат, а из него лист): три карточки, потом покупка первой — «Куплено».
+    @MainActor
+    func testStates68Shop() throws {
+        let app = try shootOptional("ui-68-shop",
+                                    env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                          "PET_OPEN": "shop"],
+                                    marker: "shop.screen", keepRunning: true)
+        let buy = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "shop.buy.")).firstMatch
+        if buy.waitForExistence(timeout: 5) {
+            buy.tap()
+            let sold = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Куплено"))
+            XCTAssertTrue(sold.firstMatch.waitForExistence(timeout: 5), "ui-68: после покупки нет «Куплено»")
+            settle(0.8)
+            snap("ui-68-shop-bought")
+        }
+        app.terminate()
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).

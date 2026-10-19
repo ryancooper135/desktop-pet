@@ -104,6 +104,10 @@ final class PetStore: @unchecked Sendable {
             fresh.worn = old.worn
             // Сон хозяина (OwnerSleep) — тоже: выученное окно про человека, а не про собаку.
             fresh.sleep = old.sleep
+            // Полка, игрушка и лавка дня — тоже про вещи, а не про собаку.
+            fresh.shelf = old.shelf
+            fresh.toy = old.toy
+            fresh.shop = old.shop
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
             // Память и характер (memories, care) — тоже нет: они про того пса.
             // Старый файл целиком остаётся в state.broken-<t>.json.

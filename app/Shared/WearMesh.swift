@@ -37,12 +37,16 @@ enum WearShape: String, CaseIterable, Hashable, Sendable {
     case bandana, collar, scarf          // шея
     case cape                            // спина
     case genericHat, genericRing, genericBlanket
+    // волна 11
+    case beret, wreath, crown            // голова
+    case bellCollar, bowtie              // шея
+    case backpack                        // спина
 
     var slot: WearSlot {
         switch self {
-        case .leafHat, .bow, .genericHat: return .head
-        case .bandana, .collar, .scarf, .genericRing: return .neck
-        case .cape, .genericBlanket: return .back
+        case .leafHat, .bow, .genericHat, .beret, .wreath, .crown: return .head
+        case .bandana, .collar, .scarf, .genericRing, .bellCollar, .bowtie: return .neck
+        case .cape, .genericBlanket, .backpack: return .back
         }
     }
 }
@@ -77,6 +81,17 @@ struct WearPart: Sendable {
     mutating func quad(_ a: SIMD3<Float>, _ b: SIMD3<Float>, _ c: SIMD3<Float>, _ d: SIMD3<Float>) {
         tri(a, b, c)
         tri(a, c, d)
+    }
+
+    /// Коробка по осям: центр и полуразмеры.
+    mutating func box(_ c: SIMD3<Float>, _ h: SIMD3<Float>) {
+        func v(_ sx: Float, _ sy: Float, _ sz: Float) -> SIMD3<Float> { c + h * SIMD3(sx, sy, sz) }
+        quad(v(-1, -1, 1), v(1, -1, 1), v(1, 1, 1), v(-1, 1, 1))       // перед
+        quad(v(1, -1, -1), v(-1, -1, -1), v(-1, 1, -1), v(1, 1, -1))   // зад
+        quad(v(-1, 1, 1), v(1, 1, 1), v(1, 1, -1), v(-1, 1, -1))       // верх
+        quad(v(-1, -1, -1), v(1, -1, -1), v(1, -1, 1), v(-1, -1, 1))   // низ
+        quad(v(1, -1, 1), v(1, -1, -1), v(1, 1, -1), v(1, 1, 1))       // право
+        quad(v(-1, -1, -1), v(-1, -1, 1), v(-1, 1, 1), v(-1, 1, -1))   // лево
     }
 
     /// Плоская фигура толщиной t: контур в плоскости (o, ex, ey), толщина по нормали ex×ey.
@@ -192,6 +207,12 @@ enum WearMesh {
         case .scarf: out = scarf()
         case .cape: out = cape()
         case .genericBlanket: out = blanket()
+        case .beret: out = beret()
+        case .wreath: out = wreath()
+        case .crown: out = crownShape()
+        case .bellCollar: out = bellCollar()
+        case .bowtie: out = bowtie()
+        case .backpack: out = backpack()
         }
         return out.filter { !$0.isEmpty }
     }
@@ -312,7 +333,132 @@ enum WearMesh {
         return [hat, top]
     }
 
+    /// Берет: плоский восьмигранный «блин», к затылку чуть ниже, хвостик сверху.
+    static func beret() -> [WearPart] {
+        var cap = WearPart(headJoint)
+        var tail = WearPart(headJoint, accent: true)
+        let base = crown + SIMD3(0, 0.03, -0.04)
+        let n = 8
+        func ring(_ r: Float, _ y: Float) -> [SIMD3<Float>] {
+            (0..<n).map { k in
+                let a = (Float(k) + 0.5) / Float(n) * 2 * .pi
+                // К затылку (−z) край ниже: берет сдвинут назад, как его носят.
+                return base + SIMD3(r * cos(a), y - 0.03 * max(0, -sin(a)), r * sin(a))
+            }
+        }
+        let low = ring(0.24, 0), rim = ring(0.31, 0.06), top = ring(0.22, 0.12)
+        let peak = base + SIMD3(0, 0.13, 0)
+        for k in 0..<n {
+            let j = (k + 1) % n
+            cap.quad(low[k], low[j], rim[j], rim[k])
+            cap.quad(rim[k], rim[j], top[j], top[k])
+            cap.tri(top[k], top[j], peak)
+            cap.tri(low[j], low[k], base)
+        }
+        tail.slab([SIMD2(-0.025, 0), SIMD2(0.025, 0), SIMD2(0.02, 1), SIMD2(-0.02, 1)],
+                  o: peak, ex: SIMD3(1, 0, 0), ey: SIMD3(0, 0.08, -0.03), t: 0.04)
+        return [cap, tail]
+    }
+
+    /// Венок: восемь листьев по кругу вокруг макушки, между ними ягодки вторым цветом.
+    static func wreath() -> [WearPart] {
+        var leaves = WearPart(headJoint)
+        var berries = WearPart(headJoint, accent: true)
+        let c = crown + SIMD3(0, 0.04, 0)
+        let n = 8
+        let r: Float = 0.26
+        for k in 0..<n {
+            let a = Float(k) / Float(n) * 2 * .pi
+            let radial = SIMD3<Float>(cos(a), 0, sin(a))
+            let tangent = SIMD3<Float>(-sin(a), 0, cos(a))
+            // Лист вдоль круга, чуть отогнут наружу.
+            let o = c + radial * r
+            let ey = WearMath.normalize(radial * 0.3 + SIMD3(0, 1, 0))
+            leaves.slab([SIMD2(-0.13, 0), SIMD2(0, -0.06), SIMD2(0.13, 0), SIMD2(0, 0.07)],
+                        o: o, ex: tangent, ey: ey, t: 0.03)
+            let b2 = a + .pi / Float(n)
+            let b = c + SIMD3(cos(b2), 0, sin(b2)) * (r + 0.02) + SIMD3(0, 0.04, 0)
+            berries.box(b, SIMD3(repeating: 0.035))
+        }
+        return [leaves, berries]
+    }
+
+    /// Корона: зубчатый обод (высокий зубец через один), шарики на зубцах, камень спереди.
+    static func crownShape() -> [WearPart] {
+        var gold = WearPart(headJoint)
+        var gem = WearPart(headJoint, accent: true)
+        let base = crown + SIMD3(0, 0.02, 0)
+        let n = 10
+        let r: Float = 0.22
+        var lo: [SIMD3<Float>] = []
+        var hi: [SIMD3<Float>] = []
+        for k in 0..<n {
+            let a = Float(k) / Float(n) * 2 * .pi + .pi / 2
+            let p = base + SIMD3(r * cos(a), 0, r * sin(a))
+            let h: Float = k % 2 == 0 ? 0.26 : 0.13
+            lo.append(p)
+            hi.append(p + SIMD3(0.06 * cos(a), h, 0.06 * sin(a)))
+        }
+        for k in 0..<n {
+            let j = (k + 1) % n
+            gold.quad(lo[k], lo[j], hi[j], hi[k])
+        }
+        for k in stride(from: 0, to: n, by: 2) { gold.box(hi[k] + SIMD3(0, 0.02, 0), SIMD3(repeating: 0.03)) }
+        // Камень спереди (+z), ромбом.
+        let front = base + SIMD3(0, 0.08, r + 0.04)
+        gem.slab([SIMD2(0, -0.06), SIMD2(0.05, 0), SIMD2(0, 0.06), SIMD2(-0.05, 0)],
+                 o: front, ex: SIMD3(1, 0, 0), ey: SIMD3(0, 1, 0), t: 0.03)
+        return [gold, gem]
+    }
+
     // Шея
+
+    /// Ошейник с бубенчиком: лента и колокольчик спереди.
+    static func bellCollar() -> [WearPart] {
+        var parts = band(gap: 0.01, thick: 0.05, half: 0.06, segs: 16)
+        var bell = WearPart(neckJoint, accent: true)
+        let top = neckPoint(90, out: 0.08)
+        let c = top + SIMD3(0, -0.1, 0.02)
+        // Колокольчик — восьмигранная «бочка» из двух пирамид и ушко сверху.
+        let n = 8
+        let r: Float = 0.08
+        let ring = (0..<n).map { k -> SIMD3<Float> in
+            let a = Float(k) / Float(n) * 2 * .pi
+            return c + SIMD3(r * cos(a), 0, r * sin(a))
+        }
+        for k in 0..<n {
+            let j = (k + 1) % n
+            bell.tri(ring[k], ring[j], c + SIMD3(0, 0.08, 0))
+            bell.tri(ring[j], ring[k], c + SIMD3(0, -0.07, 0))
+        }
+        bell.box(top + SIMD3(0, -0.01, 0.01), SIMD3(0.02, 0.025, 0.02))
+        parts.append(bell)
+        return parts
+    }
+
+    /// Бабочка: узкая лента, спереди два крыла в горошек и узелок.
+    static func bowtie() -> [WearPart] {
+        var parts = band(gap: 0.01, thick: 0.03, half: 0.035, segs: 16)
+        var acc = WearPart(neckJoint, accent: true)
+        let c = neckPoint(90, out: 0.07)
+        let ex = SIMD3<Float>(1, 0, 0)
+        let ey = WearMath.normalize(SIMD3<Float>(0, 1, -0.35))
+        let face = WearMath.cross(ex, ey)
+        for side in [Float(1), -1] {
+            let wing: [SIMD2<Float>] = [SIMD2(0.03 * side, -0.03), SIMD2(0.22 * side, -0.11),
+                                        SIMD2(0.24 * side, 0), SIMD2(0.22 * side, 0.11), SIMD2(0.03 * side, 0.03)]
+            parts[0].slab(side > 0 ? wing : wing.reversed(), o: c, ex: ex, ey: ey, t: 0.07)
+            // Горошины поверх крыла.
+            for d in [SIMD2<Float>(0.12 * side, 0.04), SIMD2<Float>(0.17 * side, -0.05)] {
+                acc.slab([SIMD2(0, -0.025), SIMD2(0.025, 0), SIMD2(0, 0.025), SIMD2(-0.025, 0)],
+                         o: c + ex * d.x + ey * d.y + face * 0.04, ex: ex, ey: ey, t: 0.01)
+            }
+        }
+        acc.slab([SIMD2(-0.05, -0.05), SIMD2(0.05, -0.05), SIMD2(0.05, 0.05), SIMD2(-0.05, 0.05)],
+                 o: c, ex: ex, ey: ey, t: 0.1)
+        parts.append(acc)
+        return parts
+    }
 
     static func bandana() -> [WearPart] {
         var cloth = band(gap: 0.01, thick: 0.035, half: 0.05, segs: 16)[0]
@@ -453,6 +599,32 @@ enum WearMesh {
 
     static func blanket() -> [WearPart] {
         shell(z0: -0.3, z1: 0.9, amax: 85, out: 0.07, flare: 0.2, stripe: 12, hemAccent: false)
+    }
+
+    /// Рюкзачок-жёлудь: коробка на середине спины, сверху «шляпка» вторым цветом с хвостиком,
+    /// лямки по бокам. Весь на Torso2 — середина спины гнётся мало.
+    static func backpack() -> [WearPart] {
+        var body = WearPart("Torso2")
+        var cap = WearPart("Torso2", accent: true)
+        let top = backPoint(z: 0.15, a: 0, out: 0).y
+        body.box(SIMD3(0, top + 0.13, 0.15), SIMD3(0.22, 0.17, 0.26))
+        body.box(SIMD3(0, top + 0.1, 0.43), SIMD3(0.14, 0.09, 0.04))      // карман спереди
+        cap.box(SIMD3(0, top + 0.33, 0.15), SIMD3(0.25, 0.04, 0.29))
+        cap.box(SIMD3(0, top + 0.41, 0.15), SIMD3(0.03, 0.05, 0.03))
+        // Лямки: по две полосы с боков, от края рюкзака вниз по поверхности.
+        for z in [Float(0.0), 0.32] {
+            for side in [Float(1), -1] {
+                for k in 0..<5 {
+                    let a0 = side * (30 + Float(k) * 12)
+                    let a1 = side * (30 + Float(k + 1) * 12)
+                    let p0 = backPoint(z: z, a: a0, out: 0.02)
+                    let p1 = backPoint(z: z, a: a1, out: 0.02)
+                    let w = SIMD3<Float>(0, 0, 0.04)
+                    cap.quad(p0 - w, p0 + w, p1 + w, p1 - w)
+                }
+            }
+        }
+        return [body, cap]
     }
 
     // MARK: заглушка без модели

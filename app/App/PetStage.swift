@@ -1,7 +1,8 @@
 // Сцена: RealityView с виртуальной камерой (без AR). Модель — Resources/shiba.usdz, если она есть в бандле,
 // иначе заглушка из коробок и сфер в цветах Шибы (стиль A, low-poly).
 // Позы — клипы одного таймлайна с переходами (PetStance), простой ведёт режиссёр, дыхание и пружины — PetJuice.
-// Вещи дома в комнате — RoomDecor по AppModel.homeLevels. Надетое из капсулы — PetWear по AppModel.worn.
+// Вещи дома в комнате — RoomDecor по AppModel.homeLevels. Надетое из капсулы — PetWear по AppModel.worn,
+// вещица на полке и мячик — RoomDecor.applyShelf / applyToy по AppModel.shelf / toy.
 // Вечер и ночь — RoomLighting по AppModel.roomSchedule и теме; поверх сцены — виньетка фазы (без касаний).
 // Reduce Motion: статичная поза на последнем кадре цикла, без дыхания и пружин.
 
@@ -45,6 +46,9 @@ struct PetStage: View {
         let dark = colorScheme == .dark
         // Надетое из капсулы (PetWear): шапка, шарф, плащ.
         let worn = model?.worn ?? [:]
+        // Вещица на полке и мячик для игры (волна 11, ItemCatalog).
+        let shelf = model?.shelf
+        let toy = model?.toy
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -65,6 +69,8 @@ struct PetStage: View {
             content.add(stand)
             let room = PetRoom.room()
             RoomDecor.apply(home, to: room)
+            RoomDecor.applyShelf(shelf, to: room)
+            RoomDecor.applyToy(toy, to: room)
             // Свет — внутри комнаты: RoomLighting красит его вместе с ней, сразу нужной фазы (без мигания).
             room.addChild(PetRoom.lights())
             RoomLighting.setup(room, schedule: schedule, dark: dark)
@@ -91,7 +97,10 @@ struct PetStage: View {
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
-                let rebuilt = RoomDecor.apply(home, to: room)
+                // Не через ||: все три должны отработать.
+                let built = [RoomDecor.apply(home, to: room), RoomDecor.applyShelf(shelf, to: room),
+                             RoomDecor.applyToy(toy, to: room)]
+                let rebuilt = built.contains(true)
                 RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt)
             }
             PetChoreo.setHome(pet, home)
