@@ -724,19 +724,19 @@ extension RoomDecor {
     @discardableResult
     static func applyToy(_ id: String?, to room: Entity) -> Bool {
         registerOnce()
-        guard let ball = room.findEntity(named: "ball") as? ModelEntity else { return false }
+        guard let toyBall = room.findEntity(named: "ball") as? ModelEntity else { return false }
         let toy = id.flatMap { ItemCatalog.toys[$0] }
         let want = toy == nil ? nil : id
-        if ball.components[RoomToyShown.self]?.id == want { return false }
-        ball.children.filter { $0.name == toySkinName }.forEach { $0.removeFromParent() }
-        ball.components.remove(RoomTintBase.self)
+        if toyBall.components[RoomToyShown.self]?.id == want { return false }
+        toyBall.children.filter { $0.name == toySkinName }.forEach { $0.removeFromParent() }
+        toyBall.components.remove(RoomTintBase.self)
         guard let id = want, let toy else {
-            ball.components.remove(RoomToyShown.self)
-            ball.model?.materials = [PetRoom.matteMaterial(RoomColors.ball)]
+            toyBall.components.remove(RoomToyShown.self)
+            toyBall.model?.materials = [PetRoom.matteMaterial(RoomColors.ball)]
             return true
         }
-        ball.model?.materials = [material(toy.color, 1)]
-        let skin = group(toySkinName, in: ball)
+        toyBall.model?.materials = [material(toy.color, 1)]
+        let skin = group(toySkinName, in: toyBall)
         let r = RoomPlan.Keep.ballRadius
         switch toy.pattern {
         case .seam:
@@ -771,7 +771,7 @@ extension RoomDecor {
                 }
             }
         }
-        ball.components.set(RoomToyShown(id: id))
+        toyBall.components.set(RoomToyShown(id: id))
         return true
     }
 }
