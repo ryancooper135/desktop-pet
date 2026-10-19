@@ -113,7 +113,7 @@ struct HabitConfig: Hashable, Sendable {
 
 // MARK: - Отметки в сейве
 
-/// Что хозяин отмечал. day — номер местных суток (Economy.day), today — сколько раз сегодня по каждой,
+/// Что хозяин отмечал. day — номер местных суток (DayKey), today — сколько раз сегодня по каждой,
 /// last — когда последний раз, total — сколько раз всего. Ключи — Habit.rawValue: незнакомые не ломают чтение.
 struct HabitLog: Codable, Hashable, Sendable {
     var day = 0
@@ -168,15 +168,14 @@ enum Habits {
 
     /// Сменились местные сутки — «сегодня» с нуля. Назад не откатываемся, как Economy.rollDay.
     static func rollDay(_ log: inout HabitLog, now: Double) {
-        let d = Economy.day(now)
-        guard d > log.day else { return }
+        guard let d = DayKey.newer(than: log.day, at: now) else { return }
         log.day = d
         log.today = [:]
     }
 
     /// Сколько раз отмечено сегодня (с учётом смены суток — без записи).
     static func countToday(_ f: SaveFile, _ h: Habit, now: Double) -> Int {
-        Economy.day(now) > f.habits.day ? 0 : (f.habits.today[h.rawValue] ?? 0)
+        DayKey.today(f.habits.today[h.rawValue] ?? 0, day: f.habits.day, at: now)
     }
 
     /// Хоть раз было когда-нибудь.
@@ -184,7 +183,7 @@ enum Habits {
 
     /// Монет за привычки ещё можно получить сегодня (общий потолок с шагами).
     static func coinsLeft(_ f: SaveFile, now: Double, _ cfg: HabitConfig = .shared) -> Int {
-        let used = Economy.day(now) > f.econ.daily.day ? 0 : f.econ.daily.habits
+        let used = DayKey.today(f.econ.daily.habits, day: f.econ.daily.day, at: now)
         return max(0, cfg.dailyCap - used)
     }
 
@@ -199,7 +198,7 @@ enum Habits {
                                 text: "Шибы пока нет — загляни в приложение")
         }
         rollDay(&f.habits, now: now)
-        Economy.rollDay(&f.econ, day: Economy.day(now))
+        Economy.rollDay(&f.econ, day: DayKey.of(now))
         let rule = cfg.rule(h)
         let done = f.habits.today[h.rawValue] ?? 0
         let n = min(max(1, times), max(0, rule.perDay - done))

@@ -109,7 +109,7 @@ enum ShopDaily {
     /// Часы ушли назад (перевели руками, перелёт на запад) — остаётся сохранённая: назад не откатываемся,
     /// иначе каждый перевод давал бы свежую витрину с новыми редкостями.
     static func today(_ f: SaveFile, now: Double, cfg: CapsuleConfig = EconomyConfig.shared.capsule) -> ShopDay {
-        let day = Economy.day(now)
+        let day = DayKey.of(now)
         if let s = f.shop, s.day >= day, !s.ids.isEmpty { return s }
         return ShopDay(day: day, ids: pick(petId: f.petId, day: day, owned: Set(f.econ.items.keys), cfg: cfg))
     }
@@ -199,8 +199,6 @@ enum ShopDaily {
 
     /// Секунд до новой витрины (местная полночь).
     static func secondsToNext(now: Double) -> Double {
-        let off = Double(Clock.tzOffsetMin(at: now)) * 60
-        let local = now + off
-        return (local / 86400).rounded(.down) * 86400 + 86400 - local
+        DayKey.nextMidnight(after: now) - now
     }
 }

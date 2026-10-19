@@ -257,8 +257,8 @@ enum Tricks {
                                 learnedNow: false, coins: 0, love: 0)
         }
 
-        // Метка из будущего (часы перевели назад, clock_back) — устаревшая, иначе счёт стоит, пока часы не догонят.
-        let counted = now < e.t || now >= e.t + gap
+        // Метку из будущего (часы назад) catchUp уже прижал к now: перерыв идёт заново, без бесплатного зачёта.
+        let counted = now >= e.t + gap
         var learnedNow = false
         if counted {
             e.t = now
@@ -285,7 +285,7 @@ enum Tricks {
     /// Настроение: «Погладить» ядра на копии без перезарядки, в питомца — loveShare прибавки.
     /// Перезарядку настоящей «Погладить» не ставим: трюк не должен запрещать ласку.
     private static func cheer(_ f: inout SaveFile, now: Double) -> Double {
-        if let j = f.tricks.joyT, now >= j, now < j + joyGap { return 0 }
+        if let j = f.tricks.joyT, now < j + joyGap { return 0 }
         var s = f.pet
         s.cooldowns["pet"] = nil
         let before = f.pet.needs[.love] ?? 0

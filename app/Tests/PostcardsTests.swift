@@ -10,11 +10,11 @@ import XCTest
 private let pcPet = "pet-postcards"
 private let pcTZ = 120
 /// Тестовый день: местный день момента 1_760_000_000.
-private let pcDay = Postcards.day(1_760_000_000, tzOffsetMin: pcTZ)
+private let pcDay = DayKey.of(1_760_000_000, tzOffsetMin: pcTZ)
 
 /// Свежий файл, созданный в 9:00 местного дня createdDay (по умолчанию за 20 дней: не веха).
 private func pcFile(createdDay: Int = pcDay - 20) -> SaveFile {
-    var f = SaveFile.fresh(now: Postcards.dayStart(createdDay, tzOffsetMin: pcTZ) + 9 * 3600)
+    var f = SaveFile.fresh(now: DayKey.start(createdDay, tzOffsetMin: pcTZ) + 9 * 3600)
     f.petId = pcPet
     f.owner.tzOffsetMin = pcTZ
     return f
@@ -22,11 +22,11 @@ private func pcFile(createdDay: Int = pcDay - 20) -> SaveFile {
 
 /// Местное время дня d.
 private func at(_ d: Int, _ h: Int, _ m: Int = 0) -> Double {
-    Postcards.dayStart(d, tzOffsetMin: pcTZ) + Double(h * 3600 + m * 60)
+    DayKey.start(d, tzOffsetMin: pcTZ) + Double(h * 3600 + m * 60)
 }
 
 /// Начало дня d: в этот момент появляется открытка за d − 1.
-private func midnight(_ d: Int) -> Double { Postcards.dayStart(d, tzOffsetMin: pcTZ) }
+private func midnight(_ d: Int) -> Double { DayKey.start(d, tzOffsetMin: pcTZ) }
 
 private func act(_ f: inout SaveFile, _ kind: String, _ t: Double, ok: Bool = true, key: String? = nil, value: Int? = nil) {
     f.log("act.\(kind)", t: t, source: .app, ok: ok, reason: ok ? nil : "cooldown", key: key, value: value)
@@ -197,9 +197,9 @@ final class PostcardsTests: XCTestCase {
         var f = pcFile()
         let d = pcDay
         let late = at(d, 23, 30), early = at(d + 1, 0, 30)
-        XCTAssertEqual(Postcards.day(late, tzOffsetMin: pcTZ), d)
-        XCTAssertEqual(Postcards.day(early, tzOffsetMin: pcTZ), d + 1)
-        XCTAssertEqual(Postcards.day(late, tzOffsetMin: 0), Postcards.day(early, tzOffsetMin: 0), "по UTC это один день")
+        XCTAssertEqual(DayKey.of(late, tzOffsetMin: pcTZ), d)
+        XCTAssertEqual(DayKey.of(early, tzOffsetMin: pcTZ), d + 1)
+        XCTAssertEqual(DayKey.of(late, tzOffsetMin: 0), DayKey.of(early, tzOffsetMin: 0), "по UTC это один день")
         act(&f, "play", late)
         act(&f, "bath", early)
 
@@ -365,12 +365,12 @@ final class PostcardsTests: XCTestCase {
 
     func testCatchUpMakesCards() throws {
         let tz = Clock.tzOffsetMin(at: 1_760_000_000)
-        let d = Postcards.day(1_760_000_000, tzOffsetMin: tz)
-        let start = Postcards.dayStart(d, tzOffsetMin: tz) + 14 * 3600
+        let d = DayKey.of(1_760_000_000, tzOffsetMin: tz)
+        let start = DayKey.start(d, tzOffsetMin: tz) + 14 * 3600
         var f = SaveFile.fresh(now: start)
         _ = PetRunner.apply(.pet, source: .app, to: &f, now: start + 60)
         XCTAssertTrue(f.cards.pending.isEmpty, "в тот же день открытки нет")
-        let next = Postcards.dayStart(d + 1, tzOffsetMin: f.owner.tzOffsetMin) + 120
+        let next = DayKey.start(d + 1, tzOffsetMin: f.owner.tzOffsetMin) + 120
         PetRunner.catchUp(&f, now: next)
         let c = try XCTUnwrap(f.cards.pending.first, "первая запись после полуночи собирает открытку")
         XCTAssertEqual(c.day, d)

@@ -62,10 +62,8 @@ enum NotificationPlanner {
         return OwnerSleep.quiet(bedMin: o.bedMin, wakeMin: o.wakeMin, est: est.window, capMin: cap)
     }
 
-    /// Местный день (как в ядре): по нему лимит «1 в день» и ротация текстов.
-    static func localDay(_ t: Double, _ o: Owner) -> Int {
-        Int((Double(Int((t / 60).rounded(.down)) + o.tzOffsetMin) / 1440).rounded(.down))
-    }
+    /// Местный день (DayKey, пояс хозяина): по нему лимит «1 в день» и ротация текстов.
+    static func localDay(_ t: Double, _ o: Owner) -> Int { DayKey.of(t, tzOffsetMin: o.tzOffsetMin) }
 
     /// Не раньше чем через 2 мин: иначе Шиба вернётся раньше, чем система успеет показать.
     static let walkLeadSec: Double = 120

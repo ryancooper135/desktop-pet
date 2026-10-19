@@ -42,15 +42,9 @@ enum Guides {
 
     // MARK: когда показывать
 
-    /// Местный календарный день (номер с эпохи) — так же, как в ядре: минуты UTC + смещение пояса.
-    static func localDay(_ t: Double, tzOffsetMin: Int) -> Int {
-        let m = (t / 60).rounded(.down) + Double(tzOffsetMin)
-        return Int((m / 1440).rounded(.down))
-    }
-
     /// День жизни: 1 — день появления, 2 — следующий календарный день и т. д.
     static func dayOfLife(createdT: Double, now: Double, tzOffsetMin: Int) -> Int {
-        localDay(now, tzOffsetMin: tzOffsetMin) - localDay(createdT, tzOffsetMin: tzOffsetMin) + 1
+        DayKey.of(now, tzOffsetMin: tzOffsetMin) - DayKey.of(createdT, tzOffsetMin: tzOffsetMin) + 1
     }
 
     static func shouldShowRules(flags: SaveFile.Flags, createdT: Double, now: Double, tzOffsetMin: Int,

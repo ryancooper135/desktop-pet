@@ -100,16 +100,16 @@ final class Wave5SeamTests: XCTestCase {
     /// что соберёт первая запись (catchUp), даже если вчерашние события ещё не в журнале.
     func testWidgetCardMatchesNextWrite() throws {
         let tz = Clock.tzOffsetMin(at: sT0)
-        let d = Postcards.day(sT0, tzOffsetMin: tz)
-        var f = sFile(at: Postcards.dayStart(d - 1, tzOffsetMin: tz) + 9 * 3600)
+        let d = DayKey.of(sT0, tzOffsetMin: tz)
+        var f = sFile(at: DayKey.start(d - 1, tzOffsetMin: tz) + 9 * 3600)
         f.owner.tzOffsetMin = tz
         f.cards.doneDay = d - 1
         // День d: в 14:00 Шиба ушёл гулять, больше в тот день ничего не писали.
-        let walkT = Postcards.dayStart(d, tzOffsetMin: tz) + 14 * 3600
+        let walkT = DayKey.start(d, tzOffsetMin: tz) + 14 * 3600
         let find = try XCTUnwrap(Tastes.candidates(.find).first)
         f.pet.t = walkT
         f.pet.outing = Outing(from: walkT, until: walkT + 3600, find: find)
-        let now = Postcards.dayStart(d + 1, tzOffsetMin: tz) + 9 * 3600
+        let now = DayKey.start(d + 1, tzOffsetMin: tz) + 9 * 3600
 
         let widget = Postcards.latest(f, now: now)
         var w = f
@@ -159,7 +159,7 @@ final class Wave5SeamTests: XCTestCase {
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
         let tz = Clock.tzOffsetMin(at: sT0)
-        let d = Postcards.day(sT0, tzOffsetMin: tz)
+        let d = DayKey.of(sT0, tzOffsetMin: tz)
         try store.startOver(now: sT0)
         try store.mutate { (f: inout SaveFile) -> Void in
             f.cards.album = [sCard(day: d - 5, saved: true), sCard(day: d - 3, saved: true)]
@@ -182,7 +182,7 @@ final class Wave5SeamTests: XCTestCase {
         XCTAssertTrue(f.tastes.isEmpty, "вкусы — нового щенка")
 
         // Открытка нового щенка не сталкивается с альбомом старого: его дни раньше дня знакомства.
-        let next = Postcards.dayStart(Postcards.day(restart, tzOffsetMin: f.owner.tzOffsetMin) + 1,
+        let next = DayKey.start(DayKey.of(restart, tzOffsetMin: f.owner.tzOffsetMin) + 1,
                                       tzOffsetMin: f.owner.tzOffsetMin) + 600
         PetRunner.catchUp(&f, now: next)
         XCTAssertEqual(f.cards.pending.map(\.kind), ["first_day"])

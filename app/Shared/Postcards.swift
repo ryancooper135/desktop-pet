@@ -188,17 +188,7 @@ enum Postcards {
     static let rescueLastChanceScore = 90
     static let stepsBigScore = 35
 
-    // MARK: местные дни
-
-    /// Номер местного дня (как у Finds.clock: минуты UTC + сдвиг пояса).
-    static func day(_ t: Double, tzOffsetMin: Int) -> Int {
-        LineRotation.floorDiv(LineRotation.localMinute(t, tzOffsetMin), 1440)
-    }
-
-    /// Местная полночь, с которой начинается день.
-    static func dayStart(_ day: Int, tzOffsetMin: Int) -> Double {
-        Double(day * 1440 - tzOffsetMin) * 60
-    }
+    // MARK: местные дни (DayKey)
 
     /// «17 октября» без DateFormatter: одинаково на Linux и в тестах.
     static func dateLabel(_ day: Int) -> String {
@@ -239,7 +229,7 @@ enum Postcards {
 
     /// Все моменты местного дня. Порядок: как в журнале.
     static func moments(_ f: SaveFile, day: Int, tzOffsetMin tz: Int) -> [Moment] {
-        let start = dayStart(day, tzOffsetMin: tz), end = dayStart(day + 1, tzOffsetMin: tz)
+        let start = DayKey.start(day, tzOffsetMin: tz), end = DayKey.start(day + 1, tzOffsetMin: tz)
         let all = entries(f)
         let inDay = all.filter { $0.t >= start && $0.t < end }
         // Дела хозяина: шаги считает телефон сам, это не забота.
@@ -342,7 +332,7 @@ enum Postcards {
         }
 
         // Вехи: день знакомства, дни дружбы, день рождения. Кроме первого дня — только если хозяин заходил.
-        let index = day - Self.day(f.createdT, tzOffsetMin: tz)
+        let index = day - DayKey.of(f.createdT, tzOffsetMin: tz)
         if index == 0, f.createdT >= start, f.createdT < end {
             add(.firstDay, f.createdT)
         } else if index > 0, let first = owned.first {
@@ -444,7 +434,7 @@ enum Postcards {
         return Postcard(id: "c\(day)", day: day, kind: m.kind.rawValue, t: m.t, tz: tz, score: m.score,
                         caption: line?.text ?? fallback(m.kind), lineId: line?.id, find: m.find, item: m.item,
                         count: m.count, pose: l.pose.rawValue, clip: l.clip, prop: l.prop,
-                        expiresT: dayStart(day + 1, tzOffsetMin: tz) + life, savedT: nil, image: nil)
+                        expiresT: DayKey.start(day + 1, tzOffsetMin: tz) + life, savedT: nil, image: nil)
     }
 
     /// Открытка за день или nil, если день пустой. previous — тип вчерашней открытки.
@@ -463,11 +453,11 @@ enum Postcards {
     static func refresh(_ f: inout SaveFile, now: Double) -> [Postcard] {
         let tz = f.owner.tzOffsetMin
         f.cards.pending.removeAll { $0.expiresT <= now }
-        let today = day(now, tzOffsetMin: tz)
-        var from = max(day(f.createdT, tzOffsetMin: tz), today - lifeDays)
+        let today = DayKey.of(now, tzOffsetMin: tz)
+        var from = max(DayKey.of(f.createdT, tzOffsetMin: tz), today - lifeDays)
         if let done = f.cards.doneDay { from = max(from, done + 1) }
         // День смерти и после — без открыток.
-        let deathDay: Int? = f.pet.alive ? nil : day(f.pet.diedAt ?? f.pet.t, tzOffsetMin: tz)
+        let deathDay: Int? = f.pet.alive ? nil : DayKey.of(f.pet.diedAt ?? f.pet.t, tzOffsetMin: tz)
         var made: [Postcard] = []
         if from < today {
             for d in from..<today {
@@ -502,8 +492,8 @@ enum Postcards {
     /// Есть ли прошедший местный день, за который refresh ещё не выдавал открытку (пояс — как в catchUp).
     static func hasUnsettledDay(_ f: SaveFile, now: Double) -> Bool {
         let tz = Clock.tzOffsetMin(at: now)
-        let today = day(now, tzOffsetMin: tz)
-        var from = max(day(f.createdT, tzOffsetMin: tz), today - lifeDays)
+        let today = DayKey.of(now, tzOffsetMin: tz)
+        var from = max(DayKey.of(f.createdT, tzOffsetMin: tz), today - lifeDays)
         if let done = f.cards.doneDay { from = max(from, done + 1) }
         return from < today
     }

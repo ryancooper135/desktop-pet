@@ -281,8 +281,7 @@ enum CatchGame {
 
     /// Сменились местные сутки — счётчики игры с нуля. Назад не откатываемся, как Economy.rollDay.
     static func rollDay(_ f: inout SaveFile, now: Double) {
-        let d = Economy.day(now)
-        guard d > f.catchDay else { return }
+        guard let d = DayKey.newer(than: f.catchDay, at: now) else { return }
         f.catchDay = d
         f.catchCoins = 0
         f.catchGames = 0
@@ -290,7 +289,7 @@ enum CatchGame {
 
     /// Сколько монет ещё можно получить сегодня: свой потолок и общий потолок мини-игр (MiniGames).
     static func coinsLeft(_ f: SaveFile, now: Double, _ cfg: CatchConfig = .shared) -> Int {
-        let used = Economy.day(now) > f.catchDay ? 0 : f.catchCoins
+        let used = DayKey.today(f.catchCoins, day: f.catchDay, at: now)
         let all = cfg.sharedCap - MiniGames.coinsToday(f, now: now)
         return Swift.max(0, Swift.min(cfg.dailyCap - used, all))
     }

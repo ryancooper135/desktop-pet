@@ -107,8 +107,8 @@ final class MemoriesTests: XCTestCase {
         XCTAssertNotNil(f.memories["days.7"])
         XCTAssertNotNil(f.memories["days.30"])
         XCTAssertNil(f.memories["days.50"])
-        let born = Postcards.day(f.createdT, tzOffsetMin: 0)
-        XCTAssertEqual(f.memories["days.30"]?.t, Postcards.dayStart(born + 30, tzOffsetMin: 0))
+        let born = DayKey.of(f.createdT, tzOffsetMin: 0)
+        XCTAssertEqual(f.memories["days.30"]?.t, DayKey.start(born + 30, tzOffsetMin: 0))
 
         let rows = Memories.album(f)
         let text = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.text) })

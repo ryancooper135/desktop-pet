@@ -36,6 +36,7 @@ let package = Package(
                 "CharacterPack.swift",
                 "CharacterStore.swift",
                 "Clock.swift",
+                "DayKey.swift",
                 "Coat.swift",
                 "Cooking.swift",
                 "CoatFur.swift",

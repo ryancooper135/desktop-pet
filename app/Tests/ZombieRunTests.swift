@@ -255,9 +255,9 @@ final class ZombieRunTests: XCTestCase {
 
     func testSharedCapWithOtherGames() {
         var f = zFile()
-        f.catchDay = Economy.day(zT0)
+        f.catchDay = DayKey.of(zT0)
         f.catchCoins = 30
-        f.blockduoDay = Economy.day(zT0)
+        f.blockduoDay = DayKey.of(zT0)
         f.blockduoCoins = 20
         XCTAssertEqual(ZombieRun.coinsLeft(f, now: zT0, zCfg()), 10, "мячик и блоки уже взяли 50 из общих 60")
         let r = ZombieRun.finish(ZombieRun.autoplay(seed: 3, zCfg()), in: &f, now: zT0, zCfg())
@@ -270,7 +270,7 @@ final class ZombieRunTests: XCTestCase {
         cc.sharedCap = 60
         XCTAssertEqual(CatchGame.coinsLeft(f, now: zT0, cc), 0)
         var only = zFile()
-        only.zombieDay = Economy.day(zT0)
+        only.zombieDay = DayKey.of(zT0)
         only.zombieCoins = 45
         XCTAssertEqual(CatchGame.coinsLeft(only, now: zT0, cc), 15)
         var bc = BlockDuoConfig()
@@ -279,7 +279,7 @@ final class ZombieRunTests: XCTestCase {
         XCTAssertEqual(BlockDuo.coinsLeft(only, now: zT0, bc), 15)
         // Вчерашнее не в счёт.
         var y = zFile()
-        y.zombieDay = Economy.day(zT0) - 1
+        y.zombieDay = DayKey.of(zT0) - 1
         y.zombieCoins = 60
         XCTAssertEqual(MiniGames.coinsToday(y, now: zT0), 0)
         XCTAssertEqual(ZombieRun.coinsLeft(y, now: zT0, zCfg()), 60)
@@ -378,7 +378,7 @@ final class ZombieRunTests: XCTestCase {
         try store.startOver(now: zT0)
         try store.mutate { (f: inout SaveFile) -> Void in
             f.zombieBest = 470
-            f.zombieDay = Economy.day(zT0)
+            f.zombieDay = DayKey.of(zT0)
             f.zombieCoins = 60
             f.zombieGames = 4
         }
@@ -386,7 +386,7 @@ final class ZombieRunTests: XCTestCase {
         let f = try XCTUnwrap(store.read())
         XCTAssertEqual(f.zombieBest, 470, "рекорд хозяина остаётся")
         XCTAssertEqual(f.zombieCoins, 60, "новым щенком потолок не обнулить")
-        XCTAssertEqual(f.zombieDay, Economy.day(zT0))
+        XCTAssertEqual(f.zombieDay, DayKey.of(zT0))
         XCTAssertEqual(f.zombieGames, 4)
     }
 

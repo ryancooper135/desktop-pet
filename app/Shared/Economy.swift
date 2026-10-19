@@ -207,7 +207,7 @@ struct Econ: Codable, Hashable, Sendable {
         }
     }
 
-    /// Счётчики местных суток. day — номер суток (см. Economy.day).
+    /// Счётчики местных суток. day — номер суток (DayKey).
     struct Daily: Codable, Hashable, Sendable {
         var day = 0
         var care = 0         // монет за уход
@@ -296,11 +296,6 @@ struct Econ: Codable, Hashable, Sendable {
 // MARK: - Начисление и траты
 
 enum Economy {
-    /// Номер местных суток для момента t (сдвиг пояса на этот момент).
-    static func day(_ t: Double) -> Int {
-        Int(((t + Double(Clock.tzOffsetMin(at: t)) * 60) / 86400).rounded(.down))
-    }
-
     /// Сменились сутки — дневные счётчики с нуля. Назад не откатываемся (переведённые часы не дают второй потолок).
     static func rollDay(_ e: inout Econ, day: Int) {
         guard day > e.daily.day else { return }
@@ -316,7 +311,7 @@ enum Economy {
             guard e.id.hasPrefix(prefix), let s = Int(e.id.dropFirst(prefix.count)), s > f.econ.paidSeq else { continue }
             f.econ.paidSeq = s
             guard e.ok == true, e.kind.hasPrefix("act.") else { continue }
-            rollDay(&f.econ, day: day(e.t))
+            rollDay(&f.econ, day: DayKey.of(e.t))
             if let earn = pay(&f.econ, entry: e, kind: String(e.kind.dropFirst(4)), cfg) { out.append(earn) }
         }
         if let last = out.last { f.econ.lastEarn = last }
@@ -345,7 +340,7 @@ enum Economy {
 
     /// Сколько монет за уход ещё можно получить сегодня.
     static func careLeftToday(_ f: SaveFile, at t: Double, _ cfg: EconomyConfig = .shared) -> Int {
-        let used = day(t) > f.econ.daily.day ? 0 : f.econ.daily.care
+        let used = DayKey.today(f.econ.daily.care, day: f.econ.daily.day, at: t)
         return max(0, cfg.careDailyCap - used)
     }
 

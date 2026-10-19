@@ -176,7 +176,7 @@ final class ShopDailyTests: XCTestCase {
     func testPickDeterministicThreeRarities() {
         let cfg = EconomyConfig.shared.capsule
         let byId = cfg.itemsById
-        let day = Economy.day(iT0)
+        let day = DayKey.of(iT0)
         let a = ShopDaily.pick(petId: "dog-1", day: day, owned: [])
         XCTAssertEqual(a, ShopDaily.pick(petId: "dog-1", day: day, owned: []), "тот же день — та же витрина")
         XCTAssertEqual(a.count, 3)
@@ -197,7 +197,7 @@ final class ShopDailyTests: XCTestCase {
 
     func testPickPrefersMissing() {
         let cfg = EconomyConfig.shared.capsule
-        let day = Economy.day(iT0)
+        let day = DayKey.of(iT0)
         let commons = (cfg.pools[.common] ?? []).map(\.id)
         // Есть всё обычное, кроме одного, — на витрине именно оно.
         for missing in commons {
@@ -265,7 +265,7 @@ final class ShopDailyTests: XCTestCase {
         XCTAssertEqual(back[2].state, .sold)
         // Новые сутки — новая витрина, как раньше.
         ShopDaily.roll(&f, now: iT0 + 86_400)
-        XCTAssertEqual(f.shop?.day, Economy.day(iT0 + 86_400))
+        XCTAssertEqual(f.shop?.day, DayKey.of(iT0 + 86_400))
     }
 
     func testOwnedAndNoCoins() {
@@ -298,7 +298,7 @@ final class ShopDailyTests: XCTestCase {
         XCTAssertEqual(ShopDaily.today(f, now: iT0 + 60).ids, s.ids)
         // Новые сутки — новая витрина, купленное вчера не мешает.
         let next = iT0 + ShopDaily.secondsToNext(now: iT0) + 1
-        XCTAssertEqual(Economy.day(next), s.day + 1)
+        XCTAssertEqual(DayKey.of(next), s.day + 1)
         let t = ShopDaily.roll(&f, now: next)
         XCTAssertEqual(t.day, s.day + 1)
         XCTAssertTrue(t.bought.isEmpty)

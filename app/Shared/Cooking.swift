@@ -99,7 +99,7 @@ struct CookConfig: Hashable, Sendable {
 
 // MARK: - Отметки в сейве
 
-/// Что готовили. day — местные сутки (Economy.day), today — блюд сегодня, lastT — последнее блюдо,
+/// Что готовили. day — местные сутки (DayKey), today — блюд сегодня, lastT — последнее блюдо,
 /// total — сколько каждого всего (ключ — id рецепта), bonusDay — сутки, за которые бонус уже выдан.
 struct CookLog: Codable, Hashable, Sendable {
     var day = 0
@@ -237,11 +237,11 @@ enum Cooking {
 
     /// Блюд сегодня (с учётом смены суток — без записи).
     static func todayCount(_ f: SaveFile, now: Double) -> Int {
-        Economy.day(now) > f.cooking.day ? 0 : f.cooking.today
+        DayKey.today(f.cooking.today, day: f.cooking.day, at: now)
     }
 
     /// Бонус первого блюда за эти сутки ещё не выдан.
-    static func bonusLeft(_ f: SaveFile, now: Double) -> Bool { f.cooking.bonusDay < Economy.day(now) }
+    static func bonusLeft(_ f: SaveFile, now: Double) -> Bool { f.cooking.bonusDay < DayKey.of(now) }
 
     /// Общая причина для всех рецептов (без запаса и вещей). nil — кухня открыта.
     static func gate(_ f: SaveFile, now: Double, _ cfg: CookConfig = .shared) -> State? {
@@ -254,7 +254,8 @@ enum Cooking {
         if PetEngine.petNight(now, Catalog.rules, PetRunner.owner(f, at: now)) { return .blocked(reasons.night) }
         if !canCook(s) { return .blocked(reasons.noKitchen) }
         if todayCount(f, now: now) >= cfg.perDay { return .blocked(reasons.enough) }
-        let until = f.cooking.lastT + cfg.cooldownMin * 60
+        // Метка из будущего (часы назад) — как будто готовили сейчас (PetRunner.settleFutureMarks).
+        let until = min(f.cooking.lastT, now) + cfg.cooldownMin * 60
         if f.cooking.lastT > 0, now < until { return .cooldown(until: until) }
         return nil
     }
@@ -292,9 +293,9 @@ enum Cooking {
         f.pet.napUntil = nil
         f.pet.pantry = max(0, f.pet.pantry - r.pantry)
 
-        let day = Economy.day(now)
-        if day > f.cooking.day {
-            f.cooking.day = day
+        let day = DayKey.of(now)
+        if let d = DayKey.newer(than: f.cooking.day, at: now) {
+            f.cooking.day = d
             f.cooking.today = 0
         }
         f.cooking.today += 1

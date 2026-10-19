@@ -11,6 +11,7 @@ enum PetRunner {
     /// Догнать питомца до now: события по дороге — в журнал (ev.*), потом stepTo.
     /// Часы назад больше чем на 5 минут — не считаем, пишем clock_back (ядро не умеет назад).
     static func catchUp(_ f: inout SaveFile, now: Double) {
+        settleFutureMarks(&f, now: now)
         if f.pet.t - now > 300 {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return
@@ -20,6 +21,15 @@ enum PetRunner {
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.
         Postcards.refresh(&f, now: now)
+    }
+
+    /// Метки «последний раз» из будущего (часы перевели назад; перелёт их не двигает — это unix-время)
+    /// прижимаем к now: перерыв трюка, ласки от трюка и кухни идёт заново от «сейчас». Иначе кухня стояла бы
+    /// закрытой, пока часы не догонят, а трюк засчитывался бы сразу, мимо перерыва. Счётчики не трогаем.
+    static func settleFutureMarks(_ f: inout SaveFile, now: Double) {
+        for (k, e) in f.tricks.items where e.t > now { f.tricks.items[k]?.t = now }
+        if let j = f.tricks.joyT, j > now { f.tricks.joyT = now }
+        if f.cooking.lastT > now { f.cooking.lastT = now }
     }
 
     /// Шаг ядра до t с записью событий по дороге (ev.*) и наблюдением вкуса, если пёс вернулся с находкой.
@@ -59,7 +69,7 @@ enum PetRunner {
         }
     }
 
-    /// Действие хозяина: догнать, применить в момент pet.t, записать в журнал.
+    /// Действие хозяина: догнать, применить в момент pet.t, записать в журнал моментом нажатия (moment).
     @discardableResult
     static func perform(_ a: PetAction, source: ActionSource, store: PetStore = .shared,
                         now: Double = Clock.now()) throws -> ActOutcome {
@@ -69,18 +79,23 @@ enum PetRunner {
     /// То же без диска: для превью и тестов.
     static func apply(_ a: PetAction, source: ActionSource, to f: inout SaveFile, now: Double) -> ActOutcome {
         catchUp(&f, now: now)
+        // Ядро шагает целыми минутами, и pet.t отстаёт от now до 59 с. Шкалы это не меняет, а дневной счёт меняет:
+        // запись временем питомца в первую минуту суток уходила во вчера (и во вчерашний потолок ухода).
+        // Поэтому журнал — моментом нажатия; после часов назад (pet.t впереди) — временем питомца,
+        // чтобы журнал не шёл вспять.
+        let moment = max(now, f.pet.t)
         let before = f.pet.needs
         let res = PetEngine.act(&f.pet, Catalog.rules, f.owner, a.core)
         // Тот же отказ подряд (жмут «Погладить» на перезарядке) не пишем: иначе 200 записей журнала
         // вытесняют неделю ухода, по которой считаются шерсть и открытки.
         let repeatRefusal = !res.ok && f.journal.last.map {
-            $0.kind == "act.\(a.kind)" && $0.ok == false && $0.reason == res.reason && f.pet.t - $0.t < refusalGap
+            $0.kind == "act.\(a.kind)" && $0.ok == false && $0.reason == res.reason && moment - $0.t < refusalGap
         } == true
         if !repeatRefusal {
-            f.log("act.\(a.kind)", t: f.pet.t, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
+            f.log("act.\(a.kind)", t: moment, source: source, ok: res.ok, reason: res.reason, key: a.key, value: a.value)
         }
         // Вкусы: множитель к прибавке шкал и наблюдение (любимое/нелюбимое открывается за K раз).
-        if res.ok { Tastes.afterAction(a, before: before, at: f.pet.t, in: &f) }
+        if res.ok { Tastes.afterAction(a, before: before, at: moment, in: &f) }
         f.lastAction = SaveFile.LastAction(kind: a.kind, source: source, t: now, ok: res.ok, reason: res.reason)
         if case .steps = a, res.ok { f.lastStepsT = now }
         // Сон хозяина: нажатие — знак, что хозяин не спит. Шаги и «Команды» не считаем: шаги приходят сами,

@@ -181,7 +181,7 @@ final class CatchGameTests: XCTestCase {
         XCTAssertEqual(f.catchBest, 40)
         XCTAssertEqual(f.catchGames, 1)
         XCTAssertEqual(f.catchCoins, 30)
-        XCTAssertEqual(f.catchDay, Economy.day(cT0))
+        XCTAssertEqual(f.catchDay, DayKey.of(cT0))
 
         let r2 = CatchGame.finish(score: 25, in: &f, now: cT0 + 60, c)
         XCTAssertFalse(r2.isRecord)
@@ -409,7 +409,7 @@ final class CatchGameTests: XCTestCase {
         try store.startOver(now: cT0)
         try store.mutate { (f: inout SaveFile) -> Void in
             f.catchBest = 51
-            f.catchDay = Economy.day(cT0)
+            f.catchDay = DayKey.of(cT0)
             f.catchCoins = 60
             f.catchGames = 4
         }

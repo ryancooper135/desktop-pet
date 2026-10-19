@@ -318,7 +318,7 @@ final class BlockDuoTests: XCTestCase {
 
     func testSharedCapWithCatch() {
         var f = bFile()
-        f.catchDay = Economy.day(bT0)
+        f.catchDay = DayKey.of(bT0)
         f.catchCoins = 50
         XCTAssertEqual(BlockDuo.coinsLeft(f, now: bT0, bCfg()), 10, "мячик уже взял 50 из общих 60")
         let r = BlockDuo.finish(BlockDuo.autoplay(seed: 3), in: &f, now: bT0, bCfg())
@@ -335,7 +335,7 @@ final class BlockDuoTests: XCTestCase {
         XCTAssertTrue(cr.capped)
         // Вчерашнее не в счёт.
         var y = bFile()
-        y.blockduoDay = Economy.day(bT0) - 1
+        y.blockduoDay = DayKey.of(bT0) - 1
         y.blockduoCoins = 60
         XCTAssertEqual(MiniGames.coinsToday(y, now: bT0), 0)
         XCTAssertEqual(CatchGame.coinsLeft(y, now: bT0, cc), 60)
@@ -457,7 +457,7 @@ final class BlockDuoTests: XCTestCase {
         try store.startOver(now: bT0)
         try store.mutate { (f: inout SaveFile) -> Void in
             f.blockduoBest = 3210
-            f.blockduoDay = Economy.day(bT0)
+            f.blockduoDay = DayKey.of(bT0)
             f.blockduoCoins = 60
             f.blockduoGames = 4
         }
@@ -465,7 +465,7 @@ final class BlockDuoTests: XCTestCase {
         let f = try XCTUnwrap(store.read())
         XCTAssertEqual(f.blockduoBest, 3210, "рекорд хозяина остаётся")
         XCTAssertEqual(f.blockduoCoins, 60, "новым щенком потолок не обнулить")
-        XCTAssertEqual(f.blockduoDay, Economy.day(bT0))
+        XCTAssertEqual(f.blockduoDay, DayKey.of(bT0))
         XCTAssertEqual(f.blockduoGames, 4)
     }
 

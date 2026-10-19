@@ -167,7 +167,7 @@ final class CookingTests: XCTestCase {
         XCTAssertTrue(Cooking.cook("stew_home", in: &f, now: cT0 + 86400, c).ok)
         XCTAssertEqual(f.cooking.today, 1)
         XCTAssertEqual(f.cooking.total["stew_home"], 2, "всего — не обнуляется")
-        XCTAssertEqual(f.cooking.day, Economy.day(cT0 + 86400))
+        XCTAssertEqual(f.cooking.day, DayKey.of(cT0 + 86400))
     }
 
     func testRefusals() {
