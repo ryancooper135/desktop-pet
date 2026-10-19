@@ -371,12 +371,7 @@ enum Cooking {
     }
 
     /// «блюдо», «2 блюда», «5 блюд».
-    static func dishes(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        if m10 == 1 && m100 != 11 { return "блюдо" }
-        if (2...4).contains(m10) && !(12...14).contains(m100) { return "блюда" }
-        return "блюд"
-    }
+    static func dishes(_ n: Int) -> String { EconText.plural(n, "блюдо", "блюда", "блюд") }
 
     /// «Через 2 ч 5 мин», «Через 12 мин».
     static func waitText(_ s: Double) -> String {

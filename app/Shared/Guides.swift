@@ -185,10 +185,7 @@ enum Guides {
     }
 
     static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        let n10 = n % 10, n100 = n % 100
-        if n10 == 1 && n100 != 11 { return one }
-        if (2...4).contains(n10) && !(12...14).contains(n100) { return few }
-        return many
+        EconText.plural(n, one, few, many)
     }
 
     /// [a, b, c] → «a, b и c».

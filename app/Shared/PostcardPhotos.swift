@@ -280,11 +280,5 @@ extension Postcards {
     static let lastDayChip = "последний день"
 
     /// 1 день, 2 дня, 5 дней, 21 день.
-    static func daysWord(_ n: Int) -> String {
-        let a = abs(n) % 100, b = abs(n) % 10
-        if a >= 11 && a <= 14 { return "дней" }
-        if b == 1 { return "день" }
-        if b >= 2 && b <= 4 { return "дня" }
-        return "дней"
-    }
+    static func daysWord(_ n: Int) -> String { EconText.plural(n, "день", "дня", "дней") }
 }

@@ -260,11 +260,7 @@ enum Memories {
     static func dayWord(_ n: Int) -> String { plural(n, "день", "дня", "дней") }
 
     static func plural(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        let a = abs(n) % 100, b = a % 10
-        if a >= 11 && a <= 14 { return many }
-        if b == 1 { return one }
-        if b >= 2 && b <= 4 { return few }
-        return many
+        EconText.plural(n, one, few, many)
     }
 
     // MARK: реплики

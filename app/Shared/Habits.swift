@@ -280,10 +280,7 @@ enum Habits {
     }
 
     /// «раз» не склоняется, но «2 раза».
-    static func times(_ n: Int) -> String {
-        let m10 = n % 10, m100 = n % 100
-        return (2...4).contains(m10) && !(12...14).contains(m100) ? "раза" : "раз"
-    }
+    static func times(_ n: Int) -> String { EconText.plural(n, "раз", "раза", "раз") }
 
     /// Ответ целиком: фраза пса и монеты («+8 монет») или потолок.
     static func reply(_ o: HabitOutcome) -> String {
