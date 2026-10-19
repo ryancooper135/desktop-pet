@@ -530,6 +530,14 @@ enum BlockDuo {
         return nil
     }
 
+    /// Тост, когда партию закрыли не кнопкой: «Блок Дуо: 22 очка, +12 монет». Без награды и потолка — nil.
+    static func toastText(_ r: BlockDuoResult) -> String? {
+        guard let reward = rewardText(r) else { return nil }
+        let points = EconText.plural(r.score, "очко", "очка", "очков")
+        let tail = reward.first?.isLetter == true ? reward.prefix(1).lowercased() + reward.dropFirst() : reward
+        return "Блок Дуо: \(r.score) \(points), \(tail)"
+    }
+
     /// Что Шиба скажет в комнате после партии. Выбор по счёту: одна партия — одна фраза.
     static func shibaLine(_ r: BlockDuoResult) -> String {
         if r.score == 0 { return "Давай ещё разок? Я поставлю свою фигурку!" }

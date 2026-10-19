@@ -395,6 +395,21 @@ final class BlockDuoTests: XCTestCase {
         XCTAssertEqual(BlockDuo.rewardText(r), "+\(EconText.coins(15))")
     }
 
+    /// Тост после партии, закрытой не кнопкой: «1 очко», «22 очка», «105 очков» — не «1 очков».
+    func testToastTextDeclinesScore() {
+        var r = BlockDuoResult()
+        XCTAssertNil(BlockDuo.toastText(r), "ни монет, ни потолка — тоста нет")
+        r.coins = 12
+        r.score = 1
+        XCTAssertEqual(BlockDuo.toastText(r), "Блок Дуо: 1 очко, +\(EconText.coins(12))")
+        r.score = 22
+        XCTAssertEqual(BlockDuo.toastText(r), "Блок Дуо: 22 очка, +\(EconText.coins(12))")
+        r.score = 105
+        XCTAssertEqual(BlockDuo.toastText(r), "Блок Дуо: 105 очков, +\(EconText.coins(12))")
+        r.score = 112; r.coins = 0; r.capped = true
+        XCTAssertEqual(BlockDuo.toastText(r), "Блок Дуо: 112 очков, на сегодня монет за игры хватит", "после запятой — со строчной")
+    }
+
     // MARK: сейв и конфиг
 
     func testSaveFieldsTopLevelAndOldSave() throws {

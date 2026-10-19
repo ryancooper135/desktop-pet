@@ -464,8 +464,8 @@ final class AppModel {
                 SoundKit.shared.play(.yip)
             }
             self.speak(BlockDuo.shibaLine(r))
-            if toast, let reward = BlockDuo.rewardText(r) {
-                self.show("Блок Дуо: \(r.score) очков, \(reward)", emoji: "🧩")
+            if toast, let text = BlockDuo.toastText(r) {
+                self.show(text, emoji: "🧩")
             }
         }
     }
