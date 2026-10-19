@@ -190,7 +190,7 @@ enum Presenter {
 
         // Свой персонаж (волна 14): его имя в шапке, виджете и острове; реплики под Шибу — под него (PetNames).
         let name = f.petName
-        return PetSnapshot(
+        var snap = PetSnapshot(
             t: t, name: name, pose: pose, mood: mood.rawValue,
             want: want, wantIcon: thought?.icon, wantText: thought?.text, urgent: urgent,
             line: PetNames.adapt(line, name: name), islandLine: PetNames.adapt(islandLine, name: name),
@@ -199,6 +199,56 @@ enum Presenter {
             buildDaysLeft: f.build.map { Int(((($0.expiresT - t) / 86400)).rounded(.up)) },
             shared: Paths.isShared,
             rare: rare.map { $0.frame ?? "rare" })
+        // Волна 21: плашка просит погладить, а строка статуса — «Заскучает через…». Есть свой таймер у шкалы,
+        // о которой плашка, — строка про неё; нет — как было (ближайшее событие).
+        if snap.timer?.kind == "low", let hint = NeedHints.pick(snap, pet: s, r, o), let need = plateNeed(hint),
+           let e = plateEvent(upcoming ?? ForecastTools.upcoming(s, at: t, horizonH: 12, owner: o), need: need, at: t) {
+            snap.timer = NeedTimer(kind: "low", start: t, end: e.t, title: ForecastTools.title(e))
+        }
+        return snap
+    }
+
+    /// Шкала, о которой плашка: по кнопке, куда она ведёт («Сначала подкормить → Гулять» — сытость), иначе по
+    /// желанию (на откате «Погладить — через 3 мин» кнопки нет, а шкала та же). «Пусть отдохнёт», «Гулять» — nil.
+    static func plateNeed(_ h: NeedHint) -> Need? {
+        if let n = NeedHints.need(h.go.rawValue) { return n }
+        switch h.key {
+        case "food": return .food
+        case "bath": return .clean
+        case "play": return .fun
+        case "pet": return .love
+        default: return nil
+        }
+    }
+
+    /// Событие строки статуса для шкалы плашки, если оно не то, что строка показала бы и так, или nil — оставить как есть.
+    /// Своё событие шкалы: low по ней или беда, в которую она входит (starve — сытость, dirty — чистота, toska — ласка
+    /// и игра), в пределах 12 ч. Ближайшее low чужой шкалы уступает; чужая беда — только беде; последний шанс и
+    /// «может не дождаться» не уступают никогда.
+    static func plateEvent(_ ev: [ForecastEvent], need: Need, at t: Double) -> ForecastEvent? {
+        guard let first = ForecastTools.nextLow(ev, after: t), first.kind == .low || first.kind == .distress else { return nil }
+        let own = ev.first { e in
+            guard e.t > t, e.t - t <= 12 * 3600 else { return false }
+            switch e.kind {
+            case .low: return e.key == need.rawValue
+            case .distress: return distressNeeds(e.key).contains(need)
+            default: return false
+            }
+        }
+        guard let own, own != first else { return nil }
+        if first.kind == .distress && own.kind != .distress { return nil }
+        if ev.contains(where: { ($0.kind == .last_chance || $0.kind == .death) && $0.t > t && $0.t <= own.t }) { return nil }
+        return own
+    }
+
+    /// Какие шкалы входят в беду ядра (economy.json distress).
+    static func distressNeeds(_ key: String?) -> [Need] {
+        switch key {
+        case "starve": return [.food]
+        case "dirty": return [.clean]
+        case "toska": return [.love, .fun]
+        default: return []
+        }
     }
 
     static func pose(mood: Mood, reaction: String?, needs: [Need: Double]) -> Pose {
