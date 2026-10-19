@@ -130,6 +130,8 @@ final class AppModel {
     @ObservationIgnored private var knownTastes: Set<String>? = nil
     /// В какие сутки уже сказали «На сегодня монет хватит» — не чаще раза в день.
     @ObservationIgnored private var capNoticeDay: Int? = nil
+    /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
+    @ObservationIgnored private var pendingLine: String? = nil
 
     init() {
         LaunchSeed.applyOnce()
@@ -172,6 +174,8 @@ final class AppModel {
                 let report = paused ? nil : AwayBuilder.make(f, prev: prev, now: now)
                 f.seen = f.pet
                 f.lastSeenT = now
+                // Сон хозяина: зашёл — значит, не спит (OwnerSleep).
+                OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin)
                 return (report, paused)
             }
             if let report = result.report, away == nil { away = report }
@@ -194,6 +198,8 @@ final class AppModel {
             PetRunner.catchUp(&f, now: now)
             f.seen = f.pet
             f.lastSeenT = now
+            // Ушёл из приложения: вечером это и есть «последний заход» перед сном.
+            OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin)
         }
         Task { await AppActions.shared.afterBackground() }
     }
@@ -216,8 +222,93 @@ final class AppModel {
             if w != worn { worn = w }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
+            noteOwnerSleep(f, now: now)
         } catch {
             storeError = error.localizedDescription
+        }
+    }
+
+    // MARK: сон хозяина (OwnerSleep)
+
+    /// Сколько висит «Доброе утро» и «Отбой?» — дольше обычной реплики: их ждут раз в сутки.
+    static let sleepLineFor: Double = 8
+
+    /// Утром — «Доброе утро» раз за ночь, вечером у выученного «засыпаю» — «Отбой?» раз за вечер. Только когда
+    /// Шиба может сказать: жив, дома и не спит (спал — поздороваемся на следующем заходе этим утром).
+    private func noteOwnerSleep(_ f: SaveFile, now: Double) {
+        guard !Env.isUnitTest, snap.alive, ![Pose.sleep, .nap, .away, .dead].contains(snap.pose) else { return }
+        let tz = f.owner.tzOffsetMin
+        if let night = OwnerSleep.greetingDue(f.sleep, now: now, tzOffsetMin: tz) {
+            markSleep { $0.greeted = night }
+            if let line = sleepLine("good_morning", f, now: now) { say(line) }
+            return
+        }
+        let est = OwnerSleep.estimate(f.sleep, now: now, tzOffsetMin: tz)
+        if let night = OwnerSleep.bedHintDue(f.sleep, est: est, bedMin: f.owner.bedMin, now: now, tzOffsetMin: tz) {
+            markSleep { $0.hinted = night }
+            if let line = sleepLine("bed_hint", f, now: now) { say(line) }
+        }
+    }
+
+    private func sleepLine(_ key: String, _ f: SaveFile, now: Double) -> String? {
+        Lines.shared.pick("widget", key, seed: f.petId, at: now, tzOffsetMin: f.owner.tzOffsetMin,
+                          maxLen: LineLimit.widget)?.text
+    }
+
+    /// Отметка «уже сказали» прямо в сейв: иначе второй вход тем же утром поздоровается ещё раз.
+    private func markSleep(_ change: (inout SleepLog) -> Void) {
+        if let f = try? PetStore.shared.mutate({ (f: inout SaveFile) -> SaveFile in
+            change(&f.sleep)
+            return f
+        }) {
+            file = f
+        }
+    }
+
+    /// Поверх «Пока тебя не было» реплику не видно — отложить до закрытия отчёта.
+    private func say(_ line: String) {
+        if away != nil {
+            pendingLine = line
+        } else {
+            speak(line, for: Self.sleepLineFor)
+        }
+    }
+
+    /// Отчёт «Пока тебя не было» закрыли (RootView): сказать отложенное.
+    func sayPending() {
+        guard away == nil, let line = pendingLine else { return }
+        pendingLine = nil
+        speak(line, for: Self.sleepLineFor)
+    }
+
+    /// Окно сна хозяина на сейчас — для строки «Я сплю примерно» в настройках.
+    var ownerSleep: SleepEstimate {
+        guard let f = file else {
+            return SleepEstimate(window: OwnerSleep.defaultWindow, source: .learning(0), nights: 0)
+        }
+        return OwnerSleep.estimate(f.sleep, now: Clock.now(), tzOffsetMin: f.owner.tzOffsetMin)
+    }
+
+    /// «Я сплю примерно»: задать окно вручную или (nil) снова учиться самому. Тихие часы уведомлений — заново.
+    func setOwnerSleep(_ w: SleepWindow?) {
+        changeOwnerSleep { $0.manual = w }
+    }
+
+    /// «Забыть выученное»: ночи и ручное окно — с нуля, до 5 ночей снова 00:00–08:00.
+    func forgetOwnerSleep() {
+        changeOwnerSleep { log in
+            log.nights = []
+            log.manual = nil
+        }
+    }
+
+    private func changeOwnerSleep(_ change: (inout SleepLog) -> Void) {
+        do {
+            try PetStore.shared.mutate { (f: inout SaveFile) -> Void in change(&f.sleep) }
+            refresh()
+            Task { await AppActions.shared.afterChange() }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
         }
     }
 
@@ -1183,6 +1274,20 @@ enum LaunchSeed {
                     f.econ.items[id] = 1
                 }
                 for id in ["leaf_hat", "scarf_knit", "cape_champion"] { _ = Wear.put(&f, id) }
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "sleep_learned", "good_morning":
+                // Сон хозяина выучен (OwnerSleep): 10 ночей вокруг 00:40–08:10 с разбросом, последняя — вчера.
+                // good_morning: прошлый заход в 00:20 — первый заход утром поздоровается «Доброе утро».
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+                let day = OwnerSleep.local(now, tzOffsetMin: f.owner.tzOffsetMin).day
+                let eve = [-20, 15, 0, -10, 25, 5, -5, 10, -15, 0]
+                let morn = [10, -25, 0, 15, -5, 5, -10, 20, 0, -15]
+                f.sleep.nights = (0..<10).map { i in
+                    SleepLog.Night(n: day - 10 + i, eve: 760 + eve[i], morn: 1210 + morn[i])
+                }
+                f.sleep.lastT = seed == "good_morning" ? now - 8 * 3600 : now
                 f.seen = f.pet
                 f.lastSeenT = now
             default:

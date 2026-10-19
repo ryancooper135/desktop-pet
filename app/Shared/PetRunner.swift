@@ -83,6 +83,9 @@ enum PetRunner {
         if res.ok { Tastes.afterAction(a, before: before, at: f.pet.t, in: &f) }
         f.lastAction = SaveFile.LastAction(kind: a.kind, source: source, t: now, ok: res.ok, reason: res.reason)
         if case .steps = a, res.ok { f.lastStepsT = now }
+        // Сон хозяина: нажатие — знак, что хозяин не спит. Шаги и «Команды» не считаем: шаги приходят сами,
+        // а команду может запустить автоматизация по расписанию (кормить в 7:00), пока хозяин спит.
+        if OwnerSleep.counts(source) { OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin) }
         // Монеты за уход и шаги — по журналу, один раз на запись (Economy.settle).
         let coins = Economy.settle(&f).reduce(0) { $0 + $1.coins }
         return ActOutcome(ok: res.ok, reason: res.reason, coins: coins)
