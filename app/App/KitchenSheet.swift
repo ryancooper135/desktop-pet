@@ -242,7 +242,7 @@ struct KitchenSheet: View {
                         }
                 }
                 .buttonStyle(SquishStyle())
-                .accessibilityLabel(Text("Угостить: \(food.name) за \(EconText.coins(p))"))
+                .accessibilityLabel(Text("Угостить: \(EconText.lowerFirst(food.name)) за \(EconText.coins(p))"))
                 .accessibilityIdentifier("kitchen.buy.\(food.id)")
             }
             noteLine(food.id)

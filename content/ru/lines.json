@@ -614,7 +614,7 @@
     "memory_record": [
       {"id": "w.memory_record.01", "text": "Рекорд — {count}! Побьём?"},
       {"id": "w.memory_record.02", "text": "Помню наш рекорд: {count}!"},
-      {"id": "w.memory_record.03", "text": "Поймал {count} раз подряд!"}
+      {"id": "w.memory_record.03", "text": "Поймал {times} подряд!"}
     ],
     "memory_item": [
       {"id": "w.memory_item.01", "text": "Помнишь? Первая вещь — {item}"},
@@ -628,7 +628,7 @@
     ],
     "memory_days": [
       {"id": "w.memory_days.01", "text": "Помнишь наш {count}-й день?"},
-      {"id": "w.memory_days.02", "text": "{count} дней вместе — помню!"},
+      {"id": "w.memory_days.02", "text": "{days} вместе — помню!"},
       {"id": "w.memory_days.03", "text": "А помнишь {count}-й день? Ура!"}
     ],
     "memory_birthday": [
@@ -933,7 +933,7 @@
     ],
     "coat_sleek": [
       {"id": "i.coat_sleek.01", "text": "Шерсть блестит"},
-      {"id": "i.coat_sleek.02", "text": "Гладкий как шёлк"}
+      {"id": "i.coat_sleek.02", "text": "Гладкий, как шёлк"}
     ],
     "memory_met": [
       {"id": "i.memory_met.01", "text": "Наш первый день"},
@@ -1173,8 +1173,8 @@
       {"id": "a.card_play.04", "text": "Прыгал так, что уши летали."}
     ],
     "card_pets": [
-      {"id": "a.card_pets.01", "text": "Меня гладили {count} раз подряд. Таю."},
-      {"id": "a.card_pets.02", "text": "Ласки было много: {count} раз подряд."},
+      {"id": "a.card_pets.01", "text": "Меня гладили {times} подряд. Таю."},
+      {"id": "a.card_pets.02", "text": "Ласки было много: {times} подряд."},
       {"id": "a.card_pets.03", "text": "Почесали за ушком. Растёкся лужицей."},
       {"id": "a.card_pets.04", "text": "Гладили-гладили. Я весь мурчу, хоть и не кот."}
     ],
@@ -1222,9 +1222,9 @@
       {"id": "a.card_first_day.03", "text": "Первый день вместе. Начало чего-то хорошего."}
     ],
     "card_days": [
-      {"id": "a.card_days.01", "text": "Мы вместе уже {count} дней."},
+      {"id": "a.card_days.01", "text": "Мы вместе уже {days}."},
       {"id": "a.card_days.02", "text": "День дружбы номер {count}. Лапу!"},
-      {"id": "a.card_days.03", "text": "Сегодня {count} дней, как мы друзья."},
+      {"id": "a.card_days.03", "text": "Сегодня {days}, как мы друзья."},
       {"id": "a.card_days.04", "text": "Круглая дата! Отмечаем вместе."}
     ],
     "card_birthday": [

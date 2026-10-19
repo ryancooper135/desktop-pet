@@ -346,7 +346,7 @@ final class ScreenshotUITests: XCTestCase {
         let buy = shop.descendants(matching: .any)["kitchen.buy.carrot"]
         if buy.waitForExistence(timeout: 5) {
             buy.tap()
-            let toast = shop.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Угостили"))
+            let toast = shop.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Угощение: "))
             XCTAssertTrue(toast.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Угостить» нет тоста с ценой")
             settle(0.6)
             snap("ui-78-bought")

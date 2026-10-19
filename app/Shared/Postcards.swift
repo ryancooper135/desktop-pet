@@ -404,7 +404,10 @@ enum Postcards {
         if let n = m.count {
             switch m.kind {
             case .steps: v["steps"] = grouped(n)
-            case .pets, .days, .birthday: v["count"] = "\(n)"
+            // {count} — голое число («День дружбы номер 21»), {times}/{days} — со словом в нужной форме (волна 17).
+            case .pets: v["count"] = "\(n)"; v["times"] = EconText.times(n)
+            case .days: v["count"] = "\(n)"; v["days"] = EconText.days(n)
+            case .birthday: v["count"] = "\(n)"
             default: break
             }
         }

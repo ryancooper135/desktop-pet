@@ -277,14 +277,17 @@ enum Memories {
         case "trick":
             guard let tr = Trick(rawValue: key) else { return nil }
             return ("memory_trick", ["item": tr.title])
-        case "catch": return ("memory_record", ["count": "\(m.value ?? 0)"])
+        case "catch":
+            // {count} — число («Рекорд — 12!»), {times} — с согласованием («Поймал 3 раза подряд!»), волна 17.
+            let n = m.value ?? 0
+            return ("memory_record", ["count": "\(n)", "times": EconText.times(n)])
         case "item":
             let n = itemName(key)
             return ("memory_item", ["item": n.prefix(1).lowercased() + n.dropFirst()])
         case "home": return ("memory_home", [:])
         case "days":
             let d = m.value ?? 0
-            return d % 365 == 0 ? ("memory_birthday", ["count": years(d / 365)]) : ("memory_days", ["count": "\(d)"])
+            return d % 365 == 0 ? ("memory_birthday", ["count": years(d / 365)]) : ("memory_days", ["count": "\(d)", "days": EconText.days(d)])
         case "taste":
             guard let fact = Tastes.album(fact: key, t: m.t) else { return nil }
             let item = fact.category == .find ? Finds.acc(fact.item) : Tastes.acc(fact.item)

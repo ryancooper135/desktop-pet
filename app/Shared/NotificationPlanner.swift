@@ -109,7 +109,8 @@ enum NotificationPlanner {
         guard let exp = f.build?.expiresT else { return [] }
         let items: [(h: Double, title: String, body: String)] = [
             (48, "Подпись кончается", "Через 2 дня приложение перестанет открываться. Переустанови его, \(f.petName) подождёт."),
-            (24, "Остался день", "Завтра подпись кончится. Переустанови приложение, чтобы не потерять \(f.name)."),
+            (24, "Остался день", PetNames.adapt("Завтра подпись кончится. Переустанови приложение, чтобы не потерять Шибу.",
+                                            name: f.petName)),
         ]
         return items.compactMap { (it: (h: Double, title: String, body: String)) -> PlannedNote? in
             let at = exp - it.h * 3600
