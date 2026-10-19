@@ -97,7 +97,9 @@ enum CoatFur {
 
         // Штрихи: короткие отрезки вдоль u (длины тела), к концам гаснут.
         let lightC = b + (SIMD3<Double>(repeating: 1) - b) * st.contrast
-        let darkC = b * (1 - st.contrast * 1.4)
+        // На светлой основе (белые лапы, грудь) тёмный штрих мягче и теплее: серые царапины на белом читаются как грязь.
+        let pale = (b.x + b.y + b.z) / 3 > 0.75
+        let darkC = pale ? b * (1 - st.contrast * 0.8) * SIMD3<Double>(1, 0.97, 0.92) : b * (1 - st.contrast * 1.4)
         for i in 0..<maxStrokes {
             let x0 = rng.unit() * Double(n), y0 = rng.unit() * Double(n)
             let lenU = rng.unit(), angU = rng.unit(), kindU = rng.unit(), wideU = rng.unit()
@@ -277,10 +279,11 @@ enum CoatFur {
             spike(&tip, base: c - t * 0.06 + s * 0.08 + nrm * 0.05, r: 0.04, len: 0.1, lean: 0.08, side: 0.05,
                   turn: h + 1)
         case .shaggy:
-            // Лохматый пучок: три торчащие пряди, средняя выше, кончики светлее.
-            spike(&main, base: c, r: 0.08, len: 0.26 + 0.05 * h, lean: 0.14, side: 0, turn: h)
-            spike(&main, base: c + s * 0.09 + t * 0.03, r: 0.06, len: 0.18, lean: 0.12, side: 0.06, turn: h + 0.7)
-            spike(&tip, base: c - s * 0.08 - t * 0.04, r: 0.06, len: 0.2, lean: 0.1, side: -0.07, turn: h + 1.4)
+            // Лохматый пучок: три пряди лежат к хвосту и топорщатся (не иголки — по ui-71 высокие читались ежом),
+            // средняя длиннее, кончики светлее.
+            spike(&main, base: c, r: 0.1, len: 0.15 + 0.03 * h, lean: 0.24, side: 0, turn: h)
+            spike(&main, base: c + s * 0.09 + t * 0.03, r: 0.08, len: 0.11, lean: 0.18, side: 0.07, turn: h + 0.7)
+            spike(&tip, base: c - s * 0.08 - t * 0.04, r: 0.08, len: 0.12, lean: 0.18, side: -0.08, turn: h + 1.4)
         case .normal, .sleek:
             // Пушинка: две короткие светлые пряди.
             spike(&main, base: c, r: 0.06, len: 0.16, lean: 0.1, side: 0.02, turn: h)

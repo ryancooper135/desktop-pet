@@ -22,7 +22,7 @@ enum PetRoom {
     static let cameraEye = SIMD3<Float>(0.06, 0.78, 2.4)
     static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
     /// Крупный план спины для снимков шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, вдвое ближе и чуть сверху.
-    static let closeEye = SIMD3<Float>(0.05, 0.66, 1.25)
+    static let closeEye = SIMD3<Float>(0.05, 0.7, 1.4)
     static let closeTarget = SIMD3<Float>(0, 0.24, 0)
 
     /// Поворот обёртки питомца по Y для вида 3/4: морда влево к камере, к камере повёрнут левый бок собаки.
