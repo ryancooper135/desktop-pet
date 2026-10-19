@@ -283,6 +283,30 @@ final class CharacterPackTests: XCTestCase {
         XCTAssertEqual(e.check.errors, ["character.json — не JSON (проверь запятые и кавычки)"])
     }
 
+    func testBodyFollowsModelSize() {
+        // Волна 13: миска, находка и место перед мячом — по телу персонажа, а не по Шибе.
+        let shiba = CharacterPack.body(height: 0.42, base: 0.42, length: 0.53, width: 0.15)
+        XCTAssertEqual(shiba.height, 1, accuracy: 1e-9)
+        XCTAssertEqual(shiba.length, 1, accuracy: 1e-9)
+        XCTAssertEqual(shiba.width, 1, accuracy: 1e-9)
+        // Серый Шиба 0,8: всё на пятую часть меньше.
+        let small = CharacterPack.body(height: 0.336, base: 0.42, length: 0.424, width: 0.12)
+        XCTAssertEqual(small.height, 0.8, accuracy: 1e-9)
+        XCTAssertEqual(small.length, 0.8, accuracy: 1e-9)
+        XCTAssertEqual(small.onFloor(0, 0.025, 0.30).z, 0.24, accuracy: 1e-9)
+        XCTAssertEqual(small.onFloor(0, 0.025, 0.30).y, 0.025, accuracy: 1e-9, "миска стоит на полу")
+        // Такса: ростом с Шибу, но вдвое длиннее — миска дальше, а не в груди.
+        let long = CharacterPack.body(height: 0.42, base: 0.42, length: 1.06, width: 0.15, lift: 0.05)
+        XCTAssertEqual(long.length, 2, accuracy: 1e-9)
+        XCTAssertEqual(long.onBody(0, 0.235, 0.30).y, 0.285, accuracy: 1e-9, "пасть выше на lift")
+        // Хвост торчком раздул рамку — не дальше двух ростов; замера нет — как рост.
+        XCTAssertEqual(CharacterPack.body(height: 0.42, base: 0.42, length: 5, width: nil).length, 2, accuracy: 1e-9)
+        let noBox = CharacterPack.body(height: 0.84, base: 0.42, length: nil, width: .nan)
+        XCTAssertEqual(noBox.length, 2, accuracy: 1e-9)
+        XCTAssertEqual(noBox.width, 2, accuracy: 1e-9)
+        XCTAssertEqual(PetBody.shiba.onBody(0.1, 0.2, 0.3).z, 0.3)
+    }
+
     func testId() {
         XCTAssertEqual(CharacterStore.id(for: "Серый Шиба"), "Серый_Шиба")
         XCTAssertEqual(CharacterStore.id(for: "../.hidden"), "hidden")

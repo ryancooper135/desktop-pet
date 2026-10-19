@@ -75,7 +75,10 @@ struct PetStage: View {
             let stand = Entity()
             stand.name = PetModel.standName
             stand.orientation = simd_quatf(angle: PetRoom.yaw3q, axis: SIMD3<Float>(0, 1, 0))
-            stand.addChild(PetRoom.blobShadow())
+            // Пятно-тень — по пятну тела (ChoreoPath.body ставит load): у Шибы 1×1.
+            let blob = PetRoom.blobShadow()
+            blob.scale = SIMD3<Float>(Float(ChoreoPath.body.width), 1, Float(ChoreoPath.body.length))
+            stand.addChild(blob)
             stand.addChild(pet)
             content.add(stand)
             let room = PetRoom.room()
@@ -182,6 +185,8 @@ enum PetModel {
         var bones: [String: String] = [:]
         var color: UInt32? = nil
         var table: ClipTable? = ClipTable.shiba
+        /// Свой персонаж: хореография берёт размеры тела из его рамки (ChoreoPath.body).
+        var custom = false
     }
 
     /// Свой персонаж, если он есть и загрузился, иначе Шиба. failed — почему не свой (для тоста).
@@ -200,6 +205,7 @@ enum PetModel {
         guard !model.availableAnimations.isEmpty else { return (await load(), "в модели нет анимации") }
         guard model.visualBounds(relativeTo: nil).extents.y > 0 else { return (await load(), "модель пустая") }
         var look = Look()
+        look.custom = true
         look.height = Float(CharacterPack.height(c, base: Double(height)))
         look.lift = Float(c.lift ?? 0)
         look.yaw = Float((c.yaw ?? 0) * .pi / 180)
@@ -238,6 +244,15 @@ enum PetModel {
             // Центр рамки после поворота — на ось подставки, низ — на пол (плюс lift).
             let c = turn.act(bounds.center * k)
             body.position = SIMD3<Float>(-c.x, -bounds.min.y * k + look.lift, -c.z)
+        }
+        // Миска, находка в пасти и место перед мячом — под тело этой модели (у Шибы всё как было).
+        if look.custom, model != nil, bounds.extents.y > 0 {
+            let k = look.height / bounds.extents.y
+            let e = simd_abs(simd_quatf(angle: look.yaw, axis: SIMD3<Float>(0, 1, 0)).act(bounds.extents * k))
+            ChoreoPath.body = CharacterPack.body(height: Double(look.height), base: Double(height),
+                                                 length: Double(e.z), width: Double(e.x), lift: Double(look.lift))
+        } else {
+            ChoreoPath.body = .shiba
         }
         let pivot = Entity()
         pivot.name = pivotName

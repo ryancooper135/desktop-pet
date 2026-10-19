@@ -47,6 +47,28 @@ struct CharacterConfig: Codable, Equatable, Sendable {
     var deathShift: Double?
 }
 
+/// Тело персонажа относительно Шибы (CharacterPack.body): во сколько раз выше, длиннее и шире, и подъём над полом.
+/// Хореография (ChoreoPath) множит на это свои точки, подобранные под Шибу. У Шибы всё 1 и 0.
+struct PetBody: Equatable, Sendable {
+    var height: Double = 1
+    var length: Double = 1
+    var width: Double = 1
+    var lift: Double = 0
+
+    static let shiba = PetBody()
+
+    /// Точка на полу в осях питомца (морда к +z): вперёд-назад — по длине, вбок — по ширине, высота та же.
+    /// Так миска встаёт под морду, а не в грудь большому и не в метре от маленького.
+    func onFloor(_ x: Double, _ y: Double, _ z: Double) -> (x: Double, y: Double, z: Double) {
+        (x * width, y, z * length)
+    }
+
+    /// Точка на теле (пасть, макушка): ещё и по высоте, плюс подъём над полом.
+    func onBody(_ x: Double, _ y: Double, _ z: Double) -> (x: Double, y: Double, z: Double) {
+        (x * width, y * height + lift, z * length)
+    }
+}
+
 /// Ошибка разбора или копирования — текст уже для человека.
 struct CharacterPackError: Error, Equatable, LocalizedError {
     var message: String
@@ -261,6 +283,27 @@ enum CharacterPack {
     /// Рост в метрах сцены с поправкой scale (Шиба — base).
     static func height(_ c: CharacterConfig?, base: Double) -> Double {
         base * (c?.scale ?? 1)
+    }
+
+    // MARK: размер тела для хореографии
+
+    /// Шиба после нормировки на рост 0,42 м: длина (морда…хвост) и ширина пятна на полу — по мешу shiba.usdz.
+    static let shibaLength = 0.53
+    static let shibaWidth = 0.15
+
+    /// Насколько тело персонажа больше Шибы: по росту, по длине и по ширине (1 — как у Шибы), плюс подъём над полом.
+    /// Им хореография двигает точки «от морды»: миска под мордой, находка в пасти, где он встаёт перед мячом.
+    /// length и width — замер рамки модели после нормировки на рост, а не scale: у таксы рост маленький,
+    /// а морда далеко. Замера нет (модель пустая, Шиба) — как рост.
+    static func body(height: Double, base: Double, length: Double?, width: Double?, lift: Double = 0) -> PetBody {
+        let k = base > 0 && height.isFinite && height > 0 ? height / base : 1
+        func ratio(_ v: Double?, _ ref: Double) -> Double {
+            guard let v, v.isFinite, v > 0 else { return k }
+            // Рамка с хвостом торчком или лапами в стороны бывает вдвое больше тела — не даём уйти совсем далеко.
+            return min(max(v / ref, k * 0.5), k * 2)
+        }
+        return PetBody(height: k, length: ratio(length, shibaLength),
+                       width: ratio(width, shibaWidth), lift: lift.isFinite ? lift : 0)
     }
 
     private static func num(_ x: Double) -> String {

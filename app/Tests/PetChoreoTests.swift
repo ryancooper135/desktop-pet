@@ -69,6 +69,25 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertTrue(near(ChoreoPath.toStand(ChoreoPath.toWorld([0.3, 0.1, -0.2])), [0.3, 0.1, -0.2]))
     }
 
+    func testPointsFollowCharacterBody() {
+        // Волна 13: у своего персонажа миска под его мордой, находка у его пасти, пятно по его размеру.
+        let shibaBowl = ChoreoPath.toStand(ChoreoPath.bowlTarget)
+        let shibaReach = ChoreoPath.petReachMax
+        ChoreoPath.body = PetBody(height: 0.8, length: 0.8, width: 0.8, lift: 0)
+        defer { ChoreoPath.body = .shiba }
+        let small = ChoreoPath.toStand(ChoreoPath.bowlTarget)
+        XCTAssertEqual(small.z, shibaBowl.z * 0.8, accuracy: 1e-4)
+        XCTAssertEqual(small.y, shibaBowl.y, accuracy: 1e-4, "миска на полу")
+        XCTAssertEqual(ChoreoPath.Walk.carry.y, ChoreoPath.Walk.shibaCarry.y * 0.8, accuracy: 1e-4)
+        XCTAssertEqual(ChoreoPath.Walk.carry.z, ChoreoPath.Walk.shibaCarry.z * 0.8, accuracy: 1e-4)
+        XCTAssertEqual(ChoreoPath.petReachMax, shibaReach * 0.8, accuracy: 1e-4)
+        // Перед мячом встаёт ближе: морда короче.
+        let ballXZ = SIMD3<Float>(P.ballFar.x, 0, P.ballFar.z)
+        XCTAssertEqual(simd_distance(P.runTo, ballXZ), 0.30 * 0.8, accuracy: 0.02)
+        ChoreoPath.body = .shiba
+        XCTAssertTrue(near(ChoreoPath.toStand(ChoreoPath.bowlTarget), shibaBowl))
+    }
+
     func testBowlDuringFeed() {
         let eatStart = 0.0, eatEnd = 3 * 2.67, leave = eatEnd + 0.5
         func at(_ t: Double) -> ChoreoPath.BowlPose {

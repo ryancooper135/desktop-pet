@@ -41,6 +41,24 @@ enum ChoreoPath {
     /// Поворот по y, при котором морда (+z) смотрит вдоль d. Положительный — к +x, вправо по экрану.
     static func yaw(toward d: SIMD3<Float>) -> Float { atan2(d.x, d.z) }
 
+    // MARK: тело персонажа
+
+    /// Тело в сцене относительно Шибы (ставит PetModel.assemble). Точки ниже подобраны под Шибу —
+    /// всё, что «от морды» (миска, находка в пасти, где встать перед мячом), множится на него.
+    nonisolated(unsafe) static var body = PetBody.shiba
+
+    /// Точка на полу в осях питомца с поправкой на длину и ширину тела.
+    static func onFloor(_ p: SIMD3<Float>) -> SIMD3<Float> {
+        let q = body.onFloor(Double(p.x), Double(p.y), Double(p.z))
+        return SIMD3<Float>(Float(q.x), Float(q.y), Float(q.z))
+    }
+
+    /// Точка на теле (пасть) с поправкой ещё и на рост и подъём над полом.
+    static func onBody(_ p: SIMD3<Float>) -> SIMD3<Float> {
+        let q = body.onBody(Double(p.x), Double(p.y), Double(p.z))
+        return SIMD3<Float>(Float(q.x), Float(q.y), Float(q.z))
+    }
+
     static func wrap(_ a: Float) -> Float {
         var x = a
         while x > .pi { x -= 2 * .pi }
@@ -50,8 +68,10 @@ enum ChoreoPath {
 
     // MARK: еда
 
-    /// Миска под мордой в осях подставки: при eat морда опускается к полу ~0.3 м вперёд от центра.
-    static let bowlUnderSnout = SIMD3<Float>(0, 0.025, 0.30)
+    /// Миска под мордой в осях подставки: при eat морда Шибы опускается к полу ~0.3 м вперёд от центра.
+    /// У своего персонажа — на его длину (body).
+    static let shibaBowlUnderSnout = SIMD3<Float>(0, 0.025, 0.30)
+    static var bowlUnderSnout: SIMD3<Float> { onFloor(shibaBowlUnderSnout) }
     static var bowlTarget: SIMD3<Float> { toWorld(bowlUnderSnout) }
     /// С какой высоты миска падает под морду.
     static let bowlDrop: Float = 0.3
@@ -147,8 +167,11 @@ enum ChoreoPath {
 
     /// Пятно Шибы на полу от центра: полудлина (морда…хвост) и полуширина. По мешу shiba.usdz после нормировки
     /// на рост 0.42 — 0.53 × 0.15 м, с запасом под шаг лап, хвост и поворот головы.
-    static let petHalfLength: Float = 0.29
-    static let petHalfWidth: Float = 0.09
+    /// У своего персонажа — на его длину и ширину (body).
+    static let shibaHalfLength: Float = 0.29
+    static let shibaHalfWidth: Float = 0.09
+    static var petHalfLength: Float { shibaHalfLength * Float(body.length) }
+    static var petHalfWidth: Float { shibaHalfWidth * Float(body.width) }
 
     /// Насколько Шиба при повороте yaw выступает по x от своего центра.
     static func petReach(yaw: Float) -> Float { abs(sin(yaw)) * petHalfLength + abs(cos(yaw)) * petHalfWidth }
@@ -189,9 +212,10 @@ enum ChoreoPath {
             let d = ballFar - turnAt
             return simd_normalize(SIMD3<Float>(d.x, 0, d.z))
         }
-        /// Где Шиба останавливается перед мячом (там же разворачивается обратно).
+        /// Где Шиба останавливается перед мячом (там же разворачивается обратно): морда у мяча —
+        /// 0,3 м от центра у Шибы, у своего персонажа — на его длину.
         static var runTo: SIMD3<Float> {
-            playArea.clamp(SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30, inset: petReachMax)
+            playArea.clamp(SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30 * Float(body.length), inset: petReachMax)
         }
         /// Куда мяч откатывается от прыжка.
         static var knockTo: SIMD3<Float> { playArea.clamp(ballFar + runDir * 0.08, inset: ballRadius) }
@@ -373,8 +397,11 @@ extension ChoreoPath {
         /// Где держит находку и куда кладёт — в осях питомца (морда к +z), начало пропа — внизу.
         /// Пасть у Шибы ~0.25 м над полом и ~0.3 м вперёд от центра (как миска под мордой при еде).
         /// Проп не привязан к кости головы: при кивках может чуть разойтись с пастью — сверять по anim-walk.
-        static let carry = SIMD3<Float>(0, 0.235, 0.30)
-        static let dropped = SIMD3<Float>(0, PetRoom.blobY, 0.36)
+        /// У своего персонажа — на его рост и длину (ChoreoPath.body).
+        static let shibaCarry = SIMD3<Float>(0, 0.235, 0.30)
+        static let shibaDropped = SIMD3<Float>(0, PetRoom.blobY, 0.36)
+        static var carry: SIMD3<Float> { onBody(shibaCarry) }
+        static var dropped: SIMD3<Float> { onFloor(shibaDropped) }
 
         static var outWalk: Double { Double(simd_length(offstage - turnAt) / speed) }
         static var inWalk: Double { Double(simd_length(offstage) / speed) }
