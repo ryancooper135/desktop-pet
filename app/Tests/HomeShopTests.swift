@@ -136,7 +136,9 @@ final class HomeShopTests: XCTestCase {
         XCTAssertEqual(HomeShop.perks(kitchen[2].buff),
                        ["Запас еды: 30", "Сам ест из запаса, когда сытость ниже 15"])
         let k3 = HomeShop.perks(kitchen[3].buff)
-        XCTAssertFalse(k3.contains { $0.contains("cooking") || $0.contains("food_price") }, "нереализованное молчит")
+        // волна 12: скидку и готовку применяет приложение (Cooking.swift) — теперь их показываем
+        XCTAssertEqual(k3, ["Запас еды: 60", "Сам ест из запаса, когда сытость ниже 25",
+                            "Еда в «Угостить» на 10% дешевле", "Готовка: блюда сытнее еды, первое за день — с подарком"])
         XCTAssertEqual(HomeShop.perks(HomeShop.line(.kennel)!.levels[3].buff),
                        ["Сердечки тают на 45% медленнее", "Сердечки растут на 50% быстрее", "Сердечек до 6"])
         XCTAssertEqual(HomeShop.perks([:]), [])

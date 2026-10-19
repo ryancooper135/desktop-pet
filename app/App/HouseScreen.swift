@@ -3,6 +3,7 @@
 // Логика — HomeShop и HomeOffer (Shared), тут только вид. Открывается круглой кнопкой с домиком рядом с автоматом
 // и по pet://house. Решения (Вадим может поменять): без монет кнопка не гаснет — пишет «Не хватает N», нажатие
 // качает карточку и объясняет отказ строкой под кнопкой; на максимуме вместо кнопки плашка «Лучший уровень».
+// Волна 12: в карточке кухни — вход в лист «Кухня» (KitchenSheet): угостить едой за монеты, на L3 — готовить.
 
 import SwiftUI
 @preconcurrency import PetCore
@@ -26,6 +27,7 @@ struct HouseScreen: View {
     static let noteFor: Double = 2.5
 
     var body: some View {
+        @Bindable var model = model
         let rows = model.file.map { HomeOffer.rows($0) } ?? []
         ScrollView {
             VStack(spacing: 14) {
@@ -40,7 +42,8 @@ struct HouseScreen: View {
                     HomeLineCard(row: r,
                                  note: note?.line == r.id ? note : nil,
                                  shake: shakes[r.id, default: 0],
-                                 bump: bumps[r.id, default: 0]) { buy(r) }
+                                 bump: bumps[r.id, default: 0],
+                                 kitchen: r.id == .kitchen ? { openKitchen() } : nil) { buy(r) }
                 }
                 Text("Дом остаётся, даже если начать заново с новым щенком.")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -51,6 +54,11 @@ struct HouseScreen: View {
             .padding(20)
         }
         .background(PetPalette.bg.ignoresSafeArea())
+        .sheet(isPresented: $model.showKitchen) {
+            KitchenSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
         .animation(.snappy, value: note)
         .onDisappear { noteTask?.cancel() }
         .accessibilityElement(children: .contain)
@@ -91,6 +99,11 @@ struct HouseScreen: View {
         }
     }
 
+    private func openKitchen() {
+        model.haptic(.light)
+        model.showKitchen = true
+    }
+
     private func say(_ n: Note) {
         note = n
         noteTask?.cancel()
@@ -108,6 +121,8 @@ struct HomeLineCard: View {
     let note: HouseScreen.Note?
     let shake: Int
     let bump: Int
+    /// Только у кухни: открыть лист «Кухня».
+    var kitchen: (() -> Void)? = nil
     let action: () -> Void
 
     private static let wiggle: [CGFloat] = [0, -6, 6, -3, 0]
@@ -168,6 +183,10 @@ struct HomeLineCard: View {
                 .accessibilityIdentifier("house.maxed.\(row.id.rawValue)")
             }
 
+            if let kitchen {
+                KitchenEntry(cooking: row.level >= 3, action: kitchen)
+            }
+
             if let note {
                 Text(note.text)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -199,6 +218,36 @@ struct HomeLineCard: View {
         case .play: return "teddybear.fill"
         case .yard: return "tree.fill"
         }
+    }
+}
+
+/// «Кухня: угостить и приготовить» в карточке кухни. До кухни шефа — только «угостить».
+struct KitchenEntry: View {
+    let cooking: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "frying.pan.fill")
+                    .accessibilityHidden(true)
+                Text(cooking ? "Кухня: угостить и приготовить" : "Кухня: угостить")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .accessibilityHidden(true)
+            }
+            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .foregroundStyle(PetPalette.accent)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(RoundedRectangle(cornerRadius: 14).strokeBorder(PetPalette.accent, lineWidth: 1.5))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityIdentifier("house.kitchen.open")
     }
 }
 

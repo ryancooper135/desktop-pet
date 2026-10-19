@@ -199,7 +199,7 @@ enum Presenter {
 
     static func pose(mood: Mood, reaction: String?, needs: [Need: Double]) -> Pose {
         switch reaction {
-        case "feed", "item": return .eating
+        case "feed", "item", Cooking.reactKind: return .eating
         case "pet": return .loved
         case "play", "wake": return .happy
         default: break

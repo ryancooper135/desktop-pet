@@ -163,7 +163,7 @@ enum SoundRecipe {
     static func forAction(kind: String, ok: Bool) -> SoundCue? {
         guard ok else { return .refuse }
         switch kind {
-        case "feed": return .feed
+        case "feed", Cooking.reactKind: return .feed
         case "pet": return .pet
         case "play", "walk": return .yip
         case "bath": return .bath

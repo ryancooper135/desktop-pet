@@ -245,7 +245,7 @@ enum PetModel {
             if !reduceMotion && r.ok && pose != .dead {
                 let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
                 switch r.kind {
-                case "pet", "feed", "item", "brush":
+                case "pet", "feed", "item", "brush", Cooking.reactKind:
                     c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
                 case "play", Habits.reactKind:
                     c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)

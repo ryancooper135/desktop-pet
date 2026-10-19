@@ -110,6 +110,8 @@ final class PetStore: @unchecked Sendable {
             fresh.shop = old.shop
             // Привычки — хозяина: отметки «Команд» и дневной счётчик остаются.
             fresh.habits = old.habits
+            // Кухня шефа — вместе с домом: дневной лимит блюд и бонус не обнуляются новым щенком.
+            fresh.cooking = old.cooking
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
             // Память и характер (memories, care) — тоже нет: они про того пса.
             // Старый файл целиком остаётся в state.broken-<t>.json.
