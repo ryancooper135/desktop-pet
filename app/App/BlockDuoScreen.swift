@@ -140,7 +140,10 @@ struct BlockDuoScreen: View {
     // MARK: партия
 
     private var playArea: some View {
+        // Счёт, поле, подсказка и тройка фигур — одним блоком по центру: лишняя высота (iPhone Air и выше)
+        // поровну сверху и снизу, а не дырой между полем и фигурами. На SE запаса почти нет — блок как был.
         VStack(spacing: 0) {
+            Spacer(minLength: 0)
             hud
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)
@@ -155,10 +158,10 @@ struct BlockDuoScreen: View {
                 .padding(.top, 10)
                 .contentTransition(.opacity)
                 .accessibilityIdentifier("blockduo.status")
-            Spacer(minLength: 8)
+                .padding(.bottom, 14)
             tray
                 .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+            Spacer(minLength: 20)
         }
         .overlay { floating }
         .coordinateSpace(.named(Self.space))
