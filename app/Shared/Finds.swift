@@ -102,6 +102,9 @@ struct WalkGate: Equatable, Sendable {
     var toast: String
     /// Конец прогулки, пока гуляет.
     var until: Double?
+    /// Волна 18. Не готов: кнопка панели, что первой исправит (feed, bath, play, pet) — её подсвечивают по тапу
+    /// на неактивную «Гулять» и к ней ведёт плашка «что нужно сейчас». nil — нечего нажать (не хватает сил) или не not_ready.
+    var fix: String? = nil
 }
 
 enum WalkPlan {
@@ -127,10 +130,11 @@ enum WalkPlan {
         let reason = res.reason ?? "unavailable"
         switch reason {
         case "not_ready":
-            let todo = lacking(s, r).map(todoWord)
+            let need = lacking(s, r)
+            let todo = need.map(todoWord)
             let list = todo.isEmpty ? "покормить и почистить" : joined(todo)
             return WalkGate(ok: false, reason: reason, hint: "сначала \(list)",
-                            toast: "Для прогулки сначала \(list)", until: nil)
+                            toast: "Для прогулки сначала \(list)", until: nil, fix: need.lazy.compactMap(fixKind).first)
         case "asleep":
             return WalkGate(ok: false, reason: reason, hint: "спит", toast: RefuseText.text(reason), until: nil)
         case "too_late":
@@ -166,6 +170,17 @@ enum WalkPlan {
         case .fun: return "поиграть"
         case .love: return "погладить"
         default: return "позаботиться"
+        }
+    }
+
+    /// Кнопка панели, которая поднимает шкалу: food → feed, clean → bath, fun → play, love → pet. Силы — nil.
+    static func fixKind(_ n: Need) -> String? {
+        switch n {
+        case .food: return "feed"
+        case .clean: return "bath"
+        case .fun: return "play"
+        case .love: return "pet"
+        default: return nil
         }
     }
 

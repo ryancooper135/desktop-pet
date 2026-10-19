@@ -69,6 +69,8 @@ func albumFinds(_ f: SaveFile?, at t: Double) -> [String: Int] {
 
 /// «Гулять»: иконка, крупная подпись и строчка «почему нельзя / когда вернётся». Неактивная — полупрозрачная,
 /// но нажимается: тост объясняет, что сделать, кнопка качается. Id для UI-тестов — act.walk.
+/// Волна 18: активная — цветное стекло (ActTint walk). Неактивная — замок и значок того, чего не хватает (миска, ванна),
+/// виден и в тесном ряду без строчки; по тапу подсвечивается кнопка панели, что это исправит (WalkGate.fix).
 struct WalkButton: View {
     @Environment(AppModel.self) private var model
     let gate: WalkGate
@@ -90,6 +92,7 @@ struct WalkButton: View {
                 refusals += 1
                 model.haptic(.warning)
                 model.show(gate.toast, ok: away)
+                if let fix = gate.fix { Coach.shared.highlightButton(fix) }
             }
         } label: {
             HStack(spacing: 8) {
@@ -103,20 +106,38 @@ struct WalkButton: View {
                     if !brief && !gate.hint.isEmpty {
                         Text(gate.hint)
                             .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(PetPalette.soft)
+                            .foregroundStyle(gate.ok ? Color.white.opacity(0.85) : PetPalette.soft)
                     }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(PetPalette.ink)
+            .foregroundStyle(gate.ok ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(away ? 1 : 0.55)))
             .padding(.horizontal, 14)
             .frame(minHeight: 48)
             .contentShape(Capsule())
         }
         .buttonStyle(SquishStyle())
-        .opacity(gate.ok || away ? 1 : 0.55)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .glassEffect(gate.ok ? .regular.tint(ActTint.color("walk").opacity(0.88)).interactive() : .regular.interactive(),
+                     in: Capsule())
+        .overlay(alignment: .topTrailing) {
+            if !gate.ok && !away {
+                // Причина видна всегда, даже без строчки: замок и что нужно сначала (миска, ванна, мячик, рука).
+                HStack(spacing: 2) {
+                    Image(systemName: "lock.fill")
+                    if let fix = gate.fix { Image(systemName: NeedHints.icon(fix)) }
+                }
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(gate.fix.map { ActTint.color($0) } ?? PetPalette.soft))
+                .offset(x: 4, y: -6)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+        .coachHighlight("walk")
         .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
             view.offset(x: x)
         }, animation: { _ in

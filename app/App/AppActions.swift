@@ -31,8 +31,10 @@ final class AppActions {
             }
             model.settle(a, out, delta: delta)
         }
-        // Кулдаун ласки из приложения уже виден анимацией и иконкой — без тоста.
+        // Откат ласки из приложения (волна 18): раньше молча — и хозяин не понимал, почему «не гладится».
+        // Теперь один тост на окно отката с минутами (Coach.petRefused), дальше тихо: бейдж на кнопке и так виден.
         let quiet = source == .app && a == .pet && out.reason == "cooldown"
+        if quiet { Coach.shared.petRefused(model) }
         if !out.ok && source != .steps && !quiet {
             model.show(RefuseText.text(out.reason, name: model.snap.name), ok: false)
         }
