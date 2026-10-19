@@ -107,6 +107,20 @@ final class PetStanceTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand), ["jump_to_idle"])
     }
 
+    /// Тап по псу с характером: стоя — клипы черты (что есть в модели), сидя — повёл ухом, спящий не реагирует.
+    func testTraitTapReactions() {
+        let all = Set(PetClipNames.required + PetClipNames.optional)
+        for t in Trait.allCases {
+            let kind = "tap.\(t.rawValue)"
+            let want = Traits.tapClips(t).filter { all.contains($0) }
+            XCTAssertEqual(PetStance.reaction(kind: kind, ok: true, stance: .stand, available: all), want, kind)
+            XCTAssertEqual(PetStance.reaction(kind: kind, ok: true, stance: .sleep, available: all), [], kind)
+            XCTAssertTrue(PetStance.reaction(kind: kind, ok: true, stance: .sit, available: all)
+                .allSatisfy { $0 == "ear_flick" }, kind)
+        }
+        XCTAssertEqual(PetStance.reaction(kind: "tap", ok: true, stance: .stand, available: all), [], "без черты — как раньше")
+    }
+
     func testTrickReactions() {
         let all = Set(PetClipNames.required + PetClipNames.optional)
         // Стоя — ровно клипы трюка; не вышло — склонил голову и понюхал.

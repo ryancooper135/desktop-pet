@@ -93,6 +93,10 @@ struct SaveFile: Codable, Sendable {
     /// Сон хозяина (OwnerSleep.swift): касания по ночам, ручное окно, «Доброе утро» и «Отбой» по разу.
     /// Пустое в файл не пишется, новому щенку переходит: это привычки хозяина, не собаки.
     var sleep = SleepLog()
+    /// Память питомца (Memories.swift): яркие события с датой. Пустое в файл не пишется, новому щенку не переходит.
+    var memories = MemoryBook()
+    /// Уход по дням для характера (Traits.swift). Пустое в файл не пишется, новому щенку не переходит.
+    var care = CareTally()
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {
         self.petId = petId
@@ -145,6 +149,7 @@ struct SaveFile: Codable, Sendable {
         case roomEvening
         case worn
         case sleep
+        case memories, care
     }
 
     init(from decoder: Decoder) throws {
@@ -193,6 +198,8 @@ struct SaveFile: Codable, Sendable {
         roomEvening = try? c.decodeIfPresent(String.self, forKey: .roomEvening)
         worn = (try? c.decodeIfPresent([String: String].self, forKey: .worn)) ?? [:]
         sleep = (try? c.decodeIfPresent(SleepLog.self, forKey: .sleep)) ?? SleepLog()
+        memories = (try? c.decodeIfPresent(MemoryBook.self, forKey: .memories)) ?? MemoryBook()
+        care = (try? c.decodeIfPresent(CareTally.self, forKey: .care)) ?? CareTally()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -230,6 +237,8 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(roomEvening, forKey: .roomEvening)
         if !worn.isEmpty { try c.encode(worn, forKey: .worn) }
         if !sleep.isEmpty { try c.encode(sleep, forKey: .sleep) }
+        if !memories.isEmpty { try c.encode(memories, forKey: .memories) }
+        if !care.isEmpty { try c.encode(care, forKey: .care) }
     }
 }
 

@@ -162,9 +162,13 @@ enum Presenter {
         let sleeping = mood == .sleep || mood == .nap
         let rare: LineItem? = reaction == nil && rareMoods.contains(mood.rawValue)
             ? lines.rare(sleeping: sleeping, seed: f.petId, at: t, tzOffsetMin: tz) : nil
-        let line = rare?.text ?? lines.widget(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
+        // Мысли вслух (PetMind): в спокойное обычное время иногда — воспоминание или черта характера.
+        let musing = rare == nil && keys == [Mood.ok.rawValue]
+        let mind = musing ? PetMind.line(f, at: t, tzOffsetMin: tz, lines: lines) : nil
+        let mindIsland = musing ? PetMind.line(f, at: t, tzOffsetMin: tz, island: true, lines: lines) : nil
+        let line = rare?.text ?? mind ?? lines.widget(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
         let islandLine = rare.flatMap { lines.rareIsland($0, sleeping: sleeping, seed: f.petId, at: t, tzOffsetMin: tz) }
-            ?? lines.island(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
+            ?? mindIsland ?? lines.island(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
 
         // Главное действие.
         let main: MainAct

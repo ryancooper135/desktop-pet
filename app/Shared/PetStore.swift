@@ -105,6 +105,7 @@ final class PetStore: @unchecked Sendable {
             // Сон хозяина (OwnerSleep) — тоже: выученное окно про человека, а не про собаку.
             fresh.sleep = old.sleep
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.
+            // Память и характер (memories, care) — тоже нет: они про того пса.
             // Старый файл целиком остаётся в state.broken-<t>.json.
         }
         if fm.fileExists(atPath: stateURL.path) {
@@ -134,6 +135,9 @@ final class PetStore: @unchecked Sendable {
     private func applyUnlocked<T>(_ url: URL, _ body: (inout SaveFile) throws -> T) throws -> T {
         var f = try loadUnlocked(url) ?? SaveFile.fresh(now: Clock.now())
         let out = try body(&f)
+        // Память и характер — из того, что только что записано (новые записи журнала разбираются один раз).
+        Memories.update(&f)
+        Traits.update(&f)
         f.rev += 1
         try writeUnlocked(f, to: url)
         return out

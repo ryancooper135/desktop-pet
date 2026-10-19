@@ -107,6 +107,8 @@
 | `taste_find_love` | вернулся с любимой находкой | приложение | 3 | 2 |
 | `good_morning` | первый заход утром после ночи (`OwnerSleep.greetingDue`), один раз; говорит пёс в приложении | приложение | 8 | — |
 | `bed_hint` | раз за вечер у выученного времени сна хозяина, если лампа гаснет заметно позже (`OwnerSleep.bedHintDue`) | приложение | 5 | — |
+| `memory_met`, `memory_walk`, `memory_find`, `memory_trick`, `memory_record`, `memory_item`, `memory_home`, `memory_days`, `memory_birthday`, `memory_taste` | воспоминание вместо `ok` (`PetMind`, `Memories`): 2 хода из 8 по 2 часа, память не моложе суток. `{item}` — находка или вкус в винительном, трюк, вещь со строчной; `{count}` — рекорд, день-веха, «1 год». На острове — без подстановок | приложение | 3 | 2 |
+| `trait_playful`, `trait_calm`, `trait_cuddly`, `trait_independent`, `trait_tidy`, `trait_scruffy` | ведущая черта характера вместо `ok` (`PetMind`, `Traits`): 1 ход из 8 | приложение | 4 | 2 |
 | `morning` | всё хорошо, 3 ч после подъёма питомца (`daypart()`) | приложение | 30 | 10 |
 | `evening` | всё хорошо, 3 ч до отбоя хозяина (`daypart()`) | приложение | 30 | 10 |
 | `ok` | всё хорошо | ядро | 44 | 30 |

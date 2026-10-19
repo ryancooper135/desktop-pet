@@ -20,6 +20,7 @@
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
 //   ui-69/70        сон хозяина: настройки с выученным окном «Я сплю примерно 00:40–08:10» (и экран «Я сплю»),
 //                   «Доброе утро» при первом заходе утром (PET_SEED=sleep_learned / good_morning)
+//   ui-73/74        характер и память (PET_SEED=memories): «Характер» и «Помню» в альбоме; пузырь-воспоминание на главной
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -330,6 +331,33 @@ final class ScreenshotUITests: XCTestCase {
         snap("ui-70-good-morning")
         app.terminate()
         XCTAssertTrue(found, "ui-70: нет «Доброе утро»")
+    }
+
+    /// Альбом (PET_SEED=memories): «Характер» — три оси, игривый подсвечен; дальше «Помню» — воспоминания с датами.
+    @MainActor
+    func testStates73Character() throws {
+        let app = try shootOptional("ui-73-character",
+                                    env: ["PET_SEED": "memories", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                          "PET_OPEN": "album"],
+                                    marker: "album.trait.tidiness", scrollIn: "album.sheet", keepRunning: true)
+        let box = app.descendants(matching: .any)["album.sheet"]
+        let met = app.descendants(matching: .any)["album.memory.met"]
+        if met.waitForExistence(timeout: 5) {
+            for _ in 0..<5 where !met.isHittable {
+                box.swipeUp()
+                settle(0.5)
+            }
+            settle(1)
+            snap("ui-73-memories")
+        }
+        app.terminate()
+    }
+
+    /// Главная в полдень (PET_SEED=memories): в пузыре — воспоминание («Помнишь…»), а не обычная строка.
+    @MainActor
+    func testStates74MemoryLine() {
+        shootState("ui-74-memory-line", env: ["PET_SEED": "memories", "PET_NOW": Self.noon, "PET_SCHEME": "light"],
+                   marker: "pet.line", settleFor: 2.5)
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).

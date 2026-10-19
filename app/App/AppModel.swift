@@ -410,7 +410,8 @@ final class AppModel {
         if snap.level >= 3, let a = snap.main.action {
             act(a)
         } else {
-            react("tap")
+            // Характер (Traits): игривый подпрыгнет, ласковый склонит голову — только анимация, баланс не трогает.
+            react(file.map { Traits.tapKind($0, at: snap.t) } ?? "tap")
             haptic(.light)
             SoundKit.shared.play(.boop)
         }
@@ -1122,7 +1123,9 @@ enum AwayBuilder {
 /// house_rich — все линии дома на базе и 50 000 монет: в HouseUITests покупка проходит с первого нажатия;
 /// tricks — «Сидеть» выучен, «Лежать» 3 из 5, дальше замки;
 /// brush — сытый бодрый щенок со свалявшейся шерстью, для снимков расчёсывания;
-/// wear — в коллекции шапочка, бантик, бандана, шарф, плащ и миска, надеты шапочка, шарф и плащ (ui-61/62)).
+/// wear — в коллекции шапочка, бантик, бандана, шарф, плащ и миска, надеты шапочка, шарф и плащ (ui-61/62);
+/// memories — месяц вместе: прогулки, трюки, рекорд, вещь, кровать, любимая еда и неделя игр — игривый характер,
+/// а в полдень (PET_NOW) пузырь — воспоминание (ui-73/74)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1290,9 +1293,78 @@ enum LaunchSeed {
                 f.sleep.lastT = seed == "good_morning" ? now - 8 * 3600 : now
                 f.seen = f.pet
                 f.lastSeenT = now
+            case "memories":
+                seedMemories(&f, now: now)
             default:
                 break
             }
         }
+    }
+
+    /// Сид memories. Открытки за прошлые дни не всплывают: catchUp — до того, как createdT уходит в прошлое
+    /// (doneDay уже вчерашний). petId перебираем, пока в момент now пузырь не станет воспоминанием (PetMind).
+    @MainActor
+    private static func seedMemories(_ f: inout SaveFile, now: Double) {
+        let day: Double = 86400
+        PetRunner.catchUp(&f, now: now)
+        for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 90 }
+        f.flags.rulesShown = true
+        f.createdT = now - 31 * day
+        // Прогулки и находки.
+        for (find, ago) in [("cone", 20.0), ("stick", 10), ("sock", 4)] {
+            f.pet.finds[find, default: 0] += 1
+            f.log("ev.back_home.\(find)", t: now - ago * day, key: find)
+        }
+        // Трюки.
+        for (trick, ago) in [(Trick.sit, 25.0), (.lie, 12)] {
+            var e = TrickLog.Entry()
+            e.n = Tricks.needed
+            e.t = now - ago * day
+            e.tries = 8
+            e.learned = now - ago * day
+            f.tricks[trick] = e
+        }
+        // Первая вещь из автомата и кровать.
+        f.econ.capsule.pulls += 1
+        f.econ.items["leaf_hat"] = 1
+        f.log("capsule", t: now - 15 * day, key: "leaf_hat", value: 1)
+        f.pet.home[.bed] = max(f.pet.home[.bed] ?? 0, 1)
+        f.log("home.buy", t: now - 8 * day, key: HomeLine.bed.rawValue, value: 1)
+        // Неделя ухода: много игр и прогулок — игривый, остальное ровно.
+        let tz = f.owner.tzOffsetMin
+        let today = Postcards.day(now, tzOffsetMin: tz)
+        for ago in 1...6 {
+            var t = Postcards.dayStart(today - ago, tzOffsetMin: tz) + 8 * 3600
+            for (kind, n) in [("play", 3), ("walk", 2), ("pet", 5), ("bath", 1), ("brush", 1)] {
+                for _ in 0..<n {
+                    f.log("act.\(kind)", t: t, source: .app, ok: true)
+                    t += 3600
+                }
+            }
+        }
+        let base = f
+        for i in 0..<128 {
+            var g = base
+            g.petId = "\(base.petId)-\(i)"
+            if let love = Tastes.hidden(petId: g.petId, .food, log: g.tastes).love {
+                g.tastes.opened[Tastes.key(.food, love)] = TasteLog.Fact(r: Taste.love.rawValue, t: now - 18 * day)
+            }
+            // Книга с нуля: рекорд «Лови мячик» побит три дня назад, после начала книги.
+            g.memories = MemoryBook()
+            g.care = CareTally()
+            Memories.update(&g)
+            let petT = g.pet.t
+            g.pet.t = now - 3 * day
+            g.catchBest = max(g.catchBest, 27)
+            Memories.update(&g)
+            g.pet.t = petT
+            Traits.update(&g)
+            f = g
+            if case .memory? = PetMind.pick(g, at: now, tzOffsetMin: tz),
+               let line = PetMind.line(g, at: now, tzOffsetMin: tz),
+               Presenter.make(g, at: now).line == line { break }
+        }
+        f.seen = f.pet
+        f.lastSeenT = now
     }
 }

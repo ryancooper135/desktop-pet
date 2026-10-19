@@ -145,6 +145,11 @@ enum PetStance {
         if kind == Brush.journalKind {
             return brushClips(ok: ok, stance: stance, lookX: lookX, available: available)
         }
+        // Тап по псу с заметным характером (Traits.tapKind): стоя — клип черты, сидя и лёжа — повёл ухом.
+        if let trait = Traits.tapTrait(kind) {
+            if stance == .sleep { return [] }
+            return pick(stance == .stand ? Traits.tapClips(trait) : ["ear_flick"], available: available)
+        }
         if !ok {
             return stance == .sleep ? [] : pick(["head_tilt"], available: available)
         }
