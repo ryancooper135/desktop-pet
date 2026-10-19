@@ -306,7 +306,7 @@ enum PetRoom {
             if let m = e as? ModelEntity, let mats = m.model?.materials {
                 coatBase[m.id] = mats
                 coatLid[m.id] = nil
-                if !furIndices(mats).isEmpty, prepareFurUV(m) { furUV.insert(m.id) }
+                if PetRig.variant != 4, !furIndices(mats).isEmpty, prepareFurUV(m) { furUV.insert(m.id) }
             }
             queue += Array(e.children)
         }

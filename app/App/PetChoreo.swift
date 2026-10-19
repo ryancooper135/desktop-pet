@@ -1005,6 +1005,8 @@ final class PetRig {
     private var opens = 0
     private var recolors = 0
     private static var made = 0
+    /// 0 — как было, 1 — новый ModelComponent, 2 — снять и поставить, 3 — новые значения материалов, 4 — без UV шерсти.
+    static let variant = Int.random(in: 0..<5)
 
     private func debug(_ face: PetFace, _ shut: Bool, _ st: ClipState?) {
         func at(_ a: [any Material]?, _ i: Int) -> (any Material)? {
@@ -1016,12 +1018,12 @@ final class PetRig {
             return String(format: "%.2f", v)
         }
         let cur = eyes?.model?.materials
-        Self.debugLine = String(format: "rig#%d/%d r=%d cand=%d eyes=%d skin=%d c=%d s=%d t=%.1f b=%.1f n=%.1f\n",
+        Self.debugLine = String(format: "V%d rig#%d/%d r=%d cand=%d e=%d sk=%d\nc=%d s=%d t=%.1f b=%.1f n=%.1f\n", Self.variant,
                                 created, Self.made, Self.rigs.count, candidates, eyes == nil ? 0 : 1, skin == nil ? 0 : 1,
                                 eyesClosed ? 1 : 0, shut ? 1 : 0, face.time, face.blinkUntil, face.nextBlink)
             + "st=\(st?.stance.rawValue ?? "-") bliss=\(face.bliss ? 1 : 0) still=\(face.still ? 1 : 0) "
-            + "cl=\(closes) op=\(opens) rc=\(recolors) n=\(cur?.count ?? -1) cur3=\(b(at(cur, 3))) "
-            + "open3=\(b(at(open, 3))) closed3=\(b(at(closed, 3))) cur0=\(b(at(cur, 0)))"
+            + "cl=\(closes) op=\(opens) rc=\(recolors)\nn=\(cur?.count ?? -1) cur3=\(b(at(cur, 3))) "
+            + "open3=\(b(at(open, 3)))\nclosed3=\(b(at(closed, 3))) cur0=\(b(at(cur, 0)))"
     }
 
     static func rig(for pet: Entity) -> PetRig? {
@@ -1200,8 +1202,27 @@ final class PetRig {
 
     func setEyes(closed shut: Bool) {
         guard shut != eyesClosed, let e = eyes, var model = e.model else { return }
-        model.materials = shut ? closed : open
-        e.model = model
+        var mats = shut ? closed : open
+        switch Self.variant {
+        case 1:
+            e.components.set(ModelComponent(mesh: model.mesh, materials: mats))
+        case 2:
+            e.components.remove(ModelComponent.self)
+            model.materials = mats
+            e.components.set(model)
+        case 3:
+            let k = Float(closes + opens) * 0.0001
+            for i in 3...5 {
+                guard var p = mats[i] as? PhysicallyBasedMaterial else { continue }
+                p.roughness = .init(floatLiteral: 1 - k)
+                mats[i] = p
+            }
+            model.materials = mats
+            e.model = model
+        default:
+            model.materials = mats
+            e.model = model
+        }
         eyesClosed = shut
         if shut { closes += 1 } else { opens += 1 }
     }
