@@ -1212,7 +1212,9 @@ final class PetRig {
             shut = true
         } else if !face.still {
             if face.time >= face.nextBlink {
-                face.blinkUntil = face.time + 0.13
+                // Моргаем только на коротком кадре: при редких кадрах (подвисание, симулятор CI) закрытый глаз висел бы
+                // весь длинный кадр — на снимках волны 15 пёс почти всегда был с закрытыми глазами.
+                face.blinkUntil = dt < 0.1 ? face.time + 0.13 : face.time
                 // Иногда двойное моргание.
                 face.nextBlink = face.time + (Double.random(in: 0..<1) < 0.2 ? 0.3 : Double.random(in: 2.5...6))
             }
