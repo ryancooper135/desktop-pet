@@ -117,7 +117,7 @@ enum Memories {
         }
         // Дни вместе: вехи открыток (7, 30, 50…) и дни рождения — пока пёс жив.
         if f.pet.alive {
-            let born = DayKey.of(f.createdT, tzOffsetMin: tz)
+            let born = f.bornDay   // в поясе рождения: перелёт день рождения не двигает
             let today = DayKey.of(f.pet.t, tzOffsetMin: tz)
             let n = today - born
             if n > 0 {

@@ -2,8 +2,17 @@
 // поэтому каждый доступ идёт через NSFileCoordinator, а внутри процесса — через замок.
 // Вложенный mutate внутри mutate запрещён: замок не рекурсивный.
 //
-// Порча файла: state.json → state.broken-<t>.json, дальше пробуем state.prev.json (копия каждые 10 записей),
-// потом зеркало в Documents. Если ничего нет — ошибка, а не новая собака: решает хозяин (startOver).
+// Волна 15, надёжность (DECISIONS): щенок умирает только от забвения, не от сбоя.
+// - Запись атомарная (временный файл + rename): обрезанного state.json от нас не бывает, при нехватке места
+//   старый файл остаётся, а ошибка доходит до вызывающего.
+// - Перед каждой записью прошлый валидный state.json кладётся в state.bak.json; state.prev.json — раз в 10 записей;
+//   у приложения ещё зеркало в Documents. Порядок восстановления: state → bak → prev → зеркало.
+// - Файл есть, но не читается (защита до первой разблокировки, ошибка диска) — ошибка, ничего не трогаем.
+// - Читатель (read, виджеты) файлы не двигает: восстанавливает только в памяти. Чинит диск писатель (mutate).
+// - Испорчен state, а копия цела — state уходит в state.broken-<t>.json, продолжаем с копии.
+// - Испорчено всё — ничего не стираем: файлы уходят в папку corrupt-<дата>, заводится новый щенок
+//   с записью save_corrupt в журнале. Нового щенка (с нуля или после порчи) заводит только приложение:
+//   виджет и интенты из расширения получают ошибку и ждут приложения (у него ещё есть зеркало).
 
 import Foundation
 @preconcurrency import PetCore
@@ -11,13 +20,27 @@ import Foundation
 enum StoreError: Error, LocalizedError {
     case corrupted(String)
     case writeFailed(String)
+    /// Файл есть, но прочитать нельзя: телефон ещё не разблокировали после включения, ошибка диска.
+    case unavailable(String)
+    /// Сохранения нет, а завести щенка этот процесс не вправе (расширение): нужно открыть приложение.
+    case noSave
 
     var errorDescription: String? {
         switch self {
         case .corrupted(let s): return "Сохранение повреждено: \(s)"
         case .writeFailed(let s): return "Не получилось сохранить: \(s)"
+        case .unavailable(let s): return "Сохранение пока недоступно: \(s)"
+        case .noSave: return "Сохранения ещё нет — открой приложение"
         }
     }
+}
+
+/// Что стор починил сам (для тоста в приложении и тестов).
+enum StoreRecovery: Equatable, Sendable {
+    /// Основной файл испорчен или пропал — продолжили с копии (имя файла копии).
+    case restored(from: String)
+    /// Испорчено всё: файлы отложены в папку (имя), заведён новый щенок.
+    case quarantined(folder: String)
 }
 
 /// Стейт, досчитанный до момента t (без записи на диск).
@@ -31,32 +54,47 @@ struct PetNow: Sendable {
 final class PetStore: @unchecked Sendable {
     static let shared = PetStore(dir: Paths.dir)
 
-    let dir: URL
-    private let lock = NSLock()
+    /// Заводить щенка вправе только приложение (и тесты): у расширений может быть свой контейнер и нет зеркала.
+    static let isAppProcess: Bool = Bundle.main.bundleURL.pathExtension != "appex"
 
-    init(dir: URL) {
+    let dir: URL
+    let mayCreate: Bool
+    private let lock = NSLock()
+    private var recovery: StoreRecovery?
+
+    init(dir: URL, mayCreate: Bool = PetStore.isAppProcess) {
         self.dir = dir
+        self.mayCreate = mayCreate
         Paths.ensureDir(dir)
     }
 
     var stateURL: URL { dir.appendingPathComponent("state.json") }
+    var bakURL: URL { dir.appendingPathComponent("state.bak.json") }
     var prevURL: URL { dir.appendingPathComponent("state.prev.json") }
+
+    /// Последняя самопочинка (с прошлого вызова). Приложение показывает по ней тост.
+    func takeRecovery() -> StoreRecovery? {
+        lock.lock(); defer { lock.unlock() }
+        let r = recovery
+        recovery = nil
+        return r
+    }
 
     // MARK: чтение и запись
 
-    /// nil — файла ещё нет (первый запуск).
+    /// nil — сохранения ещё нет (первый запуск). Испорченный файл подменяется копией только в памяти.
     func read() throws -> SaveFile? {
         lock.lock(); defer { lock.unlock() }
         var result: Result<SaveFile?, Error> = .success(nil)
         #if canImport(Darwin)
         var coordErr: NSError?
         NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: stateURL, options: [], error: &coordErr) { url in
-            result = Result { try self.loadUnlocked(url) }
+            result = Result { try self.readUnlocked(url) }
         }
-        if let coordErr { throw StoreError.corrupted(coordErr.localizedDescription) }
+        if let coordErr { throw StoreError.unavailable(coordErr.localizedDescription) }
         #else
         // NSFileCoordinator есть только на Apple; в Linux-сборке логики хватает замка.
-        result = Result { try self.loadUnlocked(stateURL) }
+        result = Result { try self.readUnlocked(stateURL) }
         #endif
         return try result.get()
     }
@@ -84,8 +122,8 @@ final class PetStore: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         let fm = FileManager.default
         var fresh = SaveFile.fresh(now: now)
-        // Кошелёк, предметы и гарант переживают щенка (death.keep в economy.json). Файл испорчен — из prev.
-        let old = [stateURL, prevURL].lazy
+        // Кошелёк, предметы и гарант переживают щенка (death.keep в economy.json). Файл испорчен — из копий.
+        let old = [stateURL, bakURL, prevURL].lazy
             .compactMap { try? Data(contentsOf: $0) }
             .compactMap { try? self.decode($0) }
             .first
@@ -131,7 +169,9 @@ final class PetStore: @unchecked Sendable {
         if fm.fileExists(atPath: stateURL.path) {
             try? fm.moveItem(at: stateURL, to: dir.appendingPathComponent("state.broken-\(Int(now)).json"))
         }
-        try writeUnlocked(fresh, to: stateURL)
+        let data = try writeUnlocked(fresh, to: stateURL, bak: nil)
+        // Копия — уже нового щенка: иначе порча state.json до первой правки вернула бы прежнего.
+        try? data.write(to: bakURL, options: Self.writeOptions)
     }
 
     /// Стереть всё (PET_RESET=1 в UI-тестах).
@@ -139,6 +179,7 @@ final class PetStore: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         let fm = FileManager.default
         try? fm.removeItem(at: stateURL)
+        try? fm.removeItem(at: bakURL)
         try? fm.removeItem(at: prevURL)
         #if APP_TARGET
         try? fm.removeItem(at: Paths.mirror)
@@ -151,59 +192,175 @@ final class PetStore: @unchecked Sendable {
         try JSONDecoder().decode(SaveFile.self, from: data)
     }
 
-    /// Прочитать, применить правку, поднять rev и записать. Вызывать под замком.
+    /// Что лежит на диске. Ничего не меняет.
+    private enum Found {
+        /// state.json цел; raw — его байты (станут state.bak.json перед записью).
+        case main(SaveFile, raw: Data)
+        /// state.json испорчен (brokenMain) или пропал — взяли копию.
+        case copy(SaveFile, from: String, brokenMain: Bool)
+        /// Ни файла, ни копий: первый запуск.
+        case nothing
+        /// Всё, что есть, испорчено.
+        case corrupt(String)
+    }
+
+    private var copies: [URL] {
+        var list = [bakURL, prevURL]
+        #if APP_TARGET
+        list.append(Paths.mirror)
+        #endif
+        return list
+    }
+
+    private func inspect(_ url: URL) throws -> Found {
+        let fm = FileManager.default
+        var brokenMain = false
+        var why = "основного файла нет, копии испорчены"
+        if fm.fileExists(atPath: url.path) {
+            let data: Data
+            // Есть, но не читается — не порча: копии в той же папке недоступны так же. Ждём, ничего не трогаем.
+            do { data = try Data(contentsOf: url) } catch { throw StoreError.unavailable(error.localizedDescription) }
+            do { return .main(try decode(data), raw: data) } catch {
+                brokenMain = true
+                why = data.isEmpty ? "пустой файл" : "\(error)"
+            }
+        }
+        var anyCopy = false
+        for u in copies where fm.fileExists(atPath: u.path) {
+            anyCopy = true
+            if let data = try? Data(contentsOf: u), let f = try? decode(data) {
+                return .copy(f, from: u.lastPathComponent, brokenMain: brokenMain)
+            }
+        }
+        return brokenMain || anyCopy ? .corrupt(why) : .nothing
+    }
+
+    private func readUnlocked(_ url: URL) throws -> SaveFile? {
+        switch try inspect(url) {
+        case .main(let f, _): return f
+        case .copy(let f, _, _): return f
+        case .nothing: return nil
+        case .corrupt(let why): throw StoreError.corrupted(why)
+        }
+    }
+
+    /// Прочитать (починив, если надо), применить правку, поднять rev и записать. Вызывать под замком.
+    /// Тело бросило — на диске ничего не меняется (и испорченное не двигаем).
     private func applyUnlocked<T>(_ url: URL, _ body: (inout SaveFile) throws -> T) throws -> T {
-        var f = try loadUnlocked(url) ?? SaveFile.fresh(now: Clock.now())
+        let now = Clock.now()
+        let found = try inspect(url)
+        var f: SaveFile
+        var bak: Data?
+        switch found {
+        case .main(let g, let raw):
+            f = g
+            bak = raw
+        case .copy(let g, let from, _):
+            f = g
+            f.log("save_restored", t: now, ok: true, reason: "основной файл испорчен или пропал, взята копия", key: from)
+        case .nothing:
+            guard mayCreate else { throw StoreError.noSave }
+            f = SaveFile.fresh(now: now)
+        case .corrupt(let why):
+            guard mayCreate else { throw StoreError.corrupted(why) }
+            f = SaveFile.fresh(now: now)
+            f.log("save_corrupt", t: now, ok: false,
+                  reason: "сохранение и все копии испорчены (\(why.prefix(120))), файлы отложены, заведён новый щенок")
+        }
+        // Сейв старше волны 15: пояс рождения — пояс телефона на момент рождения, записывается один раз.
+        if f.birthTz == nil { f.birthTz = Clock.tzOffsetMin(at: f.createdT) }
         let out = try body(&f)
         // Память и характер — из того, что только что записано (новые записи журнала разбираются один раз).
         Memories.update(&f)
         Traits.update(&f)
         f.rev += 1
-        try writeUnlocked(f, to: url)
+        // Диск чиним только теперь, когда тело не бросило.
+        switch found {
+        case .copy(_, let from, let brokenMain):
+            if brokenMain {
+                // Испорченный файл не стираем, а откладываем: по нему потом можно разобраться.
+                try moveAside(url, to: dir.appendingPathComponent("state.broken-\(Int(now)).json"))
+            }
+            recovery = .restored(from: from)
+        case .corrupt:
+            let folder = try quarantine(now: now)
+            if let i = f.journal.lastIndex(where: { $0.kind == "save_corrupt" }) {
+                f.journal[i].key = folder
+                let id = f.journal[i].id
+                if let j = f.outbox.lastIndex(where: { $0.id == id }) { f.outbox[j].key = folder }
+            }
+            recovery = .quarantined(folder: folder)
+        case .main, .nothing:
+            break
+        }
+        try writeUnlocked(f, to: url, bak: bak)
         return out
     }
 
-    private func loadUnlocked(_ url: URL) throws -> SaveFile? {
+    /// Перенести файл; не вышло — ошибка: иначе следующая запись затёрла бы его.
+    private func moveAside(_ from: URL, to: URL) throws {
+        do { try FileManager.default.moveItem(at: from, to: to) } catch {
+            throw StoreError.corrupted("не получилось отложить \(from.lastPathComponent): \(error.localizedDescription)")
+        }
+    }
+
+    /// Всё испорченное — в папку corrupt-<дата> рядом (зеркало приложения копируется: его место перезапишется).
+    private func quarantine(now: Double) throws -> String {
         let fm = FileManager.default
-        if let data = try? Data(contentsOf: url) {
-            do { return try decode(data) } catch {
-                // Испорченный файл не трогаем, а откладываем в сторону: по нему потом можно разобраться.
-                let broken = dir.appendingPathComponent("state.broken-\(Int(Date().timeIntervalSince1970)).json")
-                try? fm.moveItem(at: url, to: broken)
-                if let f = recover() { return f }
-                throw StoreError.corrupted("\(error)")
-            }
+        let stamp = Self.stamp(now)
+        var name = "corrupt-\(stamp)"
+        var n = 2
+        while fm.fileExists(atPath: dir.appendingPathComponent(name).path) {
+            name = "corrupt-\(stamp)-\(n)"
+            n += 1
         }
-        // Файла нет: если есть копии — это потеря группы при переподписи, восстанавливаемся из них.
-        return recover()
-    }
-
-    private func recover() -> SaveFile? {
-        var candidates = [prevURL]
+        let folder = dir.appendingPathComponent(name, isDirectory: true)
+        do { try fm.createDirectory(at: folder, withIntermediateDirectories: true) } catch {
+            throw StoreError.corrupted("не получилось создать \(name): \(error.localizedDescription)")
+        }
+        for u in [stateURL, bakURL, prevURL] where fm.fileExists(atPath: u.path) {
+            try moveAside(u, to: folder.appendingPathComponent(u.lastPathComponent))
+        }
         #if APP_TARGET
-        candidates.append(Paths.mirror)
-        #endif
-        for u in candidates {
-            if let data = try? Data(contentsOf: u), let f = try? decode(data) { return f }
+        if fm.fileExists(atPath: Paths.mirror.path) {
+            try? fm.copyItem(at: Paths.mirror, to: folder.appendingPathComponent(Paths.mirror.lastPathComponent))
         }
-        return nil
+        #endif
+        return name
     }
 
-    private func writeUnlocked(_ f: SaveFile, to url: URL) throws {
+    /// «2026-10-19-1050» по UTC: без DateFormatter, одинаково на Linux и на телефоне.
+    static func stamp(_ t: Double) -> String {
+        let m = DayKey.minute(t)
+        let day = DayKey.floorDiv(m, 1440)
+        let (y, mo, d) = Postcards.civil(day)
+        let hm = m - day * 1440
+        func two(_ x: Int) -> String { x < 10 ? "0\(x)" : "\(x)" }
+        return "\(y)-\(two(mo))-\(two(d))-\(two(hm / 60))\(two(hm % 60))"
+    }
+
+    #if canImport(Darwin)
+    private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+    #else
+    private static let writeOptions: Data.WritingOptions = [.atomic]
+    #endif
+
+    /// bak — прошлый валидный state.json: кладётся до записи нового. Ошибка копии не мешает записи.
+    @discardableResult
+    private func writeUnlocked(_ f: SaveFile, to url: URL, bak: Data?) throws -> Data {
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         let data: Data
         do { data = try enc.encode(f) } catch { throw StoreError.writeFailed("\(error)") }
-        #if canImport(Darwin)
-        let opts: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
-        #else
-        let opts: Data.WritingOptions = [.atomic]
-        #endif
+        let opts = Self.writeOptions
+        if let bak { try? bak.write(to: bakURL, options: opts) }
+        // Атомарно: временный файл и rename. Нет места — бросаем, а прежний state.json цел.
         do { try data.write(to: url, options: opts) } catch { throw StoreError.writeFailed("\(error)") }
         if f.rev % 10 == 0 { try? data.write(to: prevURL, options: opts) }
         #if APP_TARGET
         try? data.write(to: Paths.mirror, options: opts)
         #endif
+        return data
     }
 
     // MARK: удобные входы

@@ -178,6 +178,19 @@ final class AppModel {
             storeError = error.localizedDescription
         }
         NotificationScheduler.registerCategories()
+        noteStoreRecovery()
+    }
+
+    /// Стор сам починил сохранение (волна 15) — сказать хозяину, что случилось, а не молча.
+    private func noteStoreRecovery() {
+        switch PetStore.shared.takeRecovery() {
+        case .restored?:
+            show("Сохранение было повреждено — взял запасную копию", ok: false)
+        case .quarantined(let folder)?:
+            show("Сохранение повреждено, копий нет: файлы отложены в \(folder), это новый щенок", ok: false)
+        case nil:
+            break
+        }
     }
 
     // MARK: жизненный цикл
@@ -205,6 +218,7 @@ final class AppModel {
             }
             if let report = result.report, away == nil { away = report }
             if result.paused { show("Пока подпись не работала, время в комнате стояло") }
+            noteStoreRecovery()
         } catch {
             storeError = error.localizedDescription
         }

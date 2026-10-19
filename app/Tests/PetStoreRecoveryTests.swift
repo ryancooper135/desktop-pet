@@ -25,6 +25,7 @@ final class PetStoreRecoveryTests: XCTestCase {
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
         try store.startOver(now: rT0)
+        rRemove(store.bakURL)
         rRemove(store.prevURL)
         rRemove(Paths.mirror)
         try Data("{ \"pet\": ".utf8).write(to: store.stateURL)
@@ -34,11 +35,13 @@ final class PetStoreRecoveryTests: XCTestCase {
                 return XCTFail("ждали StoreError.corrupted, пришло \(err)")
             }
         }
-        XCTAssertEqual(rBrokenNames(dir).count, 1, "испорченный файл отложен, а не стёрт")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: store.stateURL.path))
+        // Волна 15: читатель (виджет) файлы не двигает — иначе следующий mutate видел пустую папку и молча заводил щенка.
+        XCTAssertTrue(rBrokenNames(dir).isEmpty, "читатель ничего не откладывает")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.stateURL.path), "испорченный файл на месте")
+        XCTAssertThrowsError(try store.read(), "и второй раз — та же ошибка, а не «первый запуск»")
     }
 
-    func testMissingStateRecoversFromPrevFirst() throws {
+    func testMissingStateRecoversFromBakThenPrev() throws {
         let dir = StoreHooks.makeTempStoreDir("pet-recovery")
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
@@ -47,8 +50,12 @@ final class PetStoreRecoveryTests: XCTestCase {
         rRemove(store.stateURL)
 
         let f = try XCTUnwrap(store.read(), "файл пропал — берём копию")
-        XCTAssertEqual(f.rev, 0, "prev (rev 0) пробуется раньше зеркала")
-        XCTAssertNil(f.debugMarker)
+        XCTAssertEqual(f.rev, 2, "state.bak.json — прошлая запись, раньше prev и зеркала")
+        XCTAssertEqual(f.debugMarker, 2)
+        rRemove(store.bakURL)
+        let g = try XCTUnwrap(store.read())
+        XCTAssertEqual(g.rev, 0, "без bak — prev (rev 0)")
+        XCTAssertNil(g.debugMarker)
         XCTAssertTrue(rBrokenNames(dir).isEmpty, "пропажа — не порча, откладывать нечего")
     }
 
@@ -63,6 +70,7 @@ final class PetStoreRecoveryTests: XCTestCase {
             throw XCTSkip("зеркало пишет только приложение (APP_TARGET)")
         }
         rRemove(store.stateURL)
+        rRemove(store.bakURL)
         rRemove(store.prevURL)
 
         let f = try XCTUnwrap(store.read(), "переподпись съела группу — спасает зеркало")
@@ -70,7 +78,7 @@ final class PetStoreRecoveryTests: XCTestCase {
         XCTAssertEqual(f.rev, 1)
     }
 
-    func testMutateOverCorruptFileContinuesFromPrev() throws {
+    func testMutateOverCorruptFileContinuesFromBak() throws {
         let dir = StoreHooks.makeTempStoreDir("pet-recovery")
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
@@ -82,9 +90,13 @@ final class PetStoreRecoveryTests: XCTestCase {
         try store.mutate { (f: inout SaveFile) -> Void in f.debugMarker = 42 }
         let f = try XCTUnwrap(store.read())
         XCTAssertEqual(f.petId, good.petId, "тот же щенок, не новый")
-        XCTAssertEqual(f.rev, 11)
+        XCTAssertEqual(f.rev, 10, "bak (rev 9) + эта запись: потеряна только испорченная")
         XCTAssertEqual(f.debugMarker, 42)
+        XCTAssertEqual(f.journal.last?.kind, "save_restored")
+        XCTAssertEqual(f.journal.last?.key, "state.bak.json")
         XCTAssertEqual(rBrokenNames(dir).count, 1)
+        XCTAssertEqual(store.takeRecovery(), .restored(from: "state.bak.json"))
+        XCTAssertNil(store.takeRecovery(), "тост — один раз")
     }
 
     func testThrowingBodyWritesNothing() throws {

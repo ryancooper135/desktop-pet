@@ -448,11 +448,15 @@ final class PetLogicTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.prevURL.path), "на rev 10 есть state.prev.json")
 
         try Data("{ это не json".utf8).write(to: store.stateURL)
-        let back = try XCTUnwrap(store.read(), "испорченный файл — восстановление из prev")
+        try FileManager.default.removeItem(at: store.bakURL)
+        let back = try XCTUnwrap(store.read(), "испорченный файл, bak нет — восстановление из prev")
         XCTAssertEqual(back.petId, good.petId)
         XCTAssertEqual(back.rev, 10)
+        // Откладывает испорченный файл писатель, а не читатель.
+        try store.mutate { (f: inout SaveFile) -> Void in f.seq += 0 }
         let names = try FileManager.default.contentsOfDirectory(atPath: dir.path)
         XCTAssertTrue(names.contains { $0.hasPrefix("state.broken-") }, "испорченный файл отложен: \(names)")
+        XCTAssertEqual(try XCTUnwrap(store.read()).rev, 11)
     }
 
     func testStoreStartOver() throws {

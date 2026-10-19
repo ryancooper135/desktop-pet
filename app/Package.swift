@@ -83,6 +83,8 @@ let package = Package(
             name: "PetTests",
             dependencies: ["Pet", .product(name: "PetCore", package: "swift")],
             path: "Tests",
+            // Сейвы прошлых эпох (SaveMigrationTests читают их по #filePath — так же и в Xcode CI).
+            exclude: ["Fixtures"],
             sources: [
                 "PetLogicTests.swift",
                 "StoreTests.swift",
@@ -102,6 +104,8 @@ let package = Package(
                 "PetRunnerCoverageTests.swift",
                 "SaveFileCoverageTests.swift",
                 "PetStoreRecoveryTests.swift",
+                "SaveRecoveryTests.swift",
+                "SaveMigrationTests.swift",
                 "NotificationPlannerCoverageTests.swift",
                 "PresenterCoverageTests.swift",
                 "CatalogHashTests.swift",
