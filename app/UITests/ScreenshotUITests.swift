@@ -18,8 +18,8 @@
 //   ui-61/62        надето: Шиба в шапочке-листике, шарфе и плаще; коллекция с «Надеть/Снять», замена бантиком
 //   ui-63/64        свет комнаты: вечер 20:30 в светлой теме (лампа, закатное окно), ночь 02:00 в тёмной (пёс спит, луна)
 //   ui-65/66        открытка дня: с кадром 3D-сцены (снял сам PostcardCamera), в последний день перед пропажей
-//   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера, шаги автоматизации
-//   ui-76           дочесали: Шиба отряхивается (-shake), потом подпрыгивает (-hop), новая фраза в тосте
+//   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера; -howto — шаги автоматизации
+//   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -276,13 +276,18 @@ final class ScreenshotUITests: XCTestCase {
         try shootOptional("ui-75-habits", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
                                                 "PET_OPEN": "habits"],
                           marker: "habits.screen")
+        // Низ листа: шаги «Автоматизации» и кнопка «Открыть «Команды»».
+        try shootOptional("ui-75-habits-howto", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                                      "PET_OPEN": "habits"],
+                          marker: "habits.openShortcuts", scrollIn: "habits.screen")
     }
 
     /// Конец расчёсывания (волна 11): тот же сеанс, что ui-60, но снимок раньше — посреди встряхивания и прыжка.
     @MainActor
     func testStates76BrushFinale() throws {
-        try brushShot("ui-76-brush-shake", strokes: 7, expect: "Готово", settleFor: 0.45)
-        try brushShot("ui-76-brush-hop", strokes: 7, expect: "Готово", settleFor: 1.15)
+        // Серия с одного запуска: момент, когда видна поза, зависит от скорости симулятора.
+        try brushShot("ui-76-brush-1", strokes: 7, expect: "Готово", settleFor: 0.3,
+                      then: [("ui-76-brush-2", 0.5), ("ui-76-brush-3", 0.5), ("ui-76-brush-4", 0.5)])
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
@@ -311,9 +316,10 @@ final class ScreenshotUITests: XCTestCase {
         app.terminate()
     }
 
-    /// expect — подпись элемента после мазка (жест засчитан).
+    /// expect — подпись элемента после мазка (жест засчитан). then — ещё снимки следом: (имя, пауза перед ним).
     @MainActor
-    private func brushShot(_ name: String, strokes: Int, expect: String, settleFor: TimeInterval) throws {
+    private func brushShot(_ name: String, strokes: Int, expect: String, settleFor: TimeInterval,
+                           then more: [(String, TimeInterval)] = []) throws {
         let app = Self.makeApp()
         let env = ["PET_SEED": "brush", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "brush",
                    "PET_BRUSH_STROKES": String(strokes)]
@@ -336,6 +342,10 @@ final class ScreenshotUITests: XCTestCase {
         let found = app.descendants(matching: .any).matching(label).firstMatch.waitForExistence(timeout: 5)
         settle(settleFor)
         snap(name)
+        for (n, pause) in more {
+            settle(pause)
+            snap(n)
+        }
         app.terminate()
         if !found { throw XCTSkip("\(name): нет «\(expect)» после мазка") }
     }
