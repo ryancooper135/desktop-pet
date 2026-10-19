@@ -43,6 +43,8 @@ final class AppModel {
     var showCatch = false
     /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
     var showHabits = false
+    /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
+    var showKitchen = false
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -670,7 +672,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://brush, pet://habits
+    /// pet://brush, pet://habits, pet://kitchen
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -690,6 +692,13 @@ final class AppModel {
         case "catch": showCatch = true
         case "brush": startBrush()
         case "habits": showHabits = true
+        case "kitchen":
+            // Кухня — лист поверх «Дома», как лавка поверх автомата.
+            showHouse = true
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(0.8))
+                self?.showKitchen = true
+            }
         default:
             showNeeds = false
             showSettings = false
@@ -700,6 +709,7 @@ final class AppModel {
             showTricks = false
             showCatch = false
             showHabits = false
+            showKitchen = false
             postcard = nil
         }
     }
@@ -992,13 +1002,101 @@ final class AppModel {
         }
     }
 
+    // MARK: волна 12: кухня шефа
+
+    /// «Угостить» на кухне: купить еду и сразу дать (Cooking.buyFood). Вышло — листы закрываются и пёс ест
+    /// в комнате, как после «Покормить»; отказ (нет монет, моется…) экран показывает сам строкой под карточкой.
+    /// nil — стор не записался.
+    func buyFood(_ id: String) -> Cooking.BuyResult? {
+        let now = Clock.now()
+        let before = try? PetStore.shared.read()
+        let r: Cooking.BuyResult
+        do {
+            r = try PetStore.shared.mutate { Cooking.buyFood(id, in: &$0, now: now) }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return nil
+        }
+        refresh(now: now)
+        guard case .ok(_, let out) = r else {
+            haptic(.warning)
+            SoundKit.shared.play(.refuse)
+            return r
+        }
+        var delta: [String: Int] = [:]
+        if let before, let after = file {
+            delta = AppActions.delta(PetRunner.peek(before, at: now), PetRunner.peek(after, at: now))
+        }
+        showKitchen = false
+        showHouse = false
+        let text = Cooking.buyText(r, name: Catalog.name(id))
+        // Листы ещё уезжают: еда — когда комнату видно.
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard let self else { return }
+            self.react("feed")
+            self.settle(.feed(id), out, delta: delta)
+            self.show(text, emoji: "🪙")
+        }
+        Task { await AppActions.shared.afterChange() }
+        return r
+    }
+
+    /// «Приготовить» на кухне шефа (Cooking.cook). Вышло — листы закрываются, пёс ест блюдо клипами кормёжки
+    /// и говорит фразу; бонус дня — монеты тостом или карточка вкуса (её покажет noteTastes). Отказ — строкой
+    /// в листе, листы остаются. nil — стор не записался.
+    func cook(_ id: String) -> CookOutcome? {
+        let now = Clock.now()
+        let out: CookOutcome
+        do {
+            out = try PetStore.shared.mutate { Cooking.cook(id, in: &$0, now: now) }
+        } catch {
+            show(RefuseText.text("store"), ok: false)
+            return nil
+        }
+        refresh(now: now)
+        guard out.ok else {
+            haptic(.warning)
+            SoundKit.shared.play(.refuse)
+            return out
+        }
+        showKitchen = false
+        showHouse = false
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            self?.cookReaction(out)
+        }
+        Task { await AppActions.shared.afterChange() }
+        return out
+    }
+
+    private func cookReaction(_ out: CookOutcome) {
+        react(Cooking.reactKind)
+        haptic(.success)
+        SoundKit.shared.settled(kind: Cooking.reactKind, ok: true)
+        lastDelta = out.gains
+        popDelta(out.gains)
+        heartBurst()
+        notePhoto(.treat, delay: PostcardCamera.actionDelay)
+        // Открылся вкус — его карточка и реплика важнее фразы про блюдо.
+        if out.openedTaste == nil { speak(out.text) }
+        if out.coins > 0 { show(Cooking.reply(out), emoji: "🪙") }
+        // Окно позы «ест» 12 с, тикер — раз в 30 с: пересчитать снимок вовремя (как settle).
+        poseTask?.cancel()
+        poseTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(12_500))
+            if Task.isCancelled { return }
+            self?.refresh()
+        }
+    }
+
     // MARK: волна 10: кадры открыток
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
               !showNeeds, !showSettings, !showAlbum, !showCapsule, !showShop, !showHouse, !showTricks, !showCatch,
-              !showHabits else { return false }
+              !showHabits, !showKitchen else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true
@@ -1430,6 +1528,22 @@ enum LaunchSeed {
                 _ = ItemCatalog.toggleShelf(&f, "trophy_cup")
                 _ = ItemCatalog.toggleToy(&f, "ball_tennis")
                 f.econ.wallet.coins = 5000
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "kitchen":
+                // Волна 12: «Кухня шефа» (L3, скидка и готовка), запас кухни полный, сытость 40 — блюдо видно
+                // прибавкой; тыковка в коллекции (суп готов), банки желудей нет (печенье просит вещь).
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 75 }
+                f.pet.needs[.food] = 40
+                f.pet.home[.kitchen] = 3
+                f.pet.pantry = 60
+                f.econ.items["pumpkin_small"] = 1
+                f.econ.wallet.coins = 500
+                // Любимая еда уже открыта: бонус первого блюда — монеты, и на снимке видна фраза пса, а не карточка вкуса.
+                if let love = Tastes.hidden(petId: f.petId, .food, log: f.tastes).love {
+                    f.tastes.opened[Tastes.key(.food, love)] = TasteLog.Fact(r: Taste.love.rawValue, t: now - 86400)
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             default:

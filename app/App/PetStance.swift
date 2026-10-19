@@ -62,10 +62,10 @@ enum PetStance {
         return wanted
     }
 
-    /// Поза, которую ядро пришлёт после удачного действия (как Presenter.pose: feed/item → eating).
+    /// Поза, которую ядро пришлёт после удачного действия (как Presenter.pose: feed/item/cook → eating).
     /// Реакция сразу кончается циклом этой позы, а не циклом прежней — на стыке ничего не мелькает.
     static func poseAfter(reaction kind: String, ok: Bool) -> Pose? {
-        ok && (kind == "feed" || kind == "item") ? .eating : nil
+        ok && (kind == "feed" || kind == "item" || kind == Cooking.reactKind) ? .eating : nil
     }
 
     /// Цикл по умолчанию для положения: им заполняем паузу, пока поза ещё не пришла.
@@ -179,7 +179,8 @@ enum PetStance {
                 let fun = pick(["play_bow", "hop"], available: available)
                 out = fun.first.map { [$0] } ?? ["jump_to_idle"]
             }
-        case "feed":
+        // блюдо с кухни (Cooking) ест как обычную еду — те же клипы
+        case "feed", Cooking.reactKind:
             if standing { out = EatClip.meal(chews: EatClip.feedChews, available: available) }
         case "item":
             if standing { out = EatClip.meal(chews: EatClip.itemChews, available: available) }

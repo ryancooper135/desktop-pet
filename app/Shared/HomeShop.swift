@@ -71,6 +71,11 @@ enum HomeShop {
         func pct(_ x: Double) -> Int { Int((abs(1 - x) * 100).rounded()) }
         var out: [String] = []
         for k in perkOrder {
+            // готовка — флаг, не число (читает приложение, Cooking.swift)
+            if k == Cooking.buffKey {
+                if buff[k]?.bool == true { out.append("Готовка: блюда сытнее еды, первое за день — с подарком") }
+                continue
+            }
             guard let v = buff[k]?.double else { continue }
             switch k {
             case "bath_min": out.append("Мытьё \(Int(v)) мин")
@@ -90,17 +95,19 @@ enum HomeShop {
             case "walk_decay_x": out.append("Просится гулять на \(pct(v))% реже")
             // бафф читает приложение (CatchGame.coinsX), не ядро
             case CatchGame.buffKey: out.append("Монет за «Лови мячик» на \(pct(v))% больше")
+            // скидку применяет приложение при покупке еды на кухне (Cooking.price)
+            case Cooking.priceKey: out.append("Еда в «Угостить» на \(pct(v))% дешевле")
             default: break
             }
         }
         return out
     }
 
-    /// Ключи, которые ядро применяет (core/README), и бафф «Лови мячик» из приложения — в порядке показа.
+    /// Ключи, которые ядро применяет (core/README), и баффы из приложения («Лови мячик», кухня шефа) — в порядке показа.
     static let perkOrder = [
         "bath_min", "clean_decay_x", "fun_after_bath", "look_after_bath",
         "sleep_regen_x", "night_food_decay_x", "love_on_wake",
-        "storage", "autofeed_below",
+        "storage", "autofeed_below", Cooking.priceKey, Cooking.buffKey,
         "heart_damage_x", "heart_regen_x", "max_hearts",
         "fun_decay_x", "walk_decay_x",
         CatchGame.buffKey,

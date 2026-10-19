@@ -261,7 +261,15 @@
       { "name": "Миска",               "price": 0,    "buff": { "storage": 5 } },
       { "name": "Холодильник",         "price": 600,  "buff": { "storage": 15, "autofeed_below": 10 } },
       { "name": "Холодильник с автокормушкой", "price": 1700, "buff": { "storage": 30, "autofeed_below": 15 } },
-      { "name": "Кухня шефа",          "price": 3500, "buff": { "storage": 60, "autofeed_below": 25, "food_price_x": 0.9, "cooking": true } } ] },
+      { "name": "Кухня шефа",          "price": 3500, "buff": { "storage": 60, "autofeed_below": 25, "food_price_x": 0.9, "cooking": true } } ],
+      "cooking": { "_note": "готовка на кухне с баффом cooking (приложение, app/Shared/Cooking.swift); ядро не читает. pantry — сколько запаса уходит, food/fun/love — прибавка, taste — вкус какой еды у блюда, needs_item — нужна вещь из капсул (не тратится)",
+        "cooldown_min": 180, "per_day": 2, "bonus_coins": 15,
+        "recipes": [
+          { "id": "stew_home",     "name": "Домашнее рагу",      "emoji": "🍲", "pantry": 20, "food": 45, "fun": 6,  "love": 4,  "taste": "stew" },
+          { "id": "porridge",      "name": "Каша на молоке",     "emoji": "🥣", "pantry": 15, "food": 35, "fun": 4,  "love": 6,  "taste": "milk" },
+          { "id": "pumpkin_soup",  "name": "Тыквенный суп",      "emoji": "🎃", "pantry": 25, "food": 40, "fun": 10, "love": 6,  "taste": "carrot", "needs_item": "pumpkin_small" },
+          { "id": "acorn_cookies", "name": "Желудёвое печенье",  "emoji": "🍪", "pantry": 20, "food": 25, "fun": 15, "love": 10, "taste": "cake",   "needs_item": "acorn_jar" }
+        ] } },
     "kennel":  { "name": "Будка",          "levels": [
       { "name": "Коробка",             "price": 0 },
       { "name": "Будка",               "price": 900,  "buff": { "heart_damage_x": 0.85 } },

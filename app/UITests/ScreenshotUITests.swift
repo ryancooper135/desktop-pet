@@ -26,6 +26,8 @@
 //   ui-71/72        шерсть текстурой крупным планом (PET_CAMERA=close): лохматая с клочками на спине, она же расчёсанная — гладкая
 //   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера; -howto — шаги автоматизации
 //   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
+//   ui-77/78        кухня шефа (PET_SEED=kitchen): лист «Кухня» — рецепты и еда со скидкой (старая цена зачёркнута);
+//                   после «Приготовить» Шиба ест рагу и говорит фразу; «Угостить» морковкой за 3 вместо 4
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -294,6 +296,48 @@ final class ScreenshotUITests: XCTestCase {
         // Серия с одного запуска: момент, когда видна поза, зависит от скорости симулятора.
         try brushShot("ui-76-brush-1", strokes: 7, expect: "Готово", settleFor: 0.3,
                       then: [("ui-76-brush-2", 0.5), ("ui-76-brush-3", 0.5), ("ui-76-brush-4", 0.5)])
+    }
+
+    // MARK: волна 12: кухня шефа (ui-77/78)
+
+    /// Лист «Кухня» (PET_OPEN=kitchen открывает «Дом», а из него лист): «Приготовить» с четырьмя блюдами
+    /// (печенье просит банку желудей), ниже «Угостить» — цены со скидкой −10%, старая зачёркнута.
+    @MainActor
+    func testStates77Kitchen() throws {
+        let env = ["PET_SEED": "kitchen", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "kitchen"]
+        try shootOptional("ui-77-kitchen", env: env, marker: "kitchen.screen")
+        try shootOptional("ui-77-kitchen-food", env: env, marker: "kitchen.buy.carrot", scrollIn: "kitchen.screen")
+    }
+
+    /// «Приготовить» рагу: листы закрываются, Шиба ест (клипы кормёжки) и говорит фразу, тост с монетами дня.
+    /// Потом отдельный запуск: «Угостить» морковкой — в тосте цена со скидкой.
+    @MainActor
+    func testStates78Cooked() throws {
+        let env = ["PET_SEED": "kitchen", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "kitchen"]
+        let app = try shootOptional("ui-78-before", env: env, marker: "kitchen.cook.stew_home", keepRunning: true)
+        let cook = app.descendants(matching: .any)["kitchen.cook.stew_home"]
+        if cook.waitForExistence(timeout: 5) {
+            cook.tap()
+            let line = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "уплетает"))
+            XCTAssertTrue(line.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Приготовить» нет фразы «Шиба уплетает…»")
+            settle(0.6)
+            snap("ui-78-cooked")
+            settle(1.5)
+            snap("ui-78-cooked-2")
+        }
+        app.terminate()
+
+        let shop = try shootOptional("ui-78-buy-before", env: env, marker: "kitchen.buy.carrot",
+                                     scrollIn: "kitchen.screen", keepRunning: true)
+        let buy = shop.descendants(matching: .any)["kitchen.buy.carrot"]
+        if buy.waitForExistence(timeout: 5) {
+            buy.tap()
+            let toast = shop.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Угостили"))
+            XCTAssertTrue(toast.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Угостить» нет тоста с ценой")
+            settle(0.6)
+            snap("ui-78-bought")
+        }
+        shop.terminate()
     }
 
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.

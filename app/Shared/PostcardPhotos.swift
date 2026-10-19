@@ -92,6 +92,8 @@ enum PostcardPhotos {
     static func kind(forAction kind: String, key: String?) -> MomentKind? {
         switch kind {
         case "feed": return (key ?? Catalog.mainFood) == Catalog.mainFood ? .feed : .treat
+        // блюдо с кухни — тоже угощение
+        case Cooking.reactKind: return .treat
         case "play": return .play
         case "pet": return .pets
         case "bath": return .bath
