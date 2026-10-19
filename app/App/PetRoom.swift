@@ -24,6 +24,9 @@ enum PetRoom {
     /// Крупный план спины для снимков шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, вдвое ближе и чуть сверху.
     static let closeEye = SIMD3<Float>(0.05, 0.7, 1.4)
     static let closeTarget = SIMD3<Float>(0, 0.24, 0)
+    /// Морда крупно для снимков рта (ui-85, PET_CAMERA=face): камера чуть спереди-слева, смотрит на нос.
+    static let faceEye = SIMD3<Float>(-0.04, 0.42, 1.2)
+    static let faceTarget = SIMD3<Float>(-0.1, 0.3, 0.15)
 
     /// Поворот обёртки питомца по Y для вида 3/4: морда влево к камере, к камере повёрнут левый бок собаки.
     nonisolated static let yaw3q: Float = -0.55
@@ -172,9 +175,11 @@ enum PetRoom {
         let cam = PerspectiveCamera()
         cam.name = "camera"
         cam.camera.fieldOfViewInDegrees = cameraFov
-        // Только UI-тесты: PET_CAMERA=close — крупный план (в приложении камеры не крутятся).
-        let close = Env.isUITest && Env.value("PET_CAMERA") == "close"
-        cam.look(at: close ? closeTarget : cameraTarget, from: close ? closeEye : cameraEye, relativeTo: nil)
+        // Только UI-тесты: PET_CAMERA=close/face — крупный план спины или морды (в приложении камеры не крутятся).
+        let mode = Env.isUITest ? Env.value("PET_CAMERA") : nil
+        let (target, eye) = mode == "close" ? (closeTarget, closeEye)
+            : mode == "face" ? (faceTarget, faceEye) : (cameraTarget, cameraEye)
+        cam.look(at: target, from: eye, relativeTo: nil)
         return cam
     }
 

@@ -33,6 +33,8 @@
 //                   с монетами, ui-80-blockduo-room — после «Готово» Шиба в комнате радуется и говорит
 //   ui-81/82        свои персонажи (PET_SEED=charpack): «Свой персонаж» — список, «Без стойки» с ошибкой красным;
 //                   комната с «Серым Шибой» из папки (клипы переименованы, рост 0,8, серая шерсть)
+//   ui-85           рот крупно (PET_CAMERA=face, волна 13): -face-idle — морда в покое, -face-feed-N — ест и говорит
+//                   реплику (челюсть Jaw: клип eat и «говорение» по гласным)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -547,6 +549,20 @@ final class ScreenshotUITests: XCTestCase {
     func testStates72FurSleek() {
         shootState("ui-72-fur-sleek", env: ["PET_SEED": "fur_brushed", "PET_NOW": Self.noon, "PET_SCHEME": "light",
                                             "PET_CAMERA": "close"], marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Рот крупным планом (PET_CAMERA=face, полдень, волна 13): морда в покое, потом «Покормить» — клип eat открывает
+    /// челюсть, а пока висит реплика, рот «говорит». Три кадра через 0,6 с.
+    @MainActor
+    func testStates85Face() throws {
+        let env = ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_CAMERA": "face"]
+        let app = try shootOptional("ui-85-face-idle", env: env, marker: "act.feed", keepRunning: true)
+        app.descendants(matching: .any)["act.feed"].firstMatch.tap()
+        for k in 1...3 {
+            settle(0.6)
+            snap("ui-85-face-feed-\(k)")
+        }
+        app.terminate()
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).
