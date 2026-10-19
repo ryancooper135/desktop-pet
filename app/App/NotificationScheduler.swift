@@ -31,7 +31,23 @@ enum NotificationScheduler {
         if granted { await reschedule() }
     }
 
+    /// Последний запущенный пересчёт. Пересчёты идут строго по очереди: install ждёт центр уведомлений
+    /// между «снять старые» и «поставить новые», и два пересчёта подряд (действия одно за другим) иначе
+    /// перемежались — второй снимал старые, пока первый ещё дописывал свои, и лишние оставались висеть
+    /// (id с моментом срабатывания не перезаписываются).
+    private static var chain: Task<Void, Never>?
+
     static func reschedule() async {
+        let prev = chain
+        let next = Task { @MainActor in
+            await prev?.value
+            await rescheduleNow()
+        }
+        chain = next
+        await next.value
+    }
+
+    private static func rescheduleNow() async {
         guard !Env.isUnitTest else { return }
         guard await allowed() else { return }
         let now = Clock.now()
