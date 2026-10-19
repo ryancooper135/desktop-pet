@@ -347,16 +347,34 @@ struct HapticsLayer: View {
 /// Аватар, имя, сердечки и уровень. Непрозрачная плашка.
 /// Критично (уровень 3+): красная обводка и значок тревоги у подписи — видно сразу, не путается с «голоден».
 struct NameCard: View {
+    @Environment(AppModel.self) private var model
     let snap: PetSnapshot
+    /// Аватар своего персонажа (волна 14): avatar.png из пака или снимок морды. nil — мордочка Шибы.
+    @State private var avatar: UIImage?
+    @State private var avatarFor: String?
 
     private var critical: Bool { snap.alive && snap.level >= 3 }
+    private var avatarKey: String? { model.characterEntry.map { "\($0.id)|\($0.folder.path)" } }
+    private var shownAvatar: UIImage? { avatarKey != nil && avatarFor == avatarKey ? avatar : nil }
 
     var body: some View {
         HStack(spacing: 10) {
-            PetFaceView(pose: snap.pose)
-                .frame(width: 40, height: 40)
-                // Настроение читает сцена («Шиба спокоен»); здесь оно дало бы «Шиба спокоен, Шиба, …».
-                .accessibilityHidden(true)
+            Group {
+                if let img = shownAvatar {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(PetPalette.soft.opacity(0.18)))
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(PetPalette.ink.opacity(0.12), lineWidth: 1))
+                } else {
+                    PetFaceView(pose: snap.pose)
+                }
+            }
+            .frame(width: 40, height: 40)
+            // Настроение читает сцена («Шиба спокоен»); здесь оно дало бы «Шиба спокоен, Шиба, …».
+            .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(snap.name)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
@@ -387,6 +405,15 @@ struct NameCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityHint(Text("Долгое нажатие — шкалы"))
+        // Снимок видно по идентификатору (ui-86): «name.card.avatar» — в шапке картинка своего персонажа.
+        .accessibilityIdentifier(shownAvatar != nil ? "name.card.avatar" : "name.card")
+        .task(id: avatarKey) {
+            guard let entry = model.characterEntry, entry.ok, let key = avatarKey else { return }
+            let img = await CharacterAvatar.image(for: entry)
+            guard key == avatarKey else { return }
+            avatar = img
+            avatarFor = key
+        }
     }
 }
 
