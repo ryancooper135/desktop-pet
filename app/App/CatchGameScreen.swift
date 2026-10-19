@@ -5,7 +5,8 @@
 // хаптика и звук.
 // Решения (Вадим может поменять): на весь экран, а не листом — лист тянулся бы вниз вместе с миской;
 // миска — простая фигура, мячик — tennisball.fill, косточка нарисована фигурами (своего SF Symbol у неё нет);
-// ушёл в фон посреди раунда — время стоит (шаг кадра не больше 1/20 с).
+// ушёл в фон или открыл Пункт управления посреди раунда — время стоит (FrameClock: шаг не больше 1/20 с, вне
+// активного состояния 0, цикл просыпается раз в 1/4 с).
 // UI-тесты: PET_CATCH=play — раунд замер на 12-й секунде (автопилот, сид 7), PET_CATCH=done — раунд сыгран
 // автопилотом и записан, видна карточка итога.
 
@@ -14,6 +15,7 @@ import SwiftUI
 
 struct CatchGameScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum Phase: Equatable {
         case intro
@@ -29,6 +31,8 @@ struct CatchGameScreen: View {
     @State private var runID = 0
     /// Снимок для UI-теста: раунд не идёт сам.
     @State private var frozen = false
+    /// Приложение активно — зеркало scenePhase для цикла кадров: окружение, взятое задачей, не обновляется.
+    @State private var live = true
 
     /// Сид UI-тестов: одна и та же раскладка на каждом прогоне.
     static let testSeed: UInt64 = 7
@@ -60,6 +64,7 @@ struct CatchGameScreen: View {
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .task(id: runID) { await loop() }
+        .onChange(of: scenePhase, initial: true) { _, p in live = p == .active }
         .onAppear { uiTestSetup() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("catch.screen")
@@ -189,15 +194,15 @@ struct CatchGameScreen: View {
         runID += 1
     }
 
-    /// Кадры примерно по 1/60 с. Время раунда — сумма шагов, а не часы: в фоне и на подвисании оно стоит.
+    /// Кадры примерно по 1/60 с. Время раунда — сумма шагов, а не часы: в фоне, вне активного состояния
+    /// и на подвисании оно стоит (FrameClock).
     private func loop() async {
         guard phase == .playing, !frozen else { return }
-        var last = Date()
+        var clock = FrameClock(now: ProcessInfo.processInfo.systemUptime)
         while !Task.isCancelled, phase == .playing, !round.isOver {
-            try? await Task.sleep(for: .milliseconds(16))
-            let now = Date()
-            let dt = min(now.timeIntervalSince(last), 0.05)
-            last = now
+            try? await Task.sleep(for: .milliseconds(FrameClock.waitMs(running: live)))
+            let dt = clock.tick(now: ProcessInfo.processInfo.systemUptime, running: live)
+            guard dt > 0 else { continue }
             let events = round.advance(to: round.t + dt, bowlX: bowlX)
             handle(events)
             pops.removeAll { round.t - $0.t > CatchPop.life }
