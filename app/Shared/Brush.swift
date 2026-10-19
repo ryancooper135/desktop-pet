@@ -159,6 +159,8 @@ struct BrushOutcome: Hashable, Sendable {
     let after: CoatStage
     /// Прибавка любви.
     let love: Double
+    /// Который раз расчёсываем всего (BrushLog.n после записи) — от него фраза в конце (Brush.doneText).
+    var count = 0
 }
 
 /// Последнее расчёсывание в state.json. Пустое в файл не пишется.
@@ -269,7 +271,24 @@ enum Brush {
         f.brush.n += 1
         let love = (f.pet.needs[.love] ?? love0) - love0
         let after = Coat.look(f, now: now).stage
-        return BrushOutcome(ok: true, reason: nil, before: before, after: after, love: love)
+        return BrushOutcome(ok: true, reason: nil, before: before, after: after, love: love, count: f.brush.n)
+    }
+
+    // MARK: тексты конца
+
+    /// Довольный пёс после расчёсывания (волна 11): отряхнулся, подпрыгнул, виляет — и говорит одно из этого.
+    /// По кругу от числа расчёсываний: детерминированно для снимков, подряд не повторяется.
+    static let doneLines = [
+        "Фрр! Шиба отряхнулся и сияет",
+        "Шиба крутится: смотри, какой пушистый!",
+        "Шиба гордо виляет — красавец",
+    ]
+
+    /// Тост в конце: довольная фраза, а если шерсть поднялась на стадию — и новая стадия («· шерсть «Обычный»»).
+    static func doneText(_ out: BrushOutcome) -> String {
+        let line = doneLines[(max(1, out.count) - 1) % doneLines.count]
+        guard out.after.rank > out.before.rank else { return line }
+        return "\(line) · шерсть «\(out.after.title)»"
     }
 
     /// Ухоженность после расчёсывания: толчок и подъём на стадию выше (у гладкой — только толчок).

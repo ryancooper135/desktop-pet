@@ -333,4 +333,22 @@ final class BrushTests: XCTestCase {
         obj["brush"] = "мусор"
         XCTAssertTrue(try JSONDecoder().decode(SaveFile.self, from: JSONSerialization.data(withJSONObject: obj)).brush.isEmpty)
     }
+    /// Волна 11: в конце своя довольная фраза по кругу; подъём стадии дописывается к ней.
+    func testDoneTextRotatesAndMentionsStage() {
+        var (f, t) = bDull()
+        let first = Brush.finish(&f, now: t)
+        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(Brush.doneText(first), "\(Brush.doneLines[0]) · шерсть «Лохматый»")
+        XCTAssertGreaterThanOrEqual(Brush.doneLines.count, 3)
+        XCTAssertEqual(Set(Brush.doneLines).count, Brush.doneLines.count, "фразы разные")
+        // Стадия та же (уже гладкий) — только фраза; по кругу от числа расчёсываний.
+        func same(_ n: Int) -> BrushOutcome {
+            BrushOutcome(ok: true, reason: nil, before: .sleek, after: .sleek, love: 1, count: n)
+        }
+        XCTAssertEqual(Brush.doneText(same(1)), Brush.doneLines[0])
+        XCTAssertEqual(Brush.doneText(same(2)), Brush.doneLines[1])
+        XCTAssertEqual(Brush.doneText(same(Brush.doneLines.count + 1)), Brush.doneLines[0])
+        XCTAssertNotEqual(Brush.doneText(same(2)), Brush.doneText(same(3)), "подряд не повторяется")
+        XCTAssertEqual(Brush.doneText(same(0)), Brush.doneLines[0], "старый исход без счётчика — первая фраза")
+    }
 }

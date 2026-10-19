@@ -144,7 +144,11 @@
       "duolingo_open": { "coins": 10, "per_day": 1 },
       "slept_on_time": { "coins": 15, "window_min": 30 },
       "alarm_no_snooze": { "coins": 5 },
-      "workout": { "coins": 10, "per_day": 1 }
+      "workout": { "coins": 10, "per_day": 1 },
+      "home": { "coins": 8, "per_day": 1 },
+      "wake": { "coins": 8, "per_day": 1 },
+      "sleep": { "coins": 8, "per_day": 1 },
+      "water": { "coins": 2, "per_day": 8 }
     },
     "friends": {
       "visit_friend_pet": { "coins": 5, "per_day": 3 },

@@ -24,6 +24,8 @@
 //   ui-67           предметы: коллекция с иконками и кнопками по роли; комната с кубком на полке и теннисным мячиком
 //   ui-68           лавка дня: три карточки за монеты, потом одна куплена
 //   ui-71/72        шерсть текстурой крупным планом (PET_CAMERA=close): лохматая с клочками на спине, она же расчёсанная — гладкая
+//   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера; -howto — шаги автоматизации
+//   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -274,6 +276,26 @@ final class ScreenshotUITests: XCTestCase {
         try brushShot("ui-60-brush-done", strokes: 7, expect: "Готово", settleFor: 2.2)
     }
 
+    /// Привычки (PET_SEED=habits): лист по pet://habits, отметки «Сегодня ✓», «Сегодня 3 из 8», «Было 1 раз».
+    @MainActor
+    func testStates75Habits() throws {
+        try shootOptional("ui-75-habits", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                                "PET_OPEN": "habits"],
+                          marker: "habits.screen")
+        // Низ листа: шаги «Автоматизации» и кнопка «Открыть «Команды»».
+        try shootOptional("ui-75-habits-howto", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
+                                                      "PET_OPEN": "habits"],
+                          marker: "habits.openShortcuts", lazyIn: "habits.screen")
+    }
+
+    /// Конец расчёсывания (волна 11): тот же сеанс, что ui-60, но снимок раньше — посреди встряхивания и прыжка.
+    @MainActor
+    func testStates76BrushFinale() throws {
+        // Серия с одного запуска: момент, когда видна поза, зависит от скорости симулятора.
+        try brushShot("ui-76-brush-1", strokes: 7, expect: "Готово", settleFor: 0.3,
+                      then: [("ui-76-brush-2", 0.5), ("ui-76-brush-3", 0.5), ("ui-76-brush-4", 0.5)])
+    }
+
     /// Надето (PET_SEED=wear): шапочка-листик, вязаный шарф и плащ чемпиона на Шибе посреди дня.
     @MainActor
     func testStates61Wear() {
@@ -409,7 +431,8 @@ final class ScreenshotUITests: XCTestCase {
 
     /// expect — подпись элемента после мазка (жест засчитан).
     @MainActor
-    private func brushShot(_ name: String, strokes: Int, expect: String, settleFor: TimeInterval) throws {
+    private func brushShot(_ name: String, strokes: Int, expect: String, settleFor: TimeInterval,
+                           then more: [(String, TimeInterval)] = []) throws {
         let app = Self.makeApp()
         let env = ["PET_SEED": "brush", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "brush",
                    "PET_BRUSH_STROKES": String(strokes)]
@@ -432,6 +455,10 @@ final class ScreenshotUITests: XCTestCase {
         let found = app.descendants(matching: .any).matching(label).firstMatch.waitForExistence(timeout: 5)
         settle(settleFor)
         snap(name)
+        for (n, pause) in more {
+            settle(pause)
+            snap(n)
+        }
         app.terminate()
         if !found { throw XCTSkip("\(name): нет «\(expect)» после мазка") }
     }
@@ -447,17 +474,30 @@ final class ScreenshotUITests: XCTestCase {
 
     /// Как shootState, но без маркера — XCTSkip (экран ещё не в этой сборке). Снимок делается в любом случае.
     /// scrollIn — контейнер, который листаем вверх, пока маркер не станет видимым.
+    /// lazyIn — ленивый экран (Form): ждём его, листаем всё приложение, пока маркер не появится.
     @MainActor
     @discardableResult
     func shootOptional(_ name: String, env: [String: String], marker: String, scrollIn: String? = nil,
-                       keepRunning: Bool = false) throws -> XCUIApplication {
+                       lazyIn: String? = nil, keepRunning: Bool = false) throws -> XCUIApplication {
         let app = Self.makeApp()
         for (k, v) in env { app.launchEnvironment[k] = v }
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         acceptSystemAlerts()
         let element = app.descendants(matching: .any)[marker]
-        let found = element.waitForExistence(timeout: 20)
+        var found: Bool
+        if let lazyIn {
+            // Нижние строки Form создаются лениво: маркера может не быть, пока не прокрутишь.
+            _ = app.descendants(matching: .any)[lazyIn].firstMatch.waitForExistence(timeout: 20)
+            settle(1.0)
+            for _ in 0..<5 where !(element.exists && element.isHittable) {
+                app.swipeUp()
+                settle(0.6)
+            }
+            found = element.exists
+        } else {
+            found = element.waitForExistence(timeout: 20)
+        }
         if found, let scrollIn {
             let box = app.descendants(matching: .any)[scrollIn]
             for _ in 0..<4 where !element.isHittable {

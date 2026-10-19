@@ -245,6 +245,18 @@ struct SettingsScreen: View {
                     Text("Тихие звуки в одной тональности. В беззвучном режиме телефона их не слышно.")
                 }
 
+                Section {
+                    NavigationLink {
+                        HabitsScreen()
+                    } label: {
+                        Label("Привычки и «Команды»", systemImage: "checklist")
+                    }
+                    .listRowBackground(PetPalette.card)
+                    .accessibilityIdentifier("settings.habits")
+                } footer: {
+                    Text("«\(HabitsScreen.appName), я дома», «я выпил воды» — Siri и автоматизации отмечают твой день, \(name) отвечает и даёт монеты.")
+                }
+
                 if Self.showDevTools {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }

@@ -150,6 +150,9 @@ enum PetStance {
             if stance == .sleep { return [] }
             return pick(stance == .stand ? Traits.tapClips(trait) : ["ear_flick"], available: available)
         }
+        if kind == Habits.reactKind {
+            return habitClips(stance: stance, available: available)
+        }
         if !ok {
             return stance == .sleep ? [] : pick(["head_tilt"], available: available)
         }
@@ -194,14 +197,26 @@ enum PetStance {
         return pick(out, available: available)
     }
 
-    /// Расчёсывание (Brush): дочесали — отряхнулся (сидящий/лежащий сначала встаёт); против шерсти — дёрнулся
+    /// Привычка из «Команд» (Habits): хозяин дома, проснулся, попил воды — стоя подпрыгнул и виляет,
+    /// сидя и лёжа — повёл ухом и не встаёт (вечером «Ложусь спать» не поднимает пса). Спящего не будим.
+    static func habitClips(stance: Stance, available: Set<String> = defaultClips) -> [String] {
+        switch stance {
+        case .stand: return pick(["hop", "happy_wag"], available: available)
+        case .sit, .lie: return pick(["ear_flick"], available: available)
+        case .sleep, .dead: return []
+        }
+    }
+
+    /// Расчёсывание (Brush): дочесали — отряхнулся, подпрыгнул, виляет (сидящий/лежащий сначала встаёт); против шерсти — дёрнулся
     /// от щётки (стоя — «тычок» с той стороны, где палец), сидя и лёжа — повёл ухом. Спящему не до щётки.
     static func brushClips(ok: Bool, stance: Stance, lookX: Float? = nil, available: Set<String> = defaultClips) -> [String] {
         if stance == .dead || stance == .sleep { return [] }
         if ok {
+            // Волна 11: довольный финал — отряхнулся, подпрыгнул и гордо виляет (≈3 с вместо одного shake).
             // Без клипа shake (старая модель) — хотя бы вильнул хвостом.
             let shake = pick(["shake"], available: available)
-            let body = shake.isEmpty ? pick(["happy_wag"], available: available) : shake
+            let body = shake.isEmpty ? pick(["happy_wag"], available: available)
+                : shake + pick(["hop", "happy_wag"], available: available)
             if body.isEmpty || stance == .stand { return body }
             return pick(path(from: stance, to: .stand), available: available) + body
         }
