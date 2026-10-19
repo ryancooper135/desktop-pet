@@ -147,26 +147,41 @@ struct AlbumButton: View {
                     Text("Альбом")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
-                if total > 0 {
-                    Text("\(total)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                if total > 0 && !compact {
+                    count
                         .background(Capsule().fill(PetPalette.accent.opacity(0.22)))
                 }
             }
             .lineLimit(1)
             .foregroundStyle(PetPalette.ink)
-            .padding(.horizontal, compact && total == 0 ? 0 : 14)
+            .padding(.horizontal, compact ? 0 : 14)
             .frame(minWidth: 48, minHeight: 48)
             .contentShape(Capsule())
         }
         .buttonStyle(SquishStyle())
         .glassEffect(.regular.interactive(), in: Capsule())
+        // В узком ряду кнопка — круг 48×48, счётчик значком в углу: внутри круга он обрезался.
+        .overlay(alignment: .topTrailing) {
+            if total > 0 && compact {
+                count
+                    .foregroundStyle(PetPalette.ink)
+                    .background(Capsule().fill(PetPalette.accent.opacity(0.85)))
+                    .offset(x: 6, y: -4)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityLabel(Text("Альбом находок"))
         .accessibilityValue(Text(total > 0 ? "Находок: \(total)" : "Пока пусто"))
         .accessibilityIdentifier("open.album")
+    }
+
+    private var count: some View {
+        Text(total > 99 ? "99+" : "\(total)")
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
     }
 }
 

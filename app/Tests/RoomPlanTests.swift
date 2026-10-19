@@ -251,7 +251,7 @@ final class RoomPlanTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(s.minX, RoomPlan.window.maxX)
         XCTAssertGreaterThanOrEqual(s.minX, RoomPlan.canopy.maxX + RoomPlan.canopyFlare)
         XCTAssertGreaterThan(s.minY, RoomPlan.bathTowel.maxY + 0.05, "вещица на полке не лезет на полотенце")
-        XCTAssertLessThanOrEqual(s.maxX, RoomPlan.bath.maxX + 1e-4, "правее режет край экрана")
+        XCTAssertLessThanOrEqual(s.maxX, 0.40, "правее доску режет край экрана")
         XCTAssertEqual(s.minY, RoomPlan.kitchenShelf.minY, "на одной высоте с кухонной")
     }
 
