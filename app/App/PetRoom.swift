@@ -411,9 +411,13 @@ enum PetRoom {
         }
     }
 
-    /// Какие материалы — шерсть. У Шибы из usdz шесть подмножеств: Main и Main_Light; иначе — светлые PBR.
+    /// Сколько подмножеств у Шибы из usdz: шесть, с волны 13 седьмое — язык (Tongue, mouth.py). Порядок прежний,
+    /// язык последний: шерсть 0 и 1, глаза 3…5.
+    static let shibaMaterials: ClosedRange<Int> = 6...7
+
+    /// Какие материалы — шерсть. У Шибы из usdz: Main и Main_Light; иначе — светлые PBR.
     private static func furIndices(_ mats: [any Material]) -> [Int] {
-        if mats.count == 6 { return [0, 1] }
+        if shibaMaterials.contains(mats.count) { return [0, 1] }
         return mats.indices.filter { i in
             guard let p = mats[i] as? PhysicallyBasedMaterial else { return false }
             var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -430,7 +434,7 @@ enum PetRoom {
         while !queue.isEmpty {
             let e = queue.removeFirst()
             if let m = e as? ModelEntity, var model = m.model, !model.materials.isEmpty {
-                let fur = model.materials.count == 6 ? [0] : furIndices(model.materials)
+                let fur = shibaMaterials.contains(model.materials.count) ? [0] : furIndices(model.materials)
                 for i in fur.isEmpty ? [0] : fur {
                     guard var pbr = model.materials[i] as? PhysicallyBasedMaterial else { continue }
                     pbr.baseColor = .init(tint: uiColor(rgb), texture: pbr.baseColor.texture)

@@ -67,6 +67,9 @@ jobs:
           sheet --only idle_wag --only happy_wag --only head_tilt --only shake --only hop --only play_bow \
             --out "$SHEETS/new_1.png"
           sheet --only ear_flick --only sniff --only look_l --only look_r --only yawn --out "$SHEETS/new_2.png"
+          sheet --only bark --only pant --out "$SHEETS/new_3.png"
+          # рот крупно: камера за костью Jaw, спереди-сбоку и снизу (видно щель и язык)
+          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json"             --frames 8 --size 160 --pitch -12 --view 3q:30 --view side:90 --focus Jaw --radius 0.5             --only eat --only happy_wag --only yawn --only bark --only pant --out "$SHEETS/mouth.png"
           ls -l "$SHEETS"
 
       - uses: actions/upload-artifact@v4

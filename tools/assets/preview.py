@@ -10,6 +10,9 @@
 (низ меша в кадре 0 idle), рядом <out>.txt с подписями строк:
     python tools/assets/preview.py build/shiba_clips.glb --clips build/clips.json --only sit_in --only eat \
         --frames 8 --view side:90 --view 3q:35 --out build/contact.png
+
+Крупный план (камера едет за костью в каждом кадре, радиус кадра в метрах модели):
+    python tools/assets/preview.py build/shiba_clips.glb --clips build/clips.json --only yawn         --focus Jaw --radius 0.5 --out build/mouth.png
 """
 from __future__ import annotations
 
@@ -160,6 +163,8 @@ def main() -> None:
     ap.add_argument("--size", type=int, default=180)
     ap.add_argument("--yaw", type=float, default=60, help="0 — спереди, 90 — сбоку")
     ap.add_argument("--pitch", type=float, default=12)
+    ap.add_argument("--focus", help="крупный план: центр кадра — эта кость (в каждом кадре своя позиция)")
+    ap.add_argument("--radius", type=float, default=0.5, help="с --focus: полуразмер кадра")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -203,16 +208,20 @@ def main() -> None:
         views.append((nm or f"yaw{yaw}", float(yaw)))
     S = args.size
     nrows = len(rows) * len(views)
+    focus = g.node_index(args.focus) if args.focus else None
     sheet = np.zeros((nrows * S, args.cols * S, 3)) + 255
     legend = []
     r = 0
     for label, tr, t0, t1 in rows:
         times = [t0 + (t1 - t0) * (c / max(args.cols - 1, 1)) for c in range(args.cols)]
-        meshes = [model.skinned(model.pose_locals(tr, t)) for t in times]
+        locs = [model.pose_locals(tr, t) for t in times]
+        meshes = [model.skinned(lc) for lc in locs]
+        cams = [(center, radius) if focus is None else
+                (globals_from_local(lc, model.parents)[focus][:3, 3], args.radius) for lc in locs]
         for vname, yaw in views:
             for c, m in enumerate(meshes):
                 sheet[r * S:(r + 1) * S, c * S:(c + 1) * S] = render(
-                    m, S, yaw, args.pitch, (center, radius), floor_y=floor_y, floor_line=floor_line)
+                    m, S, yaw, args.pitch, cams[c], floor_y=floor_y, floor_line=floor_line and focus is None)
             sheet[r * S, :] = 120
             legend.append(f"строка {r + 1}: {label} · {vname} (yaw {yaw:g}°) · {t0:.3f}-{t1:.3f} с · "
                           f"кадры {', '.join(f'{t - t0:.2f}' for t in times)}")

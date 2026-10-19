@@ -58,6 +58,8 @@ struct PetStage: View {
         // Свой персонаж: разбор папки уже готов (CharacterStore.Entry — Sendable), модель грузим здесь.
         let character = model?.characterEntry
         let app = model
+        // Реплика Шибы на экране — челюсть «говорит» (PetRig.say, JawTalk); без кости Jaw ничего не происходит.
+        let say = model?.sayLine
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -94,6 +96,7 @@ struct PetStage: View {
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
+            PetRig.say(say, to: pet)
             BrushFx.prime(puff: brushPuff)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
         } update: { content in
@@ -103,6 +106,7 @@ struct PetStage: View {
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
                            reduceMotion: reduceMotion)
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
+            PetRig.say(say, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
             PetWear.apply(worn, to: pet)
             PetWear.applyTufts(left: tufts.left, total: tufts.total, stage: tuftStage, to: pet)

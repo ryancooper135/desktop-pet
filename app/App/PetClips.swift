@@ -42,6 +42,9 @@ enum PetClipNames {
         "look_l",
         "look_r",
         "yawn",
+        // волна 13 (mouth.py): лай на «Голос» и язык наружу после игры и прогулки
+        "bark",
+        "pant",
     ]
 }
 

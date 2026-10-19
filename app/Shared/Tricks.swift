@@ -58,7 +58,8 @@ enum Trick: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
         }
     }
 
-    /// Клипы shiba.clips.json по порядку — из стойки «стоит». «Голос» — тявк (SoundKit) на прыжке.
+    /// Клипы shiba.clips.json по порядку — из стойки «стоит». «Голос» — лает (bark, тявк SoundKit на каждое «гав»),
+    /// без клипа bark — тявк на прыжке.
     var clips: [String] {
         switch self {
         case .sit: return ["sit_in", "sit", "sit_out"]
@@ -66,7 +67,7 @@ enum Trick: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
         case .bow: return ["play_bow"]
         case .jump: return ["hop", "gallop_jump"]
         case .shake: return ["shake"]
-        case .speak: return ["head_tilt", "hop"]
+        case .speak: return ["head_tilt", "bark", "hop"]
         }
     }
 
