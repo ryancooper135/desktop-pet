@@ -242,8 +242,8 @@ struct HomeScreen: View {
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)
-                // Чуть выше половины: под открыткой ещё кнопки и срок — в .medium карточку подрезало.
-                .presentationDetents([.fraction(0.56), .large])
+                // Выше половины: под открыткой ещё кнопки и срок — в .medium и 0.56 низ карточки уходил под них.
+                .presentationDetents([.fraction(0.6), .large])
         }
         .confirmationDialog("Начать заново с новым щенком?", isPresented: $confirmStartOver, titleVisibility: .visible) {
             Button("Начать заново", role: .destructive) { model.startOver() }
@@ -449,12 +449,14 @@ struct ActionBar: View {
 
     /// Раскладка ряда: зазор, ширина ячейки и общий кегль. Обычный зазор, пока кегль не ниже comfortLabel;
     /// иначе узкий зазор и меньшие поля — так 6 кнопок на iPhone SE (375 pt) остаются читаемыми.
+    /// Поля в узком ряду 7, а не 3–4: у ячейки ~74×56 скруглённые бока, и на высоте подписи
+    /// внутри капсулы остаётся ~60 pt — с полями 4 «Покормить» упиралась в край (ui-63).
     static func fit(titles: [String], total: CGFloat, maxSize: CGFloat) -> (spacing: CGFloat, cell: CGFloat, label: CGFloat) {
         let cell = cellWidth(total: total, count: titles.count)
         let label = labelSize(titles: titles, cellWidth: cell, maxSize: maxSize)
         guard cell > 0, label < comfortLabel, maxSize > comfortLabel else { return (spacing, cell, label) }
         let tight = cellWidth(total: total, count: titles.count, spacing: tightSpacing)
-        return (tightSpacing, tight, labelSize(titles: titles, cellWidth: tight, maxSize: maxSize, inset: 4))
+        return (tightSpacing, tight, labelSize(titles: titles, cellWidth: tight, maxSize: maxSize, inset: 7))
     }
 
     /// Один кегль на все подписи: самый крупный (не больше maxSize), при котором самая длинная влезает в ячейку.
