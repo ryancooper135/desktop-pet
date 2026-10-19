@@ -390,4 +390,17 @@ final class ForecastToolsCoverageTests: XCTestCase {
         XCTAssertEqual(Presenter.keepHyphens("а — б"), "а — б", "тире не трогаем")
         XCTAssertEqual(Presenter.keepHyphens(""), "")
     }
+
+    /// Волна 15: сердечки для VoiceOver — как нарисованы (дробь вниз до половинки), без «0» у живого.
+    func testHeartsSpokenMatchesDrawing() {
+        XCTAssertEqual(Presenter.heartsSpoken(5, of: 5), "5 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(3, of: 5), "3 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(2.5, of: 5), "2 с половиной из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(2.9, of: 5), "2 с половиной из 5", "нарисовано 2,5 — так и читаем")
+        XCTAssertEqual(Presenter.heartsSpoken(3.2, of: 5), "3 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(0.6, of: 5), "половинка из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(0.2, of: 5), "меньше половинки из 5", "живой — не ноль")
+        XCTAssertEqual(Presenter.heartsSpoken(0, of: 5), "0 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(7, of: 6), "6 из 6", "больше максимума не бывает")
+    }
 }

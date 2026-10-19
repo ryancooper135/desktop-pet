@@ -268,6 +268,8 @@ struct ZombieRunScreen: View {
         } animation: { _ in .spring(duration: 0.25, bounce: 0.5) }
         .accessibilityLabel(Text("Гав"))
         .accessibilityValue(Text(ready ? "Готово" : "Копится: \(round.meter) из \(ZombieRound.barkNeed)"))
+        .accessibilityHint(Text(ready ? "Ближние зомби станут друзьями, дальние попятятся"
+                                      : "Копится, когда зомби становятся друзьями"))
         .accessibilityIdentifier("zombie.bark")
     }
 
