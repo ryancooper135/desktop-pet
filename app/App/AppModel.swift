@@ -41,6 +41,8 @@ final class AppModel {
     var showTricks = false
     /// Мини-игра «Лови мячик» (CatchGameScreen), на весь экран.
     var showCatch = false
+    /// Мини-игра «Блок Дуо» (волна 12, BlockDuoScreen), на весь экран.
+    var showBlockDuo = false
     /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
     var showHabits = false
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
@@ -437,6 +439,24 @@ final class AppModel {
         SoundKit.shared.play(.yip)
     }
 
+    /// После «Блок Дуо» (волна 12): экран закрылся — Шиба в комнате подпрыгивает, виляет и говорит фразу про партию.
+    /// Пауза — чтобы fullScreenCover успел уехать и прыжок было видно. toast — партию бросили посреди: сказать про монеты.
+    func cheerBlockDuo(_ r: BlockDuoResult, toast: Bool) {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.6))
+            guard let self, !Task.isCancelled else { return }
+            if r.played {
+                self.react(BlockDuo.reactKind)
+                self.haptic(.success)
+                SoundKit.shared.play(.yip)
+            }
+            self.speak(BlockDuo.shibaLine(r))
+            if toast, let reward = BlockDuo.rewardText(r) {
+                self.show("Блок Дуо: \(r.score) очков, \(reward)", emoji: "🧩")
+            }
+        }
+    }
+
     /// Мгновенная реакция сцены, до ответа ядра.
     func react(_ kind: String) {
         reaction = Reaction(id: reaction.id + 1, kind: kind, ok: true, reason: nil)
@@ -670,7 +690,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://brush, pet://habits
+    /// pet://blockduo, pet://brush, pet://habits
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         switch url.host {
@@ -688,6 +708,7 @@ final class AppModel {
         case "house": showHouse = true
         case "tricks": showTricks = true
         case "catch": showCatch = true
+        case "blockduo": showBlockDuo = true
         case "brush": startBrush()
         case "habits": showHabits = true
         default:
@@ -699,6 +720,7 @@ final class AppModel {
             showHouse = false
             showTricks = false
             showCatch = false
+            showBlockDuo = false
             showHabits = false
             postcard = nil
         }
@@ -998,7 +1020,7 @@ final class AppModel {
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
               !showNeeds, !showSettings, !showAlbum, !showCapsule, !showShop, !showHouse, !showTricks, !showCatch,
-              !showHabits else { return false }
+              !showBlockDuo, !showHabits else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true
@@ -1226,7 +1248,8 @@ enum AwayBuilder {
 /// а в полдень (PET_NOW) пузырь — воспоминание (ui-73/74);
 /// items — 14 предметов всех ролей, кубок на полке, теннисный мячик, корона и бабочка, 5000 монет (ui-67/68);
 /// fur_shaggy — сытый щенок с лохматой шерстью и клочками на спине (ui-71); fur_brushed — он же, расчёсанный
-/// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72)).
+/// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72);
+/// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80)).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -1368,6 +1391,13 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.pet.needs[.look] = 0
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "blockduo":
+                // «Блок Дуо» (ui-79/80): бодрый щенок, рекорд 1800 — на карточке итога видно «рекорд», в игре — бейдж.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.blockduoBest = max(f.blockduoBest, 1800)
                 f.seen = f.pet
                 f.lastSeenT = now
             case "fur_shaggy", "fur_brushed":

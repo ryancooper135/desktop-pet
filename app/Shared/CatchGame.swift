@@ -9,6 +9,7 @@
 //   что у Economy для ухода и шагов);
 // • настроение — ядерным действием play (PetRunner.apply): +fun и −energy по minigames.fun_gain/energy_cost,
 //   и обычные монеты ухода за «Поиграть». Своего правила ядру не придумываем;
+// • волна 12: кроме своего потолка — общий на все мини-игры (minigames.daily_cap, MiniGames в BlockDuo.swift);
 // • рекорд и дневные счётчики — верхним уровнем SaveFile (catchBest, catchDay, catchCoins, catchGames).
 //
 // Поле — единичный квадрат: x 0…1 слева направо, y 0…1 сверху вниз. Экран сам растягивает его на свой размер.
@@ -33,8 +34,10 @@ struct CatchConfig: Hashable, Sendable {
     /// …и за par_score очков и больше.
     var max = 30
     var parScore = 40
-    /// Потолок монет за игру в местные сутки.
+    /// Потолок монет за игру в местные сутки…
     var dailyCap = 60
+    /// …и общий на все мини-игры (minigames.daily_cap, волна 12: вместе с «Блок Дуо»).
+    var sharedCap = MiniGames.defaultSharedCap
     var diminishing: [Step] = [Step(from: 1, x: 1), Step(from: 7, x: 0.5), Step(from: 13, x: 0.2)]
 
     static let shared = CatchConfig(json: Catalog.economy() ?? .null)
@@ -52,6 +55,7 @@ struct CatchConfig: Hashable, Sendable {
         max = Swift.max(base, int(c["max"], max))
         parScore = Swift.max(1, int(c["par_score"], parScore))
         dailyCap = int(c["daily_cap"], dailyCap)
+        sharedCap = Swift.max(0, int(g["daily_cap"], sharedCap))
         let steps = g["diminishing"].array.compactMap { s -> Step? in
             guard let from = s["games_from"].double, let x = s["x"].double else { return nil }
             return Step(from: Int(from), x: x)
@@ -284,10 +288,11 @@ enum CatchGame {
         f.catchGames = 0
     }
 
-    /// Сколько монет ещё можно получить сегодня.
+    /// Сколько монет ещё можно получить сегодня: свой потолок и общий потолок мини-игр (MiniGames).
     static func coinsLeft(_ f: SaveFile, now: Double, _ cfg: CatchConfig = .shared) -> Int {
         let used = Economy.day(now) > f.catchDay ? 0 : f.catchCoins
-        return Swift.max(0, cfg.dailyCap - used)
+        let all = cfg.sharedCap - MiniGames.coinsToday(f, now: now)
+        return Swift.max(0, Swift.min(cfg.dailyCap - used, all))
     }
 
     /// Раунд кончился: рекорд, монеты с потолком, настроение через ядерный play. Пишет только в f.
@@ -299,7 +304,7 @@ enum CatchGame {
         rollDay(&f, now: now)
         f.catchGames += 1
         let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg)
-        let got = Swift.min(wish, Swift.max(0, cfg.dailyCap - f.catchCoins))
+        let got = Swift.min(wish, coinsLeft(f, now: now, cfg))
         f.catchCoins += got
         f.econ.wallet.coins += got
         r.coins = got

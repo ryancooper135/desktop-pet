@@ -239,6 +239,11 @@ struct HomeScreen: View {
             CatchGameScreen()
                 .environment(model)
         }
+        .fullScreenCover(isPresented: $model.showBlockDuo) {
+            // Как мячик — на весь экран: перетаскивание фигур дралось бы со свайпом листа.
+            BlockDuoScreen()
+                .environment(model)
+        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)

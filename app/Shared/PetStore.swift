@@ -100,6 +100,11 @@ final class PetStore: @unchecked Sendable {
             fresh.catchDay = old.catchDay
             fresh.catchCoins = old.catchCoins
             fresh.catchGames = old.catchGames
+            // «Блок Дуо» — так же: рекорд хозяина и потолок монет за сутки.
+            fresh.blockduoBest = old.blockduoBest
+            fresh.blockduoDay = old.blockduoDay
+            fresh.blockduoCoins = old.blockduoCoins
+            fresh.blockduoGames = old.blockduoGames
             // Надетое — вместе с предметами: шарф остаётся на месте и у нового щенка.
             fresh.worn = old.worn
             // Сон хозяина (OwnerSleep) — тоже: выученное окно про человека, а не про собаку.

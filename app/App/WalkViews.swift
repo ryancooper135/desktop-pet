@@ -11,12 +11,14 @@
 //   остаётся; не влезло и так — «Альбом» сжимается до значка со счётчиком, а «Гулять» снова со строчкой.
 // • волна 9: за «Трюками» круглая кнопка «Лови мячик» (pet://catch, CatchGameScreen.swift); на самый тесный ряд —
 //   «Альбом» значком и «Гулять» без строчки, зазоры 4 и 2.
+// • волна 12: та же кнопка стала «Мини-игры» — меню «Лови мячик» / «Блок Дуо» (pet://blockduo, BlockDuoScreen.swift):
+//   седьмой кружок в ряд на iPhone Air не влезает.
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
 @preconcurrency import PetCore
 
-// MARK: - Ряд «Альбом · Автомат · Дом · Трюки · Мячик · Гулять»
+// MARK: - Ряд «Альбом · Автомат · Дом · Трюки · Игры · Гулять»
 
 struct WalkRow: View {
     @Environment(AppModel.self) private var model
@@ -48,7 +50,7 @@ struct WalkRow: View {
                 MachineButton()
                 HouseButton()
                 TricksButton(gate: tricks)
-                CatchButton(t: snap.t)
+                GamesButton(t: snap.t)
             }
             Spacer(minLength: spacing)
             if let gate {

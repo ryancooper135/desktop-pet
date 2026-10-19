@@ -64,7 +64,7 @@ struct RootView: View {
             // «Доброе утро», отложенное под отчётом «Пока тебя не было».
             model.sayPending()
         }
-        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum || model.showCapsule || model.showHouse || model.showCatch || model.postcard != nil) { _, busy in if !busy { guide.check() } }
+        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum || model.showCapsule || model.showHouse || model.showCatch || model.showBlockDuo || model.postcard != nil) { _, busy in if !busy { guide.check() } }
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.
@@ -76,7 +76,7 @@ struct RootView: View {
 }
 
 /// Крючки только для UI-тестов (Env.isUITest); в обычном запуске всё nil.
-/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|brush — открыть экран после запуска.
+/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|blockduo|brush — открыть экран после запуска.
 enum UITestHooks {
     static var scheme: ColorScheme? {
         guard Env.isUITest else { return nil }
@@ -88,7 +88,7 @@ enum UITestHooks {
     }
 
     static var openURL: URL? {
-        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "brush", "habits"].contains(v) else { return nil }
+        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "brush", "habits"].contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
 }

@@ -1,6 +1,6 @@
-// Мини-игра «Лови мячик» (волна 9): на весь экран, открывается круглой кнопкой с мячиком в ряду над панелью
-// и по pet://catch. Три состояния: карточка «Играть» (рекорд, сколько монет ещё можно сегодня), сам раунд
-// (сверху падают мячики и косточки, миску водишь пальцем внизу) и карточка итога с наградой.
+// Мини-игра «Лови мячик» (волна 9): на весь экран, открывается из меню круглой кнопки «Мини-игры» в ряду над панелью
+// (GamesButton в конце файла, волна 12) и по pet://catch. Три состояния: карточка «Играть» (рекорд, сколько монет
+// ещё можно сегодня), сам раунд (сверху падают мячики и косточки, миску водишь пальцем внизу) и карточка итога.
 // Логика — CatchGame (Shared): раскладка от сида, поимка, награда, запись в сейв. Тут только вид, цикл кадров,
 // хаптика и звук.
 // Решения (Вадим может поменять): на весь экран, а не листом — лист тянулся бы вниз вместе с миской;
@@ -104,10 +104,10 @@ struct CatchGameScreen: View {
 
     private var hud: some View {
         HStack(spacing: 10) {
-            HudChip(icon: "star.fill", tint: PetPalette.yellow, text: "\(round.score)")
+            GameChip(icon: "star.fill", tint: PetPalette.yellow, text: "\(round.score)")
                 .accessibilityLabel(Text("Очки: \(round.score)"))
                 .accessibilityIdentifier("catch.score")
-            HudChip(icon: "timer", tint: PetPalette.accent, text: "\(Int(round.timeLeft.rounded(.up)))")
+            GameChip(icon: "timer", tint: PetPalette.accent, text: "\(Int(round.timeLeft.rounded(.up)))")
                 .accessibilityLabel(Text("Осталось секунд: \(Int(round.timeLeft.rounded(.up)))"))
             Spacer(minLength: 0)
             HStack(spacing: 4) {
@@ -315,9 +315,9 @@ private struct IntroCard: View {
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
             HStack(spacing: 10) {
-                StatPill(icon: "trophy.fill", tint: PetPalette.yellow, text: best > 0 ? "Рекорд \(best)" : "Рекорда пока нет")
+                GamePill(icon: "trophy.fill", tint: PetPalette.yellow, text: best > 0 ? "Рекорд \(best)" : "Рекорда пока нет")
                     .accessibilityIdentifier("catch.best")
-                StatPill(icon: "", emoji: "🪙", tint: PetPalette.accent,
+                GamePill(icon: "", emoji: "🪙", tint: PetPalette.accent,
                          text: left > 0 ? "Ещё до \(EconText.coins(left))" : "Монеты на сегодня всё")
                     .accessibilityIdentifier("catch.left")
             }
@@ -336,7 +336,7 @@ private struct IntroCard: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("catch.gate")
             }
-            BigButton(title: "Играть", icon: "play.fill", enabled: gate == nil, action: start)
+            GameButton(title: "Играть", icon: "play.fill", enabled: gate == nil, action: start)
                 .accessibilityIdentifier("catch.play")
         }
         .padding(20)
@@ -387,9 +387,9 @@ private struct DoneCard: View {
                     .foregroundStyle(PetPalette.green)
             }
             HStack(spacing: 10) {
-                BigButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: again, action: start)
+                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: again, action: start)
                     .accessibilityIdentifier("catch.again")
-                BigButton(title: "Готово", icon: "checkmark", enabled: true, filled: false, action: close)
+                GameButton(title: "Готово", icon: "checkmark", enabled: true, filled: false, action: close)
                     .accessibilityIdentifier("catch.done")
             }
             .padding(.top, 4)
@@ -402,9 +402,9 @@ private struct DoneCard: View {
     }
 }
 
-// MARK: - Мелочи
+// MARK: - Мелочи (общие для мини-игр: и BlockDuoScreen)
 
-private struct BigButton: View {
+struct GameButton: View {
     let title: String
     let icon: String
     let enabled: Bool
@@ -428,7 +428,7 @@ private struct BigButton: View {
     }
 }
 
-private struct StatPill: View {
+struct GamePill: View {
     let icon: String
     /// Монеты везде — 🪙, как в кошельке на главном.
     var emoji: String? = nil
@@ -459,7 +459,7 @@ private struct StatPill: View {
     }
 }
 
-private struct HudChip: View {
+struct GameChip: View {
     let icon: String
     let tint: Color
     let text: String
@@ -554,9 +554,11 @@ private struct BowlView: View {
     }
 }
 
-/// Кнопка «Лови мячик» в ряду над панелью, за «Трюками»: только значок. Когда играть нельзя (спит, гуляет,
-/// устал…) — серая, но нажимается: тост с причиной, кнопка качается. Id — open.catch.
-struct CatchButton: View {
+/// Кнопка «Мини-игры» в ряду над панелью, за «Трюками» (волна 12; в волне 9 тут был один мячик): только значок,
+/// по нажатию — меню «Лови мячик» и «Блок Дуо». Седьмой круг в ряд на iPhone Air уже не влезает, поэтому игры
+/// живут под одной кнопкой. Когда играть нельзя (спит, гуляет, устал…) — серая, но нажимается: тост с причиной,
+/// кнопка качается. Пускает обе игры один и тот же CatchGame.gate. Id — open.games, пункты — open.catch и open.blockduo.
+struct GamesButton: View {
     @Environment(AppModel.self) private var model
     /// Время снимка: по нему CatchGame.gate.
     let t: Double
@@ -571,24 +573,36 @@ struct CatchButton: View {
 
     var body: some View {
         let gate = gate
-        Button {
-            taps += 1
+        Group {
             if let gate {
-                refusals += 1
-                model.haptic(.warning)
-                model.show(Tricks.reasonText(gate), ok: false)
+                Button {
+                    taps += 1
+                    refusals += 1
+                    model.haptic(.warning)
+                    model.show(Tricks.reasonText(gate), ok: false)
+                } label: {
+                    icon
+                }
+                .buttonStyle(SquishStyle())
             } else {
-                model.showCatch = true
+                Menu {
+                    Button {
+                        model.showCatch = true
+                    } label: {
+                        Label(CatchConfig.shared.name, systemImage: "tennisball.fill")
+                    }
+                    .accessibilityIdentifier("open.catch")
+                    Button {
+                        model.showBlockDuo = true
+                    } label: {
+                        Label(BlockDuoConfig.shared.name, systemImage: "square.grid.3x3.fill")
+                    }
+                    .accessibilityIdentifier("open.blockduo")
+                } label: {
+                    icon
+                }
             }
-        } label: {
-            Image(systemName: "tennisball.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .symbolEffect(.bounce, value: taps)
-                .foregroundStyle(PetPalette.ink)
-                .frame(width: 48, height: 48)
-                .contentShape(Circle())
         }
-        .buttonStyle(SquishStyle())
         .opacity(gate == nil ? 1 : 0.55)
         .glassEffect(.regular.interactive(), in: Circle())
         .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
@@ -596,9 +610,18 @@ struct CatchButton: View {
         }, animation: { _ in
             .linear(duration: 0.06)
         })
-        .accessibilityLabel(Text(CatchConfig.shared.name))
+        .accessibilityLabel(Text("Мини-игры"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
-        .accessibilityHint(Text("Мини-игра: лови мячики миской"))
-        .accessibilityIdentifier("open.catch")
+        .accessibilityHint(Text("Лови мячик или Блок Дуо вместе с Шибой"))
+        .accessibilityIdentifier("open.games")
+    }
+
+    private var icon: some View {
+        Image(systemName: "gamecontroller.fill")
+            .font(.system(size: 18, weight: .semibold))
+            .symbolEffect(.bounce, value: taps)
+            .foregroundStyle(PetPalette.ink)
+            .frame(width: 48, height: 48)
+            .contentShape(Circle())
     }
 }
