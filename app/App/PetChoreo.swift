@@ -1101,15 +1101,22 @@ final class PetRig {
     }
 
     /// Порядок подмножеств: Main, Main_Light, Black, Eyes_White, Eyes_Pupil, Eyes_Black. Проверяем по цвету,
-    /// что 3 светлее шерсти, а 4 и 5 темнее; не сошлось — не моргаем.
+    /// что 4 и 5 темнее шерсти, а 3 на шерсть не похож; не сошлось — не моргаем. С волны 16 «белок» у Шибы
+    /// тёмно-карий (style_a: белые серпы по бокам радужки читались как закатанные глаза), поэтому 3 может быть
+    /// и светлее шерсти (свои персонажи Quaternius), и темнее.
     private func setUpEyes(_ m: ModelEntity, _ mats: [any Material]) {
         let light = mats.map(Self.brightness)
         guard let fur = light[0], let white = light[3], let pupil = light[4], let black = light[5],
-              white > fur + 0.1, pupil < fur, black < fur else { return }
+              Self.looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black) else { return }
         eyes = m
         open = mats
         closed = mats
         for i in 3...5 { closed[i] = mats[0] }
+    }
+
+    /// Подмножества 3…5 — глаза, а не часть шерсти: радужка и зрачок темнее шерсти, «белок» заметно отличается от неё.
+    nonisolated static func looksLikeEyes(fur: CGFloat, white: CGFloat, pupil: CGFloat, black: CGFloat) -> Bool {
+        pupil < fur && black < fur && abs(white - fur) > 0.1
     }
 
     private static func brightness(_ m: any Material) -> CGFloat? {
