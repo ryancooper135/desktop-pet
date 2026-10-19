@@ -401,7 +401,7 @@ enum Cooking {
     /// Состав блюда: «Сытость +45 · Настроение +6 · Ласка +4».
     static func gainsText(_ r: CookRecipe) -> String {
         [Need.food, .fun, .love, .energy, .clean].compactMap { n in
-            r.gains[n].map { "\(Catalog.needName(n)) +\(Int($0))" }
+            r.gains[n].map { "\(Catalog.needName(n))\u{00A0}+\(Int($0))" }  // NBSP: «Настроение +10» не рвётся по строкам (волна 15)
         }.joined(separator: " · ")
     }
 

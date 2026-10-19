@@ -380,6 +380,11 @@ final class ForecastToolsCoverageTests: XCTestCase {
 
     func testTypesetDoesDashAndUnits() {
         XCTAssertEqual(Presenter.typeset("Продержится около 20 ч — потом всё"), "Продержится около 20\u{00A0}ч\u{00A0}— потом всё")
+        // Волна 15: короткий предлог не висит в конце строки.
+        XCTAssertEqual(Presenter.typeset("А я как раз о тебе думал."), "А\u{00A0}я\u{00A0}как раз о\u{00A0}тебе думал.")
+        XCTAssertEqual(Presenter.typeset("Гуляет по парку, ищет что-то"), "Гуляет по\u{00A0}парку, ищет что-то")
+        XCTAssertEqual(Presenter.keepShortWords("кто-то и все"), "кто-то и\u{00A0}все", "«то» после дефиса — не предлог")
+        XCTAssertEqual(Presenter.keepShortWords("в конце в"), "в\u{00A0}конце в", "в конце текста пробела нет")
     }
 
     func testKeepHyphensGluesWordParts() {

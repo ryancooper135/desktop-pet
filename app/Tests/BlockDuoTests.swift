@@ -391,6 +391,9 @@ final class BlockDuoTests: XCTestCase {
         r.isRecord = true
         XCTAssertEqual(BlockDuo.resultTitle(r), "Новый рекорд!")
         XCTAssertTrue(BlockDuo.shibaLine(r).contains("900"))
+        r.score = 4649
+        XCTAssertTrue(BlockDuo.shibaLine(r).contains("4\u{00A0}649"), "рекорд с разрядами, как на экране итога")
+        r.score = 900
         r.coins = 12; r.careCoins = 3
         XCTAssertEqual(BlockDuo.rewardText(r), "+\(EconText.coins(15))")
     }
