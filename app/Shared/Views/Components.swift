@@ -68,7 +68,7 @@ struct HeartsView: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel(Text("Сердечки: \(Int((hearts - 1e-9).rounded(.up))) из \(count)"))
+        .accessibilityLabel(Text("Сердечки: \(Presenter.heartsSpoken(hearts, of: max))"))
     }
 }
 
@@ -101,6 +101,9 @@ struct ThoughtBubble: View {
         .background(Capsule().fill(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary.opacity(0.12)) : AnyShapeStyle(PetPalette.card)))
         .overlay(Capsule().stroke(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary.opacity(urgent ? 0.6 : 0.25))
                                          : AnyShapeStyle(urgent ? PetPalette.red.opacity(0.6) : PetPalette.soft.opacity(0.25)), lineWidth: 1))
+        // VoiceOver (волна 15): один элемент «Хочет: …», значок не читается своим именем символа.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(text.map { "Хочет: \($0)" } ?? (urgent ? "Срочно что-то нужно" : "Что-то хочет")))
     }
 
     /// Неизвестное имя символа даёт пустую картинку — проверяем и подставляем лапку.

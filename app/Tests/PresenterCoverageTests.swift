@@ -380,6 +380,11 @@ final class ForecastToolsCoverageTests: XCTestCase {
 
     func testTypesetDoesDashAndUnits() {
         XCTAssertEqual(Presenter.typeset("Продержится около 20 ч — потом всё"), "Продержится около 20\u{00A0}ч\u{00A0}— потом всё")
+        // Волна 15: короткий предлог не висит в конце строки.
+        XCTAssertEqual(Presenter.typeset("А я как раз о тебе думал."), "А\u{00A0}я\u{00A0}как раз о\u{00A0}тебе думал.")
+        XCTAssertEqual(Presenter.typeset("Гуляет по парку, ищет что-то"), "Гуляет по\u{00A0}парку, ищет что-то")
+        XCTAssertEqual(Presenter.keepShortWords("кто-то и все"), "кто-то и\u{00A0}все", "«то» после дефиса — не предлог")
+        XCTAssertEqual(Presenter.keepShortWords("в конце в"), "в\u{00A0}конце в", "в конце текста пробела нет")
     }
 
     func testKeepHyphensGluesWordParts() {
@@ -389,5 +394,18 @@ final class ForecastToolsCoverageTests: XCTestCase {
         XCTAssertEqual(Presenter.keepHyphens("-то"), "-то", "дефис в начале строки не трогаем")
         XCTAssertEqual(Presenter.keepHyphens("а — б"), "а — б", "тире не трогаем")
         XCTAssertEqual(Presenter.keepHyphens(""), "")
+    }
+
+    /// Волна 15: сердечки для VoiceOver — как нарисованы (дробь вниз до половинки), без «0» у живого.
+    func testHeartsSpokenMatchesDrawing() {
+        XCTAssertEqual(Presenter.heartsSpoken(5, of: 5), "5 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(3, of: 5), "3 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(2.5, of: 5), "2 с половиной из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(2.9, of: 5), "2 с половиной из 5", "нарисовано 2,5 — так и читаем")
+        XCTAssertEqual(Presenter.heartsSpoken(3.2, of: 5), "3 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(0.6, of: 5), "половинка из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(0.2, of: 5), "меньше половинки из 5", "живой — не ноль")
+        XCTAssertEqual(Presenter.heartsSpoken(0, of: 5), "0 из 5")
+        XCTAssertEqual(Presenter.heartsSpoken(7, of: 6), "6 из 6", "больше максимума не бывает")
     }
 }

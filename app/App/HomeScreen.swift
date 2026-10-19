@@ -11,6 +11,10 @@ import UIKit
 struct HomeScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var colorScheme
+    /// Кегль реплики растёт с Dynamic Type (волна 15), но не выше lineMax: над сценой места мало,
+    /// а крупнее 22 pt реплика закрывает пса. Остальной главный экран — фиксированные кегли (макеты).
+    @ScaledMetric(relativeTo: .subheadline) private var lineSize: CGFloat = 15
+    static let lineMax: CGFloat = 22
     @State private var confirmStartOver = false
     /// Записка ждёт, пока Шиба уйдёт за край кадра (при открытии во время прогулки — сразу).
     @State private var noteHeld = false
@@ -121,10 +125,10 @@ struct HomeScreen: View {
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                     Text(model.sayLine ?? snap.line)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: min(lineSize, Self.lineMax), weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                        .lineLimit(lineSize > 17 ? 3 : 2)
                         .minimumScaleFactor(0.85)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
@@ -354,7 +358,9 @@ struct NameCard: View {
     @State private var avatarFor: String?
 
     private var critical: Bool { snap.alive && snap.level >= 3 }
-    private var avatarKey: String? { model.characterEntry.map { "\($0.id)|\($0.folder.path)" } }
+    /// С меткой установки: пак переставили в ту же папку — ключ другой, старая картинка не показывается,
+    /// аватар снимается заново без перезапуска (волна 15).
+    private var avatarKey: String? { model.characterEntry.map { "\($0.id)|\($0.stamp)|\($0.folder.path)" } }
     private var shownAvatar: UIImage? { avatarKey != nil && avatarFor == avatarKey ? avatar : nil }
 
     var body: some View {

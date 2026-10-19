@@ -74,6 +74,8 @@ struct KitchenSheet: View {
             Text("🍳 Кухня")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityLabel(Text("Кухня"))
+                .accessibilityAddTraits(.isHeader)
             if let f = model.file {
                 Text("🪙 \(f.econ.wallet.coins)")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -198,11 +200,13 @@ struct KitchenSheet: View {
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .strikethrough(true, color: PetPalette.soft)
                                 .foregroundStyle(PetPalette.soft)
+                                .accessibilityLabel(Text("Было \(EconText.coins(food.price))"))
                                 .accessibilityIdentifier("kitchen.old.\(food.id)")
                         }
                         Text("🪙 \(p)")
                             .font(.system(size: 14, weight: .heavy, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
+                            .accessibilityLabel(Text(EconText.coins(p)))
                             .accessibilityIdentifier("kitchen.price.\(food.id)")
                         if p != food.price, let d = Cooking.discountText(x) {
                             Text(d)

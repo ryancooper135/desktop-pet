@@ -17,6 +17,9 @@ struct CharacterStore: Sendable {
         /// nil — character.json не прочитался (причина — в check.errors).
         let config: CharacterConfig?
         let check: CharacterCheck
+        /// Метка установки (волна 15): своя на каждую установку, даже в ту же папку. Шапка по ней сбрасывает
+        /// аватар, а снимок морды старой модели, досчитанный после переустановки, в новую папку не пишется.
+        var stamp: String = ""
         var name: String { config?.name ?? id }
         var ok: Bool { config != nil && check.ok }
         var modelURL: URL? { config.map { folder.appendingPathComponent(CharacterPack.modelName($0)) } }
@@ -45,6 +48,14 @@ struct CharacterStore: Sendable {
     static let avatarName = "avatar.png"
     /// Снимок морды, отрисованный приложением (CharacterAvatar).
     static let avatarCacheName = ".avatar-snapshot.png"
+    /// Метка установки (Entry.stamp). С точки — install её не копирует и в список не попадает.
+    static let stampName = ".installed"
+
+    /// Метка установки папки: пусто — пак старше волны 15 (или метка не записалась).
+    static func stamp(of folder: URL) -> String {
+        guard let d = try? Data(contentsOf: folder.appendingPathComponent(stampName)) else { return "" }
+        return String(decoding: d, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     static var standard: CharacterStore {
         let env = ProcessInfo.processInfo.environment
@@ -76,6 +87,12 @@ struct CharacterStore: Sendable {
 
     /// Прочитать и проверить папку пака (свою или ещё чужую).
     static func read(_ folder: URL, id: String) -> Entry {
+        var e = parse(folder, id: id)
+        e.stamp = stamp(of: folder)
+        return e
+    }
+
+    private static func parse(_ folder: URL, id: String) -> Entry {
         let url = folder.appendingPathComponent(CharacterPack.configName)
         guard let data = try? Data(contentsOf: url) else {
             return Entry(id: id, folder: folder, config: nil, check: CharacterCheck(errors: ["нет файла character.json"]))
@@ -162,6 +179,9 @@ struct CharacterStore: Sendable {
             return (error as? CharacterPackError) ?? CharacterPackError("Не скопировалось: \(error.localizedDescription)")
         }
         do { try fill(tmp) } catch { throw fail(error) }
+        // Своя метка на каждую установку (Entry.stamp); снимок морды, если вдруг попал в копию, — убрать.
+        try? fm.removeItem(at: tmp.appendingPathComponent(Self.avatarCacheName))
+        try? Data(UUID().uuidString.utf8).write(to: tmp.appendingPathComponent(Self.stampName), options: .atomic)
         let dest = root.appendingPathComponent(id, isDirectory: true)
         var backup: URL?
         if fm.fileExists(atPath: dest.path) {

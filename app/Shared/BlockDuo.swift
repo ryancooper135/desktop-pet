@@ -540,7 +540,11 @@ enum BlockDuo {
     /// Что Шиба скажет в комнате после партии. Выбор по счёту: одна партия — одна фраза.
     static func shibaLine(_ r: BlockDuoResult) -> String {
         if r.score == 0 { return "Давай ещё разок? Я поставлю свою фигурку!" }
-        if r.isRecord { return "Гав! Наш рекорд — \(r.score)! Мы команда!" }
+        if r.isRecord {
+            // Как на экране итога: «4 649», пробел неразрывный — число не рвётся (волна 15).
+            let n = Postcards.grouped(r.score).replacingOccurrences(of: " ", with: "\u{00A0}")
+            return "Гав! Наш рекорд — \(n)! Мы команда!"
+        }
         if r.shiba > 0 && r.shiba >= r.mine / 3 { return "Видел, как я линию убрал? Гав!" }
         let lines = [
             "Классно сыграли вдвоём!",

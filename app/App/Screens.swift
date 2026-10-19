@@ -76,7 +76,7 @@ struct AwayScreen: View {
             PetFaceView(pose: model.snap.pose)
                 .frame(width: 96, height: 96)
             VStack(spacing: 4) {
-                Text(report.greet)
+                Text(Presenter.typeset(report.greet))
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                     .multilineTextAlignment(.center)

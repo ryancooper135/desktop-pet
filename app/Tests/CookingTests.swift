@@ -263,7 +263,7 @@ final class CookingTests: XCTestCase {
         XCTAssertEqual(Cooking.waitText(30), "Через 1 мин")
         let stew = CookConfig.defaultRecipes[0]
         XCTAssertEqual(Cooking.gainsText(stew),
-                       "\(Catalog.needName(.food)) +45 · \(Catalog.needName(.fun)) +6 · \(Catalog.needName(.love)) +4")
+                       "\(Catalog.needName(.food))\u{00A0}+45 · \(Catalog.needName(.fun))\u{00A0}+6 · \(Catalog.needName(.love))\u{00A0}+4")
         for why in ["no_kitchen", "enough", "cooldown", "no_item", "pantry", "night"] {
             XCTAssertNotEqual(Cooking.reasonText(why), RefuseText.text(nil), why)
         }

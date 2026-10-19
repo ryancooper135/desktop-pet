@@ -26,7 +26,7 @@ struct AccessoryCircularView: View {
         }
         .accessibilityElement()
         .accessibilityLabel(Text("\(snap.name): \(snap.line)"))
-        .accessibilityValue(Text("Сердечки: \(Int((snap.hearts - 1e-9).rounded(.up))) из \(Int(snap.heartsMax.rounded()))"))
+        .accessibilityValue(Text("Сердечки: \(Presenter.heartsSpoken(snap.hearts, of: snap.heartsMax))"))
     }
 
     /// Доля кольца: сердечки из максимума, 0…1.

@@ -170,4 +170,28 @@ final class CharacterStoreTests: XCTestCase {
         let again = try store.install(folder: src)
         XCTAssertNil(again.avatarURL, "новая модель — снимок снимется заново, чужой скрытый файл не скопирован")
     }
+
+    /// Волна 15: переустановка в ту же папку — новая метка, по ней шапка сбрасывает аватар без перезапуска.
+    func testReinstallSameFolderChangesStamp() throws {
+        let first = try put("cat", name: "Кот", model: "old")
+        XCTAssertFalse(first.stamp.isEmpty, "у установки есть метка")
+        XCTAssertEqual(store.entry("cat")?.stamp, first.stamp, "метка читается та же, пока пак не трогали")
+        XCTAssertEqual(store.list().map(\.id), ["cat"], "метка скрытая — в список не попадает")
+        let again = try put("cat", name: "Кот", model: "new")
+        XCTAssertEqual(again.folder, first.folder, "папка та же")
+        XCTAssertNotEqual(again.stamp, first.stamp, "а метка новая")
+        XCTAssertNotEqual(again, first, "запись другая — шапка видит смену")
+        XCTAssertEqual(CharacterStore.stamp(of: again.folder), again.stamp)
+    }
+
+    func testStampFromSourceIsNotCopied() throws {
+        let src = tmp.appendingPathComponent("inbox/dog")
+        try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
+        try JSONEncoder().encode(config("Пёс")).write(to: src.appendingPathComponent(CharacterPack.configName))
+        try Data("m".utf8).write(to: src.appendingPathComponent(CharacterPack.defaultModel))
+        try Data("fixed".utf8).write(to: src.appendingPathComponent(CharacterStore.stampName))
+        let e = try store.install(folder: src)
+        XCTAssertNotEqual(e.stamp, "fixed", "чужая метка не копируется — своя на каждую установку")
+        XCTAssertFalse(e.stamp.isEmpty)
+    }
 }

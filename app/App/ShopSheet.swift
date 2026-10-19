@@ -65,6 +65,8 @@ struct ShopSheet: View {
             Text("🛍 Лавка дня")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityLabel(Text("Лавка дня"))
+                .accessibilityAddTraits(.isHeader)
             if let w = model.file?.econ.wallet {
                 Text("🪙 \(w.coins)")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -127,6 +129,7 @@ struct ShopSheet: View {
                         .monospacedDigit()
                         .foregroundStyle(done ? PetPalette.soft : PetPalette.ink)
                         .strikethrough(o.state == .sold)
+                        .accessibilityLabel(Text(EconText.coins(o.price)))
                 }
                 Spacer(minLength: 0)
             }

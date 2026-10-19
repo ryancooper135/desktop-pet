@@ -293,8 +293,33 @@ enum Presenter {
         return out
     }
 
-    /// Длинный текст в несколько строк: тире не начинает строку, число не отрывается от «ч»/«мин».
-    static func typeset(_ text: String) -> String { keepUnits(keepDash(text)) }
+    /// Короткий предлог или союз не висит в конце строки (волна 15): «как раз о / тебе думал» → «о» уходит
+    /// на следующую строку вместе со словом. Пробел после такого слова — неразрывный. Регистр не важен.
+    static let shortWords: Set<String> = ["а", "в", "и", "к", "о", "с", "у", "я",
+                                          "во", "до", "за", "из", "ко", "на", "не", "ни", "об", "от", "по", "со"]
+
+    static func keepShortWords(_ text: String) -> String {
+        let chars = Array(text)
+        var out = ""
+        var wordStart = 0
+        for (i, c) in chars.enumerated() {
+            if c.isLetter {
+                if i == 0 || !chars[i - 1].isLetter { wordStart = i }
+                out.append(c); continue
+            }
+            if c == " ", i > 0, chars[i - 1].isLetter,
+               wordStart == 0 || !(chars[wordStart - 1].isLetter || chars[wordStart - 1] == "-" || chars[wordStart - 1].isNumber),
+               shortWords.contains(String(chars[wordStart..<i]).lowercased()) {
+                out.append("\u{00A0}"); continue
+            }
+            out.append(c)
+        }
+        return out
+    }
+
+    /// Длинный текст в несколько строк: тире не начинает строку, число не отрывается от «ч»/«мин»,
+    /// короткий предлог не висит в конце строки.
+    static func typeset(_ text: String) -> String { keepShortWords(keepUnits(keepDash(text))) }
 
     /// Слово с дефисом не рвётся по дефису: «чего-то» не делится на «чего- / то».
     /// После дефиса между буквами ставим WORD JOINER (U+2060): глиф дефиса остаётся из шрифта,
@@ -357,13 +382,23 @@ enum Presenter {
 
     // MARK: для «Команд» и Siri
 
+    /// Сердечки для VoiceOver и Siri (волна 15) — как нарисованы: дробь вниз до половинки (HeartsView),
+    /// «2 с половиной из 5». Живой с крохой меньше половинки — «меньше половинки», а не «0»: ноль — только у ушедшего.
+    static func heartsSpoken(_ hearts: Double, of max: Double) -> String {
+        let total = Swift.max(1, Int(max.rounded()))
+        let shown = Swift.min(Double(total), Swift.max(0, (hearts * 2).rounded(.down) / 2))
+        let whole = Int(shown)
+        if shown == 0 && hearts > 1e-9 { return "меньше половинки из \(total)" }
+        if shown - Double(whole) < 0.25 { return "\(whole) из \(total)" }
+        return whole == 0 ? "половинка из \(total)" : "\(whole) с половиной из \(total)"
+    }
+
     static func statusText(at t: Double = Clock.now()) -> String {
         let f = PetStore.load()
         let snap = make(f, at: t)
         if !snap.alive { return "\(snap.name) больше нет с нами. Открой приложение." }
         var parts = ["\(snap.name): \(snap.line)"]
-        let h = Int((snap.hearts - 1e-9).rounded(.up))
-        parts.append("Сердечки: \(h) из \(Int(snap.heartsMax)).")
+        parts.append("Сердечки: \(heartsSpoken(snap.hearts, of: snap.heartsMax)).")
         if let w = snap.wantText { parts.append("Хочет: \(w).") }
         if let tm = snap.timer, tm.end > t {
             parts.append(timerPhrase(kind: tm.kind, title: tm.title, remaining: tm.end - t) + ".")

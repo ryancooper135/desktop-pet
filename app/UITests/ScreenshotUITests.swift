@@ -40,6 +40,8 @@
 //                   Шиба говорит реплику, челюсть Jaw открывается по гласным (-face-result — служебный кадр итога)
 //   ui-86           свой персонаж в шапке (волна 14, PET_SEED=charpack): ui-86-char-header — главный экран, в шапке
 //                   имя пака «Серый Шиба» и аватар-снимок морды; ui-86-char-header-card — плашка крупно
+//   ui-87           главный экран на крупном шрифте (волна 15): ui-87-dynamic-type — Dynamic Type AccessibilityL
+//                   (-UIPreferredContentSizeCategoryName); подписи кнопок и реплика не должны вылезать и рваться
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -494,6 +496,27 @@ final class ScreenshotUITests: XCTestCase {
             add(shot)
         }
         XCTAssertTrue(found, "ui-86: в шапке нет аватара своего персонажа")
+        app.terminate()
+    }
+
+    // MARK: - Волна 15: крупный шрифт (ui-87)
+
+    /// Главный экран при Dynamic Type AccessibilityL: реплика растёт (до 22 pt, три строки), подписи панели
+    /// подгоняются под ширину ячейки, остальное — фиксированные кегли. Ничего не должно наезжать и рваться.
+    @MainActor
+    func testStates87DynamicType() {
+        let app = Self.makeApp()
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"]
+        for (k, v) in ["PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        waitForMain(app)
+        let line = app.descendants(matching: .any)["pet.line"].firstMatch
+        let found = line.waitForExistence(timeout: 10)
+        settle(1.5)
+        snap("ui-87-dynamic-type")
+        XCTAssertTrue(found, "ui-87: нет реплики на главном экране")
         app.terminate()
     }
 
