@@ -31,6 +31,8 @@ struct PetStage: View {
     /// Дом в комнате (RoomDecor) — уровни из модели; без модели (превью) комната как была.
     @Environment(AppModel.self) private var model: AppModel?
     @Environment(\.colorScheme) private var colorScheme
+    /// Комната выключена под полноэкранной обложкой (StagePause): не рисуется и не анимируется.
+    @State private var stageOff = false
 
     var body: some View {
         // В @Sendable-замыкание RealityView передаём только Sendable-значения, не self.
@@ -64,6 +66,9 @@ struct PetStage: View {
         let app = model
         // Реплика Шибы на экране — челюсть «говорит» (PetRig.say, JawTalk); без кости Jaw ничего не происходит.
         let say = model?.sayLine
+        let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
+                                         zombie: model?.showZombie ?? false, away: model?.away != nil)
+        let off = self.stageOff
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -96,6 +101,8 @@ struct PetStage: View {
             RoomLighting.setup(room, schedule: schedule, dark: dark)
             content.add(room)
             content.add(PetRoom.camera())
+            stand.isEnabled = !off
+            room.isEnabled = !off
             // Лапы на матрасе лежанки, а не в нём (RoomPlan.petLift).
             PetChoreo.setHome(pet, home)
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
@@ -107,11 +114,19 @@ struct PetStage: View {
             BrushFx.prime(puff: brushPuff)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
         } update: { content in
+            // Под обложкой комната выключена целиком (с пятном-тенью и светом); закрыли — сразу снова.
+            var woke = false
+            for e in content.entities where e.name == PetModel.standName || e.name == RoomDecor.roomName {
+                guard e.isEnabled == off else { continue }
+                e.isEnabled = !off
+                woke = woke || !off
+            }
             guard let stand = content.entities.first(where: { $0.name == PetModel.standName }),
                   let pet = stand.children.first(where: { $0.name == PetModel.petName }) else { return }
             // Прогулка — до позы: возвращение держит новую позу, пока Шиба не дошёл до дома.
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
                            reduceMotion: reduceMotion)
+            if woke { ClipPlayer.wake(pet) }
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             PetRig.say(say, to: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
@@ -132,6 +147,15 @@ struct PetStage: View {
         .id("\(character?.id ?? "shiba")#\(model?.characterRev ?? 0)")
         .overlay { RoomVignette(schedule: schedule, dark: dark) }
         .background(PetPalette.bg)
+        // Гасим, когда обложка доехала; включаем сразу, как только её закрывают.
+        .task(id: covered) {
+            let wait = StagePause.delay(covered: covered)
+            if wait > 0 {
+                try? await Task.sleep(for: .seconds(wait))
+                guard !Task.isCancelled else { return }
+            }
+            self.stageOff = covered
+        }
     }
 }
 
@@ -806,6 +830,14 @@ enum ClipPlayer {
               let res = resource(name, mode: .still, source: source, table: table) else { return }
         let ctl = body.playAnimation(res, transitionDuration: 0, startsPaused: false)
         keep(ctl, for: pet)
+    }
+
+    /// Комната снова включена (StagePause): если цикл остановился, пока она была выключена, — запустить заново.
+    /// Играет или доигран (hold, смерть) — не трогаем.
+    static func wake(_ pet: Entity) {
+        guard let ctl = controllers[ObjectIdentifier(pet)], !ctl.isPlaying, !ctl.isComplete,
+              let st = pet.components[ClipState.self], !st.reduceMotion, st.stance != .dead, !st.loop.isEmpty else { return }
+        play([], then: st.loop, on: pet, transition: 0.2, randomSpeed: true, initial: false)
     }
 
     private static func keep(_ ctl: AnimationPlaybackController, for pet: Entity) {
