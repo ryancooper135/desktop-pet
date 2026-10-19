@@ -39,6 +39,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gltf_io import (Glb, GlbWriter, apply_style, globals_from_local, mat_to_q, qeuler, qinv,  # noqa: E402
                      qmul, qnorm, qslerp, sample_track, trs_mat)
+from mouth import add_mouth  # noqa: E402
 
 FPS = 24
 GAP_FRAMES = 1  # пустых кадров между клипами (интерполяция туда не попадает при обрезке)
@@ -66,7 +67,7 @@ REQUIRED = ["idle", "idle_2", "idle_headlow", "walk", "gallop", "gallop_jump", "
             "sit_in", "sit", "sit_out", "lie_in", "lie", "lie_out", "sleep_in", "sleep", "sleep_out"]
 # новые короткие клипы (PetClipNames.optional в приложении)
 EXTRA = ["idle_wag", "happy_wag", "head_tilt", "shake", "hop", "play_bow", "ear_flick", "sniff",
-         "look_l", "look_r", "yawn"]
+         "look_l", "look_r", "yawn", "bark", "pant"]
 
 # посадка на пол: snap — нижняя точка всегда на полу; flight — только кадры у пола (прыжок не трогаем);
 # lift — только вытащить из-под пола (по умолчанию для всего остального)
@@ -389,7 +390,9 @@ def wave_rot(rig: Rig, waves: list, t: float, x: float, keys: list | None) -> di
     for w in waves:
         k = w.get("keys", keys)
         env = 1.0 if k is None else envelope(k, lagged(x, w.get("lag", 0.0)))
-        s = math.sin(2 * math.pi * (t * wave_hz(w) + w.get("phase", 0.0))) * env
+        ph = 2 * math.pi * (t * wave_hz(w) + w.get("phase", 0.0))
+        # shape "open" — в одну сторону, 0…1 (челюсть только открывается: жевание, лай)
+        s = (0.5 * (1 - math.cos(ph)) if w.get("shape") == "open" else math.sin(ph)) * env
         for bn, d in rig.expand({w["bone"]: w["deg"]}).items():
             rot[bn] = tuple(np.array(rot.get(bn, (0, 0, 0)), float) + np.array(d, float) * s)
     return rot
@@ -502,13 +505,22 @@ def build_overlay(rig: Rig, base, name: str, c: dict, height: float) -> list:
     if loop:
         check_loop_waves(name, (n - 1) / FPS, waves)
     lift = float(c.get("lift", 0.0)) * height
+    slide = {}
+    for nm, frac in c.get("slide", {}).items():
+        kids = rig.g.j["nodes"][rig.idx[nm]].get("children", [])
+        if not kids:
+            raise KeyError(f"slide {nm}: нет дочерней кости")
+        slide[rig.idx[nm]] = (kids[0], float(frac))
     lift_keys = c.get("lift_keys", keys)
     frames = []
     for k in range(n):
         x, t = k / (n - 1), k / FPS
         rot = {b: tuple(np.array(d, float) * envelope(keys, lagged(x, lag.get(b, 0.0)))) for b, d in ov.items()}
         rot = add_rot(rot, wave_rot(rig, waves, t, x, keys))
-        frames.append(rig.apply(base, rot, np.array([0.0, lift * envelope(lift_keys, x), 0.0])))
+        loc = rig.apply(base, rot, np.array([0.0, lift * envelope(lift_keys, x), 0.0]))
+        for i, (child, frac) in slide.items():  # язык наружу: кость едет вдоль своей дочерней
+            loc[i][0] = loc[i][0] + rig.rest[child][0] * frac * envelope(keys, x)
+        frames.append(loc)
     return frames
 
 
@@ -525,6 +537,7 @@ def ground_modes(poses_spec: dict | None) -> dict:
 
 def build(args) -> None:
     g = Glb.load(args.glb)
+    add_mouth(g)  # кости Jaw/Tongue/TongueTip, полость рта и язык (если их ещё нет)
     rig = Rig(g)
     anims = {a["name"]: a for a in g.j.get("animations", [])}
     missing = [s for s, _, _ in SOURCES if s not in anims]

@@ -50,6 +50,7 @@ let package = Package(
                 "IslandPlan.swift",
                 "ItemArt.swift",
                 "ItemCatalog.swift",
+                "JawTalk.swift",
                 "LineRotation.swift",
                 "Lines.swift",
                 "Memories.swift",
@@ -119,6 +120,7 @@ let package = Package(
                 "BlockDuoTests.swift",
                 "ZombieRunTests.swift",
                 "CharacterPackTests.swift",
+                "JawTalkTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

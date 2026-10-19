@@ -15,6 +15,8 @@ import UIKit
 
 enum ChoreoPath {
     static let up = SIMD3<Float>(0, 1, 0)
+    /// Когда тявкнуть от начала клипа bark, секунды: чуть раньше, чем пасть раскрыта сильнее всего (0,2 и 0,6 с).
+    static let barkYips: [Double] = [0.16, 0.56]
 
     // MARK: помощники
 
@@ -234,7 +236,8 @@ enum ChoreoPath {
             Cue(at: turn1, steps: [], loop: "gallop"),
             Cue(at: run1, steps: ["hop"], loop: "idle"),
             Cue(at: pounce1, steps: [], loop: "walk"),
-            Cue(at: walk1, steps: ["happy_wag"], loop: nil),
+            // Набегался: виляет и дышит, высунув язык (pant — волна 13; нет клипа — только виляет).
+            Cue(at: walk1, steps: ["happy_wag", "pant"], loop: nil),
         ]
     }
 
@@ -554,6 +557,12 @@ struct PetFace: Component {
     var bliss = false
     /// Reduce Motion: голова сразу на месте, без моргания.
     var still = false
+    /// Реплика на экране (AppModel.sayLine) и когда она появилась (по time): челюсть «говорит» (JawTalk).
+    var talk: String? = nil
+    var talkFrom: Double = 0
+    /// Угол челюсти поверх клипа и его скорость (пружина).
+    var jaw: Float = 0
+    var jawSpeed: Float = 0
 }
 
 // MARK: - Хореография
@@ -569,7 +578,7 @@ enum PetChoreo {
 
     /// Проигрыватель поставил шаги. Есть eat — миска под морду, есть play_bow — игра с мячом.
     /// Прошлая хореография при этом сворачивается. Возвращает, до какого момента часов занята игра.
-    /// trick — шаги играют удачный трюк: «Поклон» без мяча, «Голос» тявкает на прыжке.
+    /// trick — шаги играют удачный трюк: «Поклон» без мяча, «Голос» лает (bark) или тявкает на прыжке.
     @discardableResult
     static func begin(_ pet: Entity, steps: [String], clock: Double, mainLoop: String,
                       trick: Trick? = nil) -> Double? {
@@ -595,7 +604,11 @@ enum PetChoreo {
             cs.active = true
             SoundKit.shared.eat(from: w.start, to: w.end)
         }
-        if trick == .speak, let i = steps.firstIndex(of: "hop") {
+        if trick == .speak, let i = steps.firstIndex(of: "bark") {
+            // Клип bark: два «гав», пасть открыта сильнее всего на 0,2 и 0,6 с (poses.json, 2,5 Гц).
+            let at = steps[..<i].reduce(0) { $0 + duration($1) }
+            for t in ChoreoPath.barkYips { SoundKit.shared.play(.yip, after: at + t) }
+        } else if trick == .speak, let i = steps.firstIndex(of: "hop") {
             SoundKit.shared.play(.yip, after: steps[..<i].reduce(0) { $0 + duration($1) })
         }
         if trick == nil, let i = steps.firstIndex(of: "play_bow") {
@@ -742,7 +755,7 @@ enum PetChoreo {
                     // Дома: виляет хвостом, пока кладёт находку; новую позу потом поставит режиссёр (lockUntil).
                     w.cued = true
                     let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
-                    ClipPlayer.play(PetStance.pick(["happy_wag"], available: available), then: "idle", on: pet,
+                    ClipPlayer.play(PetStance.pick(["happy_wag", "pant"], available: available), then: "idle", on: pet,
                                     transition: 0.2, randomSpeed: false, initial: false)
                 }
                 placeProp(pet, ChoreoPath.walkProp(u))
@@ -972,6 +985,13 @@ final class PetRig {
     private var base: [simd_quatf] = []
     private var last: [simd_quatf?] = []
 
+    /// Челюсть (волна 13, mouth.py): кость Jaw и ось «открыть рот» в её своей системе. Нет Jaw или TongueTip
+    /// (старая модель, свой персонаж) — talk ничего не делает.
+    private var jaw: Int?
+    private var jawAxis = SIMD3<Float>(1, 0, 0)
+    private var jawBase = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
+    private var jawLast: simd_quatf?
+
     private weak var eyes: ModelEntity?
     private var open: [any Material] = []
     private var closed: [any Material] = []
@@ -993,7 +1013,9 @@ final class PetRig {
             let e = queue.removeFirst()
             if let m = e as? ModelEntity {
                 if skin == nil, !m.jointNames.isEmpty { setUpJoints(m) }
-                if eyes == nil, let mats = m.model?.materials, mats.count == 6 { setUpEyes(m, mats) }
+                if eyes == nil, let mats = m.model?.materials, PetRoom.shibaMaterials.contains(mats.count) {
+                    setUpEyes(m, mats)
+                }
             }
             queue += Array(e.children)
         }
@@ -1015,6 +1037,67 @@ final class PetRig {
         joints = [neck, head]
         base = joints.map { m.jointTransforms[$0].rotation }
         last = [nil, nil]
+        setUpJaw(m)
+    }
+
+    /// Ось челюсти: поперёк морды, так чтобы поворот вёл кончик языка вниз (рот открывается). Считаем по
+    /// положениям костей Jaw → TongueTip (вперёд) и вертикали модели — не зависим от того, как экспорт повернул кость.
+    private func setUpJaw(_ m: ModelEntity) {
+        let names = m.jointNames
+        guard let jw = PetModel.boneIndex(names, "Jaw"), let tip = PetModel.boneIndex(names, "TongueTip"),
+              tip != jw else { return }
+        let tr = m.jointTransforms
+        let rot = tr.map(\.rotation)
+        let fwd = position(tip, tr) - position(jw, tr)
+        let up = simd_normalize(m.convert(direction: ChoreoPath.up, from: nil))
+        let side = simd_cross(fwd, -up)
+        guard simd_length(side) > 1e-6, side.x.isFinite else { return }
+        let axis = simd_normalize(global(jw, rot).inverse.act(simd_normalize(side)))
+        guard axis.x.isFinite, axis.y.isFinite, axis.z.isFinite else { return }
+        jaw = jw
+        jawAxis = axis
+        jawBase = tr[jw].rotation
+        jawLast = nil
+    }
+
+    /// Положение кости в системе модели (цепочка родителей, как в global).
+    private func position(_ j: Int, _ tr: [Transform]) -> SIMD3<Float> {
+        var m = tr[j].matrix
+        var p = parents[j]
+        var n = 0
+        while p >= 0 && n < 64 {
+            m = tr[p].matrix * m
+            p = parents[p]
+            n += 1
+        }
+        return SIMD3(m.columns.3.x, m.columns.3.y, m.columns.3.z)
+    }
+
+    /// Челюсть приоткрыта на angle радиан поверх позы клипа (как look: свою прошлую запись за позу не берём).
+    func talk(_ angle: Float) {
+        guard let m = skin, let j = jaw else { return }
+        if abs(angle) < 1e-4 && jawLast == nil { return }
+        var tr = m.jointTransforms
+        guard j < tr.count else { return }
+        let cur = tr[j].rotation
+        if !(jawLast.map { Self.same(cur, $0) } ?? false) { jawBase = cur }
+        if abs(angle) < 1e-4 {
+            tr[j].rotation = jawBase
+            jawLast = nil
+        } else {
+            let q = jawBase * simd_quatf(angle: angle, axis: jawAxis)
+            tr[j].rotation = q
+            jawLast = q
+        }
+        m.jointTransforms = tr
+    }
+
+    /// Сцена передаёт реплику с экрана (PetStage): новая — челюсть начинает «говорить» с начала.
+    static func say(_ text: String?, to pet: Entity) {
+        guard var face = pet.components[PetFace.self], face.talk != text else { return }
+        face.talk = text
+        face.talkFrom = face.time
+        pet.components.set(face)
     }
 
     /// Порядок подмножеств: Main, Main_Light, Black, Eyes_White, Eyes_Pupil, Eyes_Black. Проверяем по цвету,
@@ -1063,7 +1146,7 @@ final class PetRig {
 
     /// Шерсть перекрасили (PetRoom.applyCoat): открытые и закрытые глаза берут новые материалы.
     func recolor(_ m: ModelEntity, _ mats: [any Material]) {
-        guard let e = eyes, e === m, mats.count == open.count else { return }
+        guard let e = eyes, e === m, mats.count == open.count, mats.count >= 6 else { return }
         open = mats
         closed = mats
         for i in 3...5 { closed[i] = mats[0] }
@@ -1124,9 +1207,22 @@ final class PetRig {
             }
             shut = face.time < face.blinkUntil
         }
+        // Говорит, пока на экране реплика (моргание не мешает); во сне и при Reduce Motion — молчит.
+        var jawGoal: Float = 0
+        if let line = face.talk, !face.still, st?.stance != .sleep {
+            jawGoal = JawTalk.angle(line, at: face.time - face.talkFrom)
+        }
+        if face.still {
+            face.jaw = 0
+            face.jawSpeed = 0
+        } else {
+            (face.jaw, face.jawSpeed) = PetSpring.step(x: face.jaw, v: face.jawSpeed, target: jawGoal,
+                                                       omega: 28, zeta: 0.8, dt: Float(dt))
+        }
         pet.components.set(face)
         guard let rig = rig(for: pet) else { return }
         rig.look(face.angle)
+        rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
     }
 }

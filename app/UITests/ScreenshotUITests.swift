@@ -36,6 +36,8 @@
 //   ui-83/84        «Щенок против зомби» (волна 13, PET_SEED=zombie, PET_ZOMBIE, сид 7): ui-83-games-menu — меню с тремя
 //                   играми, ui-83-zombie-intro — карточка «Играть» с постером, ui-83-zombie-play — раунд на 21-й секунде
 //                   (PS1-коридор, друзья с игрушками); ui-84-zombie-done — итог с монетами, ui-84-zombie-room — Шиба в комнате
+//   ui-85           рот крупно (PET_CAMERA=face, волна 13): -face-idle — морда в покое, -face-talk-N — после «Блок Дуо»
+//                   Шиба говорит реплику, челюсть Jaw открывается по гласным (-face-result — служебный кадр итога)
 // Ждём элементы через waitForExistence; Thread.sleep остался только там, где ждать нечего (3D-сцена, SpringBoard).
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
@@ -597,6 +599,27 @@ final class ScreenshotUITests: XCTestCase {
     func testStates72FurSleek() {
         shootState("ui-72-fur-sleek", env: ["PET_SEED": "fur_brushed", "PET_NOW": Self.noon, "PET_SCHEME": "light",
                                             "PET_CAMERA": "close"], marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Рот крупным планом (PET_CAMERA=face, полдень, волна 13): морда в покое; потом итог «Блок Дуо» → «Готово» —
+    /// Шиба в комнате говорит фразу про партию, и пока висит реплика, челюсть «говорит» по гласным. Три кадра через 0,35 с.
+    @MainActor
+    func testStates85Face() throws {
+        shootState("ui-85-face-idle", env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_CAMERA": "face"],
+                   marker: Self.mainMarker, settleFor: 2.0)
+        let env = Self.blockDuoEnv.merging(["PET_BLOCKDUO": "done", "PET_CAMERA": "face"]) { $1 }
+        let app = try shootOptional("ui-85-face-result", env: env, marker: "blockduo.result", keepRunning: true)
+        let done = app.descendants(matching: .any)["blockduo.done"].firstMatch
+        if done.waitForExistence(timeout: 5) {
+            done.tap()
+            // Экран уезжает, через 0,6 с реплика — дальше рот говорит до ~3 с.
+            settle(1.1)
+            for k in 1...3 {
+                snap("ui-85-face-talk-\(k)")
+                settle(0.35)
+            }
+        }
+        app.terminate()
     }
 
     /// expect — подпись элемента после мазка (жест засчитан).

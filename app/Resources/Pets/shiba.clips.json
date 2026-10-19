@@ -1,7 +1,7 @@
 {
  "fps": 24,
  "animation": "Clips",
- "duration": 54.083333,
+ "duration": 58.166667,
  "note": "start/end - seconds on the single timeline; trim in RealityKit",
  "clips": {
   "idle": {
@@ -320,6 +320,26 @@
    "frames": [
     1255,
     1298
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "bark": {
+   "start": 54.166667,
+   "end": 55.083333,
+   "frames": [
+    1300,
+    1322
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "pant": {
+   "start": 55.166667,
+   "end": 58.166667,
+   "frames": [
+    1324,
+    1396
    ],
    "loop": false,
    "source": "overlay"

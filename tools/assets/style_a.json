@@ -3,10 +3,11 @@
  "materials": {
   "Main":       {"color": "#E9A15B", "what": "рыжая шерсть"},
   "Main_Light": {"color": "#FFF1DE", "what": "кремовые щёки, грудь, лапы (в исходнике серые)"},
-  "Black":      {"color": "#4B3A36", "what": "нос"},
+  "Black":      {"color": "#4B3A36", "what": "нос и полость рта"},
   "Eyes_White": {"color": "#FFFFFF", "what": "белок/блик"},
   "Eyes_Pupil": {"color": "#3B2A22", "what": "радужка"},
-  "Eyes_Black": {"color": "#231B1E", "what": "зрачок"}
+  "Eyes_Black": {"color": "#231B1E", "what": "зрачок"},
+  "Tongue":     {"color": "#E98C93", "what": "язык (добавлен в mouth.py)"}
  },
  "params": {"metallic": 0.0, "roughness": 1.0, "specular": 0.0},
  "eyes_closed": {"Eyes_White": "Main", "Eyes_Pupil": "Main", "Eyes_Black": "Main"}
