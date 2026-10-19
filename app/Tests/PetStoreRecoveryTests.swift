@@ -70,6 +70,7 @@ final class PetStoreRecoveryTests: XCTestCase {
             throw XCTSkip("зеркало пишет только приложение (APP_TARGET)")
         }
         rRemove(store.stateURL)
+        rRemove(store.bakURL)
         rRemove(store.prevURL)
 
         let f = try XCTUnwrap(store.read(), "переподпись съела группу — спасает зеркало")
