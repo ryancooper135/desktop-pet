@@ -116,6 +116,41 @@ final class RoomDecorTests: XCTestCase {
         XCTAssertTrue(room.children.isEmpty)
     }
 
+    /// Копия формул в RoomPlan.Zone совпадает с ChoreoPath и для своего тела, не только для Шибы (волна 14).
+    func testZoneMatchesChoreoForCustomBody() {
+        let saved = ChoreoPath.body
+        defer { ChoreoPath.body = saved }
+        for b in [PetBody(height: 1.6, length: 1.8, width: 1.4), PetBody(height: 0.6, length: 0.7, width: 0.6)] {
+            ChoreoPath.body = b
+            let z = RoomPlan.Zone(b)
+            XCTAssertEqual(z.halfLength, ChoreoPath.petHalfLength, accuracy: 1e-5)
+            XCTAssertEqual(z.halfWidth, ChoreoPath.petHalfWidth, accuracy: 1e-5)
+            same(z.bowlUnderSnoutLocal, ChoreoPath.bowlUnderSnout, "миска у морды")
+            same(z.dropLocal, ChoreoPath.Walk.dropped, "находка")
+            same(z.playTurnAt, ChoreoPath.Play.turnAt, "разворот игры")
+            same(z.playRunTo, ChoreoPath.Play.runTo, "пробежка игры")
+            same(z.ballFar, ChoreoPath.Play.ballFar, "мяч далеко")
+            same(z.knockTo, ChoreoPath.Play.knockTo, "мяч после толчка")
+        }
+    }
+
+    /// Другое тело — вещи расставляются заново; крупному игровой угол не ставится.
+    func testApplyRebuildsForOtherBody() {
+        let room = Entity()
+        room.name = RoomDecor.roomName
+        let l = RoomPlan.Levels.all(RoomPlan.maxLevel)
+        RoomDecor.apply(l, body: .shiba, to: room)
+        let first = room.children.first { $0.name == RoomDecor.rootName }
+        XCTAssertNotNil(first?.findEntity(named: "decor.play"))
+        let big = PetBody(height: 2, length: 2, width: 2)
+        XCTAssertTrue(RoomDecor.apply(l, body: big, to: room))
+        let second = room.children.first { $0.name == RoomDecor.rootName }
+        XCTAssertFalse(second === first)
+        XCTAssertNil(second?.findEntity(named: "decor.play"), "игровой угол в размахе крупного")
+        XCTAssertNotNil(second?.findEntity(named: "decor.kitchen"))
+        XCTAssertFalse(RoomDecor.apply(l, body: big, to: room), "то же тело — не перестраиваем")
+    }
+
     func testMoreLevelMoreParts() {
         func parts(_ e: Entity) -> Int { (e is ModelEntity ? 1 : 0) + e.children.reduce(0) { $0 + parts($1) } }
         let counts = (0...RoomPlan.maxLevel).map { parts(RoomDecor.build(.all($0))) }
