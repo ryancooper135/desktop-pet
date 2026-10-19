@@ -102,6 +102,7 @@ let package = Package(
                 "PetRunnerCoverageTests.swift",
                 "SaveFileCoverageTests.swift",
                 "PetStoreRecoveryTests.swift",
+                "SaveRecoveryTests.swift",
                 "NotificationPlannerCoverageTests.swift",
                 "PresenterCoverageTests.swift",
                 "CatalogHashTests.swift",
