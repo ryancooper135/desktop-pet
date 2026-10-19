@@ -304,11 +304,12 @@ enum CatchGame {
         rollDay(&f, now: now)
         f.catchGames += 1
         let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg)
-        let got = Swift.min(wish, coinsLeft(f, now: now, cfg))
+        // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
+        let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.catchCoins += got
         f.econ.wallet.coins += got
         r.coins = got
-        r.capped = got < wish
+        r.capped = f.pet.alive && got < wish
         r.isRecord = r.score > f.catchBest
         f.catchBest = Swift.max(f.catchBest, r.score)
         r.best = f.catchBest

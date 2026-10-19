@@ -355,6 +355,22 @@ final class BlockDuoTests: XCTestCase {
         XCTAssertEqual(f.blockduoGames, 1)
     }
 
+    func testFinishAfterDeathPaysNothing() {
+        // Волна 13: партия кончилась уже после смерти — без монет, рекорд остаётся.
+        var f = bFile()
+        f.pet.alive = false
+        let coins = f.econ.wallet.coins
+        let r = BlockDuo.finish(BlockDuo.autoplay(seed: 3, moves: 4), in: &f, now: bT0, bCfg())
+        XCTAssertGreaterThan(r.score, 0)
+        XCTAssertEqual(r.totalCoins, 0)
+        XCTAssertFalse(r.capped)
+        XCTAssertNil(BlockDuo.rewardText(r))
+        XCTAssertEqual(f.econ.wallet.coins, coins)
+        XCTAssertEqual(f.blockduoCoins, 0)
+        XCTAssertFalse(r.played)
+        XCTAssertEqual(f.blockduoBest, r.score)
+    }
+
     func testFinishWhileAsleepKeepsRecordWithoutPlay() {
         var f = bFile()
         f.pet.napUntil = bT0 + 1800

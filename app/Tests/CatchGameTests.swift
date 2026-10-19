@@ -333,6 +333,22 @@ final class CatchGameTests: XCTestCase {
         }
     }
 
+    func testFinishAfterDeathPaysNothing() {
+        // Волна 13: пёс умер, пока шёл раунд, — монеты не капают (кошелёк переходит новому щенку), рекорд остаётся.
+        var f = cFile()
+        f.pet.alive = false
+        let coins = f.econ.wallet.coins
+        let r = CatchGame.finish(score: 33, in: &f, now: cT0, cCfg())
+        XCTAssertEqual(r.coins, 0)
+        XCTAssertEqual(r.totalCoins, 0)
+        XCTAssertFalse(r.capped, "не «на сегодня хватит»: просто некому")
+        XCTAssertNil(CatchGame.rewardText(r))
+        XCTAssertEqual(f.econ.wallet.coins, coins)
+        XCTAssertEqual(f.catchCoins, 0, "дневной потолок не съеден")
+        XCTAssertFalse(r.played)
+        XCTAssertEqual(f.catchBest, 33)
+    }
+
     func testFinishWhileAsleepKeepsRecordWithoutPlay() {
         var f = cFile()
         f.pet.napUntil = cT0 + 1800

@@ -496,11 +496,12 @@ enum BlockDuo {
         rollDay(&f, now: now)
         f.blockduoGames += 1
         let wish = CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
-        let got = Swift.min(wish, coinsLeft(f, now: now, cfg))
+        // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
+        let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.blockduoCoins += got
         f.econ.wallet.coins += got
         r.coins = got
-        r.capped = got < wish
+        r.capped = f.pet.alive && got < wish
         r.isRecord = r.score > f.blockduoBest
         f.blockduoBest = Swift.max(f.blockduoBest, r.score)
         r.best = f.blockduoBest
