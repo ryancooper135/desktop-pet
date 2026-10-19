@@ -25,11 +25,12 @@ enum CharacterAvatar {
     static func image(for e: CharacterStore.Entry) async -> UIImage? {
         if let img = cached(e) { return img }
         guard e.ok, let model = e.modelURL else { return nil }
-        let yaw = e.config?.yaw ?? 0
         let tint = e.config?.color.flatMap(CharacterPack.rgb)
+        let head = e.config?.bones?.head?.trimmingCharacters(in: .whitespaces)
+        let headBone = (head?.isEmpty ?? true) ? "Head" : head!
         let out = e.avatarCacheURL
         let data = await Task.detached(priority: .utility) {
-            render(model: model, yaw: yaw, tint: tint)
+            render(model: model, headBone: headBone, tint: tint)
         }.value
         guard let data else { return nil }
         try? data.write(to: out, options: .atomic)
@@ -48,28 +49,40 @@ enum CharacterAvatar {
         return UIImage(cgImage: cg)
     }
 
-    /// Снимок морды: модель как в комнате (поворот yaw из character.json, морда к +z), камера спереди
-    /// чуть сбоку и сверху, в кадре верхняя передняя часть рамки — голова. PNG с прозрачным фоном.
-    static func render(model: URL, yaw: Double, tint: UInt32?) -> Data? {
+    /// Снимок морды. Куда смотрит модель, по осям не угадать (SceneKit читает usdz не так, как RealityKit,
+    /// у чужих паков свои оси), поэтому кадр строится от кости головы: камера стоит со стороны, куда голова
+    /// вынесена от центра тела, чуть сбоку и сверху. Нет такой кости — верх рамки, камера спереди по +z.
+    /// PNG с прозрачным фоном.
+    static func render(model: URL, headBone: String, tint: UInt32?) -> Data? {
         guard let device = MTLCreateSystemDefaultDevice(),
               let scene = try? SCNScene(url: model, options: [.checkConsistency: false]) else { return nil }
-        let turn = SCNNode()
-        for c in scene.rootNode.childNodes {
-            c.removeFromParentNode()
-            turn.addChildNode(c)
-        }
-        turn.eulerAngles.y = Float(yaw * .pi / 180)
-        scene.rootNode.addChildNode(turn)
-        if let tint { recolor(turn, tint) }
+        let root = scene.rootNode
+        if let tint { recolor(root, tint) }
 
-        let (lo, hi) = scene.rootNode.boundingBox
+        let (lo, hi) = root.boundingBox
         let h = hi.y - lo.y, w = hi.x - lo.x, l = hi.z - lo.z
         guard h > 0, h.isFinite, w.isFinite, l.isFinite else { return nil }
-        // Голова — сверху и спереди. Кадр — верхние ~60% роста; у вытянутых (собака, кот) сдвигаем к морде.
-        let frame = max(h * 0.62, min(w, h) * 0.9)
-        let target = SCNVector3((lo.x + hi.x) / 2, lo.y + h * 0.72, hi.z - min(l * 0.22, h * 0.3))
+        let mid = SIMD3<Float>((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, (lo.z + hi.z) / 2)
+
+        var target: SIMD3<Float>
+        var facing = SIMD3<Float>(0, 0, 1)
+        var frame: Float
+        if let head = bone(headBone, in: root) {
+            let p = head.simdWorldPosition
+            let flat = SIMD3<Float>(p.x - mid.x, 0, p.z - mid.z)
+            if simd_length(flat) > h * 0.05 { facing = simd_normalize(flat) }
+            // Кость головы — у затылка: морда впереди неё, уши выше.
+            target = p + facing * (h * 0.08) + SIMD3<Float>(0, h * 0.03, 0)
+            frame = h * 0.55
+        } else {
+            frame = max(h * 0.62, min(w, h) * 0.9)
+            target = SIMD3<Float>(mid.x, lo.y + h * 0.72, hi.z - min(l * 0.22, h * 0.3))
+        }
+
         let reach = max(h, max(w, l)) * 3
         let aside: Float = 18 * .pi / 180, down: Float = 8 * .pi / 180
+        let across = SIMD3<Float>(facing.z, 0, -facing.x)
+        let look = simd_normalize(facing * cos(aside) + across * sin(aside)) * cos(down) + SIMD3<Float>(0, sin(down), 0)
         let cam = SCNCamera()
         cam.usesOrthographicProjection = true
         cam.orthographicScale = Double(frame / 2)
@@ -77,24 +90,22 @@ enum CharacterAvatar {
         cam.zFar = Double(reach * 4)
         let eye = SCNNode()
         eye.camera = cam
-        eye.position = SCNVector3(target.x + reach * sin(aside) * cos(down),
-                                  target.y + reach * sin(down),
-                                  target.z + reach * cos(aside) * cos(down))
-        eye.look(at: target)
-        scene.rootNode.addChildNode(eye)
+        eye.simdPosition = target + look * reach
+        eye.simdLook(at: target)
+        root.addChildNode(eye)
 
-        // Мягкий свет без теней: общий + ключ спереди-сверху.
+        // Мягкий свет без теней: общий + ключ от камеры сверху-сбоку (едет вместе с камерой).
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
         ambient.light?.intensity = 650
-        scene.rootNode.addChildNode(ambient)
+        root.addChildNode(ambient)
         let key = SCNNode()
         key.light = SCNLight()
         key.light?.type = .directional
         key.light?.intensity = 900
-        key.eulerAngles = SCNVector3(-0.6, 0.4, 0)
-        scene.rootNode.addChildNode(key)
+        key.eulerAngles = SCNVector3(-0.5, 0.35, 0)
+        eye.addChildNode(key)
         scene.background.contents = UIColor.clear
 
         let renderer = SCNRenderer(device: device, options: nil)
@@ -106,14 +117,53 @@ enum CharacterAvatar {
         return img.pngData()
     }
 
-    /// Цвет шерсти из character.json, как в комнате (PetRoom.recolorFur): первый материал каждой модели — шерсть.
+    /// Кость по имени: SceneKit называет суставы из usdz то коротко, то путём («…/Neck3/Head»).
+    private static func bone(_ name: String, in root: SCNNode) -> SCNNode? {
+        var found: SCNNode?
+        root.enumerateHierarchy { node, stop in
+            guard let n = node.name else { return }
+            if n == name || n.hasSuffix("/" + name) {
+                found = node
+                stop.pointee = true
+            }
+        }
+        return found
+    }
+
+    /// Цвет шерсти из character.json, как в комнате (PetRoom.recolorFur): у Шибы это материал Main
+    /// (Main_Light — белые грудь и лапы — не трогаем), у остальных — светлые материалы. Цвет без текстуры
+    /// заменяется (как tint в RealityKit), текстура домножается.
     private static func recolor(_ root: SCNNode, _ rgb: UInt32) {
         let c = UIColor(red: CGFloat((rgb >> 16) & 0xFF) / 255, green: CGFloat((rgb >> 8) & 0xFF) / 255,
                         blue: CGFloat(rgb & 0xFF) / 255, alpha: 1)
+        var all: [SCNMaterial] = []
         root.enumerateHierarchy { node, _ in
-            guard let g = node.geometry, let m = g.materials.first else { return }
-            m.multiply.contents = c
+            for m in node.geometry?.materials ?? [] where !all.contains(where: { $0 === m }) { all.append(m) }
         }
+        guard !all.isEmpty else { return }
+        var fur = all.filter { $0.name == "Main" }
+        if fur.isEmpty {
+            fur = all.filter { m in
+                guard let col = color(m.diffuse.contents) else { return false }
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                return col.getRed(&r, green: &g, blue: &b, alpha: &a) && r + g + b > 1.2
+            }
+        }
+        if fur.isEmpty { fur = [all[0]] }
+        for m in fur {
+            if m.diffuse.contents == nil || color(m.diffuse.contents) != nil {
+                m.diffuse.contents = c
+            } else {
+                m.multiply.contents = c
+            }
+        }
+    }
+
+    private static func color(_ contents: Any?) -> UIColor? {
+        guard let contents else { return nil }
+        if let c = contents as? UIColor { return c }
+        if CFGetTypeID(contents as CFTypeRef) == CGColor.typeID { return UIColor(cgColor: contents as! CGColor) }
+        return nil
     }
 }
 #endif
