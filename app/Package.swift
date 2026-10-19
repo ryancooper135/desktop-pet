@@ -120,6 +120,7 @@ let package = Package(
                 "BlockDuoTests.swift",
                 "ZombieRunTests.swift",
                 "CharacterPackTests.swift",
+                "CharacterStoreTests.swift",
                 "JawTalkTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]

@@ -689,8 +689,12 @@ final class AppModel {
         characterEntry = id.flatMap { CharacterStore.standard.entry($0) }
     }
 
+    /// Список паков. Сначала разбираем хвосты прерванной установки или удаления (убили посреди копирования):
+    /// недокопированное стираем, старый пак из «.old-…» возвращаем на место.
     func reloadCharacterPacks() {
-        characterPacks = CharacterStore.standard.list()
+        let store = CharacterStore.standard
+        store.recover()
+        characterPacks = store.list()
     }
 
     /// Сделать персонажа активным (nil — вернуть Шибу). Пак с ошибками не ставим — причина тостом.
@@ -744,14 +748,27 @@ final class AppModel {
         }
     }
 
+    /// Удалить пак. Выбранный — сначала вернуть Шибу (даже если стереть потом не выйдет: наполовину
+    /// стёртого в сцену не ставим), так что сбой посреди удаления не оставит сохранение со ссылкой в пустоту.
     func deleteCharacter(_ id: String) {
-        if id == character { setCharacter(nil) }
+        let wasActive = id == character || file?.character == id
+        if wasActive {
+            _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.character = nil }
+            refresh()
+            noteCharacter(nil)
+        }
+        var failed: Error?
         do {
             try CharacterStore.standard.delete(id)
         } catch {
-            show("Не удалился: \(error.localizedDescription)", ok: false)
+            failed = error
         }
         reloadCharacterPacks()
+        if let failed {
+            show((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)", ok: false)
+        } else if wasActive {
+            show("Удалён. Снова Шиба", emoji: "🐾")
+        }
     }
 
     /// Сцена не смогла поставить своего персонажа и показала Шибу. Выбор снимаем, чтобы не ругаться на каждом
