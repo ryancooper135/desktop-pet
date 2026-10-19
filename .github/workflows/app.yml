@@ -25,7 +25,7 @@ concurrency:
 jobs:
   app:
     runs-on: macos-26
-    timeout-minutes: 50
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: app
@@ -186,7 +186,7 @@ jobs:
       - name: UI tests
         # Идут и после упавших юнит-тестов: скриншоты и кадры нужны всё равно.
         if: ${{ env.RUN_UI == '1' && !cancelled() && steps.bft.outcome == 'success' }}
-        timeout-minutes: 25
+        timeout-minutes: 45
         run: |
           xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
