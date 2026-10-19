@@ -109,7 +109,8 @@ enum RefuseText {
         case "unknown_item": return "Такого у нас нет"
         case "away": return "Гуляет, скоро вернётся"
         case "unwell": return "Ему плохо, сначала помоги"
-        case "not_ready": return "Сначала покорми и почисти, сил на прогулку мало"
+        // Общий запасной текст: какая шкала держит, пишет WalkPlan.gate (тост «Гулять» и отказ в AppActions).
+        case "not_ready": return "Для прогулки пока не готов — загляни в шкалы"
         case "too_late": return "Поздно, скоро спать"
         case "unavailable": return "Гулять пока нельзя"
         case "store": return "Не получилось сохранить"

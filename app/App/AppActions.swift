@@ -36,7 +36,7 @@ final class AppActions {
         let quiet = source == .app && a == .pet && out.reason == "cooldown"
         if quiet { Coach.shared.petRefused(model) }
         if !out.ok && source != .steps && !quiet {
-            model.show(RefuseText.text(out.reason, name: model.snap.name), ok: false)
+            model.show(Self.refusal(a, out, file: model.file, at: now, name: model.snap.name), ok: false)
         }
         await afterChange()
         // Разрешение на уведомления спрашиваем не на старте, а после первой удачной кормёжки.
@@ -45,6 +45,16 @@ final class AppActions {
             GuideCenter.shared.fedOK()
         }
         return out
+    }
+
+    /// Текст отказа. Прогулка «не готов» (волна 20) — тот же тост, что у кнопки «Гулять»: какая шкала держит и её
+    /// число («Для прогулки сначала подкормить: сытость 35, нужно 40»), а не общее «покорми и почисти».
+    static func refusal(_ a: PetAction, _ out: ActOutcome, file: SaveFile?, at t: Double, name: String) -> String {
+        if a == .walk, out.reason == "not_ready", let f = file {
+            let g = WalkPlan.gate(f, at: t)
+            if g.reason == "not_ready", !g.toast.isEmpty { return g.toast }
+        }
+        return RefuseText.text(out.reason, name: name)
     }
 
     /// Привычка из «Команд» или с экрана «Привычки»: отметка и монеты (Habits.checkIn). Приложение открыто —

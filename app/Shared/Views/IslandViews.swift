@@ -26,8 +26,8 @@ extension PetAttributes.ContentState {
     /// Критично и ещё жив — та же граница, что у виджетов (Presenter.isCritical).
     var islandCritical: Bool { Presenter.isCritical(level: level, alive: pose != .dead) }
 
-    /// Заголовок таймера: в ContentState его нет, берём по виду и шкале.
-    var islandTimerTitle: String { Presenter.timerTitle(kind: timerKind ?? "", need: timerNeed) }
+    /// Заголовок таймера: тот же, что в приложении; у старого состояния без него — по виду и шкале.
+    var islandTimerTitle: String { timerTitle ?? Presenter.timerTitle(kind: timerKind ?? "", need: timerNeed) }
 
     /// Большая кнопка с учётом возвращения: вместо «Гуляет» — «Открыть».
     func shownBigAct(home: Bool) -> IslandAct { home && bigAct == .walk ? .open : bigAct }
@@ -187,7 +187,7 @@ struct IslandStatusRow: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(state.level >= 2 ? PetPalette.red : PetPalette.accent)
                     if let want = state.want {
-                        Text(Lines.shared.thought(want).text)
+                        Text(state.wantText ?? Lines.shared.thought(want).text)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color.white)
                             .lineLimit(1)

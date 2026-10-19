@@ -5,6 +5,8 @@
 // • NeedHints.gates — можно ли сейчас нажать кнопки панели и короткая причина на бейдж («2 мин», «спит», «устал»).
 // • Tips — когда показывать обучение ласке и разовые подсказки жестов (щекотка, свайп вверх).
 // Вкус (слова, пороги, сколько раз учить) — за Вадимом, вопросы в PROGRESS «Подсказки и жесты (волна 18)».
+// Волна 20: слова сверены с тем, что на экране. «Голодный», «скучает», «пора в ванну» — только когда шкала и правда
+// ниже порога, к которому ведёт строка статуса («Проголодается через…» = ещё не голодный); см. NeedHints.isLow.
 
 import Foundation
 @preconcurrency import PetCore
@@ -98,6 +100,22 @@ enum NeedHints {
         "\(max(1, Int(((until - now) / 60).rounded(.up)))) мин"
     }
 
+    // MARK: «уже плохо» — общий порог для слов
+
+    /// Шкалы, по которым идут уровень «Просит» и таймер «Проголодается / Испачкается / Заскучает / Затоскует через…»
+    /// (PetEngine.WATCH в ядре, там он internal). Тест сверяет с ядром.
+    static let watched: [Need] = [.food, .clean, .fun, .love]
+    /// Силы «на нуле» — как настроение tired у ядра (PetEngine.moods: energy < 20). Тест сверяет.
+    static let tiredBelow: Double = 20
+
+    /// Шкала уже «плохая»: можно говорить «голодный», «скучает», «пора в ванну». Пока она не ниже порога, строка
+    /// статуса ещё считает время до него («Проголодается через 59 мин») — и слово «голодный» спорило бы с ней.
+    static func isLow(_ n: Need, _ v: Double, _ r: Rules) -> Bool {
+        if watched.contains(n) { return v < r.warnLow }
+        if n == .energy { return v < tiredBelow }
+        return false
+    }
+
     // MARK: что нужно сейчас
 
     static func pick(_ snap: PetSnapshot, file f: SaveFile) -> NeedHint? {
@@ -105,7 +123,15 @@ enum NeedHints {
     }
 
     /// Плашка или nil (всё хорошо, спит, моется, гуляет, беда — там своя красная кнопка, умер).
+    /// Тексты писались под Шибу («Проведи пальцем по Шибе») — для своего персонажа их правит PetNames.adapt.
     static func pick(_ snap: PetSnapshot, pet s: PetState, _ r: Rules, _ o: Owner) -> NeedHint? {
+        guard let h = pickRaw(snap, pet: s, r, o) else { return nil }
+        guard !PetNames.isShiba(snap.name) else { return h }
+        return NeedHint(key: h.key, go: h.go, title: PetNames.adapt(h.title, name: snap.name),
+                        detail: PetNames.adapt(h.detail, name: snap.name), icon: h.icon, urgent: h.urgent, then: h.then)
+    }
+
+    private static func pickRaw(_ snap: PetSnapshot, pet s: PetState, _ r: Rules, _ o: Owner) -> NeedHint? {
         guard snap.alive, !snap.critical, snap.level < 3 else { return nil }
         switch snap.main {
         case .none, .open, .wake: return nil      // моется, гуляет, дремлет
@@ -117,10 +143,12 @@ enum NeedHints {
         let urgent = snap.urgent
         let g = gates(s, r, o)
         switch key {
-        case "food": return act("feed", key: key, urgent: urgent, gate: g["feed"], then: nil)
-        case "bath": return act("bath", key: key, urgent: urgent, gate: g["bath"], then: nil)
-        case "play": return act("play", key: key, urgent: urgent, gate: g["play"], then: nil)
-        case "pet": return act("pet", key: key, urgent: urgent, gate: g["pet"], then: nil)
+        case "food", "bath", "play", "pet":
+            let kind = key == "food" ? "feed" : key
+            // Ещё не голодный (строка статуса: «Проголодается через…») — «Подкормить», как под кнопкой «Гулять».
+            let soft = kind == "feed" && !isLow(.food, s.needs[.food] ?? 0, r)
+            return act(kind, key: key, urgent: urgent, gate: g[kind], lead: soft ? "Подкормить" : nil,
+                       detail: how(kind, s, r))
         case "sleep":
             return NeedHint(key: key, go: .none, title: "Пусть отдохнёт", detail: "Не играй с ним — силы вернутся сами",
                             icon: "moon.zzz.fill", urgent: urgent, then: nil)
@@ -165,22 +193,42 @@ enum NeedHints {
         }
     }
 
-    /// Как сделать: подпись под заголовком плашки.
-    static func how(_ kind: String) -> String {
+    /// Какую шкалу поднимает кнопка панели.
+    static func need(_ kind: String) -> Need? {
         switch kind {
-        case "feed": return "Голодный — нажми, и он поест"
-        case "bath": return "Пора в ванну — нажми, и он помоется"
-        case "play": return "Скучает — нажми, поиграйте"
+        case "feed": return .food
+        case "bath": return .clean
+        case "play": return .fun
+        case "pet": return .love
+        default: return nil
+        }
+    }
+
+    /// Как сделать: подпись под заголовком плашки. Слово о состоянии («голодный», «скучает») — только если
+    /// шкала уже ниже порога (isLow); желание ядра бывает и раньше — тогда мягче.
+    static func how(_ kind: String, _ s: PetState, _ r: Rules) -> String {
+        let low = need(kind).map { isLow($0, s.needs[$0] ?? 0, r) } ?? false
+        return how(kind, low: low)
+    }
+
+    static func how(_ kind: String, low: Bool = true) -> String {
+        switch kind {
+        case "feed": return low ? "Голодный — нажми, и он поест" : "Не прочь перекусить — нажми, и он поест"
+        case "bath": return low ? "Пора в ванну — нажми, и он помоется" : "Ванна не помешает — нажми, и он помоется"
+        case "play": return low ? "Скучает — нажми, поиграйте" : "Хочет поиграть — нажми, поиграйте"
         case "pet": return "Проведи пальцем по Шибе"
         default: return ""
         }
     }
 
-    /// Плашка, ведущая к кнопке панели. then — «Гулять», если это шаг перед прогулкой.
-    private static func act(_ kind: String, key: String, urgent: Bool, gate: ActGate?, then: String?) -> NeedHint {
+    /// Плашка, ведущая к кнопке панели. lead — заголовок («Сначала подкормить» перед прогулкой), detail — подпись,
+    /// then — «Гулять», если это шаг перед прогулкой.
+    private static func act(_ kind: String, key: String, urgent: Bool, gate: ActGate?, lead: String? = nil,
+                            detail: String, then: String? = nil) -> NeedHint {
         let go = HintGo(rawValue: kind) ?? .none
-        let lead = then == nil ? title(kind) : "Сначала " + title(kind).lowercased()
-        let detail = then == nil ? how(kind) : "Потом можно гулять"
+        // На откате — тем же глаголом, что в заголовке: «Подкормить — через 3 мин», а не «Покормить».
+        let verb = lead.map { $0.hasPrefix("Сначала ") ? capitalized(String($0.dropFirst(8))) : $0 } ?? title(kind)
+        let lead = lead ?? title(kind)
         guard let gate, !gate.ok else {
             return NeedHint(key: key, go: go, title: lead, detail: detail, icon: icon(kind), urgent: urgent, then: then)
         }
@@ -188,7 +236,7 @@ enum NeedHints {
         case "cooldown":
             let when = gate.badge.map { "через \($0)" } ?? "чуть позже"
             let what = kind == "pet" ? "Только что гладил" : "Только что было"
-            return NeedHint(key: key, go: .none, title: "\(title(kind)) — \(when)", detail: what,
+            return NeedHint(key: key, go: .none, title: "\(verb) — \(when)", detail: what,
                             icon: "hourglass", urgent: urgent, then: then)
         case "tired":
             return NeedHint(key: key, go: .none, title: "Пусть отдохнёт", detail: "Устал — поиграете позже",
@@ -211,19 +259,36 @@ enum NeedHints {
         }
         switch w.reason {
         case "not_ready":
-            if let fix = w.fix {
-                return act(fix, key: "walk", urgent: urgent, gate: g[fix], then: "Гулять")
+            // Волна 20: заголовок — то же слово, что под кнопкой «Гулять» («подкормить», если он не голодный),
+            // подпись — та шкала, что держит, и её число: «Сытость 35, для прогулки нужно 40».
+            let lacks = WalkPlan.lacks(s, r)
+            if let fix = w.fix, let l = lacks.first(where: { WalkPlan.fixKind($0.need) == fix }) {
+                return act(fix, key: "walk", urgent: urgent, gate: g[fix], lead: "Сначала " + WalkPlan.todoWord(l),
+                           detail: walkWhy(l), then: "Гулять")
             }
             // Не хватает сил: кнопки «отдохнуть» нет, ждём.
-            return NeedHint(key: "walk", go: .none, title: "Сначала пусть отдохнёт", detail: w.toast,
+            let detail = lacks.first.map(walkWhy) ?? w.toast
+            return NeedHint(key: "walk", go: .none, title: "Сначала пусть отдохнёт", detail: detail,
                             icon: "moon.zzz.fill", urgent: urgent, then: "Гулять")
-        case "too_late", "asleep":
+        case "too_late":
             return NeedHint(key: "walk", go: .none, title: "Гулять — завтра", detail: w.toast,
                             icon: "figure.walk", urgent: urgent, then: nil)
+        case "asleep":
+            // «Завтра» — только ночью; днём он дремлет и проснётся сегодня.
+            let night = PetEngine.petNight(s.t, r, o)
+            return NeedHint(key: "walk", go: .none, title: night ? "Гулять — завтра" : "Гулять — когда проснётся",
+                            detail: w.toast, icon: "figure.walk", urgent: urgent, then: nil)
         default:
             return NeedHint(key: "walk", go: .none, title: "Гулять — позже", detail: w.toast,
                             icon: "figure.walk", urgent: urgent, then: nil)
         }
+    }
+
+    private static func capitalized(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
+
+    /// «Сытость 35, для прогулки нужно 40» — число то же, что на шкале.
+    static func walkWhy(_ l: WalkLack) -> String {
+        "\(Catalog.needName(l.need)) \(l.value), для прогулки нужно \(l.required)"
     }
 }
 
@@ -263,6 +328,13 @@ enum Tips {
         GestureTip(key: "swipe", icon: "chevron.up", text: "Свайп вверх — все шкалы"),
     ]
 
+    /// Подпись пальца-обучения ласке; своему персонажу — «по питомцу» (PetNames).
+    static func petTutorText(name: String) -> String { PetNames.adapt("Проведи пальцем по Шибе", name: name) }
+    /// VoiceOver: «Подсказка: проведи пальцем по Шибе, чтобы погладить».
+    static func petTutorLabel(name: String) -> String {
+        PetNames.adapt("Подсказка: проведи пальцем по Шибе, чтобы погладить", name: name)
+    }
+
     /// Показать ли палец «Проведи пальцем по Шибе». petReady — ядро примет .pet (не на откате, жив, дома).
     static func showPetTutor(_ log: TipLog, wantsPet: Bool, petReady: Bool, now: Double) -> Bool {
         guard petReady else { return false }
@@ -273,9 +345,10 @@ enum Tips {
     }
 
     /// Следующая разовая подсказка жеста или nil. Не раньше первого поглаживания: сначала главное.
-    static func nextGesture(_ log: TipLog) -> GestureTip? {
-        guard log.strokes >= 1 else { return nil }
-        return gestures.first { !log.seen.contains($0.key) }
+    /// name — кто в комнате: «Четыре быстрых тапа по питомцу» у своего персонажа.
+    static func nextGesture(_ log: TipLog, name: String = PetNames.shiba) -> GestureTip? {
+        guard log.strokes >= 1, let g = gestures.first(where: { !log.seen.contains($0.key) }) else { return nil }
+        return GestureTip(key: g.key, icon: g.icon, text: PetNames.adapt(g.text, name: name))
     }
 
     /// Хозяин погладил пальцем.

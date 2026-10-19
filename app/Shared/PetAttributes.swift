@@ -31,6 +31,12 @@ struct PetAttributes: ActivityAttributes {
         /// Гуляет: когда ядро снимет прогулку (Finds.backAt). После него остров сам показывает «Дома»,
         /// даже если приложение не успело прислать новое состояние. Не в init: старый JSON и тесты не трогаем.
         var backAt: Double? = nil
+        /// Волна 20: текст мысли как в пузыре приложения (PetSnapshot.wantText) — «Хрустик бы…», пока он не голодный.
+        /// Optional и не в init, как backAt: старый JSON без поля — остров берёт текст по want.
+        var wantText: String? = nil
+        /// Волна 20: заголовок таймера как в приложении (PetSnapshot.timer.title). По одной шкале не отличить «Проголодается»
+        /// (ниже 30) от «Совсем оголодает» (беда, сытость 0). nil у старого JSON — берём по шкале.
+        var timerTitle: String? = nil
 
         init(pose: Pose, want: String?, wantIcon: String?, line: String, hearts: Double, heartsMax: Double,
              level: Int, main: MainAct, timerStart: Double?, timerEnd: Double?, timerKind: String?, updatedAt: Double,
@@ -61,6 +67,8 @@ struct PetAttributes: ActivityAttributes {
                       hearts: s.hearts, heartsMax: s.heartsMax, level: s.level, main: s.main,
                       timerStart: s.timer?.start, timerEnd: s.timer?.end, timerKind: s.timer?.kind, updatedAt: s.t,
                       primary: IslandAct.from(s.main))
+            self.wantText = s.wantText
+            self.timerTitle = s.timer?.title
         }
 
         /// Полное состояние острова на момент t: кнопки из IslandPlan, реакция на IslandPlan.reactionHold секунд.
