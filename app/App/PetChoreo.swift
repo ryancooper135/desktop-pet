@@ -997,12 +997,41 @@ final class PetRig {
     private var closed: [any Material] = []
     private var eyesClosed = false
 
+    // ВРЕМЕННО (волна 16): диагностика моргания для UI-тестов.
+    static var debugLine = "-"
+    private var created = 0
+    private var candidates = 0
+    private var closes = 0
+    private var opens = 0
+    private var recolors = 0
+    private static var made = 0
+
+    private func debug(_ face: PetFace, _ shut: Bool, _ st: ClipState?) {
+        func at(_ a: [any Material]?, _ i: Int) -> (any Material)? {
+            guard let a, i < a.count else { return nil }
+            return a[i]
+        }
+        func b(_ m: (any Material)?) -> String {
+            guard let m, let v = Self.brightness(m) else { return "?" }
+            return String(format: "%.2f", v)
+        }
+        let cur = eyes?.model?.materials
+        Self.debugLine = String(format: "rig#%d/%d r=%d cand=%d eyes=%d skin=%d c=%d s=%d t=%.1f b=%.1f n=%.1f\n",
+                                created, Self.made, Self.rigs.count, candidates, eyes == nil ? 0 : 1, skin == nil ? 0 : 1,
+                                eyesClosed ? 1 : 0, shut ? 1 : 0, face.time, face.blinkUntil, face.nextBlink)
+            + "st=\(st?.stance.rawValue ?? "-") bliss=\(face.bliss ? 1 : 0) still=\(face.still ? 1 : 0) "
+            + "cl=\(closes) op=\(opens) rc=\(recolors) n=\(cur?.count ?? -1) cur3=\(b(at(cur, 3))) "
+            + "open3=\(b(at(open, 3))) closed3=\(b(at(closed, 3))) cur0=\(b(at(cur, 0)))"
+    }
+
     static func rig(for pet: Entity) -> PetRig? {
         let id = pet.id
         if let r = rigs[id] { return r }
         guard let body = pet.findEntity(named: PetModel.bodyName) else { return nil }
         if rigs.count > 8 { rigs.removeAll() }
         let r = PetRig(body)
+        made += 1
+        r.created = made
         rigs[id] = r
         return r
     }
@@ -1013,6 +1042,7 @@ final class PetRig {
             let e = queue.removeFirst()
             if let m = e as? ModelEntity {
                 if skin == nil, !m.jointNames.isEmpty { setUpJoints(m) }
+                if let mats = m.model?.materials, PetRoom.shibaMaterials.contains(mats.count) { candidates += 1 }
                 if eyes == nil, let mats = m.model?.materials, PetRoom.shibaMaterials.contains(mats.count) {
                     setUpEyes(m, mats)
                 }
@@ -1161,6 +1191,7 @@ final class PetRig {
         open = mats
         closed = mats
         for i in 3...5 { closed[i] = lid }
+        recolors += 1
         if eyesClosed, var model = e.model {
             model.materials = closed
             e.model = model
@@ -1172,6 +1203,7 @@ final class PetRig {
         model.materials = shut ? closed : open
         e.model = model
         eyesClosed = shut
+        if shut { closes += 1 } else { opens += 1 }
     }
 
     private func global(_ j: Int, _ rot: [simd_quatf]) -> simd_quatf {
@@ -1237,6 +1269,7 @@ final class PetRig {
         rig.look(face.angle)
         rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
+        if Env.isUITest { rig.debug(face, shut, st) }
     }
 }
 
