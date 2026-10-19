@@ -128,3 +128,91 @@ final class SaveMigrationTests: XCTestCase {
         }
     }
 }
+
+/// Волна 15: день рождения — дата в поясе рождения, перелёт её не сдвигает.
+final class BirthTzTests: XCTestCase {
+    private let belgrade = TimeZone(identifier: "Europe/Belgrade")!
+    private let newYork = TimeZone(identifier: "America/New_York")!
+    /// 10.10.2025 00:30 в Белграде (+2) — в Нью-Йорке это ещё 9.10.
+    private let bornT: Double = 1_760_049_000
+
+    override func setUp() {
+        super.setUp()
+        try? FileManager.default.removeItem(at: Paths.mirror)
+    }
+
+    override func tearDown() {
+        Clock.zoneOverride = nil
+        super.tearDown()
+    }
+
+    func testFreshPuppyRemembersBirthZone() {
+        Clock.zoneOverride = belgrade
+        let f = SaveFile.fresh(now: bornT)
+        XCTAssertEqual(f.birthTz, 120)
+        Clock.zoneOverride = newYork
+        XCTAssertEqual(f.bornDay, DayKey.of(bornT, tzOffsetMin: 120), "перелёт: дата рождения та же")
+        XCTAssertNotEqual(f.bornDay, DayKey.of(bornT), "без пояса рождения дата уехала бы на день назад")
+    }
+
+    func testBirthTzRoundTripsAndIsOptional() throws {
+        var f = SaveFile.fresh(now: bornT)
+        f.birthTz = 330
+        let back = try JSONDecoder().decode(SaveFile.self, from: JSONEncoder().encode(f))
+        XCTAssertEqual(back.birthTz, 330)
+        f.birthTz = nil
+        let data = try JSONEncoder().encode(f)
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("birthTz"), "nil в файл не пишется")
+        XCTAssertNil(try JSONDecoder().decode(SaveFile.self, from: data).birthTz)
+    }
+
+    func testOldSaveGetsZoneOnFirstWriteAndKeepsIt() throws {
+        let dir = StoreHooks.makeTempStoreDir("pet-birth")
+        defer { StoreHooks.removeTempStore(dir) }
+        let store = PetStore(dir: dir)
+        let raw = try Data(contentsOf: fixturesDir.appendingPathComponent("save-v0.14.json"))
+        try raw.write(to: store.stateURL)
+        XCTAssertNil(try XCTUnwrap(store.read()).birthTz, "старый сейв — без пояса рождения")
+
+        Clock.zoneOverride = belgrade
+        try store.mutate { (_: inout SaveFile) -> Void in }
+        let f = try XCTUnwrap(store.read())
+        XCTAssertEqual(f.birthTz, 120, "пояс телефона на момент рождения (29.09.2025, летнее время)")
+        let born = f.bornDay
+
+        Clock.zoneOverride = newYork
+        try store.mutate { (g: inout SaveFile) -> Void in g.owner.tzOffsetMin = -240 }
+        let g = try XCTUnwrap(store.read())
+        XCTAssertEqual(g.birthTz, 120, "записан один раз, перелёт не перезаписывает")
+        XCTAssertEqual(g.bornDay, born)
+    }
+
+    func testBirthdayMemoryDoesNotMoveAfterFlight() {
+        Clock.zoneOverride = belgrade
+        var f = SaveFile.fresh(now: bornT)
+        Clock.zoneOverride = newYork
+        f.owner.tzOffsetMin = -240
+        // 9.10.2026 20:00 в Нью-Йорке: год ещё не прошёл — дня рождения нет.
+        f.pet.t = 1_791_590_400
+        Memories.update(&f)
+        XCTAssertNil(f.memories["days.365"], "день рождения не наступает на день раньше")
+        // 10.10.2026 12:00 в Нью-Йорке — день рождения.
+        f.pet.t = 1_791_590_400 + 16 * 3600
+        Memories.update(&f)
+        let m = f.memories["days.365"]
+        XCTAssertEqual(m?.value, 365)
+        XCTAssertEqual(m?.t, DayKey.start(f.bornDay + 365, tzOffsetMin: -240))
+    }
+
+    func testStartOverGivesNewPuppyItsOwnZone() throws {
+        let dir = StoreHooks.makeTempStoreDir("pet-birth")
+        defer { StoreHooks.removeTempStore(dir) }
+        let store = PetStore(dir: dir)
+        Clock.zoneOverride = belgrade
+        try store.startOver(now: bornT)
+        try store.mutate { (f: inout SaveFile) -> Void in f.birthTz = 540 }
+        Clock.zoneOverride = newYork
+        try store.startOver(now: bornT + 86400)
+        XCTAssertEqual(try XCTUnwrap(store.read()).birthTz, -240)
+    }
+}

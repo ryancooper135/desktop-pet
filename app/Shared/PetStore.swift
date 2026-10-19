@@ -267,6 +267,8 @@ final class PetStore: @unchecked Sendable {
             f.log("save_corrupt", t: now, ok: false,
                   reason: "сохранение и все копии испорчены (\(why.prefix(120))), файлы отложены, заведён новый щенок")
         }
+        // Сейв старше волны 15: пояс рождения — пояс телефона на момент рождения, записывается один раз.
+        if f.birthTz == nil { f.birthTz = Clock.tzOffsetMin(at: f.createdT) }
         let out = try body(&f)
         // Память и характер — из того, что только что записано (новые записи журнала разбираются один раз).
         Memories.update(&f)

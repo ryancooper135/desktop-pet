@@ -332,7 +332,7 @@ enum Postcards {
         }
 
         // Вехи: день знакомства, дни дружбы, день рождения. Кроме первого дня — только если хозяин заходил.
-        let index = day - DayKey.of(f.createdT, tzOffsetMin: tz)
+        let index = day - f.bornDay   // номер дня жизни — от даты рождения в её поясе
         if index == 0, f.createdT >= start, f.createdT < end {
             add(.firstDay, f.createdT)
         } else if index > 0, let first = owned.first {

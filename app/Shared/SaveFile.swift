@@ -126,6 +126,13 @@ struct SaveFile: Codable, Sendable {
     /// character задан. Пишется при выборе и переустановке пака (виджет пак не читает: модель ему не нужна).
     /// nil в файл не пишется, переходит щенку вместе с character.
     var characterName: String?
+    /// Волна 15. Пояс рождения (минуты к востоку от UTC). День рождения — календарная дата появления щенка
+    /// там, где он родился: перелёт и смена пояса его не сдвигают. nil — сейв старше волны 15: PetStore при
+    /// первой записи ставит пояс телефона на момент рождения. Новому щенку — свой, не переходит.
+    var birthTz: Int?
+
+    /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
+    var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
 
     /// Как зовут того, кто в комнате: имя своего персонажа, если он выбран, иначе name («Шиба»).
     var petName: String {
@@ -150,6 +157,7 @@ struct SaveFile: Codable, Sendable {
                          owner: owner, pet: PetEngine.newPet(r, t: now))
         f.seen = f.pet
         f.lastSeenT = now
+        f.birthTz = owner.tzOffsetMin
         return f
     }
 
@@ -192,6 +200,7 @@ struct SaveFile: Codable, Sendable {
         case habits
         case cooking
         case character, characterName
+        case birthTz
     }
 
     init(from decoder: Decoder) throws {
@@ -258,6 +267,7 @@ struct SaveFile: Codable, Sendable {
         cooking = (try? c.decodeIfPresent(CookLog.self, forKey: .cooking)) ?? CookLog()
         character = try? c.decodeIfPresent(String.self, forKey: .character)
         characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
+        birthTz = try? c.decodeIfPresent(Int.self, forKey: .birthTz)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -312,6 +322,7 @@ struct SaveFile: Codable, Sendable {
         if !cooking.isEmpty { try c.encode(cooking, forKey: .cooking) }
         try c.encodeIfPresent(character, forKey: .character)
         try c.encodeIfPresent(characterName, forKey: .characterName)
+        try c.encodeIfPresent(birthTz, forKey: .birthTz)
     }
 }
 
