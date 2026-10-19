@@ -98,13 +98,14 @@ struct PostcardSheet: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
+            VStack(spacing: 14) {
                 Text(fromAlbum ? "Открытка" : "Открытка дня")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
-                // Открытка поуже — целиком видна уже в половинном листе, над кнопками.
+                // Открытка чуть уже 280, чтобы вместе с листом 0.6 влезать над «Не надо / В альбом» (ui-48, ui-66);
+                // уже 272 не надо: подпись «Первый день вместе…» переносится в три строки.
                 PostcardFace(card: card)
-                    .frame(maxWidth: 280)
+                    .frame(maxWidth: 272)
                     .padding(.horizontal, 12)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text("Открытка: \(card.caption), \(card.frame.date)"))
@@ -126,7 +127,8 @@ struct PostcardSheet: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
         // «Не надо / В альбом» прибиты к низу листа: в половинном листе они уходили под его край.
         .safeAreaInset(edge: .bottom, spacing: 0) {

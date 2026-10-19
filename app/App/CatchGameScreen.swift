@@ -363,13 +363,20 @@ private struct DoneCard: View {
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("catch.title")
-            Text("\(result.score)")
-                .font(.system(size: 56, weight: .heavy, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(PetPalette.ink)
-                .accessibilityLabel(Text("Очки: \(result.score)"))
-                .accessibilityIdentifier("catch.final")
-            Text("Поймано \(result.caught) · рекорд \(result.best)")
+            // Звезда, как у очков в раунде (HudChip): без неё крупное «49» рядом с «Поймано 42» читалось загадкой.
+            HStack(spacing: 8) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(PetPalette.yellow)
+                    .accessibilityHidden(true)
+                Text("\(result.score)")
+                    .font(.system(size: 56, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(PetPalette.ink)
+                    .accessibilityLabel(Text("Очки: \(result.score)"))
+                    .accessibilityIdentifier("catch.final")
+            }
+            Text("Поймано мячиков: \(result.caught) · рекорд \(result.best) \(EconText.plural(result.best, "очко", "очка", "очков"))")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
             if let reward = CatchGame.rewardText(result) {

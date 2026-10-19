@@ -248,7 +248,8 @@ struct HomeScreen: View {
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)
-                .presentationDetents([.medium, .large])
+                // Выше половины: под открыткой ещё кнопки и срок — в .medium и 0.56 низ карточки уходил под них.
+                .presentationDetents([.fraction(0.6), .large])
         }
         .confirmationDialog("Начать заново с новым щенком?", isPresented: $confirmStartOver, titleVisibility: .visible) {
             Button("Начать заново", role: .destructive) { model.startOver() }
@@ -454,18 +455,21 @@ struct ActionBar: View {
 
     /// Раскладка ряда: зазор, ширина ячейки и общий кегль. Обычный зазор, пока кегль не ниже comfortLabel;
     /// иначе узкий зазор и меньшие поля — так 6 кнопок на iPhone SE (375 pt) остаются читаемыми.
+    /// Поля в узком ряду 7, а не 3–4: у ячейки ~74×56 скруглённые бока, и на высоте подписи
+    /// внутри капсулы остаётся ~60 pt — с полями 4 «Покормить» упиралась в край (ui-63).
     static func fit(titles: [String], total: CGFloat, maxSize: CGFloat) -> (spacing: CGFloat, cell: CGFloat, label: CGFloat) {
         let cell = cellWidth(total: total, count: titles.count)
         let label = labelSize(titles: titles, cellWidth: cell, maxSize: maxSize)
         guard cell > 0, label < comfortLabel, maxSize > comfortLabel else { return (spacing, cell, label) }
         let tight = cellWidth(total: total, count: titles.count, spacing: tightSpacing)
-        return (tightSpacing, tight, labelSize(titles: titles, cellWidth: tight, maxSize: maxSize, inset: 3))
+        return (tightSpacing, tight, labelSize(titles: titles, cellWidth: tight, maxSize: maxSize, inset: 7))
     }
 
     /// Один кегль на все подписи: самый крупный (не больше maxSize), при котором самая длинная влезает в ячейку.
-    /// inset — поля внутри капсулы с каждой стороны. Пока ширина не известна, отдаёт maxSize.
+    /// inset — поля внутри капсулы с каждой стороны: 8, а не 5 — у капсулы скруглённые бока,
+    /// и «Покормить» с полями 5 визуально упиралась в край на 5 кнопках. Пока ширина не известна, отдаёт maxSize.
     static func labelSize(titles: [String], cellWidth: CGFloat, maxSize: CGFloat,
-                          minSize: CGFloat = 8, inset: CGFloat = 5) -> CGFloat {
+                          minSize: CGFloat = 8, inset: CGFloat = 8) -> CGFloat {
         guard cellWidth > 0, !titles.isEmpty else { return maxSize }
         let room = cellWidth - inset * 2
         var size = maxSize
@@ -586,6 +590,10 @@ struct CalmTimerView: View {
         .minimumScaleFactor(0.8)
         .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(PetPalette.soft)
+        // Подложка: без неё серый текст тонет в розовой сцене, вечерней стене и ламбрекене окна.
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(PetPalette.card.opacity(0.75)))
         .animation(.snappy, value: Int((timer.end - t) / 60))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("pet.timer")
