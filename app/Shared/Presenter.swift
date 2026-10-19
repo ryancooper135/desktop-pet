@@ -275,6 +275,25 @@ enum Presenter {
         text.replacingOccurrences(of: " \u{2014}", with: "\u{00A0}\u{2014}")
     }
 
+    /// Число не отрывается от сокращённой единицы: «20 ч», «5 мин», «2 дн.» — неразрывный пробел.
+    /// Только отдельные слова из units: «5 часов», «2 машины» не трогаем.
+    static let units: Set<String> = ["ч", "мин", "сек", "с", "дн", "км", "м", "шт"]
+
+    static func keepUnits(_ text: String) -> String {
+        let chars = Array(text)
+        var out = ""
+        for (i, c) in chars.enumerated() {
+            guard c == " ", i > 0, chars[i - 1].isNumber else { out.append(c); continue }
+            var j = i + 1
+            while j < chars.count, chars[j].isLetter { j += 1 }
+            out.append(j > i + 1 && units.contains(String(chars[(i + 1)..<j])) ? "\u{00A0}" : " ")
+        }
+        return out
+    }
+
+    /// Длинный текст в несколько строк: тире не начинает строку, число не отрывается от «ч»/«мин».
+    static func typeset(_ text: String) -> String { keepUnits(keepDash(text)) }
+
     /// Слово с дефисом не рвётся по дефису: «чего-то» не делится на «чего- / то».
     /// После дефиса между буквами ставим WORD JOINER (U+2060): глиф дефиса остаётся из шрифта,
     /// а неразрывный U+2011 в SF Rounded мог бы прийти из запасного шрифта. «1-3», «-5» и тире не трогаем.

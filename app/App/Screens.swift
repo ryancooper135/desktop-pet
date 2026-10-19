@@ -91,7 +91,7 @@ struct AwayScreen: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(PetPalette.accent)
                             .frame(width: 22)
-                        Text(Presenter.keepDash(card.text))
+                        Text(Presenter.typeset(card.text))
                             .font(.system(size: 15, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
                             .fixedSize(horizontal: false, vertical: true)
@@ -103,7 +103,7 @@ struct AwayScreen: View {
             .padding(16)
             .background(RoundedRectangle(cornerRadius: 20).fill(PetPalette.card))
 
-            Text(Presenter.keepDash(report.cta))
+            Text(Presenter.typeset(report.cta))
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)

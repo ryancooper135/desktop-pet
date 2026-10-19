@@ -75,7 +75,7 @@ private struct RuleRow: View {
                 Text(item.title)
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
-                Text(Presenter.keepDash(item.text))
+                Text(Presenter.typeset(item.text))
                     .font(.system(size: 14, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)

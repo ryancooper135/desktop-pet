@@ -368,6 +368,20 @@ final class ForecastToolsCoverageTests: XCTestCase {
         XCTAssertEqual(Presenter.keepDash("что-нибудь"), "что-нибудь", "дефис не тире")
     }
 
+    func testKeepUnitsGluesNumberToUnit() {
+        XCTAssertEqual(Presenter.keepUnits("около 20 ч, потом ещё 5 мин"), "около 20\u{00A0}ч, потом ещё 5\u{00A0}мин")
+        XCTAssertEqual(Presenter.keepUnits("через 2 дн."), "через 2\u{00A0}дн.")
+        XCTAssertEqual(Presenter.keepUnits("9 ч 25 мин"), "9\u{00A0}ч 25\u{00A0}мин", "между «ч» и следующим числом перенос можно")
+        XCTAssertEqual(Presenter.keepUnits("5 часов и 3 часа"), "5 часов и 3 часа", "полные слова не трогаем")
+        XCTAssertEqual(Presenter.keepUnits("где 2 машины"), "где 2 машины", "«м» только отдельным словом")
+        XCTAssertEqual(Presenter.keepUnits("ч 5"), "ч 5")
+        XCTAssertEqual(Presenter.keepUnits(""), "")
+    }
+
+    func testTypesetDoesDashAndUnits() {
+        XCTAssertEqual(Presenter.typeset("Продержится около 20 ч — потом всё"), "Продержится около 20\u{00A0}ч\u{00A0}— потом всё")
+    }
+
     func testKeepHyphensGluesWordParts() {
         XCTAssertEqual(Presenter.keepHyphens("Начало чего-то хорошего"), "Начало чего-\u{2060}то хорошего")
         XCTAssertEqual(Presenter.keepHyphens("кто-то где-нибудь"), "кто-\u{2060}то где-\u{2060}нибудь", "все дефисы")

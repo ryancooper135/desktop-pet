@@ -102,7 +102,7 @@ struct HomeScreen: View {
                 if let days = snap.buildDaysLeft, days <= 3 {
                     Banner(icon: "exclamationmark.triangle.fill",
                            text: days <= 0 ? "Подпись кончилась сегодня. Переустанови приложение, время питомца стоит."
-                               : "Подпись кончится через \(days) дн. Переустанови приложение заранее.")
+                               : "Подпись кончится через \(days)\u{00A0}дн. Переустанови приложение заранее.")
                 }
                 if !snap.shared {
                     Banner(icon: "square.stack.3d.up.slash",
