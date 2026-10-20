@@ -20,7 +20,7 @@ struct CharacterStore: Sendable {
         /// Метка установки (волна 15): своя на каждую установку, даже в ту же папку. Шапка по ней сбрасывает
         /// аватар, а снимок морды старой модели, досчитанный после переустановки, в новую папку не пишется.
         var stamp: String = ""
-        var name: String { config?.name ?? id }
+        var name: String { config.map { PetNames.clean($0.name) }.flatMap { $0.isEmpty ? nil : $0 } ?? id }
         var ok: Bool { config != nil && check.ok }
         var modelURL: URL? { config.map { folder.appendingPathComponent(CharacterPack.modelName($0)) } }
 

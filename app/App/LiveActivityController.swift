@@ -40,7 +40,8 @@ enum LiveActivityController {
         let content = ActivityContent(state: state,
                                       staleDate: Date(timeIntervalSince1970: staleT - Clock.offset))
 
-        let tooOld = f.island.startedT.map { now - $0 > restartAfter } ?? true
+        // Запуск «из будущего» (часы перевели назад) — возраст неизвестен: перезапускаем, иначе ждали бы, пока часы догонят.
+        let tooOld = f.island.startedT.map { now - $0 > restartAfter || $0 - now > 300 } ?? true
         // Имя в острове задаётся при запуске: сменили персонажа (волна 14) — перезапускаем при открытии.
         let renamed = running.contains { $0.attributes.name != f.petName }
         if running.isEmpty || ((tooOld || renamed) && allowStart) {

@@ -9,6 +9,33 @@ import Foundation
 enum PetNames {
     static let shiba = "Шиба"
 
+    /// Самое длинное имя на экране, в острове и в уведомлениях (в символах).
+    static let maxLength = 24
+
+    /// Имя из character.json — в одну строку и разумной длины (волна 23). Перевод строки или управляющие
+    /// символы ломали шапку и остров, знаки направления текста (RLE, RLO, изоляты) переворачивали соседние
+    /// фразы, а имя в несколько килобайт не помещалось в Live Activity — запуск острова падал. Эмодзи
+    /// и буквы любых языков остаются; пустое остаётся пустым (тогда «Шиба»).
+    static func clean(_ raw: String) -> String {
+        let bidi: ClosedRange<UInt32> = 0x202A...0x202E
+        let isolates: ClosedRange<UInt32> = 0x2066...0x2069
+        var out = ""
+        var space = false
+        for u in raw.unicodeScalars {
+            let v = u.value
+            if v == 0x200E || v == 0x200F || bidi.contains(v) || isolates.contains(v) { continue }
+            if u.properties.generalCategory == .control || u.properties.isWhitespace
+                || u.properties.generalCategory == .lineSeparator || u.properties.generalCategory == .paragraphSeparator {
+                space = !out.isEmpty
+                continue
+            }
+            if space { out.unicodeScalars.append(" "); space = false }
+            out.unicodeScalars.append(u)
+        }
+        guard out.count > maxLength else { return out }
+        return String(out.prefix(maxLength - 1)).trimmingCharacters(in: .whitespaces) + "…"
+    }
+
     /// Пустое имя или «Шиба» — тексты как есть.
     static func isShiba(_ name: String) -> Bool {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)

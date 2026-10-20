@@ -76,6 +76,7 @@ struct ZombieRunScreen: View {
         .onChange(of: scenePhase, initial: true) { _, p in live = p == .active }
         .task { await makePosters() }
         .onAppear { uiTestSetup() }
+        .onDisappear { closedFromOutside() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("zombie.screen")
     }
@@ -418,6 +419,8 @@ struct ZombieRunScreen: View {
 
     /// Закрыть экран. Посреди раунда с очками — сначала засчитать его; после раунда Шиба в комнате радуется.
     private func close() {
+        // Второй тап по крестику, пока экран уезжает, — уже закрыт: без второй радости Шибы.
+        guard model.showZombie else { return }
         switch phase {
         case .intro:
             model.showZombie = false
@@ -436,6 +439,14 @@ struct ZombieRunScreen: View {
             model.showZombie = false
             model.cheerZombie(r, toast: false)
         }
+    }
+
+    /// Экран закрыли не крестиком (ссылка виджета pet://home, острова или уведомления сбрасывает все экраны):
+    /// раунд с очками засчитывается так же, как по крестику (волна 23; так уже было у «Блок Дуо»).
+    private func closedFromOutside() {
+        guard phase == .playing, round.score > 0, !frozen else { return }
+        finish()
+        if case .done(let r) = phase { model.cheerZombie(r, toast: true) }
     }
 
     /// PET_ZOMBIE=play|done — детерминированные снимки (сид 7, автопилот).

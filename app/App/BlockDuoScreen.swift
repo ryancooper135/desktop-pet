@@ -461,6 +461,8 @@ struct BlockDuoScreen: View {
 
     /// Закрыть экран. Посреди партии с очками — сначала засчитать её; после партии Шиба в комнате радуется.
     private func close() {
+        // Второй тап по крестику, пока экран уезжает, — уже закрыт: без второй радости Шибы.
+        guard model.showBlockDuo else { return }
         switch phase {
         case .intro:
             model.showBlockDuo = false

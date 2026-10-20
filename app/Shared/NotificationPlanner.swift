@@ -38,12 +38,13 @@ enum NotificationPlanner {
             out.append(walk)
         }
         for p in core where p.at > now {
-            let day = localDay(p.at, o)
+            let at = dstQuiet(p.at, trigger: p.trigger, quiet: q, owner: o)
+            let day = localDay(at, o)
             var vars: [String: String] = ["item": Catalog.name(Catalog.mainFood)]
             if p.trigger == .miss_you { vars["count"] = "\(max(1, Int(((p.at - (f.lastSeenT ?? now)) / 86400).rounded())))" }
             let text = Lines.shared.notification(p.trigger.rawValue, seed: f.petId, slot: day, vars: vars, name: f.petName)
             out.append(PlannedNote(
-                id: "\(prefix)\(p.trigger.rawValue).\(Int(p.at))", date: Date(timeIntervalSince1970: p.at),
+                id: "\(prefix)\(p.trigger.rawValue).\(Int(at))", date: Date(timeIntervalSince1970: at),
                 title: String(text.title.prefix(LineLimit.notifTitle)), body: text.body,
                 category: p.trigger == .miss_you ? "pet.miss" : "pet.need",
                 priority: priority(p.trigger), trigger: p.trigger.rawValue))
@@ -60,6 +61,19 @@ enum NotificationPlanner {
         let est = OwnerSleep.estimate(f.sleep, now: now, tzOffsetMin: o.tzOffsetMin)
         let cap = Int(Catalog.rules.noDeathAfterWakeH * 60)
         return OwnerSleep.quiet(bedMin: o.bedMin, wakeMin: o.wakeMin, est: est.window, capMin: cap)
+    }
+
+    /// Летнее время (волна 23). Ядро считает тихие часы одним сдвигом пояса на все 14 дней плана, а осенью
+    /// (в Белграде 25 октября) часы уходят на час назад: «08:00» из плана звенело бы в 07:00 по новым часам.
+    /// Пункт, который по настоящему местному времени попал в тихие часы, переносим к их концу — как ядро.
+    /// «Последний шанс» и «критично» не трогаем: перенос мог бы увести их за смерть, а важнее они, чем лишний час сна.
+    static func dstQuiet(_ t: Double, trigger: NotifyTrigger, quiet q: (from: Int, to: Int), owner o: Owner) -> Double {
+        guard trigger != .last_chance, trigger != .critical else { return t }
+        let tz = Clock.tzOffsetMin(at: t)
+        guard tz != o.tzOffsetMin else { return t }
+        let m = ((DayKey.minute(t) + tz) % 1440 + 1440) % 1440
+        guard OwnerSleep.inWindow(m, q.from, q.to) else { return t }
+        return t + Double((((q.to - m) % 1440) + 1440) % 1440) * 60
     }
 
     /// Местный день (DayKey, пояс хозяина): по нему лимит «1 в день» и ротация текстов.
@@ -81,7 +95,8 @@ enum NotificationPlanner {
         let at = out.until
         guard at >= now + walkLeadSec, at <= now + horizonH * 3600 else { return nil }
         let q = quiet ?? quietHours(f, now: now, owner: o)
-        if OwnerSleep.inWindow(PetEngine.localMin(at, o), q.from, q.to) { return nil }
+        // Тихие часы — по местному времени на момент возвращения (после перевода часов сдвиг другой).
+        if OwnerSleep.inWindow(PetEngine.localMin(at, PetRunner.owner(f, at: at)), q.from, q.to) { return nil }
         let day = localDay(at, o)
         if let ls = lastSent, localDay(ls, o) == day { return nil }
         let soft: Set<String> = ["low", "absent"]

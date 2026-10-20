@@ -30,6 +30,22 @@ enum PetRunner {
         for (k, e) in f.tricks.items where e.t > now { f.tricks.items[k]?.t = now }
         if let j = f.tricks.joyT, j > now { f.tricks.joyT = now }
         if f.cooking.lastT > now { f.cooking.lastT = now }
+        // Волна 23: шаги, гайд виджета и палец-учитель тоже ждали бы, пока часы догонят метку из будущего.
+        if let s = f.lastStepsT, s > now { f.lastStepsT = now }
+        if let w = f.flags.widgetHintT, w > now { f.flags.widgetHintT = now }
+        if let k = f.tips.lastStrokeT, k > now { f.tips.lastStrokeT = now }
+    }
+
+    /// Не чаще: шаги засчитываются окном не короче 15 минут.
+    static let stepsMinGapS: Double = 15 * 60
+
+    /// Начало окна шагов для AppActions.syncSteps: с прошлого засчитанного раза, но не раньше начала суток;
+    /// nil — окно короче stepsMinGapS. Метка из будущего (часы назад) окно не открывает: ближайшая запись
+    /// (catchUp при входе) прижмёт её к now, и шаги пойдут оттуда. Лучше недосчитать, чем засчитать дважды.
+    static func stepsFrom(lastStepsT: Double?, createdT: Double, dayStart: Double, now: Double) -> Double? {
+        let from = max(dayStart, lastStepsT ?? createdT)
+        guard now - from >= stepsMinGapS else { return nil }
+        return from
     }
 
     /// Шаг ядра до t с записью событий по дороге (ev.*) и наблюдением вкуса, если пёс вернулся с находкой.

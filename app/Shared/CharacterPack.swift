@@ -186,7 +186,7 @@ enum CharacterPack {
         if let f = c.format, f > format {
             out.errors.append("формат \(f) — это приложение знает только \(format), обнови его")
         }
-        if c.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if PetNames.clean(c.name).isEmpty {
             out.errors.append("пустое name — как зовут персонажа?")
         }
         let model = modelName(c)
@@ -310,6 +310,8 @@ enum CharacterPack {
 
     private static func num(_ x: Double) -> String {
         guard x.isFinite else { return "\(x)" }
+        // Int(x) у огромного x (scale 1e20 в character.json) роняет приложение — такие числа как есть (волна 23).
+        guard abs(x) < 1e15 else { return String(format: "%g", x).replacingOccurrences(of: ".", with: ",") }
         let s = x == x.rounded() ? String(Int(x)) : String(format: "%.2f", x)
         return s.replacingOccurrences(of: ".", with: ",")
     }
