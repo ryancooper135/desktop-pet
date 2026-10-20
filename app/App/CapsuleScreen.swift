@@ -70,6 +70,10 @@ struct CapsuleScreen: View {
 
     private func header(_ o: CapsuleOffer?) -> some View {
         VStack(spacing: 4) {
+            HStack {
+                Spacer()
+                SheetCloseButton(id: "capsule.close")
+            }
             Text(o?.name ?? "Автомат")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)

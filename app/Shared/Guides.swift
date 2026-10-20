@@ -93,7 +93,7 @@ enum Guides {
                             text: "Если бед несколько сразу, сердечки уходят быстрее."))
 
         out.append(RuleItem(id: "night", icon: "moon.fill", title: "Ночью не страшно",
-                            text: "Пока ты спишь (\(hm(owner.bedMin))–\(hm(owner.wakeMin))), сердечки не уходят и беды не копятся. Считаются только часы, когда ты не спишь."))
+                            text: "Пока ты спишь (\(hm(owner.bedMin))–\(hm(owner.wakeMin)), от «Ложусь в» в настройках), сердечки не уходят и беды не копятся. Считаются только часы, когда ты не спишь."))
 
         let deathWord = (e?["death"]["permanent"].bool ?? true) ? "Это навсегда — вернуть его будет нельзя." : "Потом его можно будет вернуть."
         out.append(RuleItem(id: "last", icon: "heart.slash.fill", title: "Последнее сердечко",

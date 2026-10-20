@@ -67,6 +67,10 @@ struct HouseScreen: View {
 
     private var header: some View {
         VStack(spacing: 4) {
+            HStack {
+                Spacer()
+                SheetCloseButton(id: "house.close")
+            }
             Text("Дом")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
