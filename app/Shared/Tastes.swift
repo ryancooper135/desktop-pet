@@ -31,8 +31,6 @@ struct TasteReaction: Hashable, Sendable {
     let clips: [String]
     /// Вкус уже открыт (в альбоме).
     let known: Bool
-
-    var joyful: Bool { taste == .love || taste == .like }
 }
 
 /// Открытый вкус — запись альбома: «Обожает морковку».
