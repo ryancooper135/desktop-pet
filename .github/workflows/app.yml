@@ -229,6 +229,44 @@ jobs:
             -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
             -quiet
 
+      - name: Perf metrics
+        # Замеры PerfUITests (волна 26): xcodebuild идёт с -quiet, поэтому числа берём из xcresult и печатаем сюда.
+        # Сводка — среднее по итерациям; полный JSON — perf-<шард>.json в Pet-xcresult.
+        if: ${{ matrix.ui != '' && !cancelled() }}
+        run: |
+          R="$OUT/PetUITests-$SHARD.xcresult"
+          if [ ! -d "$R" ]; then echo "xcresult UI-тестов нет"; exit 0; fi
+          xcrun xcresulttool get test-results metrics --path "$R" > "$OUT/perf-$SHARD.json" || { echo "метрик нет"; exit 0; }
+          python3 - "$OUT/perf-$SHARD.json" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          rows = 0
+          def walk(x, test=None):
+              global rows
+              if isinstance(x, dict):
+                  test = x.get("testIdentifier") or x.get("testIdentifierURL") or test
+                  runs = x.get("testRuns")
+                  if isinstance(runs, list):
+                      for run in runs:
+                          for m in run.get("metrics", []):
+                              vals = m.get("measurements") or []
+                              if not vals:
+                                  continue
+                              mean = sum(vals) / len(vals)
+                              print(f"PERF {test} | {m.get('displayName')} = {mean:.4g} {m.get('unitOfMeasurement', '')}"
+                                    f" (n={len(vals)}, min={min(vals):.4g}, max={max(vals):.4g})")
+                              rows += 1
+                  for v in x.values():
+                      walk(v, test)
+              elif isinstance(x, list):
+                  for v in x:
+                      walk(v, test)
+          walk(data)
+          if not rows:
+              print("строк метрик не нашлось, сырой JSON:")
+              print(json.dumps(data, ensure_ascii=False)[:4000])
+          PY
+
       - name: Export screenshots
         # Вложения из каждого xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
         # Всё — в screens/, контактные листы анимации anim-* ещё и отдельно в anim/.
@@ -293,6 +331,7 @@ jobs:
           path: |
             app/out/*.xcresult
             app/out/coverage.txt
+            app/out/perf-*.json
           if-no-files-found: ignore
           retention-days: 1
 
