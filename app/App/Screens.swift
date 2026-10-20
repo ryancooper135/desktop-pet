@@ -29,8 +29,8 @@ struct NeedsSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Как там \(snap.name)")
-                    .lineLimit(1)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .axLines(1)
+                    .petFont(20, .bold)
                     .foregroundStyle(PetPalette.ink)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
@@ -45,13 +45,13 @@ struct NeedsSheet: View {
             // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift. Волна 19: лохматая — где расчесать.
             if let coat = model.coat, snap.alive {
                 Text(Onboarding.coatLine(coat.stage, ageS: model.file.map { snap.t - $0.createdT } ?? .infinity))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("needs.coat")
             }
             if let next = nextEvent {
                 Text(next)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("needs.next")
             }

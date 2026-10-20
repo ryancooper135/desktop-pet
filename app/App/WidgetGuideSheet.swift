@@ -20,12 +20,12 @@ struct WidgetGuideSheet: View {
                         .padding(.top, 20)
                     VStack(spacing: 4) {
                         Text("\(name) всегда рядом")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .petFont(24, .bold)
                             .foregroundStyle(PetPalette.ink)
                             .accessibilityAddTraits(.isHeader)
                         // Короче и с полями: длинная фраза шла от края до края.
                         Text("Как он — видно без приложения")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .petFont(15, .medium)
                             .foregroundStyle(PetPalette.soft)
                             .padding(.horizontal, 12)
                     }
@@ -50,7 +50,7 @@ struct WidgetGuideSheet: View {
             } label: {
                 Text("Готово").frame(maxWidth: .infinity, minHeight: 50)
             }
-            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .petFont(17, .bold)
             .buttonStyle(.borderedProminent)
             .tint(PetPalette.accent)
             .accessibilityIdentifier("guide.done")
@@ -72,7 +72,7 @@ struct WidgetGuideSheet: View {
                     .foregroundStyle(PetPalette.accent)
                     .frame(width: 22)
                 Text("Остров")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .petFont(16, .bold)
                     .foregroundStyle(PetPalette.ink)
                 Spacer(minLength: 0)
             }
@@ -82,7 +82,7 @@ struct WidgetGuideSheet: View {
                 Button("Открыть настройки") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                 }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .petFont(15, .semibold)
                 .tint(PetPalette.accent)
                 .accessibilityIdentifier("guide.settings")
             } else if !enabled {
@@ -97,7 +97,7 @@ struct WidgetGuideSheet: View {
                 } label: {
                     Text("Включить остров").frame(maxWidth: .infinity, minHeight: 40)
                 }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .petFont(15, .semibold)
                 .buttonStyle(.bordered)
                 .tint(PetPalette.accent)
                 .disabled(turningOn)
@@ -125,7 +125,7 @@ private struct GuideCard: View {
                     .foregroundStyle(PetPalette.accent)
                     .frame(width: 22)
                 Text(title)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .petFont(16, .bold)
                     .foregroundStyle(PetPalette.ink)
                 Spacer(minLength: 0)
             }
@@ -204,7 +204,7 @@ private struct WidgetDemo: View {
 
 private extension Text {
     func guideText() -> some View {
-        self.font(.system(size: 15, design: .rounded))
+        self.petFont(15)
             .foregroundStyle(PetPalette.ink)
             .fixedSize(horizontal: false, vertical: true)
     }

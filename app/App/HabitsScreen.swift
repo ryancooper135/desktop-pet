@@ -44,12 +44,12 @@ struct HabitsScreen: View {
                 ForEach(Array(Self.steps.enumerated()), id: \.offset) { i, s in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("\(i + 1)")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 13, weight: .bold, design: .rounded)) // кружок 22 pt: номер не растёт
                             .foregroundStyle(.white)
                             .frame(width: 22, height: 22)
                             .background(Circle().fill(PetPalette.accent))
                         Text(s)
-                            .font(.system(size: 14, design: .rounded))
+                            .petFont(14)
                             .foregroundStyle(PetPalette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -58,7 +58,7 @@ struct HabitsScreen: View {
                 if let url = URL(string: "shortcuts://") {
                     Link(destination: url) {
                         Label("Открыть «Команды»", systemImage: "arrow.up.forward.app")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .petFont(15, .semibold)
                     }
                     .listRowBackground(PetPalette.card)
                     .accessibilityIdentifier("habits.openShortcuts")
@@ -107,23 +107,23 @@ private struct HabitRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(habit.title)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .petFont(16, .bold)
                         .foregroundStyle(PetPalette.ink)
                     Spacer(minLength: 6)
                     Text(status)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .petFont(12, .semibold)
                         .foregroundStyle(doneToday ? PetPalette.green : PetPalette.soft)
                         .accessibilityIdentifier("habits.status.\(habit.rawValue)")
                 }
                 Text("«\(HabitsScreen.appName), \(habit.siri)»")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.ink.opacity(0.8))
                 Text(habit.trigger)
-                    .font(.system(size: 12, design: .rounded))
+                    .petFont(12)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(Habits.rewardText(habit))
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .petFont(12, .semibold)
                     .foregroundStyle(PetPalette.furDark)
             }
         }

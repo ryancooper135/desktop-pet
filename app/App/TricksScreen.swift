@@ -10,6 +10,7 @@ import SwiftUI
 
 struct TricksScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var type
 
     private static let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -22,7 +23,8 @@ struct TricksScreen: View {
                 if let gate {
                     GateBanner(reason: gate)
                 }
-                LazyVGrid(columns: Self.columns, spacing: 12) {
+                // Крупный шрифт (accessibility-размеры): одна колонка, иначе «Отряхнись» не влезает в полкарточки.
+                LazyVGrid(columns: type.isAccessibilitySize ? [GridItem(.flexible())] : Self.columns, spacing: 12) {
                     ForEach(rows) { r in
                         TrickCard(row: r, enabled: gate == nil && !r.locked) {
                             Feel.tap(.button)
@@ -48,11 +50,11 @@ struct TricksScreen: View {
                 SheetCloseButton(id: "tricks.close")
             }
             Text("Трюки")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
                 .accessibilityAddTraits(.isHeader)
             Text("Выучено \(learned) из \(total) · повторяй, и запомнит")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .petFont(13, .medium)
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("tricks.count")
@@ -78,10 +80,10 @@ private struct GateBanner: View {
             Image(systemName: icon)
                 .accessibilityHidden(true)
             Text(Tricks.reasonText(reason))
-                .lineLimit(2)
+                .axLines(2)
                 .multilineTextAlignment(.leading)
         }
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .petFont(14, .semibold)
         .foregroundStyle(PetPalette.ink)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
@@ -123,15 +125,15 @@ struct TrickCard: View {
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     Text(row.trick.title)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .petFont(16, .bold)
                         .foregroundStyle(PetPalette.ink)
-                        .lineLimit(1)
+                        .axLines(1)
                         .minimumScaleFactor(0.8)
                     LevelPips(level: row.progress, top: Tricks.needed)
                     Text(status)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .petFont(12, .medium)
                         .foregroundStyle(row.learned ? PetPalette.green : PetPalette.soft)
-                        .lineLimit(1)
+                        .axLines(1)
                         .minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: 0)

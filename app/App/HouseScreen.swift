@@ -34,7 +34,7 @@ struct HouseScreen: View {
                 header
                 if rows.isEmpty {
                     Text("Улучшений пока нет")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .petFont(15, .medium)
                         .foregroundStyle(PetPalette.soft)
                         .padding(.top, 20)
                 }
@@ -46,7 +46,7 @@ struct HouseScreen: View {
                                  kitchen: r.id == .kitchen ? { openKitchen() } : nil) { buy(r) }
                 }
                 Text("Дом остаётся, даже если начать заново с новым щенком.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .multilineTextAlignment(.center)
                     .padding(.top, 4)
@@ -72,12 +72,12 @@ struct HouseScreen: View {
                 SheetCloseButton(id: "house.close")
             }
             Text("Дом")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
                 .accessibilityAddTraits(.isHeader)
             if let coins = model.file?.econ.wallet.coins {
                 Text("🪙 \(coins)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .petFont(15, .semibold)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
                     .contentTransition(.numericText(value: Double(coins)))
@@ -138,13 +138,13 @@ struct HomeLineCard: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.name)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .petFont(17, .bold)
                         .foregroundStyle(PetPalette.ink)
                     Text(row.levelName)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .petFont(14, .medium)
                         .foregroundStyle(PetPalette.soft)
                 }
-                .lineLimit(1)
+                .axLines(1)
                 .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
                 LevelPips(level: row.level, top: row.top)
@@ -163,7 +163,7 @@ struct HomeLineCard: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Дальше: \(n.name)")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .petFont(14, .bold)
                         .foregroundStyle(PetPalette.ink)
                     PerkList(perks: n.perks, icon: "plus.circle.fill", color: PetPalette.green)
                 }
@@ -174,7 +174,7 @@ struct HomeLineCard: View {
                     Image(systemName: "crown.fill")
                     Text(HomeOffer.buttonTitle(row))
                 }
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .petFont(14, .bold)
                 .foregroundStyle(PetPalette.yellow)
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.yellow.opacity(0.14)))
@@ -188,7 +188,7 @@ struct HomeLineCard: View {
 
             if let note {
                 Text(note.text)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .petFont(13, .semibold)
                     .foregroundStyle(note.ok ? PetPalette.green : PetPalette.red)
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
@@ -227,14 +227,14 @@ struct KitchenEntry: View {
                 Image(systemName: "frying.pan.fill")
                     .accessibilityHidden(true)
                 Text(cooking ? "Кухня: угостить и приготовить" : "Кухня: угостить")
-                    .lineLimit(1)
+                    .axLines(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .bold))
                     .accessibilityHidden(true)
             }
-            .font(.system(size: 15, weight: .bold, design: .rounded))
+            .petFont(15, .bold)
             .foregroundStyle(PetPalette.accent)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -281,7 +281,7 @@ struct PerkList: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(color)
                     Text(p)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .petFont(13, .medium)
                         .foregroundStyle(PetPalette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -301,13 +301,13 @@ struct BuyButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .petFont(15, .bold)
                 Spacer(minLength: 8)
                 Text("🪙 \(next.price)")
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .petFont(15, .heavy)
                     .monospacedDigit()
             }
-            .lineLimit(1)
+            .axLines(1)
             .minimumScaleFactor(0.8)
             .foregroundStyle(row.canBuy ? Color.white : PetPalette.ink)
             .padding(.horizontal, 16)

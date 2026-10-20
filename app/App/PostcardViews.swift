@@ -100,7 +100,7 @@ struct PostcardSheet: View {
         ScrollView {
             VStack(spacing: 14) {
                 Text(fromAlbum ? "Открытка" : "Открытка дня")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .petFont(22, .bold)
                     .foregroundStyle(PetPalette.ink)
                     .accessibilityAddTraits(.isHeader)
                 // Открытка чуть уже 280, чтобы вместе с листом 0.6 влезать над «Не надо / В альбом» (ui-48, ui-66);
@@ -115,7 +115,7 @@ struct PostcardSheet: View {
                         askRemove = true
                     } label: {
                         Label("Удалить", systemImage: "trash")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .petFont(15, .semibold)
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("postcard.remove")
@@ -141,7 +141,7 @@ struct PostcardSheet: View {
                             dismiss()
                         } label: {
                             Text("Не надо")
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .petFont(16, .semibold)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.bordered)
@@ -152,7 +152,7 @@ struct PostcardSheet: View {
                             dismiss()
                         } label: {
                             Label("В альбом", systemImage: "books.vertical.fill")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .petFont(16, .bold)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.borderedProminent)
@@ -182,7 +182,7 @@ struct PostcardSheet: View {
                 if last { Image(systemName: "clock") }
                 Text(note)
             }
-            .font(.system(size: last ? 13 : 12, weight: last ? .semibold : .medium, design: .rounded))
+            .petFont(last ? 13 : 12, last ? .semibold : .medium)
             .foregroundStyle(last ? PetPalette.accent : PetPalette.soft)
             .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)

@@ -232,12 +232,12 @@ struct BrushCard: View {
                     .background(Circle().fill(PetPalette.accent.opacity(0.16)))
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Расчесать")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .petFont(16, .bold)
                         .foregroundStyle(PetPalette.ink)
                     Text(status)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .petFont(12, .medium)
                         .foregroundStyle(PetPalette.soft)
-                        .lineLimit(1)
+                        .axLines(1)
                         .minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: 0)

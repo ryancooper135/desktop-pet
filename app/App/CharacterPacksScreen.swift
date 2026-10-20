@@ -43,7 +43,7 @@ struct CharacterPacksScreen: View {
                     importing = true
                 } label: {
                     Label("Добавить из «Файлов»", systemImage: "folder.badge.plus")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .petFont(15, .semibold)
                 }
                 .listRowBackground(PetPalette.card)
                 .accessibilityIdentifier("characters.add")
@@ -54,7 +54,7 @@ struct CharacterPacksScreen: View {
             Section {
                 ForEach(Array(Self.howTo.enumerated()), id: \.offset) { _, line in
                     Text(line)
-                        .font(.system(size: 13, design: .rounded))
+                        .petFont(13)
                         .foregroundStyle(PetPalette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .listRowBackground(PetPalette.card)
@@ -114,10 +114,10 @@ private struct ShibaRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Шиба")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .petFont(16, .bold)
                     .foregroundStyle(PetPalette.ink)
                 Text("Из коробки")
-                    .font(.system(size: 12, design: .rounded))
+                    .petFont(12)
                     .foregroundStyle(PetPalette.soft)
             }
             Spacer(minLength: 6)
@@ -125,9 +125,10 @@ private struct ShibaRow: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(PetPalette.accent)
+                    .accessibilityLabel(Text("Сейчас в комнате"))
             } else {
                 Button("Вернуть Шибу", action: use)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .petFont(14, .semibold)
                     .buttonStyle(.borderless)
                     .accessibilityIdentifier("characters.shiba")
             }
@@ -157,29 +158,30 @@ private struct PackRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(entry.name)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .petFont(16, .bold)
                         .foregroundStyle(PetPalette.ink)
                     Spacer(minLength: 6)
                     if active {
                         Image(systemName: "checkmark")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(PetPalette.accent)
+                            .accessibilityLabel(Text("Сейчас в комнате"))
                     } else if entry.ok {
                         Button("Сделать активным", action: use)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .petFont(14, .semibold)
                             .buttonStyle(.borderless)
                             .accessibilityIdentifier("characters.use.\(entry.id)")
                     }
                 }
                 if let by = byline {
                     Text(by)
-                        .font(.system(size: 12, design: .rounded))
+                        .petFont(12)
                         .foregroundStyle(PetPalette.soft)
                 }
                 if !entry.ok {
                     ForEach(entry.check.errors, id: \.self) { e in
                         Text(e)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .petFont(13, .medium)
                             .foregroundStyle(PetPalette.red)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -188,13 +190,13 @@ private struct PackRow: View {
                 }
                 ForEach(entry.check.off.prefix(Self.offShown), id: \.self) { o in
                     Text(o)
-                        .font(.system(size: 12, design: .rounded))
+                        .petFont(12)
                         .foregroundStyle(PetPalette.soft)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if entry.check.off.count > Self.offShown {
                     Text("и ещё \(entry.check.off.count - Self.offShown) движ. не будет")
-                        .font(.system(size: 12, design: .rounded))
+                        .petFont(12)
                         .foregroundStyle(PetPalette.soft)
                 }
             }
