@@ -81,4 +81,13 @@ enum Hush {
         if tutorShown, hint.go == .pet || hint.detail == tutorText { return nil }
         return hint.detail.isEmpty ? nil : hint.detail
     }
+
+    /// Волна 25: тап по неактивной «Гулять» давал тост, что слово в слово повторял плашку прямо над кнопкой
+    /// («Сначала подкормить · Сытость 35, для прогулки нужно 40»). Плашка уже про прогулку — тоста нет (кнопка
+    /// всё равно качается, вибрирует и подсвечивает, что нажать). Иначе — тост ворот, как было. nil — не показывать.
+    static func walkToast(gate: WalkGate, plate: NeedHint?) -> String? {
+        if gate.ok || gate.toast.isEmpty { return nil }
+        if gate.reason != "away", let plate, plate.key == "walk", !plate.title.isEmpty { return nil }
+        return gate.toast
+    }
 }

@@ -620,6 +620,10 @@ struct GamesButton: View {
                 } label: {
                     icon
                 }
+                // Волна 25: Menu рисовал свою подложку — кружок «Игры» был белее соседних (Дом, Трюки).
+                // Как у них: стиль кнопки SquishStyle, фон — только общее стекло ниже.
+                .menuStyle(.button)
+                .buttonStyle(SquishStyle())
             }
         }
         .opacity(gate == nil ? 1 : 0.55)

@@ -28,7 +28,7 @@ struct NeedsSheet: View {
     private func content(_ snap: PetSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Как \(snap.name)")
+                Text("Как там \(snap.name)")
                     .lineLimit(1)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
@@ -52,6 +52,7 @@ struct NeedsSheet: View {
                 Text(next)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
+                    .accessibilityIdentifier("needs.next")
             }
         }
         .padding(20)
@@ -63,8 +64,7 @@ struct NeedsSheet: View {
         guard let f = model.file, model.snap.alive else { return nil }
         let now = Clock.now()
         let events = ForecastTools.upcoming(f, at: now, horizonH: 24)
-        guard let e = ForecastTools.nextLow(events, after: now) else { return "Сутки без забот" }
-        return "\(ForecastTools.title(e)) в \(Clock.hm(e.t))"
+        return Presenter.sheetNext(timer: model.snap.timer, event: ForecastTools.nextLow(events, after: now), at: now)
     }
 }
 
@@ -375,7 +375,7 @@ struct SettingsScreen: View {
     static func ownerSleepNote(_ est: SleepEstimate, name: String) -> String {
         let base = "В это время \(name) не шлёт уведомлений."
         switch est.source {
-        case .learning: return base + " Учусь сам: по тому, когда ты последний раз заходишь вечером и первый — утром."
+        case .learning: return base + " Окно подстраивается само: по тому, когда ты последний раз заходишь вечером и первый — утром."
         case .learned: return base + " Окно выучено по последним двум неделям и меняется вместе с тобой."
         case .manual: return base + " Задано вручную — само не меняется."
         }

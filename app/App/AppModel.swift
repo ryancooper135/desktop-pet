@@ -866,7 +866,36 @@ final class AppModel {
     /// pet://blockduo, pet://zombie, pet://brush, pet://habits, pet://kitchen, pet://characters
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
-        switch url.host {
+        // Волна 25: поверх открытого листа второй SwiftUI молча не покажет, а флаг останется true — и кнопка
+        // этого листа потом мёртвая. Открыто что-то не по пути к цели — сначала закрыть всё, потом открыть.
+        let host = url.host
+        switch DeepLink.step(target: host, open: openRoutes) {
+        case .go:
+            route(host)
+        case .closeFirst:
+            closeAllSheets()
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(DeepLink.closeDelay))
+                self?.route(host)
+            }
+        }
+    }
+
+    /// Что показано сейчас — именами хостов pet://… (DeepLink.step).
+    var openRoutes: Set<String> {
+        var out: Set<String> = []
+        let flags: [(Bool, String)] = [
+            (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
+            (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
+            (showBlockDuo, "blockduo"), (showZombie, "zombie"), (showHabits, "habits"), (showKitchen, "kitchen"),
+            (showCharacters, "characters"), (postcard != nil, "postcard"),
+        ]
+        for (on, name) in flags where on { out.insert(name) }
+        return out
+    }
+
+    private func route(_ host: String?) {
+        switch host {
         case "needs": showNeeds = true
         case "settings": showSettings = true
         case "album": showAlbum = true
@@ -897,21 +926,26 @@ final class AppModel {
             showSettings = true
             showCharacters = true
         default:
-            showNeeds = false
-            showSettings = false
-            showAlbum = false
-            showCapsule = false
-            showShop = false
-            showHouse = false
-            showTricks = false
-            showCatch = false
-            showBlockDuo = false
-            showZombie = false
-            showHabits = false
-            showKitchen = false
-            showCharacters = false
-            postcard = nil
+            closeAllSheets()
         }
+    }
+
+    /// pet://home: закрыть все листы и обложки комнаты.
+    private func closeAllSheets() {
+        showNeeds = false
+        showSettings = false
+        showAlbum = false
+        showCapsule = false
+        showShop = false
+        showHouse = false
+        showTricks = false
+        showCatch = false
+        showBlockDuo = false
+        showZombie = false
+        showHabits = false
+        showKitchen = false
+        showCharacters = false
+        postcard = nil
     }
 
     // MARK: трюки

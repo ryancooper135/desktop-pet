@@ -589,6 +589,66 @@ final class ScreenshotUITests: XCTestCase {
                    marker: "tip.pet", settleFor: 2)
     }
 
+    // MARK: - Волна 25: свежий взгляд (ui-96)
+
+    /// Лист шкал говорит о том же событии, что строка статуса («Затоскует…»), шапка — «Просит ласки».
+    @MainActor
+    func testStates96NeedsSameEvent() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_SEED": "wants_pet", "PET_OPEN": "needs", "PET_NOW": Self.noon, "PET_SCHEME": "light"] {
+            app.launchEnvironment[k] = v
+        }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let next = app.descendants(matching: .any)["needs.next"].firstMatch
+        let found = next.waitForExistence(timeout: 20)
+        settle(1.5)
+        snap("ui-96-needs-same-event")
+        XCTAssertTrue(found, "ui-96: нет строки needs.next")
+        if found { XCTAssertTrue(next.label.hasPrefix("Затоскует"), "ui-96: в листе «\(next.label)», а строка — «Затоскует…»") }
+        app.terminate()
+    }
+
+    /// «Гулять» с замком: плашка «Сначала подкормить» уже всё сказала — тоста-повтора нет, кнопка подсвечена.
+    @MainActor
+    func testStates96WalkLockedNoRepeat() {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_SEED": "walk_blocked", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let plate = app.descendants(matching: .any)["hint.plate"].firstMatch
+        XCTAssertTrue(plate.waitForExistence(timeout: 20), "ui-96: нет плашки hint.plate")
+        settle(1.5)
+        let walk = app.descendants(matching: .any)["act.walk"].firstMatch
+        if tapWhenReady(walk) {
+            settle(0.6)
+            snap("ui-96-walk-locked")
+            XCTAssertFalse(app.descendants(matching: .any)["toast"].exists, "ui-96: тост повторяет плашку")
+        }
+        app.terminate()
+    }
+
+    /// Ссылка pet://needs, пока открыт альбом: альбом закрывается, открываются шкалы (раньше — молча ничего).
+    @MainActor
+    func testStates96DeepLinkOverSheet() throws {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_OPEN": "album", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        settle(2.5)
+        snap("ui-96-deeplink-before")
+        app.open(try XCTUnwrap(URL(string: "pet://needs")))
+        let needs = app.descendants(matching: .any)["needs.sheet"].firstMatch
+        let found = needs.waitForExistence(timeout: 8)
+        settle(1)
+        snap("ui-96-deeplink-needs")
+        XCTAssertTrue(found, "ui-96: pet://needs поверх альбома не открыл шкалы")
+        app.terminate()
+    }
+
     // MARK: - Волна 20: согласованность подсказок (ui-93)
 
     /// Уже голодный и хочет гулять: плашка «Покормить», таймер беды «Совсем оголодает», тост замка с числами.
