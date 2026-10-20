@@ -191,10 +191,10 @@ final class FirstMinutesUITests: XCTestCase {
         snap("ui-95-03-eating")
         XCTAssertFalse(el(app, "toast").exists && tutor.exists, "ui-95-03: тост и палец вместе")
         XCTAssertFalse(tutor.exists, "ui-95-03: палец ходит по жующему Шибе")
-        let back = tutor.waitForExistence(timeout: 14)
+        let tutorBack = tutor.waitForExistence(timeout: 14)
         settle(0.5)
         snap("ui-95-04-tutor-back")
-        XCTAssertTrue(back, "ui-95-04: палец не вернулся после еды")
+        XCTAssertTrue(tutorBack, "ui-95-04: палец не вернулся после еды")
 
         // Погладить пальцем → подсказка жеста; кнопкой «Погладить» → тост отката, подсказка под ним молчит.
         stroke(app)
