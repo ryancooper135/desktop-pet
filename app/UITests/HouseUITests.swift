@@ -1,6 +1,6 @@
 // Покупка в «Доме» доходит до комнаты: с главной открыть лист, купить лежанку, закрыть — и вещь стоит в сцене.
 // Сид house_rich: все линии на базе, монет хватает. Что стоит в комнате, видно по значению pet.stage
-// (RoomPlan.Levels.tag, только при PET_UI_TEST): «bath=0,bed=1,…».
+// (RoomPlan.Levels.tag, только при PET_UI_TEST): «bath=0,bed=1,… glass=N» (проход стекла, GlassSettle — волна 27).
 //   ui-56-house-bought  главный экран сразу после покупки: лежанка под Шибой
 
 import XCTest
@@ -37,7 +37,16 @@ final class HouseUITests: XCTestCase {
             settle(0.5)
         }
         tapWhenReady(buy)
-        XCTAssertTrue(any["house.note.bed"].waitForExistence(timeout: 5), "после покупки нет строки «Готово»")
+        // Строка «Готово» живёт 2,5 с (HouseScreen.noteFor): на занятом раннере снимок дерева её пропускал, хотя покупка
+        // прошла и pet.stage уже показывал bed=1 (CI волн 25 и 27). Покупку подтверждает любое из двух.
+        let note = any["house.note.bed"]
+        var bought = false
+        let deadline = Date().addingTimeInterval(5)
+        while !bought && Date() < deadline {
+            bought = note.exists || ((stage.value as? String)?.contains("bed=1") ?? false)
+            if !bought { RunLoop.current.run(until: Date().addingTimeInterval(0.25)) }
+        }
+        XCTAssertTrue(bought, "после покупки ни строки «Готово», ни лежанки (\(String(describing: stage.value)))")
 
         // Лист на весь экран: тянем вниз, пока не уедет (первый свайп может только долистать наверх).
         for _ in 0..<4 where screen.exists {
