@@ -84,9 +84,16 @@ final class PerfUITests: XCTestCase {
         XCTAssertTrue(feed.waitForExistence(timeout: 5), "нет кнопки «Покормить»")
         let metrics: [XCTMetric] = [XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
         measure(metrics: metrics, options: Self.manualOptions()) {
-            XCTAssertTrue(waitHittable(feed, timeout: 10), "«Покормить» не нажимается")
+            // Волна 27: стекло иногда не отдаёт hittable, хотя кнопка на месте (как в tapWhenReady): в A/B-замерах
+            // «не нажимается» роняло раунды. Есть, но не hittable — тап в центр рамки, как сделал бы палец.
+            XCTAssertTrue(feed.waitForExistence(timeout: 10), "«Покормить» пропала")
+            let ready = waitHittable(feed, timeout: 5)
             startMeasuring()
-            feed.tap()
+            if ready {
+                feed.tap()
+            } else {
+                feed.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
             settle(3)
             stopMeasuring()
             settle(1)
