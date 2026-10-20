@@ -72,12 +72,16 @@ struct RootView: View {
             guard let url = UITestHooks.openURL else { return }
             try? await Task.sleep(for: .milliseconds(600))
             model.open(url)
+            // Вторая ссылка поверх первого листа (как тап по виджету при открытом листе), ui-96-deeplink.
+            guard let then = UITestHooks.thenURL else { return }
+            try? await Task.sleep(for: .seconds(4))
+            model.open(then)
         }
     }
 }
 
 /// Крючки только для UI-тестов (Env.isUITest); в обычном запуске всё nil.
-/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|blockduo|zombie|brush|habits|kitchen|characters — открыть экран после запуска.
+/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|blockduo|zombie|brush|habits|kitchen|characters — открыть экран после запуска; PET_THEN — второй экран поверх через 4 с.
 enum UITestHooks {
     static var scheme: ColorScheme? {
         guard Env.isUITest else { return nil }
@@ -90,6 +94,12 @@ enum UITestHooks {
 
     static var openURL: URL? {
         guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "zombie", "brush", "habits", "kitchen", "characters"].contains(v) else { return nil }
+        return URL(string: "pet://\(v)")
+    }
+
+    /// PET_THEN=<экран> — через 4 с после PET_OPEN открыть второй (ссылка поверх открытого листа).
+    static var thenURL: URL? {
+        guard Env.isUITest, let v = Env.value("PET_THEN"), DeepLink.routes.contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
 }

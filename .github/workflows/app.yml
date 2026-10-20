@@ -262,6 +262,9 @@ jobs:
                       name = re.sub(r"_\d+_[0-9A-Fa-f-]{36}(?=\.[^.]+$|$)", "", name)
                       if not pathlib.Path(name).suffix:
                           name += src.suffix
+                      # «Debug description for `"x" Any`» при упавшем тесте: кавычки и пр. upload-artifact не берёт
+                      # и теряет все кадры шарда (прогон 39382964447).
+                      name = re.sub(r'[":<>|*?\r\n]', "_", name)
                       shutil.copy2(src, dst / name)
                       if name.startswith("anim-"):
                           shutil.copy2(src, anim / name)

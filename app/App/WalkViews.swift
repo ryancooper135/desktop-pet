@@ -91,7 +91,9 @@ struct WalkButton: View {
             } else {
                 refusals += 1
                 model.haptic(.warning)
-                model.show(gate.toast, ok: away)
+                // Волна 25: плашка над кнопкой уже говорит то же самое — второй раз в тосте не повторяем.
+                let plate = model.file.flatMap { NeedHints.pick(model.snap, file: $0) }
+                if let text = Hush.walkToast(gate: gate, plate: plate) { model.show(text, ok: away) }
                 if let fix = gate.fix { Coach.shared.highlightButton(fix) }
             }
         } label: {

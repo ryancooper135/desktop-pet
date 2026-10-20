@@ -129,9 +129,19 @@ enum PostcardCamera {
         return best
     }
 
+    /// Волна 25: ARView.snapshot может не позвать колбэк (рендер на паузе, ушли в фон) — тогда shoot ждал вечно,
+    /// busy оставался true и открыток больше не было до перезапуска. Через snapshotTimeout — nil (следующий способ).
+    static let snapshotTimeout: Double = 2
+
     private static func arSnapshot(_ ar: ARView) async -> UIImage? {
-        await withCheckedContinuation { (c: CheckedContinuation<UIImage?, Never>) in
-            ar.snapshot(saveToHDR: false) { img in c.resume(returning: img) }
+        let once = FirstWins()
+        return await withCheckedContinuation { (c: CheckedContinuation<UIImage?, Never>) in
+            ar.snapshot(saveToHDR: false) { img in
+                if once.claim() { c.resume(returning: img) }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + snapshotTimeout) {
+                if once.claim() { c.resume(returning: nil) }
+            }
         }
     }
 

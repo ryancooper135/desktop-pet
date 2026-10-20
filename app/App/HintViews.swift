@@ -366,7 +366,8 @@ struct PetTutorOverlay: View {
 
     var body: some View {
         GeometryReader { geo in
-            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.5)
+            // Волна 25: на половине высоты дорожка шла по животу, а подпись — «по спине». Чуть выше — по спине.
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height * Tips.tutorY)
             ZStack {
                 Capsule()
                     .stroke(style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 7]))

@@ -99,7 +99,7 @@ struct PetSnapshot: Hashable, Sendable {
     var levelTitle: String {
         switch level {
         case 0: return "Всё хорошо"
-        case 1: return "Просит"
+        case 1: return Presenter.askTitle(needs: needs, warnLow: Catalog.rules.warnLow)
         case 2: return "Плохо"
         default: return alive ? "Критично" : "Нет с нами"
         }
@@ -107,6 +107,31 @@ struct PetSnapshot: Hashable, Sendable {
 }
 
 enum Presenter {
+    /// Волна 25: «Просит» в шапке не говорил, чего. Уровень 1 — какая-то из шкал ядра (WATCH) ниже warnLow;
+    /// пишем самую низкую: «Просит есть», «Просит ласки». Порядок при равенстве — как в ядре (еда, чистота, игра, ласка).
+    static let askWords: [(Need, String)] = [(.food, "Просит есть"), (.clean, "Просит помыть"),
+                                             (.fun, "Просит поиграть"), (.love, "Просит ласки")]
+
+    /// Волна 25: лист шкал писал «Заскучает в 20:21», а строка статуса над ним — «Затоскует через 11 ч 40 мин»:
+    /// два разных события на одном экране. Строка статуса уже про шкалу плашки (plateEvent) — лист говорит то же.
+    /// Таймер «low» в будущем — его слова и время; иначе ближайшее событие прогноза; нет его — «Сутки без забот».
+    static func sheetNext(timer: NeedTimer?, event: ForecastEvent?, at now: Double) -> String {
+        if let tm = timer, tm.kind == "low", tm.end > now, !tm.title.isEmpty {
+            return "\(tm.title) в \(Clock.hm(tm.end))"
+        }
+        guard let e = event else { return "Сутки без забот" }
+        return "\(ForecastTools.title(e)) в \(Clock.hm(e.t))"
+    }
+
+    static func askTitle(needs: [Need: Double], warnLow: Double) -> String {
+        var best: (v: Double, word: String)? = nil
+        for (n, word) in askWords {
+            guard let v = needs[n], v < warnLow else { continue }
+            if best == nil || v < best!.v { best = (v, word) }
+        }
+        return best?.word ?? "Просит"
+    }
+
     /// Реакция на действие держится 90 секунд (виджеты и остров). Приложение передаёт своё окно, короче.
     static let reactionWindow: Double = 90
     /// В каких настроениях можно показать пасхалку (сырые значения Mood). Вкус — за Вадимом.
