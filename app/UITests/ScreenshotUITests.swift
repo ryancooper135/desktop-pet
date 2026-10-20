@@ -634,15 +634,18 @@ final class ScreenshotUITests: XCTestCase {
     @MainActor
     func testStates96DeepLinkOverSheet() throws {
         let app = Self.makeApp()
-        for (k, v) in ["PET_OPEN": "album", "PET_NOW": Self.noon, "PET_SCHEME": "light"] { app.launchEnvironment[k] = v }
+        // PET_THEN: приложение само через 4 с зовёт model.open(pet://needs) поверх альбома — тот же путь, что ссылка
+        // виджета. XCUIApplication.open на симуляторе ссылку до приложения не довёз (прогон 39382964447).
+        for (k, v) in ["PET_OPEN": "album", "PET_THEN": "needs", "PET_NOW": Self.noon, "PET_SCHEME": "light"] {
+            app.launchEnvironment[k] = v
+        }
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         acceptSystemAlerts()
         settle(2.5)
         snap("ui-96-deeplink-before")
-        app.open(try XCTUnwrap(URL(string: "pet://needs")))
         let needs = app.descendants(matching: .any)["needs.sheet"].firstMatch
-        let found = needs.waitForExistence(timeout: 8)
+        let found = needs.waitForExistence(timeout: 15)
         settle(1)
         snap("ui-96-deeplink-needs")
         XCTAssertTrue(found, "ui-96: pet://needs поверх альбома не открыл шкалы")
