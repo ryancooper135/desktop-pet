@@ -18,7 +18,7 @@ final class HouseUITests: XCTestCase {
         app.launchEnvironment["PET_SCHEME"] = "light"
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
-        dismissSystemAlerts()
+        acceptSystemAlerts()
 
         let any = app.descendants(matching: .any)
         let stage = any["pet.stage"]
@@ -27,9 +27,8 @@ final class HouseUITests: XCTestCase {
 
         let open = any["open.house"]
         XCTAssertTrue(open.waitForExistence(timeout: 10), "нет кнопки «Дом»")
-        open.tap()
         let screen = any["house.screen"]
-        XCTAssertTrue(screen.waitForExistence(timeout: 10), "лист «Дом» не открылся")
+        XCTAssertTrue(tap(open, expecting: screen, timeout: 10, name: "ui-56-house-open"), "лист «Дом» не открылся")
 
         let buy = any["house.buy.bed"]
         XCTAssertTrue(buy.waitForExistence(timeout: 5), "нет кнопки покупки лежанки")
@@ -37,7 +36,7 @@ final class HouseUITests: XCTestCase {
             screen.swipeUp()
             settle(0.5)
         }
-        buy.tap()
+        tapWhenReady(buy)
         XCTAssertTrue(any["house.note.bed"].waitForExistence(timeout: 5), "после покупки нет строки «Готово»")
 
         // Лист на весь экран: тянем вниз, пока не уедет (первый свайп может только долистать наверх).
@@ -59,24 +58,5 @@ final class HouseUITests: XCTestCase {
     private func wait(_ e: XCUIElement, valueHas text: String, timeout: TimeInterval = 5) -> Bool {
         let p = NSPredicate(format: "value CONTAINS %@", text)
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: p, object: e)], timeout: timeout) == .completed
-    }
-
-    /// Системные запросы (уведомления, движение) перекрывают экран: разрешить.
-    @MainActor
-    private func dismissSystemAlerts() {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let allow = ["Разрешить", "Allow", "OK", "ОК", "Разрешить при использовании", "Allow While Using App"]
-        for n in 0..<3 {
-            let alert = springboard.alerts.firstMatch
-            guard alert.waitForExistence(timeout: n == 0 ? 2 : 1) else { return }
-            if let title = allow.first(where: { alert.buttons[$0].exists }) {
-                alert.buttons[title].tap()
-            } else if alert.buttons.count > 0 {
-                alert.buttons.element(boundBy: alert.buttons.count - 1).tap()
-            } else {
-                return
-            }
-            settle(1)
-        }
     }
 }

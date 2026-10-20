@@ -6,25 +6,33 @@
 ## Запуск
 
 ```
-gh workflow run app.yml -f tests=true      # .ipa + тесты + скриншоты
-gh workflow run app.yml -f tests=false     # только .ipa (дешевле)
+gh workflow run app.yml                    # всё: .ipa + юнит + UI (mode=all)
+gh workflow run app.yml -f mode=unit       # только юнит-тесты с покрытием
+gh workflow run app.yml -f mode=ui         # только UI-тесты (ui-*, anim-*)
+gh workflow run app.yml -f mode=ipa        # только .ipa (то же, что старое -f tests=false)
 gh run list -w app.yml -L 1                # id прогона
 gh run watch <id>
 gh run download <id> -n Pet-screens -D builds/screens/<id>
 gh run download <id> -n Pet-ipa -D builds
 ```
 
-Только ручной запуск: push-триггера нет, минуты macOS в приватном репо считаются. Повторный запуск отменяет ещё идущий (`concurrency`).
+Только ручной запуск. Репо публичное с 18.10 — минуты Actions бесплатны, параллельные раннеры не стоят ничего. Повторный запуск на той же ветке отменяет ещё идущий (`concurrency`).
 
 ## Что делает
 
-Один job на `macos-26` (Xcode 26.6 по умолчанию, симуляторы iOS 26.2 / 26.4 / 26.5, iPhone Air есть во всех):
+С волны 24 — четыре job вместо одного (было ≈ 52–54 мин подряд, см. «Минуты»):
 
-1. **XcodeGen** — бинарь с релиза 2.45.4 (секунды), brew только если скачать не вышло. На раннере XcodeGen не предустановлен.
-2. **Симулятор** (если tests) — выбирается iPhone Air на самой новой iOS 26, иначе 17 Pro / 17; будится сразу, пока идёт сборка .ipa.
-3. **.ipa** как в зонде: Release для iphoneos без подписи → ad-hoc `codesign` с entitlements (сначала appex, потом app) → проверка, что `group.com.vadimpet.pet` в подписи обоих → `Payload/` → zip. Пути к `.entitlements` берутся из `-showBuildSettings`, раскладка project.yml не важна. Артефакт **Pet-ipa**.
-4. **Тесты** (если tests) — `xcodebuild test` схемы Pet на этом симуляторе, подпись ad-hoc `-` (так на симуляторе встают entitlements и App Group), статус-бар 9:41, без параллельного клонирования симуляторов, таймаут 180 с на тест.
-5. **Выгрузка**: `xcrun xcresulttool export attachments --path Pet.xcresult --output-path <dir>` (Xcode 16+) кладёт файлы под UUID и `manifest.json` вида `[{attachments:[{exportedFileName, suggestedHumanReadableName}]}]`; скрипт переименовывает в читаемое имя без хвоста `_0_<UUID>`. Артефакты **Pet-screens** (PNG + txt, 14 дней) и **Pet-xcresult** (7 дней). Выгружаются и при упавших тестах.
+1. **plan** (ubuntu, секунды) — по `mode` (и старому `tests=false`) решает, нужен ли .ipa, и строит matrix шардов тестов.
+2. **ipa** (`macos-26`, параллельно с тестами) — XcodeGen → Release для iphoneos без подписи → ad-hoc `codesign` с entitlements (сначала appex, потом app) → проверка, что `group.com.vadimpet.pet` в подписи обоих → `Payload/` → zip. Пути к `.entitlements` берутся из `-showBuildSettings`. Артефакт **Pet-ipa**.
+3. **test 1 / test 2** (`macos-26`, каждый на своём раннере, `fail-fast: false`) — у каждого свой симулятор (iPhone Air на самой новой iOS 26, иначе 17 Pro / 17; будится до XcodeGen и сборки), статус-бар 9:41, одна `build-for-testing` с подписью ad-hoc `-`, дальше `test-without-building`:
+   - шард 1: PetTests с покрытием (`coverage.txt`) + `AnimationUITests` + `FirstMinutesUITests` — длинные тесты (20–85 с каждый);
+   - шард 2: все остальные PetUITests (`-only-testing:PetUITests -skip-testing:` тех двух) — новый класс UI-тестов попадает сюда без правки workflow.
+   Без параллельного клонирования симуляторов (оверрайд статус-бара на клоны не ложится, на 3 ядрах раннера клоны дают таймауты), таймаут 180 с на тест. Вложения выгружаются и при упавших тестах; части — `Pet-screens-part-N`, `Pet-xcresult-part-N` (сутки), `Pet-anim` сразу целиком из шарда 1.
+4. **merge** (ubuntu) — `actions/upload-artifact/merge@v4` склеивает части в прежние **Pet-screens** (14 дней) и **Pet-xcresult** (`PetTests.xcresult`, `PetUITests-1.xcresult`, `PetUITests-2.xcresult`, `coverage.txt`; 7 дней) и удаляет части. Имена для `gh run download` не поменялись.
+
+XcodeGen — локальный composite action `.github/actions/xcodegen` (бинарь с релиза 2.45.4, brew только если скачать не вышло): один и тот же шаг в ipa и шардах. Сторонних action нет, только `actions/*`.
+
+Выгрузка: `xcrun xcresulttool export attachments --path <xcresult> --output-path <dir>` (Xcode 16+) по каждому xcresult шарда кладёт файлы под UUID и `manifest.json` вида `[{attachments:[{exportedFileName, suggestedHumanReadableName}]}]`; скрипт переименовывает в читаемое имя без хвоста `_0_<UUID>`.
 
 ## Что в Pet-screens
 

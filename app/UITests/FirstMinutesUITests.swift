@@ -49,7 +49,8 @@ final class FirstMinutesUITests: XCTestCase {
     @MainActor
     private func back(_ app: XCUIApplication, sheet: String, close: String?, name: String) {
         let s = el(app, sheet)
-        if let close, el(app, close).exists, el(app, close).isHittable {
+        // Крестик ждём нажимаемым: лист мог ещё доезжать, и мгновенная проверка уводила в свайп.
+        if let close, el(app, close).exists, waitHittable(el(app, close), timeout: 2) {
             el(app, close).tap()
         } else if s.exists {
             s.swipeDown(velocity: .fast)
@@ -65,7 +66,8 @@ final class FirstMinutesUITests: XCTestCase {
         XCTAssertTrue(gone, "\(name): «\(sheet)» не закрылся")
     }
 
-    /// Открыть кнопкой, снять, вернуться.
+    /// Открыть кнопкой, снять, вернуться. Кнопку жмём, когда она нажимаема (прошлый лист уехал, затемнение ушло);
+    /// лист не открылся, а кнопка свободна — тап ушёл в анимацию, ещё один (ui-94-31 так и падал на CI).
     @MainActor
     private func visit(_ app: XCUIApplication, button: String, sheet: String, close: String?, name: String) {
         let b = el(app, button)
@@ -74,8 +76,7 @@ final class FirstMinutesUITests: XCTestCase {
             XCTFail("\(name): нет кнопки \(button)")
             return
         }
-        b.tap()
-        let opened = el(app, sheet).waitForExistence(timeout: 5)
+        let opened = tap(b, expecting: el(app, sheet), name: name)
         settle(1.2)
         snap("\(name)-open")
         XCTAssertTrue(opened, "\(name): «\(sheet)» не открылся")
@@ -91,13 +92,14 @@ final class FirstMinutesUITests: XCTestCase {
         XCTAssertTrue(next.waitForExistence(timeout: 20), "знакомство не показалось")
         settle(1.2)
         snap("ui-94-01-intro-1")
-        for k in 2...3 where app.buttons["intro.next"].exists {
-            app.buttons["intro.next"].tap()
+        for k in 2...3 {
+            // Карточка ещё листается — ждём, пока «Дальше» снова нажимается.
+            guard tapWhenReady(app.buttons["intro.next"], timeout: 3) else { break }
             settle(0.9)
             snap("ui-94-0\(k)-intro-\(k)")
         }
         let done = app.buttons["intro.done"]
-        if done.waitForExistence(timeout: 5) { done.tap() }
+        if done.waitForExistence(timeout: 5) { tapWhenReady(done) }
         _ = done.waitForNonExistence(timeout: 5)
         waitHome(app)
         snap("ui-94-04-home")
@@ -106,8 +108,7 @@ final class FirstMinutesUITests: XCTestCase {
 
         // Плашка «что нужно сейчас», если есть, — новичок жмёт её первой.
         let plate = el(app, "hint.plate")
-        if plate.exists {
-            plate.tap()
+        if plate.exists, tapWhenReady(plate, timeout: 2) {
             settle(1.5)
             snap("ui-94-06-plate-tapped")
         }
@@ -128,12 +129,10 @@ final class FirstMinutesUITests: XCTestCase {
 
     @MainActor
     private func tapAct(_ app: XCUIApplication, _ id: String, name: String) {
-        let b = el(app, id)
-        guard b.waitForExistence(timeout: 5) else {
+        guard tapWhenReady(el(app, id)) else {
             XCTFail("\(name): нет кнопки \(id)")
             return
         }
-        b.tap()
         settle(1.3)
         snap(name)
     }
@@ -186,11 +185,13 @@ final class FirstMinutesUITests: XCTestCase {
 
         // Покормить: тост «+N монет», палец молчит, пока Шиба ест, и возвращается после.
         tapAct(app, "act.feed", name: "ui-95-02-feed")
-        XCTAssertFalse(tutor.exists, "ui-95-02: палец поверх тоста и жующего Шибы")
+        XCTAssertTrue(tutor.waitForNonExistence(timeout: 2), "ui-95-02: палец поверх тоста и жующего Шибы")
         settle(3.5)
+        // «Тост и палец вместе» — одним снимком дерева: два запроса подряд гонялись с таймером тоста.
+        let eating = idsNow(app)
         snap("ui-95-03-eating")
-        XCTAssertFalse(el(app, "toast").exists && tutor.exists, "ui-95-03: тост и палец вместе")
-        XCTAssertFalse(tutor.exists, "ui-95-03: палец ходит по жующему Шибе")
+        XCTAssertFalse(eating.contains("toast") && eating.contains("tip.pet"), "ui-95-03: тост и палец вместе")
+        XCTAssertFalse(eating.contains("tip.pet"), "ui-95-03: палец ходит по жующему Шибе")
         let tutorBack = tutor.waitForExistence(timeout: 14)
         settle(0.5)
         snap("ui-95-04-tutor-back")
@@ -203,16 +204,25 @@ final class FirstMinutesUITests: XCTestCase {
         settle(0.4)
         snap("ui-95-05-gesture-tip")
         if tip {
-            tapAct(app, "act.pet", name: "ui-95-06-pet-button")
-            let toast = el(app, "toast").exists
-            XCTAssertFalse(toast && chip.exists, "ui-95-06: тост и подсказка жеста вместе")
-            XCTAssertFalse(toast && tutor.exists, "ui-95-06: тост и палец вместе")
+            guard tapWhenReady(el(app, "act.pet")) else {
+                XCTFail("ui-95-06: нет кнопки act.pet")
+                app.terminate()
+                return
+            }
+            // Тост живёт 2,5 с, а подсказка жеста после него возвращается: проверять «тост и подсказка вместе»
+            // двумя запросами нельзя — тост успевал уйти между ними, подсказка вернуться, и тест ловил призрака.
+            // Ждём тост, даём подсказке спрятаться и смотрим на одно мгновение дерева; снимок — тот же момент.
+            _ = el(app, "toast").waitForExistence(timeout: 2)
+            settle(0.8)
+            let ids = idsNow(app)
+            snap("ui-95-06-pet-button")
+            XCTAssertFalse(ids.contains("toast") && ids.contains("tip.gesture"), "ui-95-06: тост и подсказка жеста вместе")
+            XCTAssertFalse(ids.contains("toast") && ids.contains("tip.pet"), "ui-95-06: тост и палец вместе")
         }
 
         // Шкалы ручкой: крестик и строчка шерсти щенка без «колтуны — расчеши».
         let handle = el(app, "open.needs")
-        if handle.waitForExistence(timeout: 5) { handle.tap() }
-        let opened = el(app, "needs.sheet").waitForExistence(timeout: 5)
+        let opened = handle.waitForExistence(timeout: 5) && tap(handle, expecting: el(app, "needs.sheet"), name: "ui-95-07-needs")
         settle(1)
         snap("ui-95-07-needs")
         XCTAssertTrue(opened, "ui-95-07: шкалы не открылись")
@@ -242,14 +252,12 @@ final class FirstMinutesUITests: XCTestCase {
             app.terminate()
             return
         }
-        games.tap()
         let ball = app.buttons["open.catch"]
-        let menu = ball.waitForExistence(timeout: 4)
+        let menu = tap(games, expecting: ball, timeout: 4, name: "ui-94-35-games-menu")
         settle(0.8)
         snap("ui-94-35-games-menu")
         if menu {
-            ball.tap()
-            let open = el(app, "catch.screen").waitForExistence(timeout: 6)
+            let open = tap(ball, expecting: el(app, "catch.screen"), timeout: 6, name: "ui-94-36-catch-open")
             settle(1.5)
             snap("ui-94-36-catch-open")
             XCTAssertTrue(open, "«Лови мячик» не открылся")
@@ -274,8 +282,7 @@ final class FirstMinutesUITests: XCTestCase {
             app.terminate()
             return
         }
-        gear.tap()
-        _ = el(app, "settings.habits").waitForExistence(timeout: 6)
+        tap(gear, expecting: el(app, "settings.habits"), timeout: 6, name: "ui-94-42-settings")
         settle(1)
         snap("ui-94-42-settings")
         let intro = el(app, "settings.intro")
@@ -286,21 +293,18 @@ final class FirstMinutesUITests: XCTestCase {
         snap("ui-94-43-settings-hints")
         XCTAssertTrue(intro.exists, "в настройках нет «Подсказки»")
         let rules = el(app, "settings.rules")
-        if rules.exists && rules.isHittable {
-            rules.tap()
+        if rules.exists && waitHittable(rules, timeout: 2) {
             let ok = app.buttons["rules.ok"]
-            let shown = ok.waitForExistence(timeout: 5)
+            let shown = tap(rules, expecting: ok, name: "ui-94-44-rules")
             settle(1)
             snap("ui-94-44-rules")
-            if shown {
-                ok.tap()
+            if shown, tapWhenReady(ok) {
                 settle(1)
                 snap("ui-94-45-rules-closed")
             }
         }
         let close = app.buttons["Закрыть"].firstMatch
-        if close.waitForExistence(timeout: 3) {
-            close.tap()
+        if close.waitForExistence(timeout: 3), tapWhenReady(close) {
             settle(1.5)
             snap("ui-94-46-settings-closed")
         } else {

@@ -84,17 +84,17 @@ final class AnimationUITests: XCTestCase {
         app.launchEnvironment["PET_TRICK_ROLL"] = roll
         let stage = try launch(app)
         let open = app.descendants(matching: .any)["open.tricks"]
-        guard open.waitForExistence(timeout: 5), open.isHittable else {
+        guard open.waitForExistence(timeout: 5), waitHittable(open) else {
             throw XCTSkip("нет кнопки open.tricks")
         }
         let crop = stage.frame
-        open.tap()
         let button = app.descendants(matching: .any)[identifier]
-        guard button.waitForExistence(timeout: 5) else {
+        guard tap(open, expecting: button, name: name) else {
             throw XCTSkip("нет кнопки \(identifier) в листе «Трюки»")
         }
-        // Лист доехал — потом команда.
-        Thread.sleep(forTimeInterval: 0.6)
+        // Лист доехал — потом команда (нажимаема кнопка и в движении, поэтому ещё и пауза на выезд).
+        settle(0.6)
+        waitHittable(button, timeout: 3)
         let start = Date()
         button.tap()
         let frames = capture(app, crop: crop, count: count, step: step, since: start)
@@ -173,7 +173,8 @@ final class AnimationUITests: XCTestCase {
         guard button.waitForExistence(timeout: 5) else {
             throw XCTSkip("нет кнопки \(identifier): сборка без идентификаторов действий")
         }
-        guard button.isHittable else {
+        // Сразу после появления сцены кнопка может быть ещё под анимацией панели: ждём, а не пропускаем по первому взгляду.
+        guard waitHittable(button) else {
             throw XCTSkip("кнопка \(identifier) есть, но не нажимается (перекрыта или выключена)")
         }
         let crop = stage.frame
@@ -194,7 +195,7 @@ final class AnimationUITests: XCTestCase {
             throw XCTSkip("нет pet.stage: сборка без идентификатора сцены")
         }
         // Секунда сцене на загрузку модели и первый кадр.
-        Thread.sleep(forTimeInterval: 1)
+        settle(1)
         return stage
     }
 
@@ -285,27 +286,5 @@ final class AnimationUITests: XCTestCase {
             app.launchEnvironment["PET_NOW"] = String(Int(t.timeIntervalSince1970))
         }
         return app
-    }
-
-    /// Системные алерты (уведомления, движение) перекрывают сцену: разрешить и закрыть.
-    @MainActor
-    func acceptSystemAlerts() {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let allow = ["Разрешить", "Allow", "OK", "ОК", "Разрешить при использовании", "Allow While Using App"]
-        for n in 0..<3 {
-            let alert = springboard.alerts.firstMatch
-            guard alert.waitForExistence(timeout: n == 0 ? 2 : 1) else { return }
-            var tapped = false
-            for title in allow where alert.buttons[title].exists {
-                alert.buttons[title].tap()
-                tapped = true
-                break
-            }
-            if !tapped {
-                let count = alert.buttons.count
-                guard count > 0 else { return }
-                alert.buttons.element(boundBy: count - 1).tap()
-            }
-        }
     }
 }

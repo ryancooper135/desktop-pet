@@ -1,0 +1,27 @@
+# Общий шаг app.yml: XcodeGen и Pet.xcodeproj в app/. Нужен каждому job на macOS (ipa и шарды тестов).
+# Готовый бинарь с релиза быстрее brew (тот тратит минуту на auto-update); brew — запасной путь.
+name: xcodegen
+description: Скачать XcodeGen нужной версии и сгенерировать app/Pet.xcodeproj
+inputs:
+  version:
+    description: Версия XcodeGen
+    default: "2.45.4"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      working-directory: app
+      env:
+        XCODEGEN_VERSION: ${{ inputs.version }}
+      run: |
+        xcodebuild -version
+        if curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+             "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip" \
+           && unzip -qo "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP" \
+           && "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version; then
+          XG="$RUNNER_TEMP/xcodegen/bin/xcodegen"
+        else
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
+          XG=xcodegen
+        fi
+        "$XG" generate

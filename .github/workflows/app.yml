@@ -4,7 +4,11 @@
 #   gh workflow run app.yml -f mode=unit   # только юнит-тесты (PetTests) с покрытием
 #   gh workflow run app.yml -f mode=ui     # только UI-тесты (PetUITests): скриншоты и контактные листы anim-*
 #   gh workflow run app.yml -f mode=ipa    # только .ipa (то же, что старое -f tests=false)
-# Тесты: одна сборка build-for-testing, потом test-without-building по целям, у каждой свой xcresult.
+# Волна 24: параллельно. plan решает по mode, что запускать; ipa — своим job (Release-сборка больше не стоит
+# перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
+#   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests (длинные тесты, 20–85 с каждый)
+#   шард 2 — остальные PetUITests (-skip-testing этих двух: новый класс UI-тестов попадает сюда сам)
+# merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
 name: app
 on:
@@ -23,95 +27,71 @@ concurrency:
   group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
 jobs:
-  app:
-    runs-on: macos-26
-    timeout-minutes: 90
-    defaults:
-      run:
-        working-directory: app
-    env:
-      XCODEGEN_VERSION: "2.45.4"
-      OUT: ${{ github.workspace }}/app/out
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ipa: ${{ steps.mode.outputs.ipa }}
+      tests: ${{ steps.mode.outputs.tests }}
+      ui: ${{ steps.mode.outputs.ui }}
+      shards: ${{ steps.mode.outputs.shards }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Mode
-        # Дальше шаги смотрят только на RUN_IPA / RUN_UNIT / RUN_UI / RUN_TESTS.
+        id: mode
         env:
           MODE_IN: ${{ inputs.mode }}
           TESTS_IN: ${{ inputs.tests }}
         run: |
-          MODE="${MODE_IN:-all}"
-          if [ "$TESTS_IN" = "false" ]; then MODE=ipa; fi
-          case "$MODE" in
-            ipa)  IPA=1; UNIT=0; UI=0 ;;
-            unit) IPA=0; UNIT=1; UI=0 ;;
-            ui)   IPA=0; UNIT=0; UI=1 ;;
-            *)    MODE=all; IPA=1; UNIT=1; UI=1 ;;
-          esac
-          TESTS=0
-          if [ "$UNIT" = 1 ] || [ "$UI" = 1 ]; then TESTS=1; fi
-          echo "Режим: $MODE (ipa=$IPA unit=$UNIT ui=$UI)"
-          {
-            echo "MODE=$MODE"
-            echo "RUN_IPA=$IPA"
-            echo "RUN_UNIT=$UNIT"
-            echo "RUN_UI=$UI"
-            echo "RUN_TESTS=$TESTS"
-          } >> "$GITHUB_ENV"
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          mode = os.environ.get("MODE_IN") or "all"
+          if os.environ.get("TESTS_IN") == "false":
+              mode = "ipa"
+          if mode not in ("ipa", "unit", "ui"):
+              mode = "all"
+          long_ui = ["AnimationUITests", "FirstMinutesUITests"]
+          only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
+          rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
+          unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
+          shards = []
+          if unit or ui:
+              shards.append({"shard": "1", "unit": "1" if unit else "0", "ui": only_long if ui else "", "anim": "1" if ui else "0"})
+          if ui:
+              shards.append({"shard": "2", "unit": "0", "ui": rest, "anim": "0"})
+          # Пустой matrix — ошибка разбора даже у пропущенного job: держим заглушку, job всё равно не запустится.
+          print(f"ipa={int(mode in ('all', 'ipa'))}")
+          print(f"tests={int(bool(shards))}")
+          print(f"ui={int(ui)}")
+          print("shards=" + json.dumps(shards or [{"shard": "0", "unit": "0", "ui": "", "anim": "0"}]))
+          import sys
+          print(f"Режим: {mode}; шарды: {json.dumps(shards, ensure_ascii=False)}", file=sys.stderr)
+          PY
+          cat "$GITHUB_OUTPUT"
 
-      - name: XcodeGen
-        # Готовый бинарь с релиза быстрее brew (тот тратит минуту на auto-update); brew — запасной путь.
-        run: |
-          xcodebuild -version
-          if curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
-               "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip" \
-             && unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP" \
-             && "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version; then
-            XG="$RUNNER_TEMP/xcodegen/bin/xcodegen"
-          else
-            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
-            XG=xcodegen
-          fi
-          "$XG" generate
-          mkdir -p "$OUT/screens" "$OUT/anim"
-
-      - name: Simulator
-        # Выбираем и будим симулятор заранее: он грузится, пока собирается .ipa.
-        if: ${{ env.RUN_TESTS == '1' }}
-        run: |
-          read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
-          import json, re, sys
-          want = ["iPhone Air", "iPhone 17 Pro", "iPhone 17"]
-          best = None
-          for rt, devs in json.load(sys.stdin)["devices"].items():
-              m = re.search(r"iOS-(\d+)-(\d+)", rt)
-              if not m or int(m[1]) < 26:
-                  continue
-              for d in devs:
-                  if d["name"] in want:
-                      key = (want.index(d["name"]), -int(m[1]), -int(m[2]))
-                      if best is None or key < best[0]:
-                          best = (key, d["udid"], d["name"].replace(" ", "_") + "_iOS_" + m[1] + "." + m[2])
-          if best is None:
-              sys.exit("нет подходящего симулятора iOS 26")
-          print(best[1], best[2])
-          ')
-          echo "Симулятор: $INFO ($UDID)"
-          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$UDID" || true
+  ipa:
+    needs: plan
+    if: ${{ needs.plan.outputs.ipa == '1' }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    env:
+      OUT: ${{ github.workspace }}/app/out
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/xcodegen
 
       - name: Build ipa
-        if: ${{ env.RUN_IPA == '1' }}
         timeout-minutes: 30
         run: |
+          mkdir -p "$OUT"
           xcodebuild -project Pet.xcodeproj -scheme Pet \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build -quiet \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Ad-hoc sign with entitlements
-        if: ${{ env.RUN_IPA == '1' }}
         # Без подписи в бинарнике нет entitlements, и сайдлоадер не узнает про App Group.
         # Пути к .entitlements берём из настроек сборки, чтобы не зависеть от раскладки project.yml.
         run: |
@@ -132,25 +112,69 @@ jobs:
           codesign -d --entitlements - "$APP/PlugIns/PetWidgets.appex" 2>/dev/null | grep -q 'group.com.vadimpet.pet'
 
       - name: Package ipa
-        if: ${{ env.RUN_IPA == '1' }}
         run: |
           mkdir -p ipa/Payload
           cp -R build/Build/Products/Release-iphoneos/Pet.app ipa/Payload/
           cd ipa && zip -qry "$OUT/Pet.ipa" Payload
 
       - uses: actions/upload-artifact@v4
-        if: ${{ env.RUN_IPA == '1' }}
         with:
           name: Pet-ipa
           path: app/out/Pet.ipa
           retention-days: 30
 
+  test:
+    needs: plan
+    if: ${{ needs.plan.outputs.tests == '1' }}
+    name: test ${{ matrix.shard }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false   # упал один шард — второй всё равно доснимает свои картинки
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.shards) }}
+    defaults:
+      run:
+        working-directory: app
+    env:
+      OUT: ${{ github.workspace }}/app/out
+      RUN_UNIT: ${{ matrix.unit }}
+      UI_ARGS: ${{ matrix.ui }}
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Simulator
+        # Выбираем и будим симулятор до генерации проекта и сборки: он грузится, пока идёт компиляция.
+        run: |
+          mkdir -p "$OUT/screens" "$OUT/anim"
+          read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
+          import json, re, sys
+          want = ["iPhone Air", "iPhone 17 Pro", "iPhone 17"]
+          best = None
+          for rt, devs in json.load(sys.stdin)["devices"].items():
+              m = re.search(r"iOS-(\d+)-(\d+)", rt)
+              if not m or int(m[1]) < 26:
+                  continue
+              for d in devs:
+                  if d["name"] in want:
+                      key = (want.index(d["name"]), -int(m[1]), -int(m[2]))
+                      if best is None or key < best[0]:
+                          best = (key, d["udid"], d["name"].replace(" ", "_") + "_iOS_" + m[1] + "." + m[2])
+          if best is None:
+              sys.exit("нет подходящего симулятора iOS 26")
+          print(best[1], best[2])
+          ')
+          echo "Шард $SHARD, симулятор: $INFO ($UDID)"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+
+      - uses: ./.github/actions/xcodegen
+
       - name: Build for testing
         id: bft
-        # Тесты собираем и после упавшей .ipa: картинки нужны всё равно.
-        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
         timeout-minutes: 15
-        # Одна сборка на оба набора; покрытие вшивается при сборке — включаем, только когда будут юнит-тесты.
+        # Одна сборка на оба набора шарда; покрытие вшивается при сборке — включаем, только когда будут юнит-тесты.
         # Симулятор подписываем ad-hoc ("-"): так entitlements (App Group) встают и без команды.
         run: |
           COV=NO
@@ -164,7 +188,7 @@ jobs:
             -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
 
       - name: Unit tests
-        if: ${{ env.RUN_UNIT == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        if: ${{ matrix.unit == '1' && !cancelled() && steps.bft.outcome == 'success' }}
         timeout-minutes: 10
         # TEST_RUNNER_* уходит в процесс тестов без префикса: SNAPSHOT_DIR видят WidgetSnapshotTests.
         run: |
@@ -178,20 +202,22 @@ jobs:
             -quiet
 
       - name: Coverage
-        if: ${{ env.RUN_UNIT == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        if: ${{ matrix.unit == '1' && !cancelled() && steps.bft.outcome == 'success' }}
         run: |
           if [ ! -d "$OUT/PetTests.xcresult" ]; then echo "xcresult юнит-тестов нет"; exit 0; fi
           xcrun xccov view --report --only-targets "$OUT/PetTests.xcresult" | tee "$OUT/coverage.txt" || true
 
       - name: UI tests
         # Идут и после упавших юнит-тестов: скриншоты и кадры нужны всё равно.
-        if: ${{ env.RUN_UI == '1' && !cancelled() && steps.bft.outcome == 'success' }}
+        # UI_ARGS — выборка шарда (-only-testing/-skip-testing), разбивается по пробелам намеренно.
+        if: ${{ matrix.ui != '' && !cancelled() && steps.bft.outcome == 'success' }}
         timeout-minutes: 45
         run: |
+          # shellcheck disable=SC2086
           xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
-            -derivedDataPath build-sim -resultBundlePath "$OUT/PetUITests.xcresult" \
-            -only-testing:PetUITests \
+            -derivedDataPath build-sim -resultBundlePath "$OUT/PetUITests-$SHARD.xcresult" \
+            $UI_ARGS \
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
             -quiet
@@ -199,7 +225,7 @@ jobs:
       - name: Export screenshots
         # Вложения из каждого xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
         # Всё — в screens/, контактные листы анимации anim-* ещё и отдельно в anim/.
-        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
+        if: ${{ !cancelled() }}
         run: |
           RAW="$RUNNER_TEMP/attachments"
           rm -rf "$RAW" && mkdir -p "$RAW"
@@ -241,28 +267,55 @@ jobs:
           echo "кадры анимации:"
           ls -1 "$OUT/anim"
 
+      # Части шарда; merge склеит их в Pet-screens и Pet-xcresult и удалит.
       - uses: actions/upload-artifact@v4
-        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
+        if: ${{ !cancelled() }}
         with:
-          name: Pet-screens
+          name: Pet-screens-part-${{ matrix.shard }}
           path: app/out/screens
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 1
 
       - uses: actions/upload-artifact@v4
-        if: ${{ env.RUN_UI == '1' && !cancelled() }}
+        if: ${{ !cancelled() }}
+        with:
+          name: Pet-xcresult-part-${{ matrix.shard }}
+          path: |
+            app/out/*.xcresult
+            app/out/coverage.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # Кадры anim-* снимает только AnimationUITests — он целиком в одном шарде, артефакт сразу под прежним именем.
+      - uses: actions/upload-artifact@v4
+        if: ${{ matrix.anim == '1' && !cancelled() }}
         with:
           name: Pet-anim
           path: app/out/anim
           if-no-files-found: ignore
           retention-days: 14
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ env.RUN_TESTS == '1' && !cancelled() }}
+  merge:
+    # Прежние имена артефактов для gh run download: Pet-screens (PNG всех шардов) и Pet-xcresult (все xcresult).
+    needs: [plan, test]
+    if: ${{ !cancelled() && needs.plan.outputs.tests == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/upload-artifact/merge@v4
+        # Если ни один шард не дошёл до картинок, частей нет — красным прогон сделают сами тесты, не merge.
+        continue-on-error: true
+        with:
+          name: Pet-screens
+          pattern: Pet-screens-part-*
+          delete-merged: true
+          retention-days: 14
+
+      - uses: actions/upload-artifact/merge@v4
+        # Шард мог упасть до первого xcresult — тогда склеивать нечего, это не повод ронять merge.
+        continue-on-error: true
         with:
           name: Pet-xcresult
-          path: |
-            app/out/*.xcresult
-            app/out/coverage.txt
-          if-no-files-found: ignore
+          pattern: Pet-xcresult-part-*
+          delete-merged: true
           retention-days: 7
