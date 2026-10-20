@@ -835,13 +835,26 @@ final class ScreenshotUITests: XCTestCase {
                                     env: ["PET_SEED": "items", "PET_NOW": Self.noon, "PET_SCHEME": "light",
                                           "PET_OPEN": "shop"],
                                     marker: "shop.screen", keepRunning: true)
-        let buy = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "shop.buy.")).firstMatch
-        if tapWhenReady(buy) {
-            let sold = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Куплено"))
-            XCTAssertTrue(sold.firstMatch.waitForExistence(timeout: 5), "ui-68: после покупки нет «Куплено»")
-            settle(0.8)
-            snap("ui-68-shop-bought")
+        let any = app.descendants(matching: .any)
+        let first = any.matching(NSPredicate(format: "identifier BEGINSWITH %@", "shop.buy.")).firstMatch
+        // Волна 30: лавка — лист поверх листа автомата; единственный тап по «Купить» изредка уходит в жест листа
+        // (CI 39449839223: тап синтезирован, кадр до и после совпал байт в байт). Ждём, пока кнопка нажимаема,
+        // и жмём с одним повтором по общему хелперу: «Куплено» на этой же кнопке — результат. Повтор безопасен —
+        // второй тап по проданному ядро отклоняет (ShopDaily.buy: sold), а кнопка «Куплено» выключена.
+        guard waitHittable(first, timeout: 10) else {
+            XCTFail("ui-68: нет кнопки «Купить» в лавке: \(idsNow(app).filter { $0.hasPrefix("shop.") }.sorted())")
+            app.terminate()
+            return
         }
+        let id = first.identifier
+        let buy = any[id]
+        settle(0.5)
+        let sold = any.matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", id, "Куплено")).firstMatch
+        let ok = tap(buy, expecting: sold, timeout: 6, name: "ui-68-shop-buy")
+        let refusal = any["shop.refusal"]
+        XCTAssertTrue(ok, "ui-68: после покупки \(id) нет «Куплено»; кнопка: «\(buy.label)»; отказ: «\(refusal.exists ? refusal.label : "нет")»")
+        settle(0.8)
+        snap("ui-68-shop-bought")
         app.terminate()
     }
 
