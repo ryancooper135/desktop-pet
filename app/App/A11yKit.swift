@@ -46,7 +46,9 @@ private struct AXLines: ViewModifier {
     let limit: Int
 
     func body(content: Content) -> some View {
-        content.lineLimit(type.isAccessibilitySize ? nil : limit)
+        content
+            .lineLimit(type.isAccessibilitySize ? nil : limit)
+            .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
     }
 }
 

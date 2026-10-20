@@ -1,9 +1,9 @@
 // Волна 31 «для всех»: аудит доступности (XCUIApplication.performAccessibilityAudit, Xcode 15+) на главном экране
 // и листах, которые появились после волны 15, плюс крупный шрифт AccessibilityXL со снимком.
 //
-// Аудит не падает на первом же замечании: собирает все, отбрасывает задокументированные исключения (Excuse ниже,
+// Аудит не падает на первом же замечании: собирает все, отбрасывает задокументированные исключения (excuse ниже,
 // почему — RESEARCH/17-a11y.md) и валит тест одним списком того, что осталось. Полный отчёт с исключениями —
-// вложение «a11y-audit» (видно в артефактах CI), чтобы исключения не прятали новое.
+// вложение «a11y-audit-<первый экран>» (видно в артефактах CI), чтобы исключения не прятали новое.
 //
 //   ui-97-a11y-xl-main      главный экран на AccessibilityXL: панель и комната фиксированы (волна 15), реплика растёт
 //   ui-97-a11y-xl-kitchen   «Кухня» на AccessibilityXL: карточки стопкой (AXRow), названия переносятся, без обрезки
@@ -58,18 +58,43 @@ final class AccessibilityUITests: XCTestCase {
         }
         // Главный экран, панель, HUD и игры фиксированы (волна 15): растёт только реплика.
         if fixed && f.type == "dynamicType" { return "фиксированный экран (волна 15)" }
+        // Эмодзи-значок (блюдо, предмет) в кружке фиксированного размера: скрыт от VoiceOver, рисунок, а не текст;
+        // аудит меряет глиф Apple Color Emoji по высоте строки и считает его обрезанным.
+        if f.type == "textClipped" && Self.emojiOnly(f.label) { return "эмодзи-значок, скрыт от VoiceOver" }
         return nil
     }
 
     // MARK: - аудит
 
-    /// Главный экран и листы: VoiceOver-подписи, контраст, зоны касания, обрезка текста, трейты.
+    // Три теста по 2–4 экрана: каждый перезапуск с аудитом — 20–40 с, а один тест на CI не дольше нескольких
+    // минут (-default-test-execution-time-allowance 180, свой потолок — executionTimeAllowance ниже).
+
+    /// Главный экран, лист шкал, трюки, альбом.
     @MainActor
-    func testAccessibilityAudit() throws {
+    func testAccessibilityAudit1Home() throws {
+        try audit(["main", "needs", "tricks", "album"])
+    }
+
+    /// Кухня, лавка, автомат, дом.
+    @MainActor
+    func testAccessibilityAudit2Shops() throws {
+        try audit(["kitchen", "shop", "capsule", "house"])
+    }
+
+    /// Заставки «Зомби» и «Блок Дуо».
+    @MainActor
+    func testAccessibilityAudit3Games() throws {
+        try audit(["zombie", "blockduo"])
+    }
+
+    /// VoiceOver-подписи, контраст, зоны касания, обрезка текста, трейты — на каждом экране из списка.
+    @MainActor
+    func audit(_ names: [String]) throws {
+        executionTimeAllowance = 300
         var real: [Found] = []
         var excused: [String] = []
         var skipped: [String] = []
-        for s in Self.screens {
+        for s in Self.screens where names.contains(s.name) {
             let app = ScreenshotUITests.makeApp()
             app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
             app.launchEnvironment["PET_SCHEME"] = "light"
@@ -98,10 +123,11 @@ final class AccessibilityUITests: XCTestCase {
             }
             app.terminate()
         }
-        let report = (["Замечания:"] + real.map(\.line) + ["", "Исключения:"] + excused
+        let report = (["Экраны: " + names.joined(separator: ", "), "", "Замечания:"] + real.map(\.line)
+                      + ["", "Исключения:"] + excused
                       + ["", "Не открылись: " + skipped.joined(separator: ", ")]).joined(separator: "\n")
         let a = XCTAttachment(string: report)
-        a.name = "a11y-audit"
+        a.name = "a11y-audit-" + (names.first ?? "")
         a.lifetime = .keepAlways
         add(a)
         XCTAssertTrue(skipped.isEmpty, "аудит: не открылись \(skipped)")
@@ -114,6 +140,7 @@ final class AccessibilityUITests: XCTestCase {
     /// Аудит обрезки текста (textClipped) на листах: при крупном шрифте ничего не режется многоточием.
     @MainActor
     func testAccessibilityExtraLargeText() throws {
+        executionTimeAllowance = 300
         let shots: [(name: String, env: [String: String], marker: String)] = [
             ("ui-97-a11y-xl-main", [:], ScreenshotUITests.mainMarker),
             ("ui-97-a11y-xl-kitchen", ["PET_SEED": "kitchen", "PET_OPEN": "kitchen"], "kitchen.screen"),
@@ -155,6 +182,15 @@ final class AccessibilityUITests: XCTestCase {
         return Found(screen: screen, type: typeName(issue.auditType),
                      id: alive ? (e?.identifier ?? "") : "", label: alive ? (e?.label ?? "") : "",
                      text: issue.compactDescription)
+    }
+
+    /// Подпись — только эмодзи (с модификаторами и ZWJ), без букв и цифр.
+    static func emojiOnly(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        return !t.isEmpty && t.unicodeScalars.allSatisfy { u in
+            (u.properties.isEmojiPresentation || u.properties.isEmoji && u.value > 0xFF)
+                || u.value == 0x200D || (0xFE00...0xFE0F).contains(u.value)
+        }
     }
 
     static func typeName(_ t: XCUIAccessibilityAuditType) -> String {
