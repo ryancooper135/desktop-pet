@@ -1,5 +1,6 @@
 // Отклик на касание (волна 29): какой вид вибрации у какого события и когда отклик молчит.
 // Чистая логика без UIKit — идёт и на Linux (app/Package.swift). Сами генераторы и звук — App/FeelKit.swift.
+// Виджетам отклик не нужен (и SoundCue у них нет): файл собирается только в приложение и в пакет логики.
 //
 // Словарь видов (RESEARCH/15-feedback.md):
 //   select  — выбор/смена значения (клетка-превью в Блок Дуо, свой персонаж);
@@ -10,6 +11,7 @@
 //   success — получилось (ядро приняло, купили, выиграли);
 //   denied  — нельзя/недоступно/отказ: всегда с «не-а», а не тишина.
 
+#if APP_TARGET || SWIFT_PACKAGE
 import Foundation
 
 enum FeelKind: String, CaseIterable, Sendable {
@@ -115,3 +117,4 @@ struct FeelGate: Sendable {
         defaults.object(forKey: key) as? Bool ?? true
     }
 }
+#endif
