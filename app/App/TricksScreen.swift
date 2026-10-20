@@ -25,8 +25,7 @@ struct TricksScreen: View {
                 LazyVGrid(columns: Self.columns, spacing: 12) {
                     ForEach(rows) { r in
                         TrickCard(row: r, enabled: gate == nil && !r.locked) {
-                            model.haptic(.light)
-                            SoundKit.shared.play(.button)
+                            Feel.tap(.button)
                             model.doTrick(r.trick)
                         }
                     }
@@ -144,6 +143,7 @@ struct TrickCard: View {
         }
         .buttonStyle(SquishStyle())
         .disabled(!enabled)
+        .deniedTap(when: !enabled)
         .opacity(enabled ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(row.trick.title))
@@ -169,8 +169,7 @@ struct TricksButton: View {
             taps += 1
             if let gate {
                 refusals += 1
-                model.haptic(.warning)
-                model.show(Tricks.reasonText(gate), ok: false)
+                model.refuse(Tricks.reasonText(gate))
             } else {
                 model.showTricks = true
             }

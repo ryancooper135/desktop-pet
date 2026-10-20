@@ -99,7 +99,6 @@ struct ZombieRunScreen: View {
                 .foregroundStyle(.white)
             Spacer()
             Button {
-                model.haptic(.light)
                 close()
             } label: {
                 Image(systemName: "xmark")
@@ -282,12 +281,11 @@ struct ZombieRunScreen: View {
 
     private func start() {
         guard gate == nil else {
-            model.haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
             return
         }
-        model.haptic(.light)
-        SoundKit.shared.play(.button)
+        Feel.prepare(.tap, .nudge)
+        Feel.tap(.button)
         begin(ZombieRound(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max)))
         frozen = false
         phase = .playing
@@ -319,47 +317,51 @@ struct ZombieRunScreen: View {
         }
         guard !Task.isCancelled, phase == .playing, round.isOver else { return }
         // Последний кадр — секунду посмотреть, чем кончилось.
-        model.haptic(round.survived ? .success : .warning)
+        // Вибрация — здесь, на последнем кадре; карточка итога через 0,9 с — только звук (волна 29).
+        if round.survived { Feel.success() } else { Feel.nudge() }
         try? await Task.sleep(for: .milliseconds(900))
         guard !Task.isCancelled else { return }
-        finish()
+        finish(felt: true)
     }
 
     private func handle(_ events: [ZombieEvent]) {
+        // Попадание и «подружился» бывают в одном кадре: одна вибрация на кадр — самая сильная (волна 29).
+        var feel: FeelKind?
         for e in events {
             switch e {
             case .thrown:
                 break
             case .hit:
-                model.haptic(.light)
+                feel = FeelKind.strongest(feel, .tap)
             case .friend(_, let kind, let points, let x, let z):
                 addPop(ZombiePop(id: nextPop, t: round.t, text: "+\(points)", kind: .friend,
                                  world: RVec(x, 1.25 * kind.size + 0.35, z)))
-                model.haptic(kind == .big ? .medium : .light)
-                SoundKit.shared.play(kind == .big ? .yip : .boop)
+                feel = FeelKind.strongest(feel, kind == .big ? .bump : .tap)
+                Feel.sound(kind == .big ? .yip : .boop)
                 if round.canBark { barkPulse += 1 }
             case .hug:
                 addPop(ZombiePop(id: nextPop, t: round.t, text: "Обслюнявил!", kind: .hug,
                                  world: RVec(round.puppyX, 1.3, 0.2)))
                 slobber += 1
-                model.haptic(.warning)
-                SoundKit.shared.play(.heartLost)
+                feel = FeelKind.strongest(feel, .nudge)
+                Feel.sound(.heartLost)
             case .bark, .over:
                 break
             }
         }
+        if let feel { Feel.haptic(feel) }
     }
 
     private func bark() {
         guard phase == .playing, !frozen else { return }
         guard case .bark(let made, _)? = round.bark() else {
-            model.haptic(.warning)
+            // Лай ещё не накопился — мягкое «не сейчас».
+            Feel.nudge()
             return
         }
         addPop(ZombiePop(id: nextPop, t: round.t, text: made > 0 ? "ГАВ! +\(ZombieRun.friendsText(made))" : "ГАВ!",
                          kind: .bark, world: RVec(round.puppyX, 1.55, 1.2)))
-        model.haptic(.success)
-        SoundKit.shared.play(.yip)
+        Feel.success(.yip)
     }
 
     private func addPop(_ p: ZombiePop) {
@@ -398,14 +400,15 @@ struct ZombieRunScreen: View {
     }
 
     /// Записать итог: монеты, рекорд, «Поиграть» в ядре. Потом — карточка итога.
-    private func finish() {
+    /// felt — вибрацию конца раунда уже дал loop; здесь только звук.
+    private func finish(felt: Bool = false) {
         guard phase == .playing else { return }
         let r0 = round
         let r: ZombieResult
         do {
             r = try PetStore.shared.mutate { f in ZombieRun.finish(r0, in: &f, now: Clock.now()) }
         } catch {
-            model.show(RefuseText.text("store"), ok: false)
+            model.refuse(RefuseText.text("store"))
             model.showZombie = false
             return
         }
@@ -413,8 +416,8 @@ struct ZombieRunScreen: View {
         Task { await AppActions.shared.afterChange() }
         dragFrom = nil
         phase = .done(r)
-        model.haptic(.success)
-        SoundKit.shared.play(r.isRecord && r.score > 0 ? .hearts : .ok)
+        let cue: SoundCue = r.isRecord && r.score > 0 ? .hearts : .ok
+        if felt { Feel.sound(cue) } else { Feel.success(cue) }
     }
 
     /// Закрыть экран. Посреди раунда с очками — сначала засчитать его; после раунда Шиба в комнате радуется.

@@ -235,7 +235,6 @@ struct HomeScreen: View {
             }
         }
         .background {
-            HapticsLayer()
             SoundLayer()
         }
         .sheet(isPresented: $model.showNeeds) {
@@ -325,6 +324,7 @@ struct HomeScreen: View {
         if !touch.tracker.active || touch.start != g.startLocation {
             touch.tracker.begin(at: g.startLocation, time: t)
             touch.start = g.startLocation
+            Feel.prepare(.soft)
         }
         handle(touch.tracker.move(to: g.location, time: t), at: g.location)
         model.touch(at: g.location)
@@ -344,8 +344,7 @@ struct HomeScreen: View {
             case .tick(let n):
                 // Каждые 50 pt пути — лёгкий тик, нотка вверх по ладу и сердечко под пальцем.
                 guard model.snap.alive, model.snap.pose != .away else { continue }
-                model.haptic(.light)
-                SoundKit.shared.strokeTick(n)
+                Feel.soft(.petTick(n))
                 model.pop("", at: p, symbol: "heart.fill")
             case .stroke:
                 // Coach засчитает ласку в обучение (палец уйдёт) и отдаст .pet ядру.

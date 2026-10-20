@@ -170,9 +170,13 @@ struct KitchenSheet: View {
         .accessibilityIdentifier("kitchen.recipe.\(r.id)")
     }
 
+    /// Отклик один: отказ — «не-а» из model.cook; вышло — щелчок сейчас, success — когда пёс ест (через 350 мс).
     private func cook(_ r: CookRecipe) {
-        model.haptic(.light)
-        guard let out = model.cook(r.id), !out.ok else { return }
+        guard let out = model.cook(r.id) else { return }
+        guard !out.ok else {
+            Feel.tap()
+            return
+        }
         refuse(r.id, out.text)
     }
 
@@ -255,9 +259,11 @@ struct KitchenSheet: View {
     }
 
     private func buy(_ food: FoodPrice) {
-        model.haptic(.light)
         guard let r = model.buyFood(food.id) else { return }
-        if case .ok = r { return }
+        if case .ok = r {
+            Feel.tap()
+            return
+        }
         refuse(food.id, Cooking.buyText(r, name: food.name))
     }
 

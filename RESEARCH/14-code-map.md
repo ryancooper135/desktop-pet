@@ -47,11 +47,11 @@ RealityKit, живёт в Shared и тестируется на Linux; App — �
 | Область | Файлы |
 |---|---|
 | Вход, модель | PetApp (точка входа), AppModel (состояние экрана, действия; 1434 стр.), AppActions (общая точка для интентов), AwayReport («Пока тебя не было» и AwayBuilder), LaunchSeed (PET_RESET / PET_AWAY_H / PET_SEED для UI-тестов) |
-| Главный экран | HomeScreen (сцена + слои, жесты, StatusScrim), ActionBar (панель действий, ActButton, ActBadge), HomeLayers (палец ласки, TouchBox, хаптика, NameCard), HomeBanners (CalmTimerView, спасение, Banner, ToastView), HomeChips (кошелёк, «Открытка дня», «Вкус открыт!»), HintViews («что нужно сейчас», обучение жестам), WalkViews (ряд «Альбом · Автомат · Дом · Трюки · Игры · Гулять», записка, альбом), PopView |
+| Главный экран | HomeScreen (сцена + слои, жесты, StatusScrim), ActionBar (панель действий, ActButton, ActBadge), HomeLayers (палец ласки, TouchBox, NameCard), HomeBanners (CalmTimerView, спасение, Banner, ToastView), HomeChips (кошелёк, «Открытка дня», «Вкус открыт!»), HintViews («что нужно сейчас», обучение жестам), WalkViews (ряд «Альбом · Автомат · Дом · Трюки · Игры · Гулять», записка, альбом), PopView |
 | 3D-сцена | PetStage (RealityView, камера, загрузка Шибы), PetRoom (комната стиля A, материалы, веки), RoomDecor (вещи дома), RoomLighting (свет по времени), PetChoreo (компоненты и хореография по часам), ChoreoPath (чистые траектории), PetRig (шея, голова, челюсть, веки), PetStance (позы и клипы), PetClips (имена клипов), PetJuice (дыхание, пружины), PetWear (надетое в 3D), PostcardCamera (снимок сцены) |
 | Экраны и листы | Screens (шкалы, отчёт, настройки, ошибка, каталог превью), HouseScreen, KitchenSheet, CapsuleScreen, ShopSheet, TricksScreen, BrushViews, CharacterViews, CharacterPacksScreen, CharacterAvatar, HabitsScreen, RulesScreen, IntroScreen, WidgetGuideSheet, GuideCenter, PostcardViews |
 | Мини-игры | CatchGameScreen, BlockDuoScreen, ZombieRunScreen (логика каждой — в Shared: CatchGame, BlockDuo, ZombieRun + RetroRaster/ZombieArt) |
-| Система | NotificationScheduler, LiveActivityController, StepsSync (CMPedometer), SoundKit (AVAudioEngine), ShortcutsProvider, StrokeTracker (разбор касаний) |
+| Система | NotificationScheduler, LiveActivityController, StepsSync (CMPedometer), SoundKit (AVAudioEngine), FeelKit (отклик на касание: `Feel` — вибрация и звук в одной точке, волна 29; RESEARCH/15-feedback.md), ShortcutsProvider, StrokeTracker (разбор касаний) |
 
 ## Shared: что где
 
@@ -62,7 +62,7 @@ RealityKit, живёт в Shared и тестируется на Linux; App — �
 | Экономика и дом | Economy, Catalog, Capsule, ShopDaily, ItemCatalog, ItemArt, HomeShop, HomeOffer, RoomPlan, Cooking, Finds |
 | Питомец | Tastes, Traits, Memories, Tricks, Habits, OwnerSleep, Coat, CoatFur, Brush, Wear, WearMesh, TapWiggle, RoomLight, Postcards, PostcardPhotos |
 | Тексты | Lines, LineRotation, NotificationPlanner |
-| Звук | Synth, SoundRecipes |
+| Звук и отклик | Synth, SoundRecipes, Feel (FeelGate: виды, кулдауны, тишина в фоне) |
 | Мини-игры | CatchGame, BlockDuo, ZombieRun, ZombieArt, RetroRaster |
 | Свои персонажи | CharacterPack, CharacterStore |
 | Интенты и остров | Intents, PetAttributes (не в Linux-сборке: App Intents и ActivityKit), DeepLink |

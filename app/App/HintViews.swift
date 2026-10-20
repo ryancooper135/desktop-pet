@@ -131,6 +131,7 @@ final class Coach {
             model.act(.play)
         case .pet:
             // Погладить кнопкой можно, но просит он руку — учим жесту, кнопку подсвечиваем как запасной путь.
+            Feel.tap()
             forceTutor()
             highlightButton("pet")
             if !Self.enabled { model.show(hint.detail) }
@@ -138,7 +139,7 @@ final class Coach {
             highlightButton("walk")
             model.act(.walk)
         case .none:
-            model.show(hint.detail, ok: false)
+            model.refuse(hint.detail)
         }
     }
 
