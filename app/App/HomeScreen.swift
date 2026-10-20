@@ -57,7 +57,9 @@ struct HomeScreen: View {
             .accessibilityAction(named: Text("Что нужно сейчас")) { Coach.shared.tapThought(model) }
             .accessibilityIdentifier("pet.stage")
             // Только в UI-тестах: какие уровни дома стоят в комнате (HouseUITests). VoiceOver это не читает.
-            .accessibilityValue(Text(Env.isUITest ? model.homeLevels.tag : ""))
+            // И проход стекла (GlassSettle): «glass=1» — кнопки уже пересмотрели готовую комнату.
+            .accessibilityValue(Text(GlassSettle.stageValue(levels: model.homeLevels.tag, pass: model.glassPass,
+                                                            uiTest: Env.isUITest)))
 
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
             StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
@@ -187,12 +189,14 @@ struct HomeScreen: View {
                 } else if snap.alive && !rescue {
                     NeedHintPlate(snap: snap)
                     WalkRow(snap: snap)
+                        .id(model.glassPass)
                         .transition(.opacity)
                 }
 
                 if snap.alive {
                     if model.brush == nil {
                         ActionBar(snap: snap)
+                            .id(model.glassPass)
                         NeedsHandle()
                     }
                 } else {

@@ -382,7 +382,11 @@ jobs:
               "-only-testing:PetUITests/$PERF_ONLY" \
               -parallel-testing-enabled NO \
               -test-timeouts-enabled YES -default-test-execution-time-allowance 300 \
-              -quiet) || echo "раунд $r $side: тесты упали"
+              2>&1 | grep -E "^Test Case|error:") || true
+            # Упавший тест — причина из xcresult (сам xcresult в артефакт не идёт: он большой).
+            xcrun xcresulttool get test-results summary --path "$OUT/$side-$r.xcresult" \
+              | python3 -c 'import json,sys; [print("раунд '"$r $side"': упал", f.get("testIdentifierString"), "—", f.get("failureText")) for f in json.load(sys.stdin).get("testFailures", [])]' \
+              || echo "раунд $r $side: сводки нет"
             xcrun xcresulttool get test-results metrics --path "$OUT/$side-$r.xcresult" > "$OUT/perf-$side-$r.json" \
               || echo "раунд $r $side: метрик нет"
           }
