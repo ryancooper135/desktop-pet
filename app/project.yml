@@ -59,6 +59,9 @@ targets:
         NSMotionUsageDescription: "Питомец гуляет вместе с тобой по шагам"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Приложение только для iPhone (TARGETED_DEVICE_FAMILY 1), ключ ~ipad на телефоне не читается. Без него
+        # Xcode 26 предупреждает «All interface orientations must be supported unless the app requires full screen».
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # Статус-бар следует теме (волна 10). Где стена комнаты того же тона, что часы, — подложка StatusScrim.
         CFBundleURLTypes:
           - CFBundleURLName: com.vadimpet.pet

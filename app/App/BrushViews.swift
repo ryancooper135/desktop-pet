@@ -330,13 +330,13 @@ enum BrushFx {
     /// Три шерстинки и пара искр вверх и в стороны; через 0,7 с исчезают. big — финал: искр больше.
     private static func burst(at p: SIMD3<Float>, in box: Entity, big: Bool) {
         var parts: [Entity] = []
-        let hair = SimpleMaterial(color: color(0xe39a55), roughness: 0.9, isMetallic: false)
+        let hair = SimpleMaterial(color: PetRoom.color(0xe39a55), roughness: 0.9, isMetallic: false)
         for _ in 0..<3 {
             let e = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(0.003, 0.003, 0.03)), materials: [hair])
             e.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: SIMD3<Float>(0, 1, 0))
             parts.append(e)
         }
-        let spark = UnlitMaterial(color: color(0xfff3c4))
+        let spark = UnlitMaterial(color: PetRoom.color(0xfff3c4))
         for _ in 0..<(big ? 6 : 2) {
             parts.append(ModelEntity(mesh: .generateSphere(radius: 0.007), materials: [spark]))
         }
@@ -355,11 +355,5 @@ enum BrushFx {
             try? await Task.sleep(for: .milliseconds(700))
             for e in parts { e.removeFromParent() }
         }
-    }
-
-    private static func color(_ hex: UInt32) -> UIColor {
-        UIColor(red: CGFloat((hex >> 16) & 0xff) / 255,
-                green: CGFloat((hex >> 8) & 0xff) / 255,
-                blue: CGFloat(hex & 0xff) / 255, alpha: 1)
     }
 }

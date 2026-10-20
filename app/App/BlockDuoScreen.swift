@@ -56,7 +56,7 @@ struct BlockDuoScreen: View {
     static let testFreezeMoves = 10
     /// На сколько фигура в руке выше пальца.
     private static let lift: CGFloat = 76
-    private static let space = "blockduo.space"
+    private nonisolated static let space = "blockduo.space"
     private static let gap: CGFloat = 3
 
     var body: some View {

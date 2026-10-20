@@ -128,12 +128,6 @@ enum WearMath {
         return SIMD3(v.x, v.y * c - v.z * s, v.y * s + v.z * c)
     }
 
-    /// Поворот вокруг Z на deg градусов: +X клонится к +Y.
-    static func rotZ(_ v: SIMD3<Float>, _ deg: Float) -> SIMD3<Float> {
-        let a = deg * .pi / 180, c = cos(a), s = sin(a)
-        return SIMD3(v.x * c - v.y * s, v.x * s + v.y * c, v.z)
-    }
-
     /// Кусочно-линейно по узлам xs (по возрастанию).
     static func lerp(_ xs: [Float], _ ys: [Float], _ x: Float) -> Float {
         guard let first = xs.first, let last = xs.last, xs.count == ys.count else { return ys.first ?? 0 }
@@ -236,8 +230,7 @@ enum WearMesh {
         return neckRadii[i] + (neckRadii[j] - neckRadii[i]) * u
     }
 
-    /// Направление «вперёд-вниз» в плоскости шеи (к груди) и ось шеи.
-    static var neckFront: SIMD3<Float> { WearMath.rotX(SIMD3(0, 0, 1), neckTilt) }
+    /// Ось шеи.
     static var neckAxis: SIMD3<Float> { WearMath.rotX(SIMD3(0, 1, 0), neckTilt) }
 
     /// Лента вокруг шеи: отступ gap от поверхности, толщина thick наружу, ширина вдоль шеи 2·half.

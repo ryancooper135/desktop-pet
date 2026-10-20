@@ -611,3 +611,39 @@
   (прогон 39382964447) и в первом полном прогоне этой волны (39422509892). Код приложения не трогали.
 - **Проверка в CI:** временный тест (прогон 39419749856) — 4 запуска подряд с «glass=1» и одинаковой яркостью кружков;
   полный прогон `mode=all` — 39429317976, зелёный.
+
+## Волна 28: порядок в коде
+
+Поведение и вид не меняются: только предупреждения, мёртвый код, дубли и перенос типов по файлам. Карта кода —
+RESEARCH/14-code-map.md.
+
+- **Предупреждения.** `TextureResource.generate(from:options:)` (устарел) → `TextureResource(image:options:)`
+  в PetRoom (3 места). Ключ координат в BlockDuoScreen — `nonisolated static let`: его читает Sendable-замыкание
+  `onGeometryChange`. В тестах `_ = PetRunner.apply(...)`, где результат не нужен. В app/Package.swift явный `exclude`
+  для файлов Shared и Tests вне Linux-сборки — SwiftPM больше не пишет «found N file(s) which are unhandled».
+- **`UISupportedInterfaceOrientations~ipad` со всеми ориентациями.** Xcode 26 предупреждает «All interface
+  orientations must be supported unless the app requires full screen». Приложение только для iPhone
+  (`TARGETED_DEVICE_FAMILY` 1): ключ `~ipad` телефон не читает, портрет на iPhone остаётся. `UIRequiresFullScreen`
+  не ставили — он меняет поведение на iPad.
+- **Мёртвый код:** `Taste.joyful`, `WearMath.rotZ`, `neckFront` (нигде не вызывались, в тестах тоже). Интенты
+  `BathIntent`/`WakeIntent` без прямых вызовов оставлены: App Intents находит система.
+- **Дубли:** `LineRotation.floorDiv` зовёт `DayKey.floorDiv` (API оставлен, его проверяют тесты), «Открытка дня»
+  берёт `EconText.lowerFirst`, расчёска — `PetRoom.color`. Не сводили, потому что это не одно и то же: локальные
+  `int(_:_:)` в разборе конфигов (однострочники с разными умолчаниями), `coinsLeft`/`rewardText` мини-игр (разные
+  типы), `hm` (OwnerSleep нормализует минуты, Screens — нет), `itemName` (разные запасные имена),
+  `dayWord`/`daysWord` (уже однострочники над `EconText.plural`), `xRange` у `ChoreoPath.Area` и `RoomPlan.Area`
+  (Shared не видит App).
+- **Разнесены файлы, чистый перенос.** PetChoreo.swift 1426 → 573 + ChoreoPath.swift 473 + PetRig.swift 394.
+  AppModel.swift 1940 → 1434 + AwayReport.swift 139 + LaunchSeed.swift 377. HomeScreen.swift 1015 → 390 +
+  ActionBar.swift 256 + HomeLayers.swift 123 + HomeBanners.swift 146 + HomeChips.swift 124. XcodeGen берёт папку
+  App целиком, в Package.swift App не входит — списки менять не пришлось. ClarityTests читает кнопки ухода из
+  ActionBar.swift вместо HomeScreen.swift.
+- **Класс AppModel не режем на extension'ы.** У него десятки `private(set)` и `private` полей: методы в другом файле
+  их не видят, пришлось бы ослаблять доступ — это уже не чистый перенос. Вынесены только отдельные типы.
+- **Не разносили:** ScreenshotUITests.swift (1116 строк — UI-тесты, риск флаков ради косметики), PetStage.swift (886)
+  — ниже порога.
+- **Проверка.** Предупреждений компилятора в CI было 19 (8 разных, прогон 39429317976), стало 0; в WSL-сборке было
+  90 строк `warning:`, стало 0. WSL: 776 тестов, 2 пропуска, 0 падений — как до волны. Полный прогон `mode=all` —
+  39436914164, зелёный со второй попытки: в первой шард 2 упал до сборки — `xcodebuild` не увидел симулятор,
+  который `simctl` только что загрузил («Unable to find a device matching the provided destination specifier»),
+  сбой раннера, код ни при чём; перезапуск упавшей джобы прошёл.

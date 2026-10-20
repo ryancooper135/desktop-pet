@@ -400,7 +400,7 @@ enum Postcards {
     static func vars(_ m: Moment) -> [String: String] {
         var v: [String: String] = [:]
         if let id = m.find { v["item"] = Finds.name(id) }
-        if let id = m.item { v["item"] = lowerFirst(Catalog.name(id)) }
+        if let id = m.item { v["item"] = EconText.lowerFirst(Catalog.name(id)) }
         if let n = m.count {
             switch m.kind {
             case .steps: v["steps"] = grouped(n)
@@ -569,8 +569,6 @@ enum Postcards {
     }
 
     // MARK: мелочи
-
-    private static func lowerFirst(_ s: String) -> String { s.prefix(1).lowercased() + s.dropFirst() }
 
     /// 12500 → «12 500».
     static func grouped(_ n: Int) -> String {

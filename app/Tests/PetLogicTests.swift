@@ -117,7 +117,7 @@ final class PetLogicTests: XCTestCase {
 
     // MARK: AwayBuilder
 
-    // AwayBuilder живёт в App/AppModel.swift, в Linux-сборку логики (app/Package.swift) он не входит.
+    // AwayBuilder живёт в App/AwayReport.swift, в Linux-сборку логики (app/Package.swift) он не входит.
     #if !SWIFT_PACKAGE
     func testAwayShortAbsenceHasNoReport() {
         let f = freshFile()

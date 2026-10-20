@@ -73,9 +73,9 @@ final class ClarityTests: XCTestCase {
         XCTAssertEqual(Onboarding.rowLegend.map(\.id), ["album", "capsule", "house", "tricks", "games", "walk"])
     }
 
-    /// Кнопки ухода в карточке — те же значки и подписи, что в панели (ActButton в HomeScreen).
+    /// Кнопки ухода в карточке — те же значки и подписи, что в панели (ActButton в ActionBar).
     func testCareRowsMatchActionBar() throws {
-        let home = try appSource("HomeScreen.swift")
+        let home = try appSource("ActionBar.swift")
         let care = Onboarding.pages(name: "Шиба").first { $0.id == "care" }
         let rows = try XCTUnwrap(care).rows.filter { $0.id != "needs" }
         XCTAssertEqual(rows.count, 4)
