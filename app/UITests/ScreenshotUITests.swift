@@ -100,7 +100,7 @@ final class ScreenshotUITests: XCTestCase {
         let tabs = app.tabBars.buttons
         for i in 0..<min(tabs.count, 6) {
             let tab = tabs.element(boundBy: i)
-            guard tab.exists, tab.isHittable else { continue }
+            guard tab.exists, waitHittable(tab, timeout: 2) else { continue }
             tab.tap()
             settle(1)
             snap("ui-1\(i + 1)-tab-\(i + 1)")
@@ -111,7 +111,7 @@ final class ScreenshotUITests: XCTestCase {
             app.terminate()
             app.launch()
             let el = app.descendants(matching: .any)[screen.identifier]
-            guard el.waitForExistence(timeout: 15), el.isHittable else { continue }
+            guard el.waitForExistence(timeout: 15), waitHittable(el) else { continue }
             el.tap()
             settle(1.5)
             snap(screen.name)
@@ -181,8 +181,8 @@ final class ScreenshotUITests: XCTestCase {
     func testStates48Postcard() throws {
         let app = try shootOptional("ui-48-postcard", env: ["PET_SEED": "postcard"], marker: "postcard.card",
                                     keepRunning: true)
-        app.descendants(matching: .any)["postcard.card"].tap()
-        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+        if tap(app.descendants(matching: .any)["postcard.card"], expecting: app.descendants(matching: .any)["postcard.sheet"],
+               timeout: 10, name: "ui-48-postcard-sheet") {
             settle(1.5)
             snap("ui-48-postcard-sheet")
         }
@@ -201,8 +201,7 @@ final class ScreenshotUITests: XCTestCase {
         let shot = XCTNSPredicateExpectation(predicate: hasPhoto, object: chip)
         let got = XCTWaiter().wait(for: [shot], timeout: 30) == .completed
         print("ui-65: источник кадра = \((chip.value as? String) ?? "нет")")
-        chip.tap()
-        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+        if tap(chip, expecting: app.descendants(matching: .any)["postcard.sheet"], timeout: 10, name: "ui-65-postcard-photo") {
             settle(1.5)
             snap("ui-65-postcard-photo")
         }
@@ -215,9 +214,9 @@ final class ScreenshotUITests: XCTestCase {
     func testStates66PostcardExpiring() throws {
         let env = ["PET_SEED": "postcard_expiring", "PET_NOW": Self.noon, "PET_SCHEME": "light"]
         let app = try shootOptional("ui-66-postcard-expiring-main", env: env, marker: "postcard.card", keepRunning: true)
-        app.descendants(matching: .any)["postcard.card"].tap()
         let note = app.descendants(matching: .any)["postcard.expiry"]
-        if app.descendants(matching: .any)["postcard.sheet"].waitForExistence(timeout: 10) {
+        if tap(app.descendants(matching: .any)["postcard.card"], expecting: app.descendants(matching: .any)["postcard.sheet"],
+               timeout: 10, name: "ui-66-postcard-expiring") {
             settle(1.5)
             snap("ui-66-postcard-expiring")
         }
@@ -276,13 +275,13 @@ final class ScreenshotUITests: XCTestCase {
 
         let app = try shootOptional("ui-54-tricks-main", env: env.merging(["PET_TRICK_ROLL": "0"]) { $1 },
                                     marker: "open.tricks", keepRunning: true)
-        app.descendants(matching: .any)["open.tricks"].tap()
         let sit = app.descendants(matching: .any)["trick.sit"]
-        guard sit.waitForExistence(timeout: 5) else {
+        guard tap(app.descendants(matching: .any)["open.tricks"], expecting: sit, name: "ui-55-tricks-open") else {
             app.terminate()
             throw XCTSkip("нет trick.sit")
         }
-        sit.tap()
+        // Лист ещё едет: тап по кнопке в движении мог промахнуться.
+        tapWhenReady(sit)
         settle(1.2)
         snap("ui-55-tricks-done")
         app.terminate()
@@ -347,8 +346,7 @@ final class ScreenshotUITests: XCTestCase {
         let env = ["PET_SEED": "kitchen", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "kitchen"]
         let app = try shootOptional("ui-78-before", env: env, marker: "kitchen.cook.stew_home", keepRunning: true)
         let cook = app.descendants(matching: .any)["kitchen.cook.stew_home"]
-        if cook.waitForExistence(timeout: 5) {
-            cook.tap()
+        if tapWhenReady(cook) {
             let line = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "уплетает"))
             XCTAssertTrue(line.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Приготовить» нет фразы «Шиба уплетает…»")
             settle(0.6)
@@ -361,8 +359,7 @@ final class ScreenshotUITests: XCTestCase {
         let shop = try shootOptional("ui-78-buy-before", env: env, marker: "kitchen.buy.carrot",
                                      scrollIn: "kitchen.screen", keepRunning: true)
         let buy = shop.descendants(matching: .any)["kitchen.buy.carrot"]
-        if buy.waitForExistence(timeout: 5) {
-            buy.tap()
+        if tapWhenReady(buy) {
             let toast = shop.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Угощение: "))
             XCTAssertTrue(toast.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Угостить» нет тоста с ценой")
             settle(0.6)
@@ -379,9 +376,8 @@ final class ScreenshotUITests: XCTestCase {
         let app = try shootOptional("ui-79-games-main", env: ["PET_SEED": "blockduo", "PET_NOW": Self.noon,
                                                               "PET_SCHEME": "light"],
                                     marker: "open.games", keepRunning: true)
-        app.descendants(matching: .any)["open.games"].firstMatch.tap()
         let item = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Блок Дуо")).firstMatch
-        _ = item.waitForExistence(timeout: 5)
+        tap(app.descendants(matching: .any)["open.games"].firstMatch, expecting: item, name: "ui-79-games-menu")
         settle(0.8)
         snap("ui-79-games-menu")
         app.terminate()
@@ -401,8 +397,7 @@ final class ScreenshotUITests: XCTestCase {
         let app = try shootOptional("ui-80-blockduo-done", env: Self.blockDuoEnv.merging(["PET_BLOCKDUO": "done"]) { $1 },
                                     marker: "blockduo.result", keepRunning: true)
         let done = app.descendants(matching: .any)["blockduo.done"].firstMatch
-        if done.waitForExistence(timeout: 5) {
-            done.tap()
+        if tapWhenReady(done) {
             // Экран уезжает, через 0,6 с Шиба подпрыгивает и говорит.
             settle(1.3)
             snap("ui-80-blockduo-room")
@@ -420,14 +415,13 @@ final class ScreenshotUITests: XCTestCase {
         let app = try shootOptional("ui-83-games-main", env: ["PET_SEED": "zombie", "PET_NOW": Self.noon,
                                                               "PET_SCHEME": "light"],
                                     marker: "open.games", keepRunning: true)
-        app.descendants(matching: .any)["open.games"].firstMatch.tap()
         let item = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "против зомби")).firstMatch
-        _ = item.waitForExistence(timeout: 5)
+        tap(app.descendants(matching: .any)["open.games"].firstMatch, expecting: item, name: "ui-83-games-menu")
         settle(0.8)
         snap("ui-83-games-menu")
         if item.exists {
-            item.tap()
-            if app.descendants(matching: .any)["zombie.play"].firstMatch.waitForExistence(timeout: 10) {
+            if tap(item, expecting: app.descendants(matching: .any)["zombie.play"].firstMatch, timeout: 10,
+                   name: "ui-83-zombie-intro") {
                 settle(1.5)
                 snap("ui-83-zombie-intro")
             }
@@ -448,8 +442,7 @@ final class ScreenshotUITests: XCTestCase {
         let app = try shootOptional("ui-84-zombie-done", env: Self.zombieEnv.merging(["PET_ZOMBIE": "done"]) { $1 },
                                     marker: "zombie.result", keepRunning: true)
         let done = app.descendants(matching: .any)["zombie.done"].firstMatch
-        if done.waitForExistence(timeout: 5) {
-            done.tap()
+        if tapWhenReady(done) {
             // Экран уезжает, через 0,6 с Шиба подпрыгивает и говорит.
             settle(1.3)
             snap("ui-84-zombie-room")
@@ -581,8 +574,7 @@ final class ScreenshotUITests: XCTestCase {
         snap("ui-88-hint-plate")
         XCTAssertTrue(found, "ui-88: нет плашки hint.plate")
         let walk = app.descendants(matching: .any)["act.walk"].firstMatch
-        if walk.waitForExistence(timeout: 5) {
-            walk.tap()
+        if tapWhenReady(walk) {
             settle(0.6)
             snap("ui-88-walk-locked")
         }
@@ -613,8 +605,7 @@ final class ScreenshotUITests: XCTestCase {
         snap("ui-93-hungry-plate")
         XCTAssertTrue(found, "ui-93: нет плашки hint.plate")
         let walk = app.descendants(matching: .any)["act.walk"].firstMatch
-        if walk.waitForExistence(timeout: 5) {
-            walk.tap()
+        if tapWhenReady(walk) {
             settle(0.6)
             snap("ui-93-hungry-walk-locked")
         }
@@ -637,14 +628,14 @@ final class ScreenshotUITests: XCTestCase {
         settle(1.2)
         snap("ui-91-intro-1")
         for k in 2...3 {
-            guard app.buttons["intro.next"].exists else { break }
-            app.buttons["intro.next"].tap()
+            // Карточка ещё листается — ждём, пока «Дальше» снова нажимается, а не жмём в анимацию.
+            guard tapWhenReady(app.buttons["intro.next"], timeout: 3) else { break }
             settle(0.9)
             snap("ui-91-intro-\(k)")
         }
         let done = app.buttons["intro.done"]
         XCTAssertTrue(done.waitForExistence(timeout: 5), "ui-91: нет «Понятно, поехали» на последней карточке")
-        done.tap()
+        tapWhenReady(done)
         XCTAssertTrue(done.waitForNonExistence(timeout: 5), "ui-91: знакомство не закрылось")
         app.terminate()
     }
@@ -656,9 +647,8 @@ final class ScreenshotUITests: XCTestCase {
                                     env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "settings"],
                                     marker: "settings.intro", lazyIn: "settings.habits", keepRunning: true)
         let row = app.descendants(matching: .any)["settings.intro"]
-        if row.exists && row.isHittable {
-            row.tap()
-            if app.buttons["intro.next"].waitForExistence(timeout: 5) {
+        if waitHittable(row, timeout: 3) {
+            if tap(row, expecting: app.buttons["intro.next"], name: "ui-92-settings-intro-reopen") {
                 settle(1)
                 snap("ui-92-settings-intro-reopen")
             }
@@ -690,8 +680,7 @@ final class ScreenshotUITests: XCTestCase {
                                           "PET_OPEN": "capsule"],
                                     marker: "wear.leaf_hat", scrollIn: "capsule.screen", keepRunning: true)
         let bow = app.descendants(matching: .any)["wear.bow_blue"]
-        if bow.waitForExistence(timeout: 5) {
-            bow.tap()
+        if tapWhenReady(bow) {
             let toast = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "вместо"))
             _ = toast.firstMatch.waitForExistence(timeout: 5)
             settle(0.6)
@@ -709,9 +698,8 @@ final class ScreenshotUITests: XCTestCase {
                                           "PET_OPEN": "settings"],
                                     marker: "settings.ownerSleep", keepRunning: true)
         let row = app.descendants(matching: .any)["settings.ownerSleep"]
-        if row.isHittable {
-            row.tap()
-            if app.descendants(matching: .any)["ownerSleep.now"].waitForExistence(timeout: 5) {
+        if waitHittable(row, timeout: 3) {
+            if tap(row, expecting: app.descendants(matching: .any)["ownerSleep.now"], name: "ui-69-owner-sleep-edit") {
                 settle(1)
                 snap("ui-69-owner-sleep-edit")
             }
@@ -782,8 +770,7 @@ final class ScreenshotUITests: XCTestCase {
                                           "PET_OPEN": "shop"],
                                     marker: "shop.screen", keepRunning: true)
         let buy = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "shop.buy.")).firstMatch
-        if buy.waitForExistence(timeout: 5) {
-            buy.tap()
+        if tapWhenReady(buy) {
             let sold = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Куплено"))
             XCTAssertTrue(sold.firstMatch.waitForExistence(timeout: 5), "ui-68: после покупки нет «Куплено»")
             settle(0.8)
@@ -816,8 +803,7 @@ final class ScreenshotUITests: XCTestCase {
         let env = Self.blockDuoEnv.merging(["PET_BLOCKDUO": "done", "PET_CAMERA": "face"]) { $1 }
         let app = try shootOptional("ui-85-face-result", env: env, marker: "blockduo.result", keepRunning: true)
         let done = app.descendants(matching: .any)["blockduo.done"].firstMatch
-        if done.waitForExistence(timeout: 5) {
-            done.tap()
+        if tapWhenReady(done) {
             // Экран уезжает, через 0,6 с реплика — дальше рот говорит до ~3 с.
             settle(1.1)
             for k in 1...3 {
@@ -950,33 +936,13 @@ final class ScreenshotUITests: XCTestCase {
         }
         settle(1)
     }
-
-    /// Системные алерты рисует SpringBoard, не приложение: снимаем и разрешаем.
-    @MainActor
-    func acceptSystemAlerts() {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let allow = ["Разрешить", "Allow", "OK", "ОК", "Разрешить при использовании", "Allow While Using App"]
-        for n in 0..<3 {
-            let alert = springboard.alerts.firstMatch
-            guard alert.waitForExistence(timeout: n == 0 ? 2 : 1) else { return }
-            snap("ui-00-alert-\(n + 1)")
-            var tapped = false
-            for title in allow where alert.buttons[title].exists {
-                alert.buttons[title].tap()
-                tapped = true
-                break
-            }
-            if !tapped {
-                let count = alert.buttons.count
-                guard count > 0 else { return }
-                alert.buttons.element(boundBy: count - 1).tap()
-            }
-            settle(1)
-        }
-    }
 }
 
-// Общие помощники снимков: ими пользуются и другие UI-тесты (HouseUITests).
+// Системный запрос проверен в этом процессе тестов: разрешение запоминает симулятор, а не приложение (PET_RESET его
+// не сбрасывает), поэтому ждать алерт имеет смысл только при первом запуске; дальше — мгновенная проверка.
+@MainActor private var springboardChecked = false
+
+// Общие помощники снимков и нажатий: ими пользуются все UI-тесты (FirstMinutes, House, Animation, Guide).
 extension XCTestCase {
     @MainActor
     func snap(_ name: String) {
@@ -986,8 +952,84 @@ extension XCTestCase {
         add(attachment)
     }
 
-    /// Дать анимациям и 3D-сцене дорисоваться.
+    /// Дать анимациям и 3D-сцене дорисоваться. Только для момента снимка: ждать элемент — waitHittable/waitForExistence.
     func settle(_ seconds: TimeInterval) {
         Thread.sleep(forTimeInterval: seconds)
+    }
+
+    /// Дождаться, пока элемент можно нажать: есть в дереве, на экране и не перекрыт (лист доехал, затемнение ушло).
+    @MainActor
+    @discardableResult
+    func waitHittable(_ e: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        if e.exists && e.isHittable { return true }
+        let ready = NSPredicate(format: "exists == true AND hittable == true")
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: ready, object: e)], timeout: timeout) == .completed
+    }
+
+    /// Нажать, когда кнопка готова. Не стала нажимаемой, но есть (SwiftUI иногда не отдаёт hittable у стекла) —
+    /// тап в центр рамки, как сделал бы палец. Нет совсем — false, решает вызывающий.
+    @MainActor
+    @discardableResult
+    func tapWhenReady(_ e: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        if waitHittable(e, timeout: timeout) {
+            e.tap()
+            return true
+        }
+        guard e.exists else { return false }
+        e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        return true
+    }
+
+    /// Нажать и дождаться результата. Не дождались, а кнопка всё ещё нажимаема (лист не перекрыл её) — тап ушёл
+    /// в анимацию или первый кадр раскладки: снимок <name>-retry для разбора и ещё одно нажатие. Повтор только
+    /// при отсутствии результата — второй тап по открывшемуся листу не попадёт.
+    @MainActor
+    @discardableResult
+    func tap(_ e: XCUIElement, expecting target: XCUIElement, timeout: TimeInterval = 5, name: String) -> Bool {
+        guard tapWhenReady(e) else { return false }
+        if target.waitForExistence(timeout: timeout) { return true }
+        guard e.exists, e.isHittable else { return target.exists }
+        snap("\(name)-retry")
+        e.tap()
+        return target.waitForExistence(timeout: timeout)
+    }
+
+    /// Идентификаторы всего, что сейчас в дереве приложения, одним снимком иерархии. Проверка «А и Б вместе»
+    /// двумя запросами гоняется с таймерами (тост живёт 2,5 с): между запросами один уходит, другой возвращается.
+    @MainActor
+    func idsNow(_ app: XCUIApplication) -> Set<String> {
+        guard let root = try? app.snapshot() else { return [] }
+        var out = Set<String>()
+        var stack: [XCUIElementSnapshot] = [root]
+        while let s = stack.popLast() {
+            if !s.identifier.isEmpty { out.insert(s.identifier) }
+            stack.append(contentsOf: s.children)
+        }
+        return out
+    }
+
+    /// Системные алерты рисует SpringBoard, не приложение: снимаем и разрешаем. В UI-тестах их не ждём (запрос
+    /// уведомлений выключен под тестом, шагомера на симуляторе нет), поэтому 2 с ожидания — только на первом
+    /// запуске процесса, дальше мгновенная проверка: раньше это были лишние ~2 с на каждом из ~70 запусков.
+    @MainActor
+    func acceptSystemAlerts() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = ["Разрешить", "Allow", "OK", "ОК", "Разрешить при использовании", "Allow While Using App"]
+        let firstWait: TimeInterval = springboardChecked ? 0 : 2
+        springboardChecked = true
+        for n in 0..<3 {
+            let alert = springboard.alerts.firstMatch
+            let present = n == 0 && firstWait == 0 ? alert.exists : alert.waitForExistence(timeout: n == 0 ? firstWait : 1)
+            guard present else { return }
+            snap("ui-00-alert-\(n + 1)")
+            if let title = allow.first(where: { alert.buttons[$0].exists }) {
+                alert.buttons[title].tap()
+            } else if alert.buttons.count > 0 {
+                alert.buttons.element(boundBy: alert.buttons.count - 1).tap()
+            } else {
+                return
+            }
+            settle(1)
+        }
     }
 }

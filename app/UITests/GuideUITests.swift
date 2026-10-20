@@ -26,12 +26,12 @@ final class GuideUITests: XCTestCase {
         app.launch()
         let ok = app.buttons[button]
         XCTAssertTrue(ok.waitForExistence(timeout: 20), "подсказка \(guide) не показалась")
-        Thread.sleep(forTimeInterval: 1.5)
+        settle(1.5)
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
-        ok.tap()
+        tapWhenReady(ok)
         XCTAssertTrue(app.buttons[button].waitForNonExistence(timeout: 5), "подсказка \(guide) не закрылась")
     }
 }
