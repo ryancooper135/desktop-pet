@@ -33,13 +33,16 @@ struct NeedsSheet: View {
                     .foregroundStyle(PetPalette.ink)
                 Spacer()
                 HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 14)
+                // Волна 22: такой же крестик, как у листов волны 21, — лист шкал закрывается не только свайпом.
+                SheetCloseButton(id: "needs.close")
+                    .padding(.leading, 6)
             }
             ForEach(VisibleNeeds.all, id: \.self) { n in
                 NeedBar(need: n, value: snap.needs[n] ?? 0)
             }
             // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift. Волна 19: лохматая — где расчесать.
             if let coat = model.coat, snap.alive {
-                Text(Onboarding.coatLine(coat.stage))
+                Text(Onboarding.coatLine(coat.stage, ageS: model.file.map { snap.t - $0.createdT } ?? .infinity))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("needs.coat")

@@ -170,7 +170,8 @@ struct HomeScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                if let tip = Coach.shared.gestureTip, snap.alive, model.brush == nil {
+                // Волна 22 (Hush): тост главнее — подсказка жеста под ним молчит, после него возвращается.
+                if let tip = Coach.shared.gestureTip, Coach.shared.gestureTipShown(model) {
                     GestureTipChip(tip: tip)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -365,8 +366,8 @@ struct PetTutorLayer: View {
     let snap: PetSnapshot
 
     var body: some View {
-        let ready = model.file.map { NeedHints.gates($0, at: snap.t)["pet"]?.ok ?? false } ?? false
-        let show = Coach.shared.showTutor(file: model.file, snap: snap, petReady: ready, sceneClear: model.sceneClear)
+        // Волна 22: палец молчит под тостом и подсказкой жеста и пока идёт анимация действия (Hush).
+        let show = Coach.shared.tutorShown(model, snap: snap)
         ZStack {
             if show {
                 PetTutorOverlay(name: snap.name)
@@ -861,6 +862,7 @@ struct ToastView: View {
         .background(Capsule().fill(PetPalette.card).shadow(color: .black.opacity(0.12), radius: 8, y: 3))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityIdentifier("toast")
     }
 }
 
