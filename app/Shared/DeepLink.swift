@@ -37,4 +37,21 @@ enum DeepLink {
         if open.isEmpty || open.isSubset(of: chain(host)) { return .go }
         return .closeFirst
     }
+
+    /// Лист поверх листа (лавка в автомате, кухня в «Доме»): родитель сразу, ребёнок — через closeDelay. nil — одним шагом.
+    static func followUp(_ host: String?) -> (parent: String, child: String)? {
+        switch host {
+        case "shop": return ("capsule", "shop")
+        case "kitchen": return ("house", "kitchen")
+        default: return nil
+        }
+    }
+
+    /// Волна 30: второй шаг ещё уместен — открыт ровно родитель (ребёнок ещё нет, чужого ничего). Лист ребёнка висит внутри
+    /// родителя: если родителя за 0.8 с закрыли, флаг ребёнка остался бы true без листа (anyCover держит подсказки,
+    /// а лавка выскакивала при следующем открытии автомата).
+    static func mayFollow(_ host: String?, open: Set<String>) -> Bool {
+        guard let parent = followUp(host)?.parent else { return false }
+        return open == [parent]
+    }
 }

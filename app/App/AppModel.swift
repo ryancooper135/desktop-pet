@@ -131,6 +131,8 @@ final class AppModel {
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var lookTask: Task<Void, Never>?
     @ObservationIgnored private var poseTask: Task<Void, Never>?
+    /// Отложенный шаг ссылки pet://… (closeFirst или лист поверх листа). Новая ссылка и «закрыть всё» его отменяют.
+    @ObservationIgnored private var routeTask: Task<Void, Never>?
     /// Прогулка на прошлом взгляде на состояние: по её исчезновению ловим возвращение.
     @ObservationIgnored private var outing: Outing? = nil
     @ObservationIgnored private var walkTask: Task<Void, Never>?
@@ -862,14 +864,19 @@ final class AppModel {
         // Волна 25: поверх открытого листа второй SwiftUI молча не покажет, а флаг останется true — и кнопка
         // этого листа потом мёртвая. Открыто что-то не по пути к цели — сначала закрыть всё, потом открыть.
         let host = url.host
+        // Волна 30: прошлая ссылка ещё ждёт своего шага — новая важнее (иначе pet://shop, а следом pet://home
+        // оставляли showShop = true без автомата: лист не виден, anyCover держит подсказки, лавка выскакивает потом).
+        routeTask?.cancel()
+        routeTask = nil
         switch DeepLink.step(target: host, open: openRoutes) {
         case .go:
             route(host)
         case .closeFirst:
             closeAllSheets()
-            Task { [weak self] in
+            routeTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(DeepLink.closeDelay))
-                self?.route(host)
+                guard let self, !Task.isCancelled else { return }
+                self.route(host)
             }
         }
     }
@@ -896,10 +903,7 @@ final class AppModel {
         case "shop":
             // Лавка — лист поверх автомата: сначала автомат, потом лист (два листа сразу SwiftUI не покажет).
             showCapsule = true
-            Task { [weak self] in
-                try? await Task.sleep(for: .seconds(0.8))
-                self?.showShop = true
-            }
+            follow(host)
         case "house": showHouse = true
         case "tricks": showTricks = true
         case "catch": showCatch = true
@@ -910,10 +914,7 @@ final class AppModel {
         case "kitchen":
             // Кухня — лист поверх «Дома», как лавка поверх автомата.
             showHouse = true
-            Task { [weak self] in
-                try? await Task.sleep(for: .seconds(0.8))
-                self?.showKitchen = true
-            }
+            follow(host)
         case "characters":
             // Экран внутри стека настроек: сначала настройки, потом переход (SettingsScreen.navigationDestination).
             showSettings = true
@@ -923,8 +924,25 @@ final class AppModel {
         }
     }
 
+    /// Второй шаг лавки/кухни: через closeDelay лист поверх родителя — только если родитель всё ещё открыт один
+    /// (DeepLink.mayFollow). Автомат или «Дом» успели закрыть — флаг ребёнка не ставим: его лист висит внутри родителя.
+    private func follow(_ host: String?) {
+        guard let child = DeepLink.followUp(host)?.child else { return }
+        routeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(DeepLink.closeDelay))
+            guard let self, !Task.isCancelled, DeepLink.mayFollow(host, open: self.openRoutes) else { return }
+            switch child {
+            case "shop": self.showShop = true
+            case "kitchen": self.showKitchen = true
+            default: break
+            }
+        }
+    }
+
     /// pet://home: закрыть все листы и обложки комнаты.
     private func closeAllSheets() {
+        routeTask?.cancel()
+        routeTask = nil
         showNeeds = false
         showSettings = false
         showAlbum = false

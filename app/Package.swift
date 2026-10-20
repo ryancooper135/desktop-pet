@@ -156,6 +156,7 @@ let package = Package(
                 "FreshEyesTests.swift",
                 "SmoothTests.swift",
                 "IdleTests.swift",
+                "BugHuntTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

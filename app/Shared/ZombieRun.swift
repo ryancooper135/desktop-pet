@@ -511,11 +511,12 @@ enum ZombieRun {
         rollDay(&f, now: now)
         f.zombieGames += 1
         let wish = CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
-        let got = Swift.min(wish, coinsLeft(f, now: now, cfg))
+        // Волна 30: пёс умер, пока шёл раунд, — монет нет, как в «Лови мячик» и «Блок Дуо» (DECISIONS, волна 13).
+        let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.zombieCoins += got
         f.econ.wallet.coins += got
         res.coins = got
-        res.capped = got < wish
+        res.capped = f.pet.alive && got < wish
         res.isRecord = res.score > f.zombieBest
         f.zombieBest = Swift.max(f.zombieBest, res.score)
         res.best = f.zombieBest
