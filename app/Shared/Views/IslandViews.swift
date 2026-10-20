@@ -297,6 +297,7 @@ struct LockScreenActivityView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(name)
+                        .lineLimit(1)
                         .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
                     Spacer(minLength: 0)

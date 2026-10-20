@@ -1293,11 +1293,17 @@ final class AppModel {
 
     // MARK: волна 10: кадры открыток
 
+    /// Поверх комнаты что-то открыто: лист, игра, открытка, «Пока тебя не было» или расчёсывание. Подсказки
+    /// GuideCenter ждут, пока это пройдёт (волна 23): второй лист поверх первого iOS не показывает и молча роняет.
+    var anyCover: Bool {
+        brush != nil || postcard != nil || away != nil
+            || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
+            || showBlockDuo || showZombie || showHabits || showKitchen
+    }
+
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
     var sceneClear: Bool {
-        guard snap.alive, storeError == nil, brush == nil, postcard == nil, away == nil, tasteOpened == nil,
-              !showNeeds, !showSettings, !showAlbum, !showCapsule, !showShop, !showHouse, !showTricks, !showCatch,
-              !showBlockDuo, !showZombie, !showHabits, !showKitchen else { return false }
+        guard snap.alive, storeError == nil, tasteOpened == nil, !anyCover else { return false }
         switch snap.pose {
         case .sleep, .nap, .away, .dead, .critical: return false
         default: return true

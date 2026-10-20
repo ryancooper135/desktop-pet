@@ -140,7 +140,7 @@ struct SaveFile: Codable, Sendable {
     /// Как зовут того, кто в комнате: имя своего персонажа, если он выбран, иначе name («Шиба»).
     var petName: String {
         guard character != nil,
-              let n = characterName?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty else { return name }
+              let n = characterName.map(PetNames.clean), !n.isEmpty else { return name }
         return n
     }
 

@@ -1,6 +1,6 @@
 // Кто и когда показывает знакомство, подсказки «Правила» и «Виджет и остров». Решения — в Guides и Onboarding (Shared).
-// Знакомство (волна 19) — первым и один раз: засчитывается в момент показа, смахнул — не вернётся (его можно
-// открыть снова в настройках).
+// Знакомство (волна 19) — первым и один раз: засчитывается, когда лист закрыли (кнопкой или смахнул — не вернётся,
+// его можно открыть снова в настройках). Ушли в фон посреди знакомства (звонок) — покажется снова (волна 23).
 // Правила считаются прочитанными только по «Понятно»; гайд виджета засчитывается в момент показа.
 // В тестах молчит; PET_GUIDE=intro|rules|widget показывает нужную подсказку один раз — для скриншотов.
 
@@ -24,6 +24,8 @@ final class GuideCenter {
     @ObservationIgnored private var dueAt: ContinuousClock.Instant?
     /// В фоне ничего не показываем: иначе подсказка встанет поверх «Пока тебя не было» при возвращении.
     @ObservationIgnored private var active = true
+    /// Знакомство на экране и ещё не засчитано: засчитаем, когда его закроет хозяин, а не уход в фон.
+    @ObservationIgnored private var introOpen = false
 
     static let forced: GuideKind? = Env.value("PET_GUIDE").flatMap { GuideKind(rawValue: $0) }
 
@@ -66,7 +68,23 @@ final class GuideCenter {
         sheet = nil
     }
 
-    func close() { sheet = nil }
+    func close() {
+        if sheet == .intro { introDone() }
+        sheet = nil
+    }
+
+    /// Лист подсказки закрылся (onDismiss): кнопкой, свайпом или уходом в фон.
+    func dismissed() {
+        if introOpen { introDone() }
+        check()
+    }
+
+    private func introDone() {
+        guard introOpen else { return }
+        introOpen = false
+        _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in Tips.markSeen(&f.tips, Onboarding.introKey) }
+        AppModel.shared.refresh()
+    }
 
     /// Ушли в фон: подсказку убираем, чтобы по возвращении не мешать «Пока тебя не было» и ссылкам из виджета.
     /// Непрочитанные правила покажутся снова при следующем входе.
@@ -74,11 +92,13 @@ final class GuideCenter {
         active = false
         pending?.cancel()
         dueAt = nil
+        // Знакомство прервали (звонок, другое приложение) — не засчитываем: покажется при возвращении.
+        introOpen = false
         sheet = nil
     }
 
     private func screenFree(_ model: AppModel) -> Bool {
-        active && sheet == nil && model.away == nil && !model.showNeeds && !model.showSettings && !model.showAlbum && model.storeError == nil
+        active && sheet == nil && !model.anyCover && model.storeError == nil
     }
 
     private func evaluate() async {
@@ -93,9 +113,8 @@ final class GuideCenter {
         let snap = model.snap
 
         if Onboarding.shouldShowIntro(tips: f.tips, alive: snap.alive) {
-            _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in Tips.markSeen(&f.tips, Onboarding.introKey) }
-            model.refresh()
             widgetDue = false
+            introOpen = true
             sheet = .intro
             return
         }

@@ -131,18 +131,26 @@ final class AppActions {
     }
 
     /// Шаги с прошлого засчитанного раза (но не раньше начала дня) — одно действие steps.
+    /// Волна 23: вход в приложение бывает два раза подряд (.active → .inactive → .active под шторкой), и два
+    /// syncSteps читали одну метку lastStepsT, пока ждали шагомер, — шаги засчитывались дважды. Теперь один
+    /// за раз, а после ожидания метку перечитываем: кто-то успел засчитать — молчим.
+    private var stepsBusy = false
+
     func syncSteps() async {
-        guard !Env.isUnitTest else { return }
+        guard !Env.isUnitTest, !stepsBusy else { return }
+        stepsBusy = true
+        defer { stepsBusy = false }
         let f = PetStore.load()
         guard f.pet.alive else { return }
         let now = Clock.now()
         let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now)).timeIntervalSince1970
-        let from = Swift.max(dayStart, f.lastStepsT ?? f.createdT)
-        guard now - from >= 15 * 60 else { return }
+        guard let from = PetRunner.stepsFrom(lastStepsT: f.lastStepsT, createdT: f.createdT,
+                                             dayStart: dayStart, now: now) else { return }
         // Шагомер живёт в настоящем времени, стор — в часах приложения (PET_NOW в тестах).
         let realFrom = Date(timeIntervalSince1970: from - Clock.offset)
         let realTo = Date(timeIntervalSince1970: now - Clock.offset)
         guard let n = await StepsSync.count(from: realFrom, to: realTo), n >= StepsSync.minSteps else { return }
+        guard PetStore.load().lastStepsT == f.lastStepsT else { return }
         _ = await perform(.steps(n), source: .steps)
     }
 }

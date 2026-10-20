@@ -51,7 +51,7 @@ struct RootView: View {
                 .environment(model)
         }
         // Знакомство, подсказки «Правила» и «Виджет и остров» (GuideCenter): ждут, пока экран свободен.
-        .sheet(item: $guide.sheet, onDismiss: { guide.check() }) { kind in
+        .sheet(item: $guide.sheet, onDismiss: { guide.dismissed() }) { kind in
             switch kind {
             case .intro: IntroScreen(onDone: { guide.close() }).environment(model)
             case .rules: RulesScreen(onDone: { guide.ackRules() }).environment(model)
@@ -65,7 +65,7 @@ struct RootView: View {
             // «Доброе утро», отложенное под отчётом «Пока тебя не было».
             model.sayPending()
         }
-        .onChange(of: model.showNeeds || model.showSettings || model.showAlbum || model.showCapsule || model.showHouse || model.showCatch || model.showBlockDuo || model.showZombie || model.postcard != nil) { _, busy in if !busy { guide.check() } }
+        .onChange(of: model.anyCover) { _, busy in if !busy { guide.check() } }
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.

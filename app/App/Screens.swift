@@ -29,6 +29,7 @@ struct NeedsSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Как \(snap.name)")
+                    .lineLimit(1)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                 Spacer()
