@@ -24,9 +24,9 @@ gh run download <id> -n Pet-ipa -D builds
 
 1. **plan** (ubuntu, секунды) — по `mode` (и старому `tests=false`) решает, нужен ли .ipa, и строит matrix шардов тестов.
 2. **ipa** (`macos-26`, параллельно с тестами) — XcodeGen → Release для iphoneos без подписи → ad-hoc `codesign` с entitlements (сначала appex, потом app) → проверка, что `group.com.vadimpet.pet` в подписи обоих → `Payload/` → zip. Пути к `.entitlements` берутся из `-showBuildSettings`. Артефакт **Pet-ipa**.
-3. **test 1 / test 2** (`macos-26`, каждый на своём раннере, `fail-fast: false`) — у каждого свой симулятор (iPhone Air на самой новой iOS 26, иначе 17 Pro / 17; будится до XcodeGen и сборки), статус-бар 9:41, одна `build-for-testing` с подписью ad-hoc `-`, дальше `test-without-building`:
-   - шард 1: PetTests с покрытием (`coverage.txt`) + `AnimationUITests` + `FirstMinutesUITests` — длинные тесты (20–85 с каждый);
-   - шард 2: все остальные PetUITests (`-only-testing:PetUITests -skip-testing:` тех двух) — новый класс UI-тестов попадает сюда без правки workflow.
+3. **test 1 / test 2** (`macos-26`, каждый на своём раннере, `fail-fast: false`) — у каждого свой симулятор (iPhone Air на самой новой iOS 26, иначе 17 Pro / 17; будится сразу, загрузку ждём уже после сборки — первая идёт 1,5–3 мин), статус-бар 9:41, одна `build-for-testing` с подписью ad-hoc `-`, дальше `test-without-building`:
+   - шард 1: PetTests с покрытием (`coverage.txt`) + `AnimationUITests` + `FirstMinutesUITests` + `GuideUITests` — длинные классы;
+   - шард 2: все остальные PetUITests (`-only-testing:PetUITests -skip-testing:` тех трёх) — новый класс UI-тестов попадает сюда без правки workflow.
    Без параллельного клонирования симуляторов (оверрайд статус-бара на клоны не ложится, на 3 ядрах раннера клоны дают таймауты), таймаут 180 с на тест. Вложения выгружаются и при упавших тестах; части — `Pet-screens-part-N`, `Pet-xcresult-part-N` (сутки), `Pet-anim` сразу целиком из шарда 1.
 4. **merge** (ubuntu) — `actions/upload-artifact/merge@v4` склеивает части в прежние **Pet-screens** (14 дней) и **Pet-xcresult** (`PetTests.xcresult`, `PetUITests-1.xcresult`, `PetUITests-2.xcresult`, `coverage.txt`; 7 дней) и удаляет части. Имена для `gh run download` не поменялись.
 

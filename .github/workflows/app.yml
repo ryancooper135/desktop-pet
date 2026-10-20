@@ -6,8 +6,8 @@
 #   gh workflow run app.yml -f mode=ipa    # только .ipa (то же, что старое -f tests=false)
 # Волна 24: параллельно. plan решает по mode, что запускать; ipa — своим job (Release-сборка больше не стоит
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
-#   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests (длинные тесты, 20–85 с каждый)
-#   шард 2 — остальные PetUITests (-skip-testing этих двух: новый класс UI-тестов попадает сюда сам)
+#   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests (≈ 18 мин тестов)
+#   шард 2 — остальные PetUITests (-skip-testing этих трёх: новый класс UI-тестов попадает сюда сам; ≈ 21 мин)
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
 name: app
@@ -49,7 +49,8 @@ jobs:
               mode = "ipa"
           if mode not in ("ipa", "unit", "ui"):
               mode = "all"
-          long_ui = ["AnimationUITests", "FirstMinutesUITests"]
+          # Шард 1 — длинные классы; разбивка по замеру волны 24, чтобы шарды кончали вместе (RESEARCH/11, «Минуты»).
+          long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
@@ -145,7 +146,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Simulator
-        # Выбираем и будим симулятор до генерации проекта и сборки: он грузится, пока идёт компиляция.
+        # Выбираем и будим симулятор сразу: первая загрузка с миграцией данных идёт 1,5–3 мин, пусть идёт под сборку.
         run: |
           mkdir -p "$OUT/screens" "$OUT/anim"
           read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
@@ -176,16 +177,22 @@ jobs:
         timeout-minutes: 15
         # Одна сборка на оба набора шарда; покрытие вшивается при сборке — включаем, только когда будут юнит-тесты.
         # Симулятор подписываем ad-hoc ("-"): так entitlements (App Group) встают и без команды.
+        # Загрузку симулятора не ждём: сборке нужен только его id, ждём после (шаг «Simulator ready»).
         run: |
           COV=NO
           if [ "$RUN_UNIT" = 1 ]; then COV=YES; fi
-          xcrun simctl bootstatus "$SIM_UDID" -b
-          xcrun simctl status_bar "$SIM_UDID" override --time 9:41 \
-            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
           xcodebuild build-for-testing -project Pet.xcodeproj -scheme Pet \
             -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath build-sim -enableCodeCoverage "$COV" \
             -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
+
+      - name: Simulator ready
+        if: ${{ !cancelled() && steps.bft.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          xcrun simctl bootstatus "$SIM_UDID" -b | tail -n 2
+          xcrun simctl status_bar "$SIM_UDID" override --time 9:41 \
+            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
 
       - name: Unit tests
         if: ${{ matrix.unit == '1' && !cancelled() && steps.bft.outcome == 'success' }}
