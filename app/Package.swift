@@ -49,6 +49,7 @@ let package = Package(
                 "HomeOffer.swift",
                 "HomeText.swift",
                 "HomeShop.swift",
+                "Hush.swift",
                 "IslandPlan.swift",
                 "ItemArt.swift",
                 "ItemCatalog.swift",
@@ -138,6 +139,7 @@ let package = Package(
                 "TextGrammarTests.swift",
                 "NeedHintTests.swift", "HintConsistencyTests.swift", "PlateTimerTests.swift",
                 "ClarityTests.swift",
+                "HushTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

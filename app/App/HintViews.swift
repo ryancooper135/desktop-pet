@@ -55,6 +55,16 @@ final class Coach {
         return Tips.showPetTutor(f.tips, wantsPet: snap.want == "pet", petReady: petReady, now: snap.t)
     }
 
+    /// Виден ли палец на самом деле (волна 22, Hush): тост и подсказка жеста главнее, а пока пёс ест, моется,
+    /// играет или гуляет — палец ждёт. Одно на PetTutorLayer и плашку: та при пальце не повторяет его фразу.
+    func tutorShown(_ model: AppModel, snap: PetSnapshot) -> Bool {
+        let ready = model.file.map { NeedHints.gates($0, at: snap.t)["pet"]?.ok ?? false } ?? false
+        let wants = showTutor(file: model.file, snap: snap, petReady: ready, sceneClear: model.sceneClear)
+        let busy = Hush.busy(pose: snap.pose, lastAction: model.file?.lastAction, now: snap.t)
+        return Hush.tutorVisible(wants: wants, forced: tutorForced, busy: busy,
+                                 toastUp: model.toast != nil, tipUp: gestureTipShown(model))
+    }
+
     /// Показать палец по просьбе (тап по плашке или пузырю), на forcedTutorS секунд или до ласки.
     func forceTutor() {
         tutorForced = true
@@ -150,13 +160,26 @@ final class Coach {
         tipTask?.cancel()
         tipTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
-            guard let self, !Task.isCancelled, model.sceneClear else { return }
+            // Волна 22: пока говорит тост (или сцена занята) — ждём; не дождались за Hush.tipStaleS — не показываем.
+            let offered = Clock.now()
+            var step = Hush.TipStep.wait
+            while step == .wait, !Task.isCancelled {
+                step = Hush.tipStep(offeredAt: offered, now: Clock.now(), toastUp: model.toast != nil,
+                                    sceneClear: model.sceneClear)
+                if step == .wait { try? await Task.sleep(for: .seconds(Hush.tipPollS)) }
+            }
+            guard let self, step == .show, !Task.isCancelled else { return }
             self.gestureTip = tip
             self.markSeen(tip.key)
             try? await Task.sleep(for: .seconds(Tips.gestureTipFor))
             if Task.isCancelled { return }
             if self.gestureTip == tip { self.gestureTip = nil }
         }
+    }
+
+    /// Подсказка жеста на экране: пока говорит тост, она молчит (её время идёт дальше).
+    func gestureTipShown(_ model: AppModel) -> Bool {
+        Hush.tipVisible(hasTip: gestureTip != nil && model.snap.alive && model.brush == nil, toastUp: model.toast != nil)
     }
 
     /// Крестик на подсказке жеста.
@@ -263,9 +286,13 @@ struct NeedHintPlate: View {
                     Text(hint.title)
                         .font(.system(size: min(titleSize, Self.titleMax), weight: .bold, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
-                    Text(hint.detail)
-                        .font(.system(size: min(detailSize, Self.detailMax), weight: .medium, design: .rounded))
-                        .foregroundStyle(PetPalette.soft)
+                    // Волна 22: палец уже говорит «Проведи пальцем по Шибе» — плашка не повторяет, только заголовок.
+                    if let detail = Hush.plateDetail(hint, tutorShown: Coach.shared.tutorShown(model, snap: snap),
+                                                     tutorText: Tips.petTutorText(name: snap.name)) {
+                        Text(detail)
+                            .font(.system(size: min(detailSize, Self.detailMax), weight: .medium, design: .rounded))
+                            .foregroundStyle(PetPalette.soft)
+                    }
                 }
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)

@@ -7,6 +7,9 @@
 //   ui-94-2N  шкалы: свайп вверх по сцене → закрыть → ручка «⌃ Шкалы» → закрыть
 //   ui-94-3N  круги: Альбом, Автомат, Дом, Трюки, Мини-игры (меню → «Лови мячик» → крестик) — открыть и назад
 //   ui-94-4N  «Гулять» → настройки → «Подсказки» → «Честно о главном» → закрыть настройки
+// Волна 22 «одно сообщение за раз» (ui-95-*, PET_SEED=wants_pet): палец и плашка без повтора фразы, палец прячется,
+// пока Шиба ест, и возвращается; после ласки кнопкой — один тост, подсказка жеста ждёт; шкалы с крестиком
+// и «щенячьим пухом» вместо «колтуны — расчеши».
 
 import XCTest
 
@@ -161,7 +164,62 @@ final class FirstMinutesUITests: XCTestCase {
         XCTAssertTrue(bySwipe, "свайп вверх не открыл шкалы")
         if bySwipe { back(app, sheet: "needs.sheet", close: nil, name: "ui-94-22-needs-closed") }
 
-        visit(app, button: "open.needs", sheet: "needs.sheet", close: nil, name: "ui-94-23-handle")
+        visit(app, button: "open.needs", sheet: "needs.sheet", close: "needs.close", name: "ui-94-23-handle")
+        app.terminate()
+    }
+
+    // MARK: 5. Одно сообщение за раз (волна 22)
+
+    @MainActor
+    func testJourney5OneVoice() {
+        let app = ScreenshotUITests.makeApp()
+        for (k, v) in Self.env() { app.launchEnvironment[k] = v }
+        app.launchEnvironment["PET_SEED"] = "wants_pet"
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        let tutor = el(app, "tip.pet")
+        let shown = tutor.waitForExistence(timeout: 20)
+        settle(1.5)
+        snap("ui-95-01-tutor-plate")
+        XCTAssertTrue(shown, "ui-95-01: нет пальца-учителя")
+        XCTAssertTrue(el(app, "hint.plate").exists, "ui-95-01: нет плашки «Погладить»")
+
+        // Покормить: тост «+N монет», палец молчит, пока Шиба ест, и возвращается после.
+        tapAct(app, "act.feed", name: "ui-95-02-feed")
+        XCTAssertFalse(tutor.exists, "ui-95-02: палец поверх тоста и жующего Шибы")
+        settle(3.5)
+        snap("ui-95-03-eating")
+        XCTAssertFalse(el(app, "toast").exists && tutor.exists, "ui-95-03: тост и палец вместе")
+        XCTAssertFalse(tutor.exists, "ui-95-03: палец ходит по жующему Шибе")
+        let tutorBack = tutor.waitForExistence(timeout: 14)
+        settle(0.5)
+        snap("ui-95-04-tutor-back")
+        XCTAssertTrue(tutorBack, "ui-95-04: палец не вернулся после еды")
+
+        // Погладить пальцем → подсказка жеста; кнопкой «Погладить» → тост отката, подсказка под ним молчит.
+        stroke(app)
+        let chip = el(app, "tip.gesture")
+        let tip = chip.waitForExistence(timeout: 10)
+        settle(0.4)
+        snap("ui-95-05-gesture-tip")
+        if tip {
+            tapAct(app, "act.pet", name: "ui-95-06-pet-button")
+            let toast = el(app, "toast").exists
+            XCTAssertFalse(toast && chip.exists, "ui-95-06: тост и подсказка жеста вместе")
+            XCTAssertFalse(toast && tutor.exists, "ui-95-06: тост и палец вместе")
+        }
+
+        // Шкалы ручкой: крестик и строчка шерсти щенка без «колтуны — расчеши».
+        let handle = el(app, "open.needs")
+        if handle.waitForExistence(timeout: 5) { handle.tap() }
+        let opened = el(app, "needs.sheet").waitForExistence(timeout: 5)
+        settle(1)
+        snap("ui-95-07-needs")
+        XCTAssertTrue(opened, "ui-95-07: шкалы не открылись")
+        let coat = el(app, "needs.coat")
+        if coat.exists { XCTAssertFalse(coat.label.contains("колтуны"), "ui-95-07: щенку в первой сессии — «колтуны»") }
+        XCTAssertTrue(el(app, "needs.close").exists, "ui-95-07: у шкал нет крестика")
+        if opened { back(app, sheet: "needs.sheet", close: "needs.close", name: "ui-95-08-needs-closed") }
         app.terminate()
     }
 

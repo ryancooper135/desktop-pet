@@ -88,8 +88,14 @@ enum Onboarding {
     /// Строчка под кошельком в автомате: что за три значка. Неразрывные пробелы — значок не отрывается от слова.
     static let walletLegend = "🪙\u{00A0}монеты — за уход и игры\u{00A0}· 🎟\u{00A0}билетик — одна крутка\u{00A0}· ✂️\u{00A0}клочки — с повторок"
 
+    /// Первый час щенок «голый и рваный» нарочно (DECISIONS, стиль; Coat.newborn): это не беда и не задание.
+    /// Волна 22: в первой сессии шкалы не пугают «колтунами» и не шлют расчёсывать.
+    static let coatGraceS: Double = 3600
+
     /// Строчка шерсти в шкалах: «Шерсть: колтуны — расчеши в «Трюках»». Хорошая шерсть — без совета.
-    static func coatLine(_ stage: CoatStage) -> String {
+    /// ageS — сколько живёт питомец (now − createdT); щенку младше coatGraceS — «щенячий пух» без совета.
+    static func coatLine(_ stage: CoatStage, ageS: Double = .infinity) -> String {
+        if ageS < coatGraceS, stage == .matted || stage == .shaggy { return "Шерсть: щенячий пух, ещё торчит" }
         let base = "Шерсть: \(stage.title.lowercased())"
         switch stage {
         case .matted, .shaggy: return base + " — расчеши в «Трюках»"
