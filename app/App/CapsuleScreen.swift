@@ -172,7 +172,6 @@ struct CapsuleScreen: View {
     private var shopCard: some View {
         let offers = model.file.map { ShopDaily.offers($0, now: Clock.now()) } ?? []
         return Button {
-            model.haptic(.light)
             model.showShop = true
         } label: {
             HStack(spacing: 10) {
@@ -336,18 +335,17 @@ struct CapsuleScreen: View {
 
     private func start(_ pay: CapsulePay) {
         guard !busy else { return }
-        model.haptic(.light)
         guard let r = model.pullCapsule(pay) else { return }
         switch r {
         case .failure(let why):
             refusal = Self.text(why)
-            model.haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
         case .success(let p):
             refusal = nil
             pull = p
             shattered = false
-            SoundKit.shared.play(.button)
+            Feel.tap(.button)
+            Feel.prepare(.bump, .success)
             withAnimation(.snappy) { phase = .shaking }
             flow?.cancel()
             flow = Task {
@@ -360,7 +358,7 @@ struct CapsuleScreen: View {
                     }
                 }
                 withAnimation(.snappy) { phase = .ready }
-                model.haptic(.medium)
+                Feel.bump()
                 try? await Task.sleep(for: .seconds(Self.autoOpen))
                 if Task.isCancelled { return }
                 if phase == .ready { reveal() }
@@ -371,8 +369,8 @@ struct CapsuleScreen: View {
     private func reveal() {
         guard phase == .ready, let p = pull else { return }
         withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { phase = .open }
-        model.haptic(p.rarity >= .epic ? .success : .medium)
-        SoundKit.shared.play(p.rarity >= .rare ? .hearts : .ok)
+        let cue: SoundCue = p.rarity >= .rare ? .hearts : .ok
+        if p.rarity >= .epic { Feel.success(cue) } else { Feel.bump(cue) }
         // Кошелёк, шкала и коллекция — только теперь.
         model.refresh()
         guard p.duplicate else { return }

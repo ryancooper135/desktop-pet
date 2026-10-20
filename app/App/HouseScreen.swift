@@ -88,23 +88,19 @@ struct HouseScreen: View {
     }
 
     private func buy(_ r: HomeRow) {
-        model.haptic(.light)
         guard let res = model.buyHome(r.id) else { return }
         if let why = HomeOffer.refusal(res) {
             say(Note(line: r.id, text: why, ok: false))
             shakes[r.id, default: 0] += 1
-            model.haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
         } else {
             say(Note(line: r.id, text: HomeOffer.bought(res, line: r.id) ?? "Готово", ok: true))
             bumps[r.id, default: 0] += 1
-            model.haptic(.success)
-            SoundKit.shared.play(.hearts)
+            Feel.success(.hearts)
         }
     }
 
     private func openKitchen() {
-        model.haptic(.light)
         model.showKitchen = true
     }
 

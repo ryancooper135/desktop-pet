@@ -75,7 +75,7 @@ struct CharacterPacksScreen: View {
         .fileImporter(isPresented: $importing, allowedContentTypes: Self.types, allowsMultipleSelection: true) { result in
             switch result {
             case .success(let urls): model.installCharacters(urls)
-            case .failure(let error): model.show(error.localizedDescription, ok: false)
+            case .failure(let error): model.refuse(error.localizedDescription)
             }
         }
         .confirmationDialog("Удалить «\(deleting?.name ?? "")»?", isPresented: Binding(

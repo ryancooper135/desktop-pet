@@ -167,6 +167,7 @@ struct ShopSheet: View {
         }
         .buttonStyle(SquishStyle())
         .disabled(done)
+        .deniedTap(when: done)
         .accessibilityLabel(Text(done ? ShopDaily.buttonTitle(o) : "Купить «\(o.item.name)» за \(EconText.coins(o.price))"))
         .accessibilityIdentifier("shop.buy.\(o.id)")
     }

@@ -103,16 +103,6 @@ final class AppModel {
         var reason: String?
     }
 
-    enum BuzzKind: Sendable { case light, medium, success, warning }
-
-    /// Счётчики хаптики по видам: каждый — свой trigger для .sensoryFeedback.
-    struct Buzzes: Equatable, Sendable {
-        var light = 0
-        var medium = 0
-        var success = 0
-        var warning = 0
-    }
-
     /// Поза «радость/ест» в приложении держится 12 с (у виджетов — Presenter.reactionWindow, 90 с).
     static let reactionWindow: Double = 12
     static let maxPops = 16
@@ -120,9 +110,6 @@ final class AppModel {
     private(set) var reaction = Reaction(id: 0, kind: "", ok: true, reason: nil)
     /// Куда смотреть: −1…1 по x пальца относительно сцены; nil — пальца нет (через 0,6 с после отпускания).
     private(set) var lookX: Float? = nil
-    private(set) var buzz = 0
-    private(set) var buzzKind: BuzzKind = .light
-    private(set) var buzzes = Buzzes()
     /// Отказы по виду действия (feed, pet, play…): кнопка с этим видом качается.
     private(set) var refusals: [String: Int] = [:]
     private(set) var pops: [Pop] = []
@@ -354,7 +341,7 @@ final class AppModel {
             refresh()
             Task { await AppActions.shared.afterChange() }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -365,8 +352,7 @@ final class AppModel {
         outing = s.outing
         if let find = Finds.returned(before: before, after: s) {
             walkHome = WalkHome(id: walkHome.id + 1, find: find)
-            haptic(.success)
-            SoundKit.shared.ambient(.yip)
+            Feel.ambient(.success, .yip)
             pop(Finds.broughtText(find), at: anchor)
             heartBurst()
             notePhoto(PostcardPhotos.walkKind, delay: PostcardCamera.walkDelay)
@@ -403,8 +389,7 @@ final class AppModel {
         guard let known = knownTastes, !keys.isSubset(of: known) else { return }
         guard let fact = Tastes.album(f).last(where: { !known.contains($0.id) }) else { return }
         tasteOpened = fact
-        haptic(.success)
-        SoundKit.shared.ambient(.ok)
+        Feel.ambient(.success, .ok)
         if let line = Tastes.line(Tastes.openLineKey, seed: f.petId, at: Clock.now(), tzOffsetMin: f.owner.tzOffsetMin) {
             speak(line)
         }
@@ -440,11 +425,11 @@ final class AppModel {
 
     // MARK: действия с экрана
 
-    /// Отклик сразу (реакция сцены + хаптика), ядро — следом. Итог разбирает settle из AppActions.perform.
+    /// Реакция сцены сразу, ядро — следом. Отклик один — итог из settle (AppActions.perform): ядро отвечает
+    /// за миллисекунды, а «тик» нажатия перед «получилось/нельзя» был двойным откликом (волна 29).
     func act(_ a: PetAction) {
         react(a.kind)
-        haptic(.light)
-        SoundKit.shared.play(.button)
+        Feel.prepare(.success, .denied)
         Task { _ = await AppActions.shared.perform(a, source: .app) }
     }
 
@@ -459,8 +444,7 @@ final class AppModel {
             // Тап — добавка TapWiggle (голова набок к пальцу, уши, хвост) плюс клип черты у свободного пса
             // (Traits.tapClips: игривый подпрыгнет, ласковый вильнёт) — только анимация, баланс не трогает.
             react(file.map { Traits.tapKind($0, at: snap.t) } ?? "tap")
-            haptic(.light)
-            SoundKit.shared.play(.boop)
+            Feel.soft(.boop)
         }
     }
 
@@ -468,8 +452,7 @@ final class AppModel {
     func tickle() {
         guard snap.alive, snap.pose != .away else { return }
         react("tickle")
-        haptic(.medium)
-        SoundKit.shared.play(.yip)
+        Feel.bump(.yip)
     }
 
     /// После «Блок Дуо» (волна 12): экран закрылся — Шиба в комнате подпрыгивает, виляет и говорит фразу про партию.
@@ -480,8 +463,7 @@ final class AppModel {
             guard let self, !Task.isCancelled else { return }
             if r.played {
                 self.react(BlockDuo.reactKind)
-                self.haptic(.success)
-                SoundKit.shared.play(.yip)
+                Feel.success(.yip)
             }
             self.speak(BlockDuo.shibaLine(r))
             if toast, let text = BlockDuo.toastText(r) {
@@ -497,8 +479,7 @@ final class AppModel {
             guard let self, !Task.isCancelled else { return }
             if r.played {
                 self.react(ZombieRun.reactKind)
-                self.haptic(.success)
-                SoundKit.shared.play(.yip)
+                Feel.success(.yip)
             }
             self.speak(ZombieRun.shibaLine(r))
             if toast, let reward = ZombieRun.rewardText(r) {
@@ -512,23 +493,17 @@ final class AppModel {
         reaction = Reaction(id: reaction.id + 1, kind: kind, ok: true, reason: nil)
     }
 
-    func haptic(_ kind: BuzzKind) {
-        buzz += 1
-        buzzKind = kind
-        switch kind {
-        case .light: buzzes.light += 1
-        case .medium: buzzes.medium += 1
-        case .success: buzzes.success += 1
-        case .warning: buzzes.warning += 1
-        }
+    /// Отказ пользователю: тост и мягкое «нельзя» с «не-а» (Feel.denied). Отказ не бывает немым (волна 29).
+    func refuse(_ text: String) {
+        Feel.denied()
+        show(text, ok: false)
     }
 
     /// Ответ ядра на действие из приложения. AppActions.perform зовёт сразу после записи, до виджетов и острова.
     func settle(_ a: PetAction, _ out: ActOutcome, delta: [String: Int]) {
-        SoundKit.shared.settled(kind: a.kind, ok: out.ok)
         if out.ok {
+            Feel.success(SoundRecipe.forAction(kind: a.kind, ok: true))
             lastDelta = delta
-            haptic(.success)
             popDelta(delta)
             if a == .pet { heartBurst() }
             noteEarn(a, out)
@@ -544,7 +519,7 @@ final class AppModel {
         } else {
             reaction = Reaction(id: reaction.id + 1, kind: a.kind, ok: false, reason: out.reason)
             refusals[a.kind, default: 0] += 1
-            haptic(.warning)
+            Feel.denied(SoundRecipe.forAction(kind: a.kind, ok: false))
             pop(Self.refuseIcon(out.reason), at: anchor)
         }
     }
@@ -570,8 +545,8 @@ final class AppModel {
         if r.taste == .love {
             if a != .pet { heartBurst() }
         } else {
+            // Без своей вибрации: settle в том же кадре уже дал success (волна 29).
             pop("😑", at: anchor)
-            haptic(.light)
         }
         // Только что открылся вкус — его реплика важнее.
         guard tasteOpened == nil, let key = r.lineKey,
@@ -683,7 +658,7 @@ final class AppModel {
             refresh()
             Task { await AppActions.shared.afterChange() }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -696,7 +671,7 @@ final class AppModel {
             }
             refresh()
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -735,7 +710,7 @@ final class AppModel {
     func setCharacter(_ id: String?) {
         let entry = id.flatMap { CharacterStore.standard.entry($0) }
         if let entry, !entry.ok {
-            show("«\(entry.name)»: \(entry.check.errors.first ?? "пак не прошёл проверку")", ok: false)
+            refuse("«\(entry.name)»: \(entry.check.errors.first ?? "пак не прошёл проверку")")
             return
         }
         do {
@@ -745,9 +720,10 @@ final class AppModel {
             }
             refresh()
             Task { await AppActions.shared.afterChange() }
+            Feel.select()
             show(entry.map { "В комнате — \($0.name)" } ?? "Снова Шиба", emoji: "🐾")
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -767,7 +743,7 @@ final class AppModel {
             if !files.isEmpty { last = try store.install(files: files) }
         } catch {
             reloadCharacterPacks()
-            show((error as? CharacterPackError)?.message ?? error.localizedDescription, ok: false)
+            refuse((error as? CharacterPackError)?.message ?? error.localizedDescription)
             return
         }
         reloadCharacterPacks()
@@ -805,7 +781,7 @@ final class AppModel {
         }
         reloadCharacterPacks()
         if let failed {
-            show((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)", ok: false)
+            refuse((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)")
         } else if wasActive {
             show("Удалён. Снова Шиба", emoji: "🐾")
         }
@@ -837,6 +813,8 @@ final class AppModel {
 
     /// Новый щенок: после смерти или при испорченном сторе. Старый файл уходит в state.broken-<t>.json.
     func startOver() {
+        // Умерший щенок здоровается сам (SoundLayer: alive false → true); живой — здесь.
+        let wasAlive = snap.alive
         do {
             try PetStore.shared.startOver(now: Clock.now())
             storeError = nil
@@ -844,6 +822,7 @@ final class AppModel {
             // Сеанс расчёсывания старого пса не достаётся щенку (полоса и жест по спине висели поверх).
             endBrush()
             refresh()
+            Feel.success(wasAlive ? .hello : nil)
             Task { await AppActions.shared.afterChange() }
         } catch {
             storeError = error.localizedDescription
@@ -974,15 +953,13 @@ final class AppModel {
         do {
             out = try PetStore.shared.mutate { Tricks.attempt(t, in: &$0, now: Clock.now(), roll: forced) }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return
         }
         refresh()
         if let r = out.reason {
             // Пока лист был открыт, уснул или ушёл: без попытки, только причина.
-            haptic(.warning)
-            SoundKit.shared.play(.refuse)
-            show(Tricks.reasonText(r, for: t), ok: false)
+            refuse(Tricks.reasonText(r, for: t))
             return
         }
         // Лист ещё уезжает вниз: трюк — когда комнату видно.
@@ -998,20 +975,16 @@ final class AppModel {
     private func trickReaction(_ t: Trick, _ out: TrickOutcome) {
         guard out.ok else {
             reaction = Reaction(id: reaction.id + 1, kind: t.kind, ok: false, reason: nil)
-            haptic(.light)
-            SoundKit.shared.play(.boop)
+            Feel.nudge(.boop)
             show(Tricks.failText, ok: false)
             return
         }
         react(t.kind)
-        haptic(.success)
-        notePhoto(PostcardPhotos.trickKind, delay: PostcardCamera.actionDelay)
+        // Выучил — одно арпеджио сердец, а не «динь» и сердца разом (волна 29).
         // «Голос» тявкает сам на прыжке (PetChoreo.begin), если сцена играет клипы; без движения — тявк сразу.
-        if t != .speak {
-            SoundKit.shared.play(.ok)
-        } else if !PetModel.playsReactions {
-            SoundKit.shared.play(.yip)
-        }
+        let cue: SoundCue? = out.learnedNow ? .hearts : t != .speak ? .ok : PetModel.playsReactions ? nil : .yip
+        Feel.success(cue)
+        notePhoto(PostcardPhotos.trickKind, delay: PostcardCamera.actionDelay)
         let love = Int(out.love.rounded())
         if love > 0 {
             lastDelta = ["love": love]
@@ -1019,7 +992,6 @@ final class AppModel {
         }
         if out.learnedNow {
             heartBurst()
-            SoundKit.shared.play(.hearts)
             let text = "Выучил «\(t.title)»!"
             if out.coins > 0 {
                 show("\(text) +\(EconText.coins(out.coins))", emoji: "🪙")
@@ -1038,14 +1010,12 @@ final class AppModel {
     func startBrush() {
         showTricks = false
         guard let f = file else {
-            show(Brush.reasonText(Tricks.loadingReason), ok: false)
+            refuse(Brush.reasonText(Tricks.loadingReason))
             return
         }
         let now = Clock.now()
         if let r = Brush.gate(f, at: now) {
-            haptic(.warning)
-            SoundKit.shared.play(.refuse)
-            show(Brush.reasonText(r, remaining: Brush.remaining(f, at: now)), ok: false)
+            refuse(Brush.reasonText(r, remaining: Brush.remaining(f, at: now)))
             return
         }
         brushTufts = Brush.tufts(Coat.look(f, now: now).stage)
@@ -1060,11 +1030,12 @@ final class AppModel {
         let finished = s.add()
         brush = s
         brushPuff += 1
-        haptic(.light)
-        SoundKit.shared.play(.brush)
         pop("", at: point ?? anchor, symbol: "sparkles")
+        // Последний мазок — один отклик «дочесали» из finishBrush, а не мазок и успех разом (волна 29).
         if finished {
             finishBrush()
+        } else {
+            Feel.soft(.brush)
         }
     }
 
@@ -1074,8 +1045,7 @@ final class AppModel {
         s.against += 1
         brush = s
         reaction = Reaction(id: reaction.id + 1, kind: Brush.journalKind, ok: false, reason: nil)
-        haptic(.medium)
-        SoundKit.shared.play(.refuse)
+        Feel.nudge(.refuse)
         pop("😖", at: point ?? anchor)
     }
 
@@ -1092,20 +1062,17 @@ final class AppModel {
             out = try PetStore.shared.mutate { Brush.finish(&$0, now: Clock.now()) }
         } catch {
             endBrush()
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return
         }
         refresh()
         guard out.ok else {
             endBrush()
-            haptic(.warning)
-            SoundKit.shared.play(.refuse)
-            show(Brush.reasonText(out.reason), ok: false)
+            refuse(Brush.reasonText(out.reason))
             return
         }
         react(Brush.journalKind)
-        haptic(.success)
-        SoundKit.shared.play(.brushDone)
+        Feel.success(.brushDone)
         let love = Int(out.love.rounded())
         if love > 0 {
             lastDelta = ["love": love]
@@ -1125,7 +1092,7 @@ final class AppModel {
             if case .success = r { Task { await AppActions.shared.afterChange() } }
             return r
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return nil
         }
     }
@@ -1138,8 +1105,7 @@ final class AppModel {
             let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
             switch r {
             case .success(.put(_, let replaced)):
-                haptic(.success)
-                SoundKit.shared.play(.ok)
+                Feel.success(.ok)
                 if let replaced, let old = EconomyConfig.shared.capsule.itemsById[replaced]?.name {
                     show("Надели «\(name)» вместо «\(old)»", emoji: "👕")
                 } else {
@@ -1147,14 +1113,14 @@ final class AppModel {
                 }
                 Task { await AppActions.shared.afterChange() }
             case .success(.tookOff):
-                haptic(.light)
+                Feel.tap()
                 show("Сняли «\(name)»")
                 Task { await AppActions.shared.afterChange() }
-            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
-            case .failure(.notWearable): show("Это не надевается", ok: false)
+            case .failure(.notOwned): refuse("Этого предмета ещё нет")
+            case .failure(.notWearable): refuse("Это не надевается")
             }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -1168,19 +1134,18 @@ final class AppModel {
             let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
             switch r {
             case .success(true):
-                haptic(.success)
-                SoundKit.shared.play(.ok)
+                Feel.success(.ok)
                 show("«\(name)» на полке", emoji: ItemCatalog.emoji(id))
                 Task { await AppActions.shared.afterChange() }
             case .success(false):
-                haptic(.light)
+                Feel.tap()
                 show("Убрали «\(name)» с полки")
                 Task { await AppActions.shared.afterChange() }
-            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
-            case .failure(.wrongRole): show("Это на полку не ставят", ok: false)
+            case .failure(.notOwned): refuse("Этого предмета ещё нет")
+            case .failure(.wrongRole): refuse("Это на полку не ставят")
             }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -1192,19 +1157,18 @@ final class AppModel {
             let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
             switch r {
             case .success(true):
-                haptic(.success)
-                SoundKit.shared.play(.ok)
+                Feel.success(.ok)
                 show("Играем: «\(name)»", emoji: ItemCatalog.emoji(id))
                 Task { await AppActions.shared.afterChange() }
             case .success(false):
-                haptic(.light)
+                Feel.tap()
                 show("Снова обычный мячик")
                 Task { await AppActions.shared.afterChange() }
-            case .failure(.notOwned): show("Этого предмета ещё нет", ok: false)
-            case .failure(.wrongRole): show("Этим не поиграешь", ok: false)
+            case .failure(.notOwned): refuse("Этого предмета ещё нет")
+            case .failure(.wrongRole): refuse("Этим не поиграешь")
             }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
     }
 
@@ -1220,18 +1184,16 @@ final class AppModel {
             let r = try ShopDaily.perform(id)
             refresh()
             if case .ok = r {
-                haptic(.success)
-                SoundKit.shared.play(.hearts)
+                Feel.success(.hearts)
                 let name = EconomyConfig.shared.capsule.itemsById[id]?.name ?? id
                 show("Купили «\(name)»", emoji: ItemCatalog.emoji(id))
                 Task { await AppActions.shared.afterChange() }
             } else {
-                haptic(.warning)
-                SoundKit.shared.play(.refuse)
+                Feel.denied()
             }
             return r
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return nil
         }
     }
@@ -1245,7 +1207,7 @@ final class AppModel {
             if case .ok = r { Task { await AppActions.shared.afterChange() } }
             return r
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return nil
         }
     }
@@ -1262,13 +1224,12 @@ final class AppModel {
         do {
             r = try PetStore.shared.mutate { Cooking.buyFood(id, in: &$0, now: now) }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return nil
         }
         refresh(now: now)
         guard case .ok(_, let out) = r else {
-            haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
             return r
         }
         var delta: [String: Int] = [:]
@@ -1299,13 +1260,12 @@ final class AppModel {
         do {
             out = try PetStore.shared.mutate { Cooking.cook(id, in: &$0, now: now) }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
             return nil
         }
         refresh(now: now)
         guard out.ok else {
-            haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
             return out
         }
         showKitchen = false
@@ -1320,8 +1280,7 @@ final class AppModel {
 
     private func cookReaction(_ out: CookOutcome) {
         react(Cooking.reactKind)
-        haptic(.success)
-        SoundKit.shared.settled(kind: Cooking.reactKind, ok: true)
+        Feel.success(SoundRecipe.forAction(kind: Cooking.reactKind, ok: true))
         lastDelta = out.gains
         popDelta(out.gains)
         heartBurst()
@@ -1389,15 +1348,14 @@ final class AppModel {
         do {
             switch try Postcards.save(c.id) {
             case .saved, .already:
-                haptic(.success)
-                SoundKit.shared.play(.ok)
+                Feel.success(.ok)
                 show("Открытка в альбоме")
-            case .expired: show("Открытка уже пропала", ok: false)
-            case .notFound: show("Открытки уже нет", ok: false)
-            case .albumFull: show("Альбом полон: удали старую открытку", ok: false)
+            case .expired: refuse("Открытка уже пропала")
+            case .notFound: refuse("Открытки уже нет")
+            case .albumFull: refuse("Альбом полон: удали старую открытку")
             }
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
         postcardChanged()
     }
@@ -1406,9 +1364,9 @@ final class AppModel {
     func discardPostcard(_ c: Postcard) {
         do {
             try Postcards.discard(c.id)
-            haptic(.light)
+            Feel.tap()
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
         postcardChanged()
     }
@@ -1417,9 +1375,9 @@ final class AppModel {
     func removePostcard(_ c: Postcard) {
         do {
             try Postcards.remove(c.id)
-            haptic(.medium)
+            Feel.tap()
         } catch {
-            show(RefuseText.text("store"), ok: false)
+            refuse(RefuseText.text("store"))
         }
         postcardChanged()
     }

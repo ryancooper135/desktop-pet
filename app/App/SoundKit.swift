@@ -5,6 +5,8 @@
 // щелчков. Движок поднимается лениво, на первом звуке; через 30 с тишины и при уходе в фон — стоп.
 // Переключатель «Звук» в настройках (UserDefaults, по умолчанию включён). Reduce Motion звук не трогает.
 // В тестах (юнит и UI) звука нет совсем: аудиосессия на CI ни к чему.
+// Звук-отклик на касание (кнопки, игры, отказы, сердца) идёт через Feel (App/FeelKit.swift): там кулдаун
+// и тишина после фона. Напрямую сюда — только хореография (мяч, хруст, тявк «Голоса»).
 
 import AVFoundation
 import SwiftUI
@@ -14,22 +16,17 @@ final class SoundKit {
     static let shared = SoundKit()
 
     /// Ключ переключателя «Звук» в UserDefaults.standard. Нет значения — звук включён.
-    nonisolated static let enabledKey = "sound.on"
+    nonisolated static let enabledKey = FeelGate.soundKey
     /// Сколько тишины держать движок, прежде чем остановить.
     static let idleStop: Duration = .seconds(30)
 
-    static var enabled: Bool {
-        UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
-    }
+    static var enabled: Bool { FeelGate.enabled(enabledKey) }
 
     private let core = SynthCore()
     private var engine: AVAudioEngine?
     private var idleTask: Task<Void, Never>?
     /// Приложение в фоне: новые звуки не поднимают движок.
     private var suspended = false
-    /// Когда приложение вернулось из фона (см. ambient).
-    private var wokeAt: ContinuousClock.Instant?
-    static let wakeQuiet: Duration = .seconds(2)
 
     // MARK: что звучит
 
@@ -40,16 +37,6 @@ final class SoundKit {
     /// Звук позже, вместе с анимацией (трюк «Голос»). Перебили хореографию — не прозвучит.
     func play(_ cue: SoundCue, after offset: Double) {
         schedule(SoundRecipe.delayed(cue, by: offset))
-    }
-
-    /// Ответ ядра на действие из приложения (рядом с хаптикой success/warning).
-    func settled(kind: String, ok: Bool) {
-        if let cue = SoundRecipe.forAction(kind: kind, ok: ok) { play(cue) }
-    }
-
-    /// Тик ласки: n — номер тика с начала жеста (StrokeEvent.tick).
-    func strokeTick(_ n: Int) {
-        play(.petTick(n))
     }
 
     /// Игра с мячом началась через offset секунд (PetChoreo.begin): пинок, удары отскоков, тычок лапой.
@@ -75,14 +62,6 @@ final class SoundKit {
 
     func becameActive() {
         suspended = false
-        wokeAt = ContinuousClock.now
-    }
-
-    /// Звук от смены состояния, а не от касания (сердца, смерть, новый щенок). Первые секунды после
-    /// возврата из фона молчит: снимок догоняет время вдали, и это не событие «сейчас».
-    func ambient(_ cue: SoundCue) {
-        if let wokeAt, ContinuousClock.now - wokeAt < Self.wakeQuiet { return }
-        play(cue)
     }
 
     func wentBackground() {
@@ -189,14 +168,15 @@ struct SoundLayer: View {
             .onChange(of: Int(model.snap.hearts.rounded(.down))) { old, new in
                 // С нуля — это новый щенок после смерти: там звучит hello.
                 guard model.snap.alive, old > 0 else { return }
+                // Фоновые: первые секунды после возврата из фона молчат (снимок догоняет время вдали).
                 if new > old {
-                    SoundKit.shared.ambient(.hearts)
+                    Feel.ambient(nil, .hearts)
                 } else if new < old {
-                    SoundKit.shared.ambient(.heartLost)
+                    Feel.ambient(nil, .heartLost)
                 }
             }
             .onChange(of: model.snap.alive) { _, alive in
-                SoundKit.shared.ambient(alive ? .hello : .death)
+                Feel.ambient(nil, alive ? .hello : .death)
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)

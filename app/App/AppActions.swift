@@ -72,7 +72,10 @@ final class AppActions {
         model.refresh(now: now)
         if out.ok {
             model.react(Habits.reactKind)
-            model.haptic(.success)
+            Feel.success(source == .app ? .ok : nil)
+        } else if source == .app {
+            // «Сегодня уже отмечено» — дружелюбный тост, не отказ: мягкий щелчок без «не-а» (волна 29).
+            if out.reason == Habits.enoughReason { Feel.nudge() } else { Feel.denied() }
         }
         model.show(Habits.reply(out), ok: out.ok || out.reason == Habits.enoughReason, emoji: out.ok ? "🐾" : nil)
         await afterChange()

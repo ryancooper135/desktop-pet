@@ -98,7 +98,7 @@ struct BrushPanel: View {
                 Spacer(minLength: 0)
                 if s.done {
                     Button {
-                        model.haptic(.light)
+                        Feel.tap()
                         model.endBrush()
                     } label: {
                         Text("Готово")
@@ -221,8 +221,8 @@ struct BrushCard: View {
             // «Шерсть: «Колтуны» · колтунов 6» повторяло слово; теперь стадия и сколько клочков на спине.
             ?? stage.map { "\($0.title) · клочков шерсти: \(Brush.tufts($0))" } ?? ""
         Button {
-            model.haptic(.light)
-            SoundKit.shared.play(.button)
+            // Отклик один: нельзя — «не-а» из startBrush, можно — щелчок здесь (волна 29).
+            if gate == nil { Feel.tap(.button) }
             model.startBrush()
         } label: {
             HStack(spacing: 10) {
@@ -253,6 +253,7 @@ struct BrushCard: View {
         }
         .buttonStyle(SquishStyle())
         .disabled(gate != nil)
+        .deniedTap(when: gate != nil)
         .opacity(gate == nil ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Расчесать"))

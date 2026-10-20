@@ -1,4 +1,5 @@
-// Слои главного экрана поверх сцены: палец-подсказка ласки, состояние жеста, хаптика и карточка имени.
+// Слои главного экрана поверх сцены: палец-подсказка ласки, состояние жеста и карточка имени.
+// Хаптика с волны 29 — Feel (App/FeelKit.swift), без слоя.
 // Перенесено из HomeScreen.swift без изменений (волна 28).
 
 import SwiftUI
@@ -30,21 +31,6 @@ struct PetTutorLayer: View {
 final class TouchBox {
     var tracker = StrokeTracker()
     var start: CGPoint? = nil
-}
-
-/// Хаптика по счётчикам модели: каждый вид — свой trigger.
-struct HapticsLayer: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        Color.clear
-            .sensoryFeedback(.impact(weight: .light), trigger: model.buzzes.light)
-            .sensoryFeedback(.impact(weight: .medium), trigger: model.buzzes.medium)
-            .sensoryFeedback(.success, trigger: model.buzzes.success)
-            .sensoryFeedback(.warning, trigger: model.buzzes.warning)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    }
 }
 
 /// Аватар, имя, сердечки и уровень. Непрозрачная плашка.

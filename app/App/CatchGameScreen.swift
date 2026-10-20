@@ -88,7 +88,6 @@ struct CatchGameScreen: View {
                 .foregroundStyle(PetPalette.ink)
             Spacer()
             Button {
-                model.haptic(.light)
                 model.showCatch = false
             } label: {
                 Image(systemName: "xmark")
@@ -180,12 +179,11 @@ struct CatchGameScreen: View {
 
     private func start() {
         guard gate == nil else {
-            model.haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
             return
         }
-        model.haptic(.light)
-        SoundKit.shared.play(.button)
+        Feel.prepare(.tap, .nudge)
+        Feel.tap(.button)
         round = CatchRound(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max))
         bowlX = 0.5
         pops = []
@@ -216,12 +214,11 @@ struct CatchGameScreen: View {
             case .caught(let d):
                 catches += 1
                 pops.append(CatchPop(x: d.x, t: round.t, text: "+\(d.kind.points)", ok: true))
-                model.haptic(.light)
-                SoundKit.shared.play(d.kind == .bone ? .yip : .boop)
+                Feel.tap(d.kind == .bone ? .yip : .boop)
             case .missed(let d):
                 pops.append(CatchPop(x: d.x, t: round.t, text: "мимо", ok: false))
-                model.haptic(.warning)
-                SoundKit.shared.play(.refuse)
+                // Промах в игре — мягкое «не то», не тревога (волна 29).
+                Feel.nudge(.refuse)
             }
         }
     }
@@ -235,15 +232,14 @@ struct CatchGameScreen: View {
                                  in: &f, now: Clock.now())
             }
         } catch {
-            model.show(RefuseText.text("store"), ok: false)
+            model.refuse(RefuseText.text("store"))
             model.showCatch = false
             return
         }
         model.refresh()
         Task { await AppActions.shared.afterChange() }
         phase = .done(r)
-        model.haptic(.success)
-        SoundKit.shared.play(r.isRecord && r.score > 0 ? .hearts : .ok)
+        Feel.success(r.isRecord && r.score > 0 ? .hearts : .ok)
     }
 
     /// PET_CATCH=play|done — детерминированные снимки (сид 7, автопилот).
@@ -591,8 +587,7 @@ struct GamesButton: View {
                 Button {
                     taps += 1
                     refusals += 1
-                    model.haptic(.warning)
-                    model.show(Tricks.reasonText(gate), ok: false)
+                    model.refuse(Tricks.reasonText(gate))
                 } label: {
                     icon
                 }

@@ -90,7 +90,8 @@ struct WalkButton: View {
                 model.act(.walk)
             } else {
                 refusals += 1
-                model.haptic(.warning)
+                // Нельзя — с «не-а», как у остальных отказов (раньше только вибрация).
+                Feel.denied()
                 // Волна 25: плашка над кнопкой уже говорит то же самое — второй раз в тосте не повторяем.
                 let plate = model.file.flatMap { NeedHints.pick(model.snap, file: $0) }
                 if let text = Hush.walkToast(gate: gate, plate: plate) { model.show(text, ok: away) }

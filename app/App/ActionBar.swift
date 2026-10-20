@@ -50,6 +50,7 @@ struct ActionBar: View {
                     .frame(width: cell > 0 ? cell : nil)
                 if lamp {
                     ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {
+                        Feel.tap()
                         model.setBedtime(minute: Self.minuteNow(Clock.now()))
                     }
                     .frame(width: cell > 0 ? cell : nil)

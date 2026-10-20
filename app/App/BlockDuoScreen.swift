@@ -102,7 +102,6 @@ struct BlockDuoScreen: View {
                 .foregroundStyle(PetPalette.ink)
             Spacer()
             Button {
-                model.haptic(.light)
                 close()
             } label: {
                 Image(systemName: "xmark")
@@ -299,12 +298,13 @@ struct BlockDuoScreen: View {
             .onChanged { v in
                 guard pinned == nil, !busy, shownTray[slot] != nil else { return }
                 if drag == nil {
-                    model.haptic(.light)
+                    Feel.prepare(.select, .tap)
+                    Feel.tap()
                 }
                 let old = currentPreview?.cells
                 drag = Drag(slot: slot, loc: v.location)
-                // Щелчок, когда фигура «встала» на новое место.
-                if let now = currentPreview?.cells, now != old { model.haptic(.light) }
+                // Щелчок выбора, когда фигура «встала» на новое место (не удар: их бывает много подряд).
+                if let now = currentPreview?.cells, now != old { Feel.select() }
             }
             .onEnded { _ in
                 guard let d = drag else { return }
@@ -312,8 +312,7 @@ struct BlockDuoScreen: View {
                 drag = nil
                 guard let at, game.preview(slot: d.slot, at: at) != nil else {
                     // Отпустил мимо — фигура вернулась в тройку.
-                    model.haptic(.warning)
-                    SoundKit.shared.play(.refuse)
+                    Feel.nudge(.refuse)
                     return
                 }
                 commit(slot: d.slot, at: at)
@@ -324,12 +323,10 @@ struct BlockDuoScreen: View {
 
     private func start() {
         guard gate == nil else {
-            model.haptic(.warning)
-            SoundKit.shared.play(.refuse)
+            Feel.denied()
             return
         }
-        model.haptic(.light)
-        SoundKit.shared.play(.button)
+        Feel.tap(.button)
         anim?.cancel()
         begin(BlockDuoGame(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max)))
         phase = .playing
@@ -377,7 +374,7 @@ struct BlockDuoScreen: View {
                     status = say(s.lines > 0 ? "Шиба убрал линию! Гав!" : "Шиба поставил свою фигурку")
                 } else if turn.shibaSkipped {
                     status = say("Шибе некуда поставить — пропускает ход")
-                    model.haptic(.light)
+                    Feel.tap()
                     try? await Task.sleep(for: .milliseconds(500))
                 }
                 guard !Task.isCancelled else { return }
@@ -390,7 +387,8 @@ struct BlockDuoScreen: View {
             busy = false
             if after.isOver {
                 status = "Места больше нет"
-                model.haptic(.warning)
+                // Мягкое «всё»: через 0,8 с карточка итога даст свой success со звуком.
+                Feel.nudge()
                 try? await Task.sleep(for: .milliseconds(800))
                 guard !Task.isCancelled else { return }
                 finish()
@@ -401,8 +399,7 @@ struct BlockDuoScreen: View {
     /// Один ход на экране: фигура легла → полные линии вспыхнули → исчезли.
     private func show(_ m: BlockMove) async {
         withAnimation(.spring(duration: 0.2)) { shown = m.placed }
-        model.haptic(m.who == .me ? .light : .medium)
-        SoundKit.shared.play(.boop)
+        if m.who == .me { Feel.tap(.boop) } else { Feel.bump(.boop) }
         guard !m.cleared.isEmpty else {
             if m.who == .shiba { showPop(ScorePop(text: "+\(m.gained)", sub: model.snap.name, shiba: true)) }
             try? await Task.sleep(for: .milliseconds(m.who == .me ? 120 : 350))
@@ -411,8 +408,7 @@ struct BlockDuoScreen: View {
         try? await Task.sleep(for: .milliseconds(120))
         guard !Task.isCancelled else { return }
         withAnimation(.easeOut(duration: 0.12)) { flash = Set(m.cleared) }
-        model.haptic(.success)
-        SoundKit.shared.play(.yip)
+        Feel.success(.yip)
         var sub: [String] = []
         if m.who == .shiba { sub.append(model.snap.name) }
         if m.combo > 1 { sub.append("комбо ×\(m.combo)") }
@@ -445,7 +441,7 @@ struct BlockDuoScreen: View {
         do {
             r = try PetStore.shared.mutate { f in BlockDuo.finish(g, in: &f, now: Clock.now()) }
         } catch {
-            model.show(RefuseText.text("store"), ok: false)
+            model.refuse(RefuseText.text("store"))
             model.showBlockDuo = false
             return
         }
@@ -455,8 +451,7 @@ struct BlockDuoScreen: View {
         busy = false
         drag = nil
         phase = .done(r)
-        model.haptic(.success)
-        SoundKit.shared.play(r.isRecord && r.score > 0 ? .hearts : .ok)
+        Feel.success(r.isRecord && r.score > 0 ? .hearts : .ok)
     }
 
     /// Закрыть экран. Посреди партии с очками — сначала засчитать её; после партии Шиба в комнате радуется.
