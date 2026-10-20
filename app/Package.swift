@@ -144,6 +144,7 @@ let package = Package(
                 "ClarityTests.swift",
                 "HushTests.swift",
                 "FreshEyesTests.swift",
+                "SmoothTests.swift",
                 "SnapshotCatalog.swift",  // отсюда нужен только StoreHooks, вью закрыты #if canImport(UIKit)
             ]
         ),

@@ -402,8 +402,8 @@ enum PetModel {
 
     /// Сменить позу и/или сыграть реакцию. Реакция проверяется до сравнения ключа позы.
     static func drive(_ pet: Entity, pose: Pose, reduceMotion: Bool, reaction: PetReaction?, lookX: Float?) {
-        guard var st = pet.components[ClipState.self], let table = ClipTable.shared else { return }
-        let available = Set(table.clips.keys)
+        guard var st = pet.components[ClipState.self], ClipTable.shared != nil else { return }
+        let available = ClipTable.sharedNames
         let target = PetStance.stance(for: pose)
         let loop = PetStance.loop(for: pose)
         let key = PetStance.intro(for: pose).joined(separator: ",") + ">" + loop + (reduceMotion ? "~" : "")
@@ -580,11 +580,11 @@ enum PetModel {
             return
         }
         guard !st.reduceMotion, st.pendingPose == nil, st.stance != .dead,
-              st.clock >= st.busyUntil, st.clock >= st.nextFidgetAt, let table = ClipTable.shared else {
+              st.clock >= st.busyUntil, st.clock >= st.nextFidgetAt, ClipTable.shared != nil else {
             pet.components.set(st)
             return
         }
-        let available = Set(table.clips.keys)
+        let available = ClipTable.sharedNames
         let idles = ["idle", "idle_2"]
         let standIdle = st.stance == .stand && idles.contains(st.loop)
         var options = PetStance.pick(PetStance.fidgets(for: st.stance), available: available).filter { $0 != st.loop }
@@ -734,7 +734,18 @@ struct ClipTable: Decodable, Sendable {
 
     /// Таблица модели в сцене: Шиба или свой персонаж. Пишет только PetModel.load на главном потоке,
     /// до первого клипа новой модели; читают проигрыватель и режиссёр там же.
-    nonisolated(unsafe) static var shared: ClipTable? = shiba
+    nonisolated(unsafe) static var shared: ClipTable? = shiba {
+        didSet { namesCache = nil }
+    }
+
+    /// Имена клипов shared одним набором (для PetStance.pick). Волна 26: раньше Set собирался на каждом кадре игры.
+    static var sharedNames: Set<String> {
+        if let n = namesCache { return n }
+        let n = Set(shared?.clips.keys.map { $0 } ?? [])
+        namesCache = n
+        return n
+    }
+    nonisolated(unsafe) private static var namesCache: Set<String>?
 
     init(fps: Double, clips: [String: Clip]) {
         self.fps = fps

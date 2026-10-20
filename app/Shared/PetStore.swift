@@ -62,6 +62,14 @@ final class PetStore: @unchecked Sendable {
     private let lock = NSLock()
     private var recovery: StoreRecovery?
 
+    /// Волна 26: последний state.json в памяти (под замком). Ключ — отпечаток файла (inode, время, размер),
+    /// снятый до чтения: другой процесс (виджет, интент) пишет атомарно — новый inode и время, кэш мимо.
+    /// file — разобранный файл; после своей записи nil (разберём лениво из raw: Codable местами с потерями,
+    /// поэтому читатель видит ровно то, что на диске, как и раньше).
+    private var cached: (path: String, stamp: FileStamp, raw: Data, file: SaveFile?)?
+    /// Сколько раз разбирали JSON (SmoothTests: правка и сколько угодно чтений после неё — один разбор).
+    private(set) var decodes = 0
+
     init(dir: URL, mayCreate: Bool = PetStore.isAppProcess) {
         self.dir = dir
         self.mayCreate = mayCreate
@@ -183,6 +191,7 @@ final class PetStore: @unchecked Sendable {
         try? fm.removeItem(at: stateURL)
         try? fm.removeItem(at: bakURL)
         try? fm.removeItem(at: prevURL)
+        cached = nil
         #if APP_TARGET
         try? fm.removeItem(at: Paths.mirror)
         #endif
@@ -191,7 +200,32 @@ final class PetStore: @unchecked Sendable {
     // MARK: внутреннее (под замком)
 
     private func decode(_ data: Data) throws -> SaveFile {
-        try JSONDecoder().decode(SaveFile.self, from: data)
+        decodes += 1
+        return try JSONDecoder().decode(SaveFile.self, from: data)
+    }
+
+    /// Отпечаток файла: inode, время правки, размер. nil — файла нет или атрибуты не читаются (тогда без кэша).
+    struct FileStamp: Equatable {
+        let inode: UInt64
+        let modified: Date
+        let size: UInt64
+
+        static func of(_ path: String) -> FileStamp? {
+            guard let a = try? FileManager.default.attributesOfItem(atPath: path),
+                  let m = a[.modificationDate] as? Date,
+                  let size = (a[.size] as? NSNumber)?.uint64Value,
+                  let inode = (a[.systemFileNumber] as? NSNumber)?.uint64Value else { return nil }
+            return FileStamp(inode: inode, modified: m, size: size)
+        }
+    }
+
+    /// Разобранный state.json из памяти, если файл с тех пор не менялся. Вызывать под замком.
+    private func cachedMain(_ url: URL, stamp: FileStamp?) -> Found? {
+        guard let stamp, let c = cached, c.path == url.path, c.stamp == stamp else { return nil }
+        if let f = c.file { return .main(f, raw: c.raw) }
+        guard let f = try? decode(c.raw) else { cached = nil; return nil }
+        cached = (c.path, c.stamp, c.raw, f)
+        return .main(f, raw: c.raw)
     }
 
     /// Что лежит на диске. Ничего не меняет.
@@ -219,13 +253,23 @@ final class PetStore: @unchecked Sendable {
         var brokenMain = false
         var why = "основного файла нет, копии испорчены"
         if fm.fileExists(atPath: url.path) {
+            // Отпечаток — до чтения: подменят файл между ними — в кэше окажется старый отпечаток, следующий вызов прочтёт заново.
+            let stamp = FileStamp.of(url.path)
+            if let hit = cachedMain(url, stamp: stamp) { return hit }
             let data: Data
             // Есть, но не читается — не порча: копии в той же папке недоступны так же. Ждём, ничего не трогаем.
             do { data = try Data(contentsOf: url) } catch { throw StoreError.unavailable(error.localizedDescription) }
-            do { return .main(try decode(data), raw: data) } catch {
+            do {
+                let f = try decode(data)
+                if let stamp { cached = (url.path, stamp, data, f) } else { cached = nil }
+                return .main(f, raw: data)
+            } catch {
+                cached = nil
                 brokenMain = true
                 why = data.isEmpty ? "пустой файл" : "\(error)"
             }
+        } else {
+            cached = nil
         }
         var anyCopy = false
         for u in copies where fm.fileExists(atPath: u.path) {
@@ -357,7 +401,12 @@ final class PetStore: @unchecked Sendable {
         let opts = Self.writeOptions
         if let bak { try? bak.write(to: bakURL, options: opts) }
         // Атомарно: временный файл и rename. Нет места — бросаем, а прежний state.json цел.
-        do { try data.write(to: url, options: opts) } catch { throw StoreError.writeFailed("\(error)") }
+        do { try data.write(to: url, options: opts) } catch {
+            cached = nil
+            throw StoreError.writeFailed("\(error)")
+        }
+        // Записанное — в кэш байтами; разберём при первом чтении (не доверяем f: кодеки местами с потерями).
+        if let stamp = FileStamp.of(url.path) { cached = (url.path, stamp, data, nil) } else { cached = nil }
         if f.rev % 10 == 0 { try? data.write(to: prevURL, options: opts) }
         #if APP_TARGET
         try? data.write(to: Paths.mirror, options: opts)

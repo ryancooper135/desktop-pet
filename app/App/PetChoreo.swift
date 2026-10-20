@@ -665,7 +665,7 @@ enum PetChoreo {
         cs.yaw = PetRoom.yaw3q
         cs.ball = ChoreoPath.Play.ballHome
         cs.blendStart = -100
-        let room = pet.scene?.findEntity(named: "room")
+        let room = sceneRoom(of: pet)
         place(pet, cs, room)
         placeBowl(room, .init(position: PetRoom.bowlPos, scale: .one, food: 0))
         if var face = pet.components[PetFace.self] {
@@ -713,7 +713,7 @@ enum PetChoreo {
         guard var cs = pet.components[ChoreoState.self], cs.active,
               let st = pet.components[ClipState.self] else { return }
         let now = st.clock
-        let room = pet.scene?.findEntity(named: "room")
+        let room = sceneRoom(of: pet)
 
         if let f = cs.feed {
             let t = now - f.start
@@ -730,10 +730,10 @@ enum PetChoreo {
         if var p = cs.play {
             let u = now - p.start
             let cues = ChoreoPath.Play.cues
-            let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
+            // Набор клипов — только когда подошла реплика, а не на каждом кадре игры.
             while p.cue < cues.count, u >= cues[p.cue].at {
                 let c = cues[p.cue]
-                ClipPlayer.play(PetStance.pick(c.steps, available: available), then: c.loop ?? p.mainLoop, on: pet,
+                ClipPlayer.play(PetStance.pick(c.steps, available: availableClips()), then: c.loop ?? p.mainLoop, on: pet,
                                 transition: 0.2, randomSpeed: false, initial: false)
                 p.cue += 1
             }
@@ -756,8 +756,7 @@ enum PetChoreo {
                 if !w.cued && u >= ChoreoPath.Walk.inWalk {
                     // Дома: виляет хвостом, пока кладёт находку; новую позу потом поставит режиссёр (lockUntil).
                     w.cued = true
-                    let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
-                    ClipPlayer.play(PetStance.pick(["happy_wag", "pant"], available: available), then: "idle", on: pet,
+                    ClipPlayer.play(PetStance.pick(["happy_wag", "pant"], available: availableClips()), then: "idle", on: pet,
                                     transition: 0.2, randomSpeed: false, initial: false)
                 }
                 placeProp(pet, ChoreoPath.walkProp(u))
@@ -820,7 +819,7 @@ enum PetChoreo {
                 cs.pos = .zero
                 cs.yaw = PetRoom.yaw3q
                 cs.blendStart = -100
-                place(pet, cs, pet.scene?.findEntity(named: "room"))
+                place(pet, cs, sceneRoom(of: pet))
             }
             setHidden(pet, away)
             pet.components.set(cs)
@@ -835,8 +834,7 @@ enum PetChoreo {
                 return
             }
             // Уход — после перехода в стойку (его сыграет drive) и после идущей реакции.
-            let available = Set(ClipTable.shared?.clips.keys.map { $0 } ?? [])
-            let path = PetStance.pick(PetStance.path(from: st.stance, to: .stand), available: available)
+            let path = PetStance.pick(PetStance.path(from: st.stance, to: .stand), available: availableClips())
             let start = max(now, st.lockUntil) + path.reduce(0) { $0 + duration($1) }
             interrupt(&cs, now)
             if cs.petting != nil {
@@ -887,11 +885,11 @@ enum PetChoreo {
         if !item.isEmpty { addProp(pet, item) }
         cs.walk = .init(out: false, start: start, find: item)
         cs.active = true
-        place(pet, cs, pet.scene?.findEntity(named: "room"))
+        place(pet, cs, sceneRoom(of: pet))
         pet.components.set(cs)
 
         ClipPlayer.play([], then: "walk", on: pet, transition: 0.2, randomSpeed: false, initial: false)
-        let wag = PetStance.pick(["happy_wag"], available: Set(ClipTable.shared?.clips.keys.map { $0 } ?? []))
+        let wag = PetStance.pick(["happy_wag"], available: availableClips())
         let home = start + ChoreoPath.Walk.inWalk
         let hold = home + max(ChoreoPath.Walk.turnIn, wag.reduce(0) { $0 + duration($1) })
         st.current = "~walk"
@@ -946,6 +944,57 @@ enum PetChoreo {
         return RoomPlan.petLift(levels, at: RoomPlan.P(p.x, p.z))
     }
 
+    // MARK: комната и клипы без поиска на каждом кадре (волна 26)
+
+    /// Имена клипов модели (для PetStance.pick): набор собирается раз на таблицу, а не на кадре игры.
+    static func availableClips() -> Set<String> { ClipTable.sharedNames }
+
+    /// Найденное по имени у родителя; ссылка слабая. Годится, пока вещь жива, зовётся так же и висит под тем же
+    /// родителем (комнату пересобрали — ищем заново). Раньше findEntity по всей сцене шёл на каждом кадре реакции.
+    private struct FoundKey: Hashable {
+        let parent: Entity.ID
+        let name: String
+    }
+    private final class Found {
+        weak var entity: Entity?
+        init(_ e: Entity) { entity = e }
+    }
+    private static var found: [FoundKey: Found] = [:]
+
+    /// Комната сцены питомца.
+    static func sceneRoom(of pet: Entity) -> Entity? {
+        guard let scene = pet.scene else { return nil }
+        let key = FoundKey(parent: pet.id, name: "room")
+        if let r = found[key]?.entity, r.name == "room", r.scene === scene { return r }
+        return remember(key, scene.findEntity(named: "room"))
+    }
+
+    /// Часть комнаты или миски по имени: миска, корм, мяч.
+    static func roomPart(_ parent: Entity, _ name: String) -> Entity? {
+        let key = FoundKey(parent: parent.id, name: name)
+        if let e = found[key]?.entity, e.name == name, isUnder(e, parent) { return e }
+        return remember(key, parent.findEntity(named: name))
+    }
+
+    private static func isUnder(_ e: Entity, _ ancestor: Entity) -> Bool {
+        var p = e.parent
+        while let q = p {
+            if q === ancestor { return true }
+            p = q.parent
+        }
+        return false
+    }
+
+    private static func remember(_ key: FoundKey, _ e: Entity?) -> Entity? {
+        guard let e else {
+            found[key] = nil
+            return nil
+        }
+        if found.count > 32 { found.removeAll() }
+        found[key] = Found(e)
+        return e
+    }
+
     /// Обёртка питомца и пятно-тень (оба в подставке) и мяч (в комнате).
     static func place(_ pet: Entity, _ cs: ChoreoState, _ room: Entity?) {
         var local = ChoreoPath.toStand(cs.pos)
@@ -957,14 +1006,14 @@ enum PetChoreo {
             shadow.position = SIMD3<Float>(local.x, PetRoom.blobY, local.z)
             shadow.orientation = rot
         }
-        room?.findEntity(named: "ball")?.position = cs.ball
+        if let room { roomPart(room, "ball")?.position = cs.ball }
     }
 
     static func placeBowl(_ room: Entity?, _ b: ChoreoPath.BowlPose) {
-        guard let bowl = room?.findEntity(named: "bowl") else { return }
+        guard let room, let bowl = roomPart(room, "bowl") else { return }
         bowl.position = b.position
         bowl.scale = b.scale
-        if let food = bowl.findEntity(named: "food") {
+        if let food = roomPart(bowl, "food") {
             food.isEnabled = b.food > 0.01
             let side = 0.7 + 0.3 * b.food
             food.scale = SIMD3<Float>(side, max(0.45 * b.food, 0.001), side)
