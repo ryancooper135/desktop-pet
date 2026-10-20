@@ -50,6 +50,7 @@ struct TricksScreen: View {
             Text("Трюки")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             Text("Выучено \(learned) из \(total) · повторяй, и запомнит")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
@@ -162,8 +163,6 @@ struct TricksButton: View {
     @State private var taps = 0
     @State private var refusals = 0
 
-    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
-
     var body: some View {
         Button {
             taps += 1
@@ -184,11 +183,7 @@ struct TricksButton: View {
         .buttonStyle(SquishStyle())
         .opacity(gate == nil ? 1 : 0.55)
         .glassEffect(.regular.interactive(), in: Circle())
-        .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: refusals))
         .accessibilityLabel(Text("Трюки"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
         .accessibilityHint(Text("Команды и чему научился"))

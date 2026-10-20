@@ -77,6 +77,7 @@ struct CapsuleScreen: View {
             Text(o?.name ?? "Автомат")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             if let w = model.file?.econ.wallet {
                 Text("🪙 \(w.coins)   🎟 \(w.tickets)   ✂️ \(w.shards)")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -116,7 +117,7 @@ struct CapsuleScreen: View {
                     .foregroundStyle(PetPalette.soft)
             }
             .multilineTextAlignment(.center)
-            .transition(.scale(scale: 0.8).combined(with: .opacity))
+            .transition(Motion.pop(.scale(scale: 0.8).combined(with: .opacity)))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("capsule.result")
         }
@@ -250,6 +251,7 @@ struct CapsuleScreen: View {
                 Text("Коллекция")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("\(items.count)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -368,7 +370,7 @@ struct CapsuleScreen: View {
 
     private func reveal() {
         guard phase == .ready, let p = pull else { return }
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { phase = .open }
+        withAnimation(Motion.calm(.spring(response: 0.45, dampingFraction: 0.6))) { phase = .open }
         let cue: SoundCue = p.rarity >= .rare ? .hearts : .ok
         if p.rarity >= .epic { Feel.success(cue) } else { Feel.bump(cue) }
         // Кошелёк, шкала и коллекция — только теперь.
@@ -476,7 +478,7 @@ struct GachaBall: View {
                     }
                 }
                 .offset(y: -40)
-                .transition(.scale(scale: 0.2).combined(with: .opacity))
+                .transition(Motion.pop(.scale(scale: 0.2).combined(with: .opacity)))
             }
             VStack(spacing: 0) {
                 UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: 0, bottomTrailingRadius: 0,
@@ -515,7 +517,7 @@ struct GachaBall: View {
             .offset(y: open ? 40 : 0)
         }
         .frame(maxWidth: .infinity)
-        .animation(.spring(response: 0.45, dampingFraction: 0.6), value: open)
+        .animation(Motion.calm(.spring(response: 0.45, dampingFraction: 0.6)), value: open)
         .animation(.easeInOut(duration: 0.3), value: phase)
     }
 }

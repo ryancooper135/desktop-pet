@@ -26,6 +26,7 @@ let package = Package(
             // Явный exclude, чтобы SwiftPM не предупреждал «found N file(s) which are unhandled».
             exclude: ["Views", "Intents.swift", "PetAttributes.swift"],
             sources: [
+                "A11y.swift",
                 "AppGroup.swift",
                 "Backup.swift",
                 "Brush.swift",
@@ -103,6 +104,7 @@ let package = Package(
                       "HomeLayoutTests.swift", "VisualPolishTests.swift", "StrokeTrackerTests.swift"],
             sources: [
                 "PetLogicTests.swift",
+                "A11yTests.swift",
                 "StoreTests.swift",
                 "LineRotationTests.swift",
                 "SoundTests.swift",

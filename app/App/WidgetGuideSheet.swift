@@ -22,6 +22,7 @@ struct WidgetGuideSheet: View {
                         Text("\(name) всегда рядом")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
+                            .accessibilityAddTraits(.isHeader)
                         // Короче и с полями: длинная фраза шла от края до края.
                         Text("Как он — видно без приложения")
                             .font(.system(size: 15, weight: .medium, design: .rounded))

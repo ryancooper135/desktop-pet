@@ -86,6 +86,7 @@ struct CatchGameScreen: View {
             Text(CatchConfig.shared.name)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Button {
                 model.showCatch = false
@@ -154,6 +155,12 @@ struct CatchGameScreen: View {
                 }
                 BowlView(width: CGFloat(CatchGame.bowlHalf * 2) * w, bounce: catches)
                     .position(x: CGFloat(bowlX) * w, y: CGFloat(CatchGame.catchY) * h + ball * 0.35)
+                    // Волна 31: с VoiceOver миску двигают смахиванием вверх/вниз — шестая часть хода за раз.
+                    .accessibilityValue(Text(A11y.side(bowlX, in: CatchGame.bowlRange)))
+                    .accessibilityAdjustableAction { dir in
+                        guard !frozen else { return }
+                        bowlX = A11y.nudge(bowlX, up: dir.isUp, range: CatchGame.bowlRange)
+                    }
                     .accessibilityIdentifier("catch.bowl")
             }
             .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -311,10 +318,14 @@ private struct IntroCard: View {
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
             Text("Води миску пальцем. Мячик — 1 очко, косточка — 2. Три промаха — и всё.")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
+                // Волна 31: VoiceOver после правил слышит, как играть без пальца и чего не будет слышно.
+                .accessibilityLabel(Text("Води миску пальцем. Мячик — 1 очко, косточка — 2. Три промаха — и всё. "
+                    + A11y.gameNote(.catchBall)))
             HStack(spacing: 10) {
                 GamePill(icon: "trophy.fill", tint: PetPalette.yellow, text: best > 0 ? "Рекорд \(best)" : "Рекорда пока нет")
                     .accessibilityIdentifier("catch.best")
@@ -365,6 +376,7 @@ private struct DoneCard: View {
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("catch.title")
+                .accessibilityAddTraits(.isHeader)
             // Звезда, как у очков в раунде (HudChip): без неё крупное «49» рядом с «Поймано 42» читалось загадкой.
             HStack(spacing: 8) {
                 Image(systemName: "star.fill")
@@ -574,8 +586,6 @@ struct GamesButton: View {
     @State private var taps = 0
     @State private var refusals = 0
 
-    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
-
     private var gate: String? {
         model.file.map { CatchGame.gate($0, at: t) } ?? Tricks.loadingReason
     }
@@ -619,11 +629,7 @@ struct GamesButton: View {
         }
         .opacity(gate == nil ? 1 : 0.55)
         .glassEffect(.regular.interactive(), in: Circle())
-        .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: refusals))
         .accessibilityLabel(Text("Мини-игры"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
         .accessibilityHint(Text(PetNames.adapt("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой", name: model.snap.name)))

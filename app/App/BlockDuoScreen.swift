@@ -100,6 +100,7 @@ struct BlockDuoScreen: View {
             Text(BlockDuoConfig.shared.name)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Button {
                 close()
@@ -133,10 +134,10 @@ struct BlockDuoScreen: View {
             if game.combo > 1 {
                 GameChip(icon: "flame.fill", tint: PetPalette.red, text: "×\(game.combo)")
                     .accessibilityLabel(Text("Комбо \(game.combo)"))
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(Motion.pop(.scale.combined(with: .opacity)))
             }
         }
-        .animation(.spring(duration: 0.3), value: game.combo > 1)
+        .animation(Motion.calm(.spring(duration: 0.3)), value: game.combo > 1)
     }
 
     // MARK: партия
@@ -199,6 +200,7 @@ struct BlockDuoScreen: View {
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { boardFrame = $0 }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Поле 8 на 8, занято клеток: \(shown.filter { $0 != 0 }.count)"))
+        .accessibilityHint(Text(PetNames.adapt(A11y.gameNote(.blockDuo), name: model.snap.name)))
         .accessibilityIdentifier("blockduo.board")
     }
 
@@ -218,7 +220,7 @@ struct BlockDuoScreen: View {
             .padding(.vertical, 8)
             .background(Capsule().fill(PetPalette.card.opacity(0.92)))
             .id(pop.id)
-            .transition(.scale(scale: 0.6).combined(with: .opacity))
+            .transition(Motion.pop(.scale(scale: 0.6).combined(with: .opacity)))
             .allowsHitTesting(false)
         }
     }
@@ -378,7 +380,7 @@ struct BlockDuoScreen: View {
                     try? await Task.sleep(for: .milliseconds(500))
                 }
                 guard !Task.isCancelled else { return }
-                withAnimation(.spring(duration: 0.35, bounce: 0.3)) { shownTray = after.tray }
+                withAnimation(Motion.calm(.spring(duration: 0.35, bounce: 0.3))) { shownTray = after.tray }
                 bounce += 1
             } else {
                 status = say(Self.hint(after))
@@ -426,7 +428,7 @@ struct BlockDuoScreen: View {
     }
 
     private func showPop(_ p: ScorePop) {
-        withAnimation(.spring(duration: 0.25, bounce: 0.4)) { pop = p }
+        withAnimation(Motion.calm(.spring(duration: 0.25, bounce: 0.4))) { pop = p }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(900))
             if pop?.id == p.id { withAnimation(.easeOut(duration: 0.25)) { pop = nil } }
@@ -632,7 +634,7 @@ private struct TraySlot: View {
             if let piece {
                 PieceView(form: piece.form, color: piece.color, cell: cell, gap: gap)
                     .opacity(lifted ? 0.2 : (fits ? 1 : 0.35))
-                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .transition(Motion.pop(.scale(scale: 0.4).combined(with: .opacity)))
             }
         }
     }
@@ -660,10 +662,14 @@ private struct BlockIntroCard: View {
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
-            Text(PetNames.adapt("Тащи фигуры на поле. Полная строка или столбец исчезают. После каждых трёх фигур свою ставит Шиба — счёт общий.", name: model.snap.name))
+                .accessibilityAddTraits(.isHeader)
+            let rules = PetNames.adapt("Тащи фигуры на поле. Полная строка или столбец исчезают. После каждых трёх фигур свою ставит Шиба — счёт общий.", name: model.snap.name)
+            Text(rules)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
+                // Волна 31: честно и вежливо — перетаскивание фигур VoiceOver пока не умеет.
+                .accessibilityLabel(Text(rules + " " + PetNames.adapt(A11y.gameNote(.blockDuo), name: model.snap.name)))
             HStack(spacing: 10) {
                 GamePill(icon: "trophy.fill", tint: PetPalette.yellow, text: best > 0 ? "Рекорд \(best)" : "Рекорда пока нет")
                     .accessibilityIdentifier("blockduo.best")
@@ -715,6 +721,7 @@ private struct BlockDoneCard: View {
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("blockduo.title")
+                .accessibilityAddTraits(.isHeader)
             Text("\(result.score)")
                 .font(.system(size: 56, weight: .heavy, design: .rounded))
                 .monospacedDigit()

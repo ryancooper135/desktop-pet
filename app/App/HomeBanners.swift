@@ -126,12 +126,16 @@ struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if let emoji = toast.emoji {
-                Text(emoji).font(.system(size: 15))
-            } else {
-                Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .foregroundStyle(toast.ok ? PetPalette.green : PetPalette.red)
+            // Волна 31: значок — украшение, VoiceOver читает только строку тоста.
+            Group {
+                if let emoji = toast.emoji {
+                    Text(emoji).font(.system(size: 15))
+                } else {
+                    Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                        .foregroundStyle(toast.ok ? PetPalette.green : PetPalette.red)
+                }
             }
+            .accessibilityHidden(true)
             Text(toast.text)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)

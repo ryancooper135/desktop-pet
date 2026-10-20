@@ -32,6 +32,7 @@ struct NeedsSheet: View {
                     .lineLimit(1)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 14)
                 // Волна 22: такой же крестик, как у листов волны 21, — лист шкал закрывается не только свайпом.

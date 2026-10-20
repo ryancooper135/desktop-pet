@@ -338,7 +338,8 @@ enum BrushFx {
             parts.append(e)
         }
         let spark = UnlitMaterial(color: PetRoom.color(0xfff3c4))
-        for _ in 0..<(big ? 6 : 2) {
+        // Волна 31: с Reduce Motion искры не летят — шерстинки остаются, клочок снят видно и так.
+        for _ in 0..<(UIAccessibility.isReduceMotionEnabled ? 0 : (big ? 6 : 2)) {
             parts.append(ModelEntity(mesh: .generateSphere(radius: 0.007), materials: [spark]))
         }
         for e in parts {

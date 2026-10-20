@@ -74,6 +74,7 @@ struct HouseScreen: View {
             Text("Дом")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             if let coins = model.file?.econ.wallet.coins {
                 Text("🪙 \(coins)")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -124,8 +125,6 @@ struct HomeLineCard: View {
     /// Только у кухни: открыть лист «Кухня».
     var kitchen: (() -> Void)? = nil
     let action: () -> Void
-
-    private static let wiggle: [CGFloat] = [0, -6, 6, -3, 0]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -199,11 +198,7 @@ struct HomeLineCard: View {
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
-        .phaseAnimator(Self.wiggle, trigger: shake, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: shake))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("house.line.\(row.id.rawValue)")
     }

@@ -96,6 +96,7 @@ struct TasteOpenedCard: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(fact.emoji).font(.system(size: 30))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Вкус открыт!")
                     .font(.system(size: 15, weight: .heavy, design: .rounded))

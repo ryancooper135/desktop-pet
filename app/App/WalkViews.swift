@@ -79,8 +79,6 @@ struct WalkButton: View {
     @State private var taps = 0
     @State private var refusals = 0
 
-    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
-
     private var away: Bool { gate.reason == "away" }
 
     var body: some View {
@@ -141,11 +139,7 @@ struct WalkButton: View {
             }
         }
         .coachHighlight("walk")
-        .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: refusals))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(away ? "Гуляет" : "Гулять"))
         .accessibilityValue(Text(gate.ok ? gate.hint : (gate.toast.isEmpty ? gate.hint : gate.toast)))
@@ -294,6 +288,7 @@ struct AlbumSheet: View {
                         Text("Альбом находок")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundStyle(PetPalette.ink)
+                            .accessibilityAddTraits(.isHeader)
                         Spacer()
                         SheetCloseButton(id: "album.close")
                     }
@@ -375,6 +370,7 @@ struct TastesSection: View {
                 Text("Вкусы")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("Открыто \(facts.count)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -454,6 +450,7 @@ struct PostcardsSection: View {
                 Text("Открытки")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("\(cards.count)")
                     .font(.system(size: 13, weight: .medium, design: .rounded))

@@ -102,6 +102,7 @@ struct PostcardSheet: View {
                 Text(fromAlbum ? "Открытка" : "Открытка дня")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 // Открытка чуть уже 280, чтобы вместе с листом 0.6 влезать над «Не надо / В альбом» (ui-48, ui-66);
                 // уже 272 не надо: подпись «Первый день вместе…» переносится в три строки.
                 PostcardFace(card: card)
