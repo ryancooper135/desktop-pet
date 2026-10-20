@@ -233,7 +233,7 @@ final class TimeDayTests: XCTestCase {
         Clock.zoneOverride = fixed(-12)
         XCTAssertEqual(DayKey.of(mid + 7200), day - 1)
         XCTAssertEqual(Economy.careLeftToday(f, at: mid + 7200), 0)
-        PetRunner.apply(.pet, source: .app, to: &f, now: mid + 7200)
+        _ = PetRunner.apply(.pet, source: .app, to: &f, now: mid + 7200)
         XCTAssertEqual(f.econ.daily.day, day)
         XCTAssertEqual(f.econ.daily.care, cap)
         // Местная полночь на западе — те же сутки по номеру: потолок не обновляется.

@@ -78,7 +78,7 @@ enum PetRoom {
         // Пол: клетка нарисована прямо в текстуре, UV у плоскости 0…1 на весь пол.
         var floorMat = matteMaterial(RoomColors.checkerLight)
         if let cg = checkerImage(size: 320, cells: floorCells),
-           let tex = try? TextureResource.generate(from: cg, options: .init(semantic: .color)) {
+           let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
             floorMat.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex))
         }
         let floor = ModelEntity(mesh: .generatePlane(width: floorSize, depth: floorSize), materials: [floorMat])
@@ -191,7 +191,7 @@ enum PetRoom {
     /// в обёртку с поворотом yaw3q, но не в обёртку с дыханием (иначе пятно будет качаться).
     static func blobShadow() -> ModelEntity {
         var mat = UnlitMaterial()
-        if let cg = blobImage(size: 128), let tex = try? TextureResource.generate(from: cg, options: .init(semantic: .color)) {
+        if let cg = blobImage(size: 128), let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
             mat.color = .init(tint: .white, texture: MaterialParameters.Texture(tex))
         } else {
             mat.color = .init(tint: UIColor(white: 0, alpha: 0.25), texture: nil)
@@ -382,7 +382,7 @@ enum PetRoom {
         let key = "\(stage.rawValue)-\(String(base, radix: 16))"
         if let t = furTextures[key] { return t }
         guard let cg = furImage(stage: stage, base: base),
-              let tex = try? TextureResource.generate(from: cg, options: .init(semantic: .color)) else { return nil }
+              let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) else { return nil }
         if furTextures.count > 16 { furTextures.removeAll() }
         furTextures[key] = tex
         return tex

@@ -25,11 +25,11 @@ private func cLive(_ f: inout SaveFile, from t0: Double, days: Double, bathEvery
         for n in [Need.food, .energy, .fun, .love, .walk] { f.pet.needs[n] = 90 }
         f.pet.hearts = PetEngine.maxHearts(f.pet, r)
         if t >= nextBath, let h = bathEveryH {
-            PetRunner.apply(.bath, source: .app, to: &f, now: t)
+            _ = PetRunner.apply(.bath, source: .app, to: &f, now: t)
             nextBath += h * 3600
         }
         if t >= nextPet, let h = petEveryH {
-            PetRunner.apply(.pet, source: .app, to: &f, now: t)
+            _ = PetRunner.apply(.pet, source: .app, to: &f, now: t)
             nextPet += h * 3600
         }
     }

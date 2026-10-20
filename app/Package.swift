@@ -22,6 +22,9 @@ let package = Package(
             // голое "PetCore" SwiftPM 5.2+ не примет.
             dependencies: [.product(name: "PetCore", package: "swift")],
             path: "Shared",
+            // Вью, интенты и атрибуты Live Activity — только для Xcode (SwiftUI/AppIntents/ActivityKit).
+            // Явный exclude, чтобы SwiftPM не предупреждал «found N file(s) which are unhandled».
+            exclude: ["Views", "Intents.swift", "PetAttributes.swift"],
             sources: [
                 "AppGroup.swift",
                 "Backup.swift",
@@ -92,7 +95,11 @@ let package = Package(
             dependencies: ["Pet", .product(name: "PetCore", package: "swift")],
             path: "Tests",
             // Сейвы прошлых эпох (SaveMigrationTests читают их по #filePath — так же и в Xcode CI).
-            exclude: ["Fixtures"],
+            // Тесты вью и сцены (UIKit/RealityKit) — только в Xcode CI.
+            exclude: ["Fixtures",
+                      "PetChoreoTests.swift", "RoomDecorTests.swift", "PetStanceTests.swift", "PetSleepViewTests.swift",
+                      "WidgetSnapshotTests.swift", "IslandPlanTests.swift", "ActionIntentTests.swift",
+                      "HomeLayoutTests.swift", "VisualPolishTests.swift", "StrokeTrackerTests.swift"],
             sources: [
                 "PetLogicTests.swift",
                 "StoreTests.swift",
