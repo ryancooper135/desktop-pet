@@ -113,6 +113,7 @@ struct PetStage: View {
             PetRig.say(say, to: pet)
             BrushFx.prime(puff: brushPuff)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
+            app?.stageBuilt()
         } update: { content in
             // Под обложкой комната выключена целиком (с пятном-тенью и светом); закрыли — сразу снова.
             var woke = false

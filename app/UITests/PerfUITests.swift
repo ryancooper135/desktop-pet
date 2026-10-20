@@ -5,7 +5,8 @@
 //   testPerfLaunch      холодный запуск до первого кадра и отклика (XCTApplicationLaunchMetric)
 //   testPerfNeedsSheet  тап «Шкалы» → лист на экране: время, память и CPU приложения
 //   testPerfFeedAnim    тап «Покормить» и 3 с анимации: CPU и память приложения
-//   testPerfIdle        5 с покоя на главном (Шиба дышит, ничего не трогаем): CPU — это и есть батарея
+//   testPerfIdle        5 с покоя на главном (Шиба дышит, ничего не трогаем): CPU — это и есть батарея.
+//                       Волна 27: 6 итераций вместо 3 (+15 с) — покой шумнее остальных замеров.
 
 import XCTest
 
@@ -14,9 +15,9 @@ final class PerfUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private static func options() -> XCTMeasureOptions {
+    private static func options(_ n: Int = 3) -> XCTMeasureOptions {
         let o = XCTMeasureOptions()
-        o.iterationCount = 3
+        o.iterationCount = n
         return o
     }
 
@@ -83,9 +84,16 @@ final class PerfUITests: XCTestCase {
         XCTAssertTrue(feed.waitForExistence(timeout: 5), "нет кнопки «Покормить»")
         let metrics: [XCTMetric] = [XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
         measure(metrics: metrics, options: Self.manualOptions()) {
-            XCTAssertTrue(waitHittable(feed, timeout: 10), "«Покормить» не нажимается")
+            // Волна 27: стекло иногда не отдаёт hittable, хотя кнопка на месте (как в tapWhenReady): в A/B-замерах
+            // «не нажимается» роняло раунды. Есть, но не hittable — тап в центр рамки, как сделал бы палец.
+            XCTAssertTrue(feed.waitForExistence(timeout: 10), "«Покормить» пропала")
+            let ready = waitHittable(feed, timeout: 5)
             startMeasuring()
-            feed.tap()
+            if ready {
+                feed.tap()
+            } else {
+                feed.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
             settle(3)
             stopMeasuring()
             settle(1)
@@ -97,7 +105,7 @@ final class PerfUITests: XCTestCase {
     func testPerfIdle() throws {
         let app = launchHome()
         let metrics: [XCTMetric] = [XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
-        measure(metrics: metrics, options: Self.options()) {
+        measure(metrics: metrics, options: Self.options(6)) {
             settle(5)
         }
         app.terminate()

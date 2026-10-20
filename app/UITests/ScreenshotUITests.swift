@@ -236,20 +236,23 @@ final class ScreenshotUITests: XCTestCase {
     /// Все линии дома на верхнем уровне: кухня, ванна, окно с двором и будкой, лежанка, игровой угол.
     @MainActor
     func testStates51RoomMax() {
-        shootState("ui-51-room-max", env: ["PET_SEED": "room_max"], marker: Self.mainMarker, settleFor: 2.5)
+        shootState("ui-51-room-max", env: ["PET_SEED": "room_max", "PET_NOW": Self.today(12, 0)], marker: Self.mainMarker,
+                   settleFor: 2.5)
     }
 
     /// Уровни 1–2 вперемешку: промежуточные вещи не налезают друг на друга.
     @MainActor
     func testStates52RoomMid() {
-        shootState("ui-52-room-mid", env: ["PET_SEED": "room_mid"], marker: Self.mainMarker, settleFor: 2.5)
+        shootState("ui-52-room-mid", env: ["PET_SEED": "room_mid", "PET_NOW": Self.today(12, 0)], marker: Self.mainMarker,
+                   settleFor: 2.5)
     }
 
     /// Верхний уровень в тёмной теме: комната та же, проверяем, что интерфейс поверх читается.
+    /// 51–53 — полдень (PET_NOW): без него ночью по часам раннера Шиба спит и на кнопках замки «спит».
     @MainActor
     func testStates53RoomMaxDark() {
-        shootState("ui-53-room-max-dark", env: ["PET_SEED": "room_max", "PET_SCHEME": "dark"], marker: Self.mainMarker,
-                   settleFor: 2.5)
+        shootState("ui-53-room-max-dark", env: ["PET_SEED": "room_max", "PET_NOW": Self.today(12, 0), "PET_SCHEME": "dark"],
+                   marker: Self.mainMarker, settleFor: 2.5)
     }
 
     /// Вечер (20:30, светлая тема): тёплый свет, приглушённые стены, лампа, персиковое небо в окне.
@@ -972,10 +975,25 @@ final class ScreenshotUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         acceptSystemAlerts()
         let found = app.descendants(matching: .any)[marker].waitForExistence(timeout: 20)
+        // Главный экран: стеклянные кнопки сначала пересматривают готовую комнату (GlassSettle), потом пауза.
+        if marker == Self.mainMarker { waitGlass(app) }
         settle(settleFor)
         snap(name)
         XCTAssertTrue(found, "\(name): нет элемента \(marker)")
         app.terminate()
+    }
+
+    /// Волна 27: дождаться, пока ряды стеклянных кнопок пересоздадутся поверх готовой комнаты — pet.stage
+    /// в UI-тестах несёт «glass=N», N ≥ 1 (GlassSettle). Иначе Liquid Glass держит светлый или тёмный вид, который
+    /// выбрал над недогруженной сценой, и снимок ui-53 меняется от прогона к прогону.
+    /// Старая сборка (A/B-замер) этого значения не знает — тогда просто истекает ожидание.
+    @MainActor
+    @discardableResult
+    func waitGlass(_ app: XCUIApplication, timeout: TimeInterval = 15) -> Bool {
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
+        let settled = NSPredicate(format: "value MATCHES %@", ".*glass=[1-9][0-9]*$")
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: settled, object: stage)],
+                                timeout: timeout) == .completed
     }
 
     // MARK: - Помощники

@@ -66,6 +66,9 @@ final class AppModel {
     private(set) var coat: CoatLook? = nil
     /// Уровни дома для сцены (RoomDecor). Меняются только при покупке: сцена перестраивает вещи по смене значения.
     private(set) var homeLevels = RoomPlan.Levels()
+    /// Только UI-тесты (GlassSettle): сколько раз ряды стеклянных кнопок пересоздали поверх готовой комнаты.
+    /// В обычном запуске всегда 0.
+    private(set) var glassPass = 0
     /// Свет комнаты: «Комната вечером» и сон хозяина (RoomLighting). Меняется только при правке, не на каждый тик.
     private(set) var roomSchedule = RoomSchedule.standard
     /// Надетое на собаке (Wear.worn): сцена вешает на кости только при смене.
@@ -805,6 +808,17 @@ final class AppModel {
             show((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)", ok: false)
         } else if wasActive {
             show("Удалён. Снова Шиба", emoji: "🐾")
+        }
+    }
+
+    /// Сцена собрана (конец make). В UI-тестах через GlassSettle.delay кнопки со стеклом пересоздаются и смотрят на
+    /// готовую комнату — снимки не зависят от того, как быстро раннер её собрал. В обычном запуске ничего не делает.
+    func stageBuilt() {
+        guard Env.isUITest else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(GlassSettle.delay))
+            guard let self else { return }
+            self.glassPass = GlassSettle.next(self.glassPass, uiTest: Env.isUITest)
         }
     }
 
