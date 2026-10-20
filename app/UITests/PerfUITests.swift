@@ -5,7 +5,8 @@
 //   testPerfLaunch      холодный запуск до первого кадра и отклика (XCTApplicationLaunchMetric)
 //   testPerfNeedsSheet  тап «Шкалы» → лист на экране: время, память и CPU приложения
 //   testPerfFeedAnim    тап «Покормить» и 3 с анимации: CPU и память приложения
-//   testPerfIdle        5 с покоя на главном (Шиба дышит, ничего не трогаем): CPU — это и есть батарея
+//   testPerfIdle        5 с покоя на главном (Шиба дышит, ничего не трогаем): CPU — это и есть батарея.
+//                       Волна 27: 6 итераций вместо 3 (+15 с) — покой шумнее остальных замеров.
 
 import XCTest
 
@@ -14,9 +15,9 @@ final class PerfUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private static func options() -> XCTMeasureOptions {
+    private static func options(_ n: Int = 3) -> XCTMeasureOptions {
         let o = XCTMeasureOptions()
-        o.iterationCount = 3
+        o.iterationCount = n
         return o
     }
 
@@ -97,7 +98,7 @@ final class PerfUITests: XCTestCase {
     func testPerfIdle() throws {
         let app = launchHome()
         let metrics: [XCTMetric] = [XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
-        measure(metrics: metrics, options: Self.options()) {
+        measure(metrics: metrics, options: Self.options(6)) {
             settle(5)
         }
         app.terminate()

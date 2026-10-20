@@ -1,0 +1,29 @@
+# Общий шаг app.yml: выбрать iPhone-симулятор iOS 26 и начать загрузку (SIM_UDID — в окружение job).
+# Первая загрузка с миграцией данных идёт 1,5–3 мин — пусть идёт под сборку; ждём её шагом «Simulator ready».
+name: simulator
+description: Выбрать симулятор iOS 26 (iPhone Air → 17 Pro → 17) и запустить его загрузку
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
+        import json, re, sys
+        want = ["iPhone Air", "iPhone 17 Pro", "iPhone 17"]
+        best = None
+        for rt, devs in json.load(sys.stdin)["devices"].items():
+            m = re.search(r"iOS-(\d+)-(\d+)", rt)
+            if not m or int(m[1]) < 26:
+                continue
+            for d in devs:
+                if d["name"] in want:
+                    key = (want.index(d["name"]), -int(m[1]), -int(m[2]))
+                    if best is None or key < best[0]:
+                        best = (key, d["udid"], d["name"].replace(" ", "_") + "_iOS_" + m[1] + "." + m[2])
+        if best is None:
+            sys.exit("нет подходящего симулятора iOS 26")
+        print(best[1], best[2])
+        ')
+        echo "Шард ${SHARD:-perf}, симулятор: $INFO ($UDID)"
+        echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+        xcrun simctl boot "$UDID" || true

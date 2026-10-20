@@ -4,6 +4,9 @@
 #   gh workflow run app.yml -f mode=unit   # только юнит-тесты (PetTests) с покрытием
 #   gh workflow run app.yml -f mode=ui     # только UI-тесты (PetUITests): скриншоты и контактные листы anim-*
 #   gh workflow run app.yml -f mode=ipa    # только .ipa (то же, что старое -f tests=false)
+#   gh workflow run app.yml -f mode=perf -f base=<ref> [-f rounds=3] [-f perf_only=PerfUITests/testPerfIdle]
+#                                          # волна 27: PerfUITests этой ветки против <ref> на ОДНОМ раннере вперемешку
+#                                          # (ABBA); тесты замеров у обеих сторон — из этой ветки. RESEARCH/13-perf.md
 # Волна 24: параллельно. plan решает по mode, что запускать; ipa — своим job (Release-сборка больше не стоит
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests (≈ 18 мин тестов)
@@ -15,14 +18,26 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Что делать: all | ipa | unit | ui"
+        description: "Что делать: all | ipa | unit | ui | perf"
         type: choice
-        options: [all, ipa, unit, ui]
+        options: [all, ipa, unit, ui, perf]
         default: all
       tests:
         description: "Старый флаг: false — только .ipa (как mode=ipa)"
         type: boolean
         default: true
+      base:
+        description: "mode=perf: с чем сравнивать (ветка, тег или коммит)"
+        type: string
+        default: main
+      rounds:
+        description: "mode=perf: сколько раундов (в каждом обе сборки по разу)"
+        type: string
+        default: "3"
+      perf_only:
+        description: "mode=perf: класс или тест внутри PetUITests"
+        type: string
+        default: PerfUITests
 concurrency:
   group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
@@ -35,6 +50,7 @@ jobs:
       tests: ${{ steps.mode.outputs.tests }}
       ui: ${{ steps.mode.outputs.ui }}
       shards: ${{ steps.mode.outputs.shards }}
+      perf: ${{ steps.mode.outputs.perf }}
     steps:
       - name: Mode
         id: mode
@@ -47,7 +63,7 @@ jobs:
           mode = os.environ.get("MODE_IN") or "all"
           if os.environ.get("TESTS_IN") == "false":
               mode = "ipa"
-          if mode not in ("ipa", "unit", "ui"):
+          if mode not in ("ipa", "unit", "ui", "perf"):
               mode = "all"
           # Шард 1 — длинные классы; разбивка по замеру волны 24, чтобы шарды кончали вместе (RESEARCH/11, «Минуты»).
           long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests"]
@@ -63,6 +79,7 @@ jobs:
           print(f"ipa={int(mode in ('all', 'ipa'))}")
           print(f"tests={int(bool(shards))}")
           print(f"ui={int(ui)}")
+          print(f"perf={int(mode == 'perf')}")
           print("shards=" + json.dumps(shards or [{"shard": "0", "unit": "0", "ui": "", "anim": "0"}]))
           import sys
           print(f"Режим: {mode}; шарды: {json.dumps(shards, ensure_ascii=False)}", file=sys.stderr)
@@ -145,30 +162,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Simulator
-        # Выбираем и будим симулятор сразу: первая загрузка с миграцией данных идёт 1,5–3 мин, пусть идёт под сборку.
-        run: |
-          mkdir -p "$OUT/screens" "$OUT/anim"
-          read -r UDID INFO < <(xcrun simctl list devices available -j | python3 -c '
-          import json, re, sys
-          want = ["iPhone Air", "iPhone 17 Pro", "iPhone 17"]
-          best = None
-          for rt, devs in json.load(sys.stdin)["devices"].items():
-              m = re.search(r"iOS-(\d+)-(\d+)", rt)
-              if not m or int(m[1]) < 26:
-                  continue
-              for d in devs:
-                  if d["name"] in want:
-                      key = (want.index(d["name"]), -int(m[1]), -int(m[2]))
-                      if best is None or key < best[0]:
-                          best = (key, d["udid"], d["name"].replace(" ", "_") + "_iOS_" + m[1] + "." + m[2])
-          if best is None:
-              sys.exit("нет подходящего симулятора iOS 26")
-          print(best[1], best[2])
-          ')
-          echo "Шард $SHARD, симулятор: $INFO ($UDID)"
-          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$UDID" || true
+      - name: Out
+        run: mkdir -p "$OUT/screens" "$OUT/anim"
+
+      # Выбираем и будим симулятор сразу: первая загрузка с миграцией данных идёт 1,5–3 мин, пусть идёт под сборку.
+      - uses: ./.github/actions/simulator
 
       - uses: ./.github/actions/xcodegen
 
@@ -237,35 +235,7 @@ jobs:
           R="$OUT/PetUITests-$SHARD.xcresult"
           if [ ! -d "$R" ]; then echo "xcresult UI-тестов нет"; exit 0; fi
           xcrun xcresulttool get test-results metrics --path "$R" > "$OUT/perf-$SHARD.json" || { echo "метрик нет"; exit 0; }
-          python3 - "$OUT/perf-$SHARD.json" <<'PY'
-          import json, sys
-          data = json.load(open(sys.argv[1]))
-          rows = 0
-          def walk(x, test=None):
-              global rows
-              if isinstance(x, dict):
-                  test = x.get("testIdentifier") or x.get("testIdentifierURL") or test
-                  runs = x.get("testRuns")
-                  if isinstance(runs, list):
-                      for run in runs:
-                          for m in run.get("metrics", []):
-                              vals = m.get("measurements") or []
-                              if not vals:
-                                  continue
-                              mean = sum(vals) / len(vals)
-                              print(f"PERF {test} | {m.get('displayName')} = {mean:.4g} {m.get('unitOfMeasurement', '')}"
-                                    f" (n={len(vals)}, min={min(vals):.4g}, max={max(vals):.4g})")
-                              rows += 1
-                  for v in x.values():
-                      walk(v, test)
-              elif isinstance(x, list):
-                  for v in x:
-                      walk(v, test)
-          walk(data)
-          if not rows:
-              print("строк метрик не нашлось, сырой JSON:")
-              print(json.dumps(data, ensure_ascii=False)[:4000])
-          PY
+          python3 ../.github/scripts/perf.py print "$OUT/perf-$SHARD.json"
 
       - name: Export screenshots
         # Вложения из каждого xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
@@ -341,6 +311,95 @@ jobs:
         with:
           name: Pet-anim
           path: app/out/anim
+          if-no-files-found: ignore
+          retention-days: 14
+
+  perf:
+    # Волна 27: A/B замер PerfUITests на одном раннере. Разброс между раннерами больше эффекта правок (запуск одного
+    # кода — от 4,3 до 25,6 с), поэтому обе сборки — эта ветка (head) и inputs.base — собираются на одном раннере и
+    # гоняются вперемешку: раунд 1 head→base, раунд 2 base→head, … Тесты замеров у base берём из этой ветки, чтобы
+    # мерить одно и то же. Сводка — строки «AB …» в шаге «A/B summary», JSON — артефакт Pet-perf.
+    needs: plan
+    if: ${{ needs.plan.outputs.perf == '1' }}
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: app
+    env:
+      OUT: ${{ github.workspace }}/app/out/perf
+      BASE_REF: ${{ inputs.base }}
+      ROUNDS: ${{ inputs.rounds }}
+      PERF_ONLY: ${{ inputs.perf_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/simulator
+
+      - name: Base worktree
+        run: |
+          mkdir -p "$OUT"
+          git fetch -q origin "$BASE_REF" 2>/dev/null || true
+          REF=$(git rev-parse --verify -q "origin/$BASE_REF^{commit}" || git rev-parse --verify "$BASE_REF^{commit}")
+          echo "head $(git rev-parse --short HEAD), base $BASE_REF = $(git rev-parse --short "$REF")"
+          git worktree add -q --detach ../.base "$REF"
+          cp UITests/PerfUITests.swift ../.base/app/UITests/PerfUITests.swift
+
+      - uses: ./.github/actions/xcodegen
+      - uses: ./.github/actions/xcodegen
+        with:
+          dir: .base/app
+
+      - name: Build head and base
+        timeout-minutes: 30
+        run: |
+          for D in . ../.base/app; do
+            (cd "$D" && xcodebuild build-for-testing -project Pet.xcodeproj -scheme Pet \
+              -destination "platform=iOS Simulator,id=$SIM_UDID" \
+              -derivedDataPath build-sim -enableCodeCoverage NO \
+              -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)
+          done
+
+      - name: Simulator ready
+        timeout-minutes: 10
+        run: |
+          xcrun simctl bootstatus "$SIM_UDID" -b | tail -n 2
+          xcrun simctl status_bar "$SIM_UDID" override --time 9:41 \
+            --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
+
+      - name: A/B rounds
+        timeout-minutes: 60
+        run: |
+          run_side() {
+            local side=$1 r=$2 dir=.
+            [ "$side" = base ] && dir=../.base/app
+            echo "раунд $r: $side"
+            (cd "$dir" && xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
+              -destination "platform=iOS Simulator,id=$SIM_UDID" \
+              -derivedDataPath build-sim -resultBundlePath "$OUT/$side-$r.xcresult" \
+              "-only-testing:PetUITests/$PERF_ONLY" \
+              -parallel-testing-enabled NO \
+              -test-timeouts-enabled YES -default-test-execution-time-allowance 300 \
+              -quiet) || echo "раунд $r $side: тесты упали"
+            xcrun xcresulttool get test-results metrics --path "$OUT/$side-$r.xcresult" > "$OUT/perf-$side-$r.json" \
+              || echo "раунд $r $side: метрик нет"
+          }
+          for r in $(seq 1 "$ROUNDS"); do
+            if [ $((r % 2)) = 1 ]; then run_side head "$r"; run_side base "$r"
+            else run_side base "$r"; run_side head "$r"; fi
+          done
+
+      - name: A/B summary
+        if: ${{ !cancelled() }}
+        run: python3 ../.github/scripts/perf.py ab "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: Pet-perf
+          path: app/out/perf/perf-*.json
           if-no-files-found: ignore
           retention-days: 14
 
