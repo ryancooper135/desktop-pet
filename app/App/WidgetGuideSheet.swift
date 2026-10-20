@@ -203,6 +203,7 @@ private struct WidgetDemo: View {
 }
 
 private extension Text {
+    @MainActor
     func guideText() -> some View {
         self.petFont(15)
             .foregroundStyle(PetPalette.ink)
