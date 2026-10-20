@@ -10,7 +10,7 @@
 # Волна 24: параллельно. plan решает по mode, что запускать; ipa — своим job (Release-сборка больше не стоит
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
-#            + AccessibilityUITests (волна 31: шард 2 уже ≈ 33 мин)
+#            + AccessibilityUITests без testAccessibilityAudit4Games (волна 31: шард 2 уже ≈ 30 мин)
 #   шард 2 — остальные PetUITests (-skip-testing этих: новый класс UI-тестов попадает сюда сам)
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
@@ -67,7 +67,10 @@ jobs:
           if mode not in ("ipa", "unit", "ui", "perf"):
               mode = "all"
           # Шард 1 — длинные классы; разбивка по замеру волны 24, чтобы шарды кончали вместе (RESEARCH/11, «Минуты»).
-          long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests", "AccessibilityUITests"]
+          long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests",
+                     # волна 31: аудит доступности — по тестам, игры остаются в шарде 2
+                     "AccessibilityUITests/testAccessibilityAudit1Main", "AccessibilityUITests/testAccessibilityAudit2Sheets",
+                     "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")

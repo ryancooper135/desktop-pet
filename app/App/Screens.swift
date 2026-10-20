@@ -40,7 +40,7 @@ struct NeedsSheet: View {
                     .padding(.leading, 6)
             }
             ForEach(VisibleNeeds.all, id: \.self) { n in
-                NeedBar(need: n, value: snap.needs[n] ?? 0)
+                NeedBar(need: n, value: snap.needs[n] ?? 0, grows: true)
             }
             // Шерсть одной строкой (волна 5): стадия от ухода за неделю, см. Shared/Coat.swift. Волна 19: лохматая — где расчесать.
             if let coat = model.coat, snap.alive {

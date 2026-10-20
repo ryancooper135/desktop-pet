@@ -4,7 +4,7 @@
 // petFont — кегль листов под Dynamic Type: на обычном размере ровно .system(size:weight:design:), как было;
 //           с крупным шрифтом растёт за близким системным стилем, не больше A11y.fontCap раз.
 // AXRow   — строка карточки «значок · текст · кнопка»: на accessibility-размерах шрифта стопкой, иначе как было.
-// axLines — лимит строк, который на accessibility-размерах снимается (текст переносится, а не режется).
+// axLines — лимит строк, который на accessibility-размерах снимается (текст переносится, а не режется и не ужимается).
 // Motion  — Reduce Motion для пружин и выпрыгиваний: спокойное появление вместо подскока.
 
 import SwiftUI
@@ -46,9 +46,14 @@ private struct AXLines: ViewModifier {
     let limit: Int
 
     func body(content: Content) -> some View {
+        let ax = type.isAccessibilitySize
         content
-            .lineLimit(type.isAccessibilitySize ? nil : limit)
-            .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
+            .lineLimit(ax ? nil : limit)
+            .fixedSize(horizontal: false, vertical: ax)
+            // Текст переносится — ужимать по ширине (minimumScaleFactor снаружи) незачем, аудит зовёт это обрезкой.
+            .transformEnvironment(\.minimumScaleFactor) { f in
+                if ax { f = 1 }
+            }
     }
 }
 

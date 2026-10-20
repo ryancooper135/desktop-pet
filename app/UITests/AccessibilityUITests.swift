@@ -47,6 +47,7 @@ final class AccessibilityUITests: XCTestCase {
         let id: String
         let label: String
         let text: String
+        var interactive = false
         var line: String { "[\(screen)] \(type) · \(id.isEmpty ? "—" : id) «\(label)»: \(text)" }
     }
 
@@ -69,17 +70,23 @@ final class AccessibilityUITests: XCTestCase {
         }
         // Цветной эмодзи (🪙, 🎟) в строке выше строки текста: аудит считает глиф обрезанным, на снимке он целый.
         if f.type == "textClipped" && Self.hasEmoji(f.label) { return "эмодзи в строке выше кегля" }
+        // Зона касания важна тому, что нажимают. Строка шкалы, сердечки, подписи — не кнопки, их только читают.
+        if f.type == "hitRegion" && !f.interactive { return "не нажимается: подпись, а не кнопка" }
         // Обычный размер шрифта не менялся с волны 15 (зрячий текст не трогаем); ужатие minimumScaleFactor аудит
         // тоже зовёт обрезкой. Многоточий на снимках ui-46/49/77 нет. Строго — только на крупном шрифте.
         if f.type == "textClipped" && !clipStrict { return "обычный размер: ужатие по ширине, без многоточия" }
-        // Контраст — цвета палитры (зелёный прирост, редкости, бейдж скидки, «Играть»): вопрос вкуса, в PROGRESS.
+        // Контраст в прогон не входит (см. audited); если попадёт — цвета палитры, вопрос вкуса в PROGRESS.
         if f.type == "contrast" { return "контраст палитры: вопрос Вадиму (PROGRESS «Ждёт Вадима»)" }
         return nil
     }
 
     // MARK: - аудит
 
-    // Четыре теста по 1–4 экрана: перезапуск с аудитом — 20–60 с на экран, а CI даёт тесту 180 с
+    /// Что проверяем: всё, кроме контраста. Контраст — самая долгая проверка (снимок на каждый текст), а его
+    /// замечания — цвета палитры, вопрос вкуса: список из прогона 39510200240 — в RESEARCH/17-a11y.md и PROGRESS.
+    static let audited: XCUIAccessibilityAuditType = XCUIAccessibilityAuditType.all.subtracting(.contrast)
+
+    // Четыре теста по 1–4 экрана: перезапуск с аудитом — 20–120 с на экран, а CI даёт тесту 180 с
     // (-default-test-execution-time-allowance), свой потолок — executionTimeAllowance ниже. Отчёт — после каждого
     // экрана, чтобы и при убийстве по времени было видно, что успели.
 
@@ -110,7 +117,7 @@ final class AccessibilityUITests: XCTestCase {
     /// VoiceOver-подписи, контраст, зоны касания, обрезка текста, трейты — на каждом экране из списка.
     @MainActor
     func audit(_ names: [String]) throws {
-        executionTimeAllowance = 300
+        executionTimeAllowance = 400
         var real: [Found] = []
         var skipped: [String] = []
         for s in Self.screens where names.contains(s.name) {
@@ -132,7 +139,7 @@ final class AccessibilityUITests: XCTestCase {
             let ready = Date()
             report("a11y-audit-" + s.name + "-start", ["Экран \(s.name) открыт за \(Int(ready.timeIntervalSince(started))) с"])
             var found: [Found] = []
-            try app.performAccessibilityAudit { issue in
+            try app.performAccessibilityAudit(for: Self.audited) { issue in
                 found.append(Self.describe(issue, screen: s.name))
                 return true
             }
@@ -215,9 +222,12 @@ final class AccessibilityUITests: XCTestCase {
     static func describe(_ issue: XCUIAccessibilityAuditIssue, screen: String) -> Found {
         let e = issue.element
         let alive = e?.exists ?? false
+        let kinds: [XCUIElement.ElementType] = [.button, .link, .switch, .toggle, .slider, .stepper, .textField,
+                                                .segmentedControl, .picker, .menuItem, .cell, .tab]
         return Found(screen: screen, type: typeName(issue.auditType),
                      id: alive ? (e?.identifier ?? "") : "", label: alive ? (e?.label ?? "") : "",
-                     text: issue.compactDescription)
+                     text: issue.compactDescription,
+                     interactive: !alive || kinds.contains(e?.elementType ?? .any))
     }
 
     /// Подпись — только эмодзи (с модификаторами и ZWJ), без букв и цифр.
