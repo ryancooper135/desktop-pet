@@ -117,10 +117,7 @@ enum LineRotation {
 
     // MARK: арифметика
 
-    static func floorDiv(_ a: Int, _ b: Int) -> Int {
-        let q = a / b
-        return (a % b != 0 && (a < 0) != (b < 0)) ? q - 1 : q
-    }
+    static func floorDiv(_ a: Int, _ b: Int) -> Int { DayKey.floorDiv(a, b) }
 
     static func mod(_ a: Int, _ b: Int) -> Int {
         let r = a % b
