@@ -177,19 +177,24 @@ struct NeedBar: View {
     var need: Need
     var value: Double
     var showName = true
+    /// Волна 31: растёт с крупным шрифтом (лист шкал), не больше A11y.fontCap. Виджет — нет (по умолчанию false).
+    var grows = false
+    @ScaledMetric(relativeTo: .caption) private var scaled: CGFloat = 12
 
     var body: some View {
         let empty = Presenter.needEmpty(value)
+        // k = 1 на обычном размере и в виджете — вёрстка ровно прежняя.
+        let k = grows ? CGFloat(A11y.scaled(base: 12, scaled: Double(scaled)) / 12) : 1
         HStack(spacing: 6) {
             Image(systemName: PetPalette.needIcon(need))
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12 * k, weight: .semibold))
                 .foregroundStyle(empty ? PetPalette.red : PetPalette.need(need))
-                .frame(width: 16)
+                .frame(width: 16 * k)
             if showName {
                 Text(Catalog.needName(need))
-                    .font(.system(size: 12, weight: empty ? .bold : .medium, design: .rounded))
+                    .font(.system(size: 12 * k, weight: empty ? .bold : .medium, design: .rounded))
                     .foregroundStyle(empty ? PetPalette.red : PetPalette.ink)
-                    .frame(width: 70, alignment: .leading)
+                    .frame(width: 70 * k, alignment: .leading)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }

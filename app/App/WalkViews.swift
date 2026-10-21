@@ -79,8 +79,6 @@ struct WalkButton: View {
     @State private var taps = 0
     @State private var refusals = 0
 
-    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
-
     private var away: Bool { gate.reason == "away" }
 
     var body: some View {
@@ -141,11 +139,7 @@ struct WalkButton: View {
             }
         }
         .coachHighlight("walk")
-        .phaseAnimator(Self.shake, trigger: refusals, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: refusals))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(away ? "Гуляет" : "Гулять"))
         .accessibilityValue(Text(gate.ok ? gate.hint : (gate.toast.isEmpty ? gate.hint : gate.toast)))
@@ -279,6 +273,7 @@ struct AlbumSheet: View {
     @Environment(AppModel.self) private var model
     /// Открытка из альбома на весь лист (свой sheet: домашний занят альбомом).
     @State private var opened: Postcard?
+    @Environment(\.dynamicTypeSize) private var type
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -292,25 +287,27 @@ struct AlbumSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .center) {
                         Text("Альбом находок")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .petFont(22, .bold)
                             .foregroundStyle(PetPalette.ink)
+                            .accessibilityAddTraits(.isHeader)
                         Spacer()
                         SheetCloseButton(id: "album.close")
                     }
                     // Без имени: «Отпусти Шиба» не склоняется. Тире не уходит в начало строки.
                     Text(total == 0 ? Presenter.keepDash("Пока пусто. Отпусти на прогулку — принесёт что-нибудь.")
                          : "Принёс \(total) · разных \(Finds.kinds(finds)) из \(Finds.all.count)")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .petFont(13, .medium)
                         .foregroundStyle(PetPalette.soft)
                         .accessibilityIdentifier("album.total")
                 }
-                LazyVGrid(columns: columns, spacing: 10) {
+                // Крупный шрифт: две колонки вместо трёх, иначе имя находки режется.
+                LazyVGrid(columns: type.isAccessibilitySize ? Array(columns.prefix(2)) : columns, spacing: 10) {
                     ForEach(rows, id: \.find.id) { row in
                         AlbumCell(find: row.find, count: row.count)
                     }
                 }
                 Text("Кнопка «Гулять» — над панелью действий. Гуляет 1–3 часа, каждая прогулка — новая находка.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
                 if let f = model.file {
@@ -373,17 +370,18 @@ struct TastesSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center) {
                 Text("Вкусы")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .petFont(18, .bold)
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("Открыто \(facts.count)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
             }
             if facts.isEmpty && guesses.isEmpty {
                 Text("Пока загадка. Корми и играй — сам покажет, что любит, а что нет.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -392,7 +390,7 @@ struct TastesSection: View {
                     Text(fact.emoji).font(.system(size: 24))
                         .frame(width: 36)
                     Text(fact.text)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .petFont(15, .semibold)
                         .foregroundStyle(PetPalette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
@@ -414,13 +412,13 @@ struct TastesSection: View {
                         .frame(width: 36)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(TasteGuess.title(g.category)): ???")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .petFont(15, .semibold)
                             .foregroundStyle(PetPalette.soft)
                         ProgressView(value: Double(min(g.n, g.needed)), total: Double(max(g.needed, 1)))
                             .tint(PetPalette.accent)
                     }
                     Text("\(min(g.n, g.needed))/\(g.needed)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .petFont(12, .bold)
                         .monospacedDigit()
                         .foregroundStyle(PetPalette.soft)
                 }
@@ -452,17 +450,18 @@ struct PostcardsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center) {
                 Text("Открытки")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .petFont(18, .bold)
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("\(cards.count)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
             }
             if cards.isEmpty {
                 Text("Каждое утро — открытка о вчерашнем дне. Сохраняй, и они будут здесь.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -482,6 +481,8 @@ struct PostcardsSection: View {
                             }
                         }
                         .accessibilityLabel(Text("Открытка: \(card.caption), \(card.frame.date)"))
+                        // Удаление из контекстного меню — и действием VoiceOver (меню удержанием с ним неудобно).
+                        .accessibilityAction(named: Text("Удалить")) { model.removePostcard(card) }
                         .accessibilityIdentifier("album.postcard.\(card.id)")
                     }
                 }
@@ -513,12 +514,12 @@ struct AlbumCell: View {
             }
             .frame(width: 56, height: 56)
             Text(seen ? find.title : "???")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .petFont(14, .semibold)
                 .foregroundStyle(seen ? PetPalette.ink : PetPalette.soft)
-                .lineLimit(1)
+                .axLines(1)
                 .minimumScaleFactor(0.8)
             Text(seen ? "×\(count)" : "не находил")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .petFont(12, .medium)
                 .monospacedDigit()
                 .foregroundStyle(PetPalette.soft)
         }

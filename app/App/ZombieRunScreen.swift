@@ -97,6 +97,7 @@ struct ZombieRunScreen: View {
             Text(ZombieConfig.shared.name)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
             Button {
                 close()
@@ -182,6 +183,12 @@ struct ZombieRunScreen: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Коридор: \(ZombieRun.friendsText(round.friends)), сердечек \(round.hearts)"))
         .accessibilityHint(Text("Веди пальцем влево и вправо"))
+        // Волна 31: с VoiceOver ведут смахиванием вверх/вниз. +x мира — слева на экране, поэтому знак минус.
+        .accessibilityValue(Text("\(model.snap.name): \(A11y.side(-target, in: -ZombieRound.lane...ZombieRound.lane))"))
+        .accessibilityAdjustableAction { dir in
+            guard !frozen else { return }
+            target = -A11y.nudge(-target, up: dir.isUp, range: -ZombieRound.lane...ZombieRound.lane)
+        }
         .accessibilityIdentifier("zombie.view")
     }
 
@@ -258,7 +265,7 @@ struct ZombieRunScreen: View {
                     .stroke(ready ? Color.white : PetPalette.yellow, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(3)
-                    .animation(.spring(duration: 0.3), value: fill)
+                    .animation(Motion.calm(.spring(duration: 0.3)), value: fill)
                 Text("Гав!")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundStyle(ready ? Color.white : Color.white.opacity(0.6))
@@ -267,7 +274,7 @@ struct ZombieRunScreen: View {
             .contentShape(Circle())
         }
         .buttonStyle(SquishStyle())
-        .phaseAnimator([1.0, 1.08], trigger: ready ? barkPulse + 1 : 0) { view, s in
+        .phaseAnimator([1.0, Motion.reduce ? 1.0 : 1.08], trigger: ready ? barkPulse + 1 : 0) { view, s in
             view.scaleEffect(ready ? s : 1)
         } animation: { _ in .spring(duration: 0.25, bounce: 0.5) }
         .accessibilityLabel(Text("Гав"))
@@ -548,7 +555,7 @@ private struct ZombiePopView: View {
             .scaleEffect(up ? 1 : 0.6)
             .opacity(up ? 1 : 0.4)
             .onAppear {
-                withAnimation(.spring(duration: 0.45, bounce: 0.45)) { up = true }
+                withAnimation(Motion.calm(.spring(duration: 0.45, bounce: 0.45))) { up = true }
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -623,11 +630,15 @@ private struct ZombieIntroCard: View {
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
-            Text(PetNames.adapt("Веди Шибу пальцем — он сам кидает игрушки. Попал — зомби стал другом. Друзья копят «Гав!»: лай отгоняет всех рядом. Дошёл до Шибы — обслюнявил, минус сердечко.", name: model.snap.name))
+                .accessibilityAddTraits(.isHeader)
+            let rules = PetNames.adapt("Веди Шибу пальцем — он сам кидает игрушки. Попал — зомби стал другом. Друзья копят «Гав!»: лай отгоняет всех рядом. Дошёл до Шибы — обслюнявил, минус сердечко.", name: model.snap.name)
+            Text(rules)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(PetPalette.soft)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+                // Волна 31: оговорка для VoiceOver — как вести без пальца и что зомби не озвучиваются.
+                .accessibilityLabel(Text(rules + " " + PetNames.adapt(A11y.gameNote(.zombie), name: model.snap.name)))
             HStack(spacing: 10) {
                 GamePill(icon: "trophy.fill", tint: PetPalette.yellow, text: best > 0 ? "Рекорд \(best)" : "Рекорда пока нет")
                     .accessibilityIdentifier("zombie.best")
@@ -676,6 +687,7 @@ private struct ZombieDoneCard: View {
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("zombie.title")
+                .accessibilityAddTraits(.isHeader)
             Text("\(result.score)")
                 .font(.system(size: 50, weight: .heavy, design: .rounded))
                 .monospacedDigit()

@@ -13,17 +13,18 @@ struct CharacterSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Характер")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .petFont(18, .bold)
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("за неделю")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
             }
             // Пока характер складывается — это пояснение, а не итог: кегль как у подписей соседних разделов
             // («Пока пусто. Отпусти на прогулку…»), иначе два серых абзаца крупнее заголовков осей.
             Text(headline)
-                .font(.system(size: scores == nil ? 13 : 15, weight: scores == nil ? .medium : .semibold, design: .rounded))
+                .petFont(scores == nil ? 13 : 15, scores == nil ? .medium : .semibold)
                 .foregroundStyle(scores == nil ? PetPalette.soft : PetPalette.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("album.character.summary")
@@ -82,7 +83,7 @@ struct TraitAxisRow: View {
             .frame(height: 14)
             if let lit {
                 Text(lit.hint)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .frame(maxWidth: .infinity, alignment: lit == axis.plus ? .trailing : .leading)
             }
@@ -95,9 +96,9 @@ struct TraitAxisRow: View {
 
     private func pole(_ t: Trait, lit: Bool) -> some View {
         Text("\(t.emoji) \(t.title)")
-            .font(.system(size: 13, weight: lit ? .bold : .medium, design: .rounded))
+            .petFont(13, lit ? .bold : .medium)
             .foregroundStyle(lit ? PetPalette.ink : PetPalette.soft)
-            .lineLimit(1)
+            .axLines(1)
             .minimumScaleFactor(0.8)
     }
 }
@@ -110,17 +111,18 @@ struct MemoriesSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Помню")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .petFont(18, .bold)
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("\(rows.count)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
             }
             if rows.count <= 1 {
                 Text("Первая прогулка, первый трюк, рекорды — всё яркое он запомнит и иногда будет вспоминать.")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -130,12 +132,12 @@ struct MemoriesSection: View {
                         Text(row.emoji).font(.system(size: 22))
                             .frame(width: 34)
                         Text(row.text)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .petFont(15, .semibold)
                             .foregroundStyle(PetPalette.ink)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 6)
                         Text(row.date)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .petFont(12, .medium)
                             .monospacedDigit()
                             .foregroundStyle(PetPalette.soft)
                             .lineLimit(1)

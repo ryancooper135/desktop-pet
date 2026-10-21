@@ -591,10 +591,11 @@ final class AppModel {
     }
 
     /// Погладили и ядро приняло: три сердечка веером вокруг точки, одно за другим.
+    /// Волна 31: с Reduce Motion — одно сердечко, без веера.
     private func heartBurst() {
         let base = anchor
         let spots: [(dx: CGFloat, dy: CGFloat)] = [(-34, -10), (30, -24), (-6, -44)]
-        for (i, s) in spots.enumerated() {
+        for (i, s) in A11y.steps(spots, reduce: Motion.reduce).enumerated() {
             let p = CGPoint(x: base.x + s.dx, y: base.y + s.dy)
             if i == 0 {
                 pop("", at: p, symbol: "heart.fill")

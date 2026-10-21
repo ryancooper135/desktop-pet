@@ -75,11 +75,12 @@ struct CapsuleScreen: View {
                 SheetCloseButton(id: "capsule.close")
             }
             Text(o?.name ?? "Автомат")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             if let w = model.file?.econ.wallet {
                 Text("🪙 \(w.coins)   🎟 \(w.tickets)   ✂️ \(w.shards)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .petFont(15, .semibold)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
                     .contentTransition(.numericText())
@@ -87,7 +88,7 @@ struct CapsuleScreen: View {
                     .accessibilityIdentifier("capsule.wallet")
                 // Волна 19: что за три значка — с первого взгляда было непонятно.
                 Text(Onboarding.walletLegend)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -100,29 +101,29 @@ struct CapsuleScreen: View {
     private var result: some View {
         if phase == .ready {
             Text(EconText.ui("capsule_tap"))
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .petFont(15, .semibold)
                 .foregroundStyle(PetPalette.soft)
                 .transition(.opacity)
         } else if phase == .open, let p = pull {
             VStack(spacing: 4) {
                 Text(EconText.ui("capsule_got", ["item": p.item.name]))
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .petFont(18, .heavy)
                     .foregroundStyle(PetPalette.ink)
                 Text(EconText.rarityName(p.rarity))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .petFont(14, .bold)
                     .foregroundStyle(rarityColor(p.rarity))
                 Text(p.duplicate ? EconText.ui("capsule_duplicate", ["count": "\(p.shards)"]) : EconText.ui("capsule_new"))
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .petFont(14, .medium)
                     .foregroundStyle(PetPalette.soft)
             }
             .multilineTextAlignment(.center)
-            .transition(.scale(scale: 0.8).combined(with: .opacity))
+            .transition(Motion.pop(.scale(scale: 0.8).combined(with: .opacity)))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("capsule.result")
         }
         if let refusal {
             Text(refusal)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .petFont(14, .semibold)
                 .foregroundStyle(PetPalette.red)
                 .multilineTextAlignment(.center)
                 .transition(.opacity)
@@ -134,7 +135,7 @@ struct CapsuleScreen: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(o.pityProgress >= 1 ? EconText.ui("capsule_pity_ready")
                  : EconText.ui("capsule_pity", ["count": "\(o.pityCount)", "total": "\(o.pityTotal)"]))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .petFont(13, .semibold)
                 .monospacedDigit()
                 .foregroundStyle(PetPalette.ink)
             ProgressView(value: min(max(o.pityProgress, 0), 1))
@@ -149,7 +150,7 @@ struct CapsuleScreen: View {
     private func buttons(_ o: CapsuleOffer) -> some View {
         VStack(spacing: 8) {
             Text(EconText.ui("capsule_pull"))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .petFont(13, .semibold)
                 .foregroundStyle(PetPalette.soft)
             HStack(spacing: 10) {
                 PullButton(title: EconText.ui("capsule_price_ticket"),
@@ -179,10 +180,10 @@ struct CapsuleScreen: View {
                     .font(.system(size: 26))
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Лавка дня")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .petFont(16, .bold)
                         .foregroundStyle(PetPalette.ink)
                     Text("Три вещи за монеты, завтра другие")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .petFont(12, .medium)
                         .foregroundStyle(PetPalette.soft)
                 }
                 Spacer(minLength: 0)
@@ -248,37 +249,38 @@ struct CapsuleScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Коллекция")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .petFont(18, .bold)
                     .foregroundStyle(PetPalette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 Text("\(items.count)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
             }
             if items.isEmpty {
                 Text("Пока пусто. Покрути ручку!")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
             }
             ForEach(items, id: \.id) { it in
                 let u = use(it)
                 let on = u?.on ?? false
-                HStack(spacing: 10) {
+                AXRow(spacing: 10) {
                     HStack(spacing: 10) {
                         ItemTile(id: it.id, rarity: it.rarity, size: 44)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(it.name)
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .petFont(15, .semibold)
                                 .foregroundStyle(PetPalette.ink)
-                                .lineLimit(1)
+                                .axLines(1)
                                 .minimumScaleFactor(0.8)
                             Text(EconText.rarityName(it.rarity))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .petFont(11, .bold)
                                 .foregroundStyle(rarityColor(it.rarity))
                             if let u {
                                 Text(u.note)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .petFont(11, .medium)
                                     .foregroundStyle(on ? PetPalette.accent : PetPalette.soft)
                             }
                         }
@@ -308,7 +310,7 @@ struct CapsuleScreen: View {
             u.act()
         } label: {
             Text(u.title)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .petFont(13, .bold)
                 .lineLimit(1)
                 .foregroundStyle(on ? PetPalette.accent : .white)
                 // 86, а не 78: «На полку» шире прочих и раздувала свою кнопку — столбец кнопок шёл лесенкой.
@@ -368,7 +370,7 @@ struct CapsuleScreen: View {
 
     private func reveal() {
         guard phase == .ready, let p = pull else { return }
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { phase = .open }
+        withAnimation(Motion.calm(.spring(response: 0.45, dampingFraction: 0.6))) { phase = .open }
         let cue: SoundCue = p.rarity >= .rare ? .hearts : .ok
         if p.rarity >= .epic { Feel.success(cue) } else { Feel.bump(cue) }
         // Кошелёк, шкала и коллекция — только теперь.
@@ -409,15 +411,15 @@ struct PullButton: View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Text(price)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .petFont(18, .heavy)
                     .monospacedDigit()
                 Text(title)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .petFont(13, .bold)
                 Text(note)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .petFont(11, .medium)
                     .foregroundStyle(PetPalette.soft)
             }
-            .lineLimit(1)
+            .axLines(1)
             .minimumScaleFactor(0.8)
             .foregroundStyle(PetPalette.ink)
             .frame(maxWidth: .infinity, minHeight: 76)
@@ -476,7 +478,7 @@ struct GachaBall: View {
                     }
                 }
                 .offset(y: -40)
-                .transition(.scale(scale: 0.2).combined(with: .opacity))
+                .transition(Motion.pop(.scale(scale: 0.2).combined(with: .opacity)))
             }
             VStack(spacing: 0) {
                 UnevenRoundedRectangle(topLeadingRadius: r, bottomLeadingRadius: 0, bottomTrailingRadius: 0,
@@ -515,7 +517,7 @@ struct GachaBall: View {
             .offset(y: open ? 40 : 0)
         }
         .frame(maxWidth: .infinity)
-        .animation(.spring(response: 0.45, dampingFraction: 0.6), value: open)
+        .animation(Motion.calm(.spring(response: 0.45, dampingFraction: 0.6)), value: open)
         .animation(.easeInOut(duration: 0.3), value: phase)
     }
 }

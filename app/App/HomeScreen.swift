@@ -55,11 +55,20 @@ struct HomeScreen: View {
             // Волна 18: жесты без пальца — щекотка и «что нужно сейчас» (как тап по плашке или пузырю).
             .accessibilityAction(named: Text("Пощекотать")) { model.tickle() }
             .accessibilityAction(named: Text("Что нужно сейчас")) { Coach.shared.tapThought(model) }
+            // Волна 31: уход прямо со сцены, теми же словами, что кнопки панели. Нельзя — ядро откажет тостом,
+            // а тост VoiceOver проговорит (onChange ниже).
+            .accessibilityActions {
+                ForEach(A11y.stageActs(pose: snap.pose, alive: snap.alive), id: \.self) { a in
+                    Button(a.title) { stageAct(a) }
+                }
+            }
             .accessibilityIdentifier("pet.stage")
-            // Только в UI-тестах: какие уровни дома стоят в комнате (HouseUITests). VoiceOver это не читает.
-            // И проход стекла (GlassSettle): «glass=1» — кнопки уже пересмотрели готовую комнату.
-            .accessibilityValue(Text(GlassSettle.stageValue(levels: model.homeLevels.tag, pass: model.glassPass,
-                                                            uiTest: Env.isUITest)))
+            // Волна 31: VoiceOver слышит сводку «хочет играть; сытость 70 %, …» (A11y.stageValue).
+            // В UI-тестах вместо неё — какие уровни дома стоят в комнате (HouseUITests) и проход стекла
+            // (GlassSettle): «glass=1» — кнопки уже пересмотрели готовую комнату.
+            .accessibilityValue(Text(Env.isUITest
+                ? GlassSettle.stageValue(levels: model.homeLevels.tag, pass: model.glassPass, uiTest: true)
+                : A11y.stageValue(snap, order: VisibleNeeds.all)))
 
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
             StatusScrim(schedule: model.roomSchedule, dark: colorScheme == .dark)
@@ -82,7 +91,7 @@ struct HomeScreen: View {
                 }
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
-                .transition(.scale(scale: 0.6).combined(with: .opacity))
+                .transition(Motion.pop(.scale(scale: 0.6).combined(with: .opacity)))
             }
 
             if rescue {
@@ -96,6 +105,7 @@ struct HomeScreen: View {
                     NameCard(snap: snap)
                         .layoutPriority(1)
                         .onLongPressGesture { model.showNeeds = true }
+                        .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
                     Spacer(minLength: 0)
                     if let w = model.file?.econ.wallet {
                         WalletChip(coins: w.coins, tickets: w.tickets) { model.showCapsule = true }
@@ -158,7 +168,10 @@ struct HomeScreen: View {
                     if let fact = model.tasteOpened {
                         TasteOpenedCard(fact: fact)
                             .onTapGesture { model.tasteOpened = nil }
-                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint(Text("Скрыть"))
+                            .accessibilityAction { model.tasteOpened = nil }
+                            .transition(Motion.pop(.scale(scale: 0.6).combined(with: .opacity)))
                     }
                 }
                 .padding(.top, 2)
@@ -221,10 +234,15 @@ struct HomeScreen: View {
         .animation(.snappy, value: snap.pose == .away)
         .animation(.snappy, value: noteHeld)
         .animation(.snappy, value: model.sayLine)
-        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: model.tasteOpened)
+        .animation(Motion.calm(.spring(response: 0.4, dampingFraction: 0.6)), value: model.tasteOpened)
         .animation(.snappy, value: model.pendingCard?.id)
         .animation(.snappy, value: model.brush != nil)
         .animation(.snappy, value: Coach.shared.gestureTip)
+        // Волна 31: тост VoiceOver проговаривает сам — «Монет мало», «+5 🪙» — фокус на него не прыгает.
+        .onChange(of: model.toast?.id) { _, id in
+            guard id != nil, let t = model.toast else { return }
+            UIAccessibility.post(notification: .announcement, argument: t.text)
+        }
         .onChange(of: snap.pose == .away) { was, now in
             guard now, !was else { return }
             noteHeld = true
@@ -298,6 +316,17 @@ struct HomeScreen: View {
         .confirmationDialog("Начать заново с новым щенком?", isPresented: $confirmStartOver, titleVisibility: .visible) {
             Button("Начать заново", role: .destructive) { model.startOver() }
             Button("Отмена", role: .cancel) {}
+        }
+    }
+
+    /// Действие ухода со сцены (VoiceOver): те же вызовы, что у кнопок ActionBar.
+    private func stageAct(_ a: A11y.StageAct) {
+        switch a {
+        case .wake: model.act(.wake)
+        case .feed: model.act(.feed(Catalog.mainFood))
+        case .pet: model.act(.pet)
+        case .play: model.act(.play)
+        case .bath: model.act(.bath)
         }
     }
 

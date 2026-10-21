@@ -38,7 +38,7 @@ struct KitchenSheet: View {
                     ForEach(cfg.foods) { foodCard($0, f, now: now) }
                 }
                 Text("«Покормить» хрустиками — бесплатно, как всегда.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .multilineTextAlignment(.center)
                     .padding(.top, 4)
@@ -66,19 +66,21 @@ struct KitchenSheet: View {
                         .foregroundStyle(PetPalette.soft)
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(PetPalette.card))
+                        .modifier(HitPad())
                 }
                 .buttonStyle(SquishStyle())
+                .padding(-HitPad.pad)
                 .accessibilityLabel(Text("Закрыть"))
                 .accessibilityIdentifier("kitchen.close")
             }
             Text("🍳 Кухня")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
                 .accessibilityLabel(Text("Кухня"))
                 .accessibilityAddTraits(.isHeader)
             if let f = model.file {
                 Text("🪙 \(f.econ.wallet.coins)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .petFont(15, .semibold)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
                     .contentTransition(.numericText())
@@ -87,7 +89,7 @@ struct KitchenSheet: View {
                 let s = PetRunner.peek(f, at: now)
                 let cap = Cooking.pantryCap(s)
                 Text("Запас на кухне: \(Int(s.pantry.rounded(.down))) из \(cap)")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("kitchen.pantry")
@@ -98,11 +100,12 @@ struct KitchenSheet: View {
     private func section(_ title: String, _ sub: String?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .petFont(18, .bold)
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
             if let sub {
                 Text(sub)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .foregroundStyle(PetPalette.soft)
             }
         }
@@ -117,7 +120,7 @@ struct KitchenSheet: View {
         let st = Cooking.state(r, f, now: now, cfg)
         let ready = st == .ready
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
+            AXRow {
                 Text(r.emoji)
                     .font(.system(size: 30))
                     .frame(width: 52, height: 52)
@@ -125,24 +128,24 @@ struct KitchenSheet: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(r.name)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .petFont(16, .semibold)
                         .foregroundStyle(PetPalette.ink)
                     Text(Cooking.gainsText(r))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .petFont(12, .medium)
                         .foregroundStyle(PetPalette.green)
                     Text(Cooking.stateText(st, r, now: now, cfg, name: model.snap.name) ?? "Из запаса кухни: \(Int(r.pantry))")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .petFont(12, .medium)
                         .foregroundStyle(ready ? PetPalette.soft : PetPalette.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .lineLimit(2)
+                .axLines(2)
                 .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
                 Button {
                     cook(r)
                 } label: {
                     Text("Приготовить")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .petFont(13, .bold)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .foregroundStyle(ready ? Color.white : PetPalette.accent)
@@ -187,7 +190,7 @@ struct KitchenSheet: View {
         let p = Cooking.price(food.price, x: x)
         let can = Economy.canAfford(f, coins: p)
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
+            AXRow {
                 Text(Tastes.emoji(.food, food.id))
                     .font(.system(size: 28))
                     .frame(width: 48, height: 48)
@@ -195,26 +198,26 @@ struct KitchenSheet: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(food.name)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .petFont(16, .semibold)
                         .foregroundStyle(PetPalette.ink)
                     HStack(spacing: 6) {
                         if p != food.price {
                             // Старая цена зачёркнута — видно, что скидка честная.
                             Text("🪙 \(food.price)")
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .petFont(13, .semibold)
                                 .strikethrough(true, color: PetPalette.soft)
                                 .foregroundStyle(PetPalette.soft)
                                 .accessibilityLabel(Text("Было \(EconText.coins(food.price))"))
                                 .accessibilityIdentifier("kitchen.old.\(food.id)")
                         }
                         Text("🪙 \(p)")
-                            .font(.system(size: 14, weight: .heavy, design: .rounded))
+                            .petFont(14, .heavy)
                             .foregroundStyle(PetPalette.ink)
                             .accessibilityLabel(Text(EconText.coins(p)))
                             .accessibilityIdentifier("kitchen.price.\(food.id)")
                         if p != food.price, let d = Cooking.discountText(x) {
                             Text(d)
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .petFont(11, .bold)
                                 .foregroundStyle(PetPalette.green)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -223,14 +226,14 @@ struct KitchenSheet: View {
                     }
                     .monospacedDigit()
                 }
-                .lineLimit(1)
+                .axLines(1)
                 .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
                 Button {
                     buy(food)
                 } label: {
                     Text(can ? "Угостить" : "Не хватает \(p - f.econ.wallet.coins)")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .petFont(13, .bold)
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -273,7 +276,7 @@ struct KitchenSheet: View {
     private func noteLine(_ id: String) -> some View {
         if let note, note.id == id {
             Text(note.text)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .petFont(13, .semibold)
                 .foregroundStyle(PetPalette.red)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
@@ -298,14 +301,9 @@ struct KitchenSheet: View {
 /// Качнуть карточку на отказ — как карточку линии в «Доме».
 private struct Wiggle: ViewModifier {
     let shake: Int
-    private static let steps: [CGFloat] = [0, -6, 6, -3, 0]
 
     func body(content: Content) -> some View {
-        content.phaseAnimator(Self.steps, trigger: shake, content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        content.modifier(RefuseShake(trigger: shake))
     }
 }
 
@@ -324,8 +322,10 @@ struct SheetCloseButton: View {
                 .foregroundStyle(PetPalette.soft)
                 .frame(width: 32, height: 32)
                 .background(Circle().fill(PetPalette.card))
+                .modifier(HitPad())
         }
         .buttonStyle(SquishStyle())
+        .padding(-HitPad.pad)
         .accessibilityLabel(Text("Закрыть"))
         .accessibilityIdentifier(id)
     }

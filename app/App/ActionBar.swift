@@ -183,7 +183,6 @@ struct ActButton: View {
     private var badge: String? { gate.badge ?? (dim ? "позже" : nil) }
 
     /// Смещения по x за одно покачивание.
-    private static let shake: [CGFloat] = [0, -6, 6, -3, 0]
 
     var body: some View {
         Button {
@@ -214,11 +213,7 @@ struct ActButton: View {
                      in: Capsule())
         // Бейдж причины рисует ActionBar поверх всего ряда (ActBadge): внутри контейнера стекла он прятался.
         .coachHighlight(kind)
-        .phaseAnimator(Self.shake, trigger: model.refusals[kind, default: 0], content: { view, x in
-            view.offset(x: x)
-        }, animation: { _ in
-            .linear(duration: 0.06)
-        })
+        .modifier(RefuseShake(trigger: model.refusals[kind, default: 0]))
         .accessibilityLabel(Text(title))
         .accessibilityValue(Text(live ? "" : badge.map { "недоступно, \($0)" } ?? "недоступно"))
         .accessibilityIdentifier("act.\(kind)")

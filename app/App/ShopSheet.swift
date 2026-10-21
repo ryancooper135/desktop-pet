@@ -22,14 +22,14 @@ struct ShopSheet: View {
                 ForEach(offers) { card($0) }
                 if let refusal {
                     Text(refusal)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .petFont(14, .semibold)
                         .foregroundStyle(PetPalette.red)
                         .multilineTextAlignment(.center)
                         .transition(.opacity)
                         .accessibilityIdentifier("shop.refusal")
                 }
                 Text("Только за монеты. Легендарное бывает лишь в капсулах.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .multilineTextAlignment(.center)
                     .padding(.top, 4)
@@ -57,19 +57,21 @@ struct ShopSheet: View {
                         .foregroundStyle(PetPalette.soft)
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(PetPalette.card))
+                        .modifier(HitPad())
                 }
                 .buttonStyle(SquishStyle())
+                .padding(-HitPad.pad)
                 .accessibilityLabel(Text("Закрыть"))
                 .accessibilityIdentifier("shop.close")
             }
             Text("🛍 Лавка дня")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
                 .accessibilityLabel(Text("Лавка дня"))
                 .accessibilityAddTraits(.isHeader)
             if let w = model.file?.econ.wallet {
                 Text("🪙 \(w.coins)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .petFont(15, .semibold)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
                     .contentTransition(.numericText())
@@ -79,7 +81,7 @@ struct ShopSheet: View {
             // Отсчёт до новой витрины — раз в минуту, точнее не нужно.
             TimelineView(.periodic(from: .now, by: 60)) { ctx in
                 Text("Новая витрина через \(Self.left(ShopDaily.secondsToNext(now: ctx.date.timeIntervalSince1970)))")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .petFont(13, .medium)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.soft)
             }
@@ -106,26 +108,26 @@ struct ShopSheet: View {
 
     private func card(_ o: ShopOffer) -> some View {
         let done = o.state == .sold || o.state == .owned
-        return HStack(spacing: 12) {
+        return AXRow {
             HStack(spacing: 12) {
                 ItemTile(id: o.id, rarity: o.item.rarity, size: 64)
                     .opacity(done ? 0.55 : 1)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(o.item.name)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .petFont(16, .semibold)
                         .foregroundStyle(PetPalette.ink)
-                        .lineLimit(2)
+                        .axLines(2)
                         .minimumScaleFactor(0.8)
                     Text(EconText.rarityName(o.item.rarity))
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .petFont(12, .bold)
                         .foregroundStyle(rarityColor(o.item.rarity))
                     if let note = Self.roleNote(o) {
                         Text(note)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .petFont(12, .medium)
                             .foregroundStyle(PetPalette.soft)
                     }
                     Text("🪙 \(o.price)")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .petFont(14, .heavy)
                         .monospacedDigit()
                         .foregroundStyle(done ? PetPalette.soft : PetPalette.ink)
                         .strikethrough(o.state == .sold)
@@ -150,7 +152,7 @@ struct ShopSheet: View {
             if let r = model.buyShop(o.id) { refusal = ShopDaily.refusal(r) }
         } label: {
             Text(ShopDaily.buttonTitle(o))
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .petFont(13, .bold)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
