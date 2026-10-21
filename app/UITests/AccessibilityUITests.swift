@@ -72,7 +72,8 @@ final class AccessibilityUITests: XCTestCase {
         if f.type == "textClipped" && Self.hasEmoji(f.label) { return "эмодзи в строке выше кегля" }
         // Прирост блюда «Сытость +45 · Настроение +6 · Ласка +4» на XL переносится по «·» и на снимке
         // ui-97-a11y-xl-kitchen виден целиком; аудит всё равно зовёт перенесённую строку обрезанной (2 прогона).
-        if f.type == "textClipped" && f.label.contains(" · ") && f.label.contains(" +") { return "прирост блюда: перенесён целиком, см. ui-97" }
+        // Перед «+» неразрывный пробел (Cooking.gainsText).
+        if f.type == "textClipped" && f.label.contains(" · ") && f.label.contains("\u{00A0}+") { return "прирост блюда: перенесён целиком, см. ui-97" }
         // Зона касания важна тому, что нажимают. Строка шкалы, сердечки, подписи — не кнопки, их только читают.
         if f.type == "hitRegion" && !f.interactive { return "не нажимается: подпись, а не кнопка" }
         // Обычный размер шрифта не менялся с волны 15 (зрячий текст не трогаем); ужатие minimumScaleFactor аудит
