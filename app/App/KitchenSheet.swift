@@ -133,7 +133,6 @@ struct KitchenSheet: View {
                     Text(Cooking.gainsText(r))
                         .petFont(12, .medium)
                         .foregroundStyle(PetPalette.green)
-                        .axLines(2) // своя высота на XL: в две строки, аудит иначе зовёт её обрезанной
                     Text(Cooking.stateText(st, r, now: now, cfg, name: model.snap.name) ?? "Из запаса кухни: \(Int(r.pantry))")
                         .petFont(12, .medium)
                         .foregroundStyle(ready ? PetPalette.soft : PetPalette.red)
