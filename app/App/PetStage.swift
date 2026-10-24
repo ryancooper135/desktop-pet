@@ -374,20 +374,16 @@ enum PetModel {
         if let r = reaction, r.id != c.lastReactionId {
             c.lastReactionId = r.id
             if !reduceMotion && r.ok && pose != .dead {
+                // Волна 32 (ReactBeat): у скелета — только лёгкий присед перед клипом, прыгают сами клипы
+                // (hop, play_bow, трюки); пружинный прыжок поверх давал двойной подскок. Заглушка — как раньше.
+                // Толчок к уже идущему — только на остаток до пика: быстрые нажатия не плющат вдвое и втрое.
                 let w = JuiceComponent.omega, z = JuiceComponent.squashZeta
-                switch r.kind {
-                case "pet", "feed", "item", "brush", Cooking.reactKind:
-                    c.squashV += PetSpring.impulse(peak: -0.12, omega: w, zeta: z)
-                case "play", Habits.reactKind, BlockDuo.reactKind:
-                    c.hopV += PetSpring.impulse(peak: 0.04 * height, omega: w, zeta: z)
-                case "tap.playful":
-                    // Игривый на тап подскакивает сам — пониже, чем в игре.
-                    c.hopV += PetSpring.impulse(peak: 0.025 * height, omega: w, zeta: z)
-                case let k where k.hasPrefix("trick."):
-                    // Трюк вышел: подпрыгнул от радости, пониже, чем в игре.
-                    c.hopV += PetSpring.impulse(peak: 0.03 * height, omega: w, zeta: z)
-                default:
-                    break
+                let a = ReactBeat.accent(kind: r.kind, ok: r.ok, skeleton: hasClips)
+                if a.squash != 0 {
+                    c.squashV = ReactBeat.kick(x: c.squash, v: c.squashV, peak: a.squash, omega: w, zeta: z)
+                }
+                if a.hop != 0 {
+                    c.hopV = ReactBeat.kick(x: c.hop, v: c.hopV, peak: a.hop * height, omega: w, zeta: z)
                 }
             }
         }
@@ -422,8 +418,10 @@ enum PetModel {
         st.reduceMotion = reduceMotion
         let poseChanged = key != st.current
         guard fresh || poseChanged else {
-            // Поза вернулась к той, что играет: отложенная уже устарела.
+            // Поза вернулась к той, что играет: отложенная уже устарела. Ключ тот же, а поза могла смениться
+            // (грязный → в ванне — оба сидят): запоминаем её, чтобы после ванны отряхнуться.
             st.pendingPose = nil
+            st.pose = pose
             pet.components.set(st)
             return
         }
@@ -434,6 +432,7 @@ enum PetModel {
             if poseChanged {
                 ClipPlayer.still(loop, on: pet)
                 st.current = key
+                st.pose = pose
                 st.stance = target
                 st.loop = loop
                 st.busyUntil = st.clock
@@ -495,6 +494,11 @@ enum PetModel {
             // второй круг еды не играем.
             steps += PetStance.introSteps(for: pose, after: st.reactionSteps, available: available)
         }
+        if poseChanged && !reacted && !initial && st.pose == .bath && pose != .bath && st.stance == .sit && target == .stand {
+            // Вышел из ванны (волна 32): встал (sit_out уже в steps) и отряхнулся. Раньше отряхивался в начале
+            // ванны, ещё стоя, а после неё просто вставал.
+            steps += PetStance.pick(ReactBeat.afterBath, available: available)
+        }
         if !fresh {
             // Поза отыграна — следующая такая же поза снова со своим intro.
             st.reactionSteps = []
@@ -509,6 +513,7 @@ enum PetModel {
             // Играть нечего, цикл тот же (реакция без клипа, happy→loved): не перезапускаем его.
             // После Reduce Motion («~») стоит замерший кадр — его перезапускать надо.
             st.current = key
+            st.pose = pose
             st.stance = endStance
             pet.components.set(st)
             return
@@ -520,6 +525,7 @@ enum PetModel {
         let busy = ClipPlayer.play(steps, then: mainLoop, on: pet, transition: transition,
                                    randomSpeed: steps.isEmpty, initial: initial) ?? 0
         st.current = key
+        st.pose = pose
         st.stance = endStance
         st.loop = mainLoop
         st.busyUntil = st.clock + busy
@@ -712,6 +718,8 @@ struct ClipState: Component {
     var swapEvery = 2
     var reduceMotion = false
     var pendingPose: Pose? = nil
+    /// Последняя сыгранная поза: ключ у «грязный» и «в ванне» один (сидит), а после ванны пёс отряхивается.
+    var pose: Pose? = nil
     /// Клипы последней реакции: поза, пришедшая следом (покормили → «ест»), не повторяет их своим intro.
     var reactionSteps: [String] = []
     /// Положение модели после load(): от него считается сдвиг лёжа на боку (deathShift).

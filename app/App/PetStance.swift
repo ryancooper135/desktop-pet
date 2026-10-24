@@ -155,17 +155,17 @@ enum PetStance {
             return habitClips(stance: stance, available: available)
         }
         if !ok {
-            return stance == .sleep ? [] : pick(["head_tilt"], available: available)
+            return stance == .sleep ? [] : pick(ReactBeat.refuse, available: available)
         }
         let standing = stance == .stand
         var out: [String] = []
         switch kind {
         case "pet":
             if standing {
-                // Ласка, а не удар: наклон головы к руке и виляние хвостом. Наклон телом, зажмуривание
-                // и виляние задом кладёт поверх PetChoreo.petting. Без этих клипов — старый «тычок» с той стороны,
-                // где рука.
-                out = pick(["head_tilt", "happy_wag"], available: available)
+                // Ласка, а не удар: виляние хвостом (волна 32: без head_tilt — шея набок читалась кривой мордой,
+                // ласка тянулась 2,7 с). Наклон телом к руке, зажмуривание и виляние задом кладёт поверх
+                // PetChoreo.petting. Без этих клипов — старый «тычок» с той стороны, где рука.
+                out = pick(ReactBeat.pet, available: available)
                 if out.isEmpty {
                     let left: Bool
                     if let x = lookX, x != 0 { left = x < 0 } else { left = Bool.random() }
@@ -181,18 +181,25 @@ enum PetStance {
                 out = fun.first.map { [$0] } ?? ["jump_to_idle"]
             }
         // блюдо с кухни (Cooking) ест как обычную еду — те же клипы
+        // Поел — вильнул хвостом (волна 32): у еды есть конец, миска уезжает на нём.
         case "feed", Cooking.reactKind:
-            if standing { out = EatClip.meal(chews: EatClip.feedChews, available: available) }
+            if standing {
+                let meal = EatClip.meal(chews: EatClip.feedChews, available: available)
+                out = meal.isEmpty ? [] : meal + ReactBeat.afterMeal
+            }
         case "item":
             if standing { out = EatClip.meal(chews: EatClip.itemChews, available: available) }
         case "wake":
             switch stance {
-            case .sleep: out = ["sleep_out", "lie_out"]
+            // Открыл глаза, зевнул лёжа, встал (волна 32: зевок — без него подъём читался как рывок).
+            case .sleep: out = ReactBeat.wakeFromSleep
             case .lie: out = ["lie_out"]
             default: out = []
             }
         case "bath":
-            if standing { out = ["shake"] }
+            // Волна 32: стоя отклик — сесть в ванну (поза «в ванне», sit_in); отряхивается он после неё (drive).
+            // Раньше отряхивался стоя до ванны. Уже сидит (грязный) — повёл ухом.
+            if stance == .sit { out = ReactBeat.bathSitting }
         default:
             out = []
         }

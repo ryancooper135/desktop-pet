@@ -76,11 +76,17 @@ final class PetStanceTests: XCTestCase {
                        [EatClip.down] + Array(repeating: EatClip.chew, count: EatClip.feedChews) + [EatClip.up])
         XCTAssertEqual(PetStance.reaction(kind: "item", ok: true, stance: .stand), [EatClip.down, EatClip.chew, EatClip.up])
         XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .sit), [])
+        // Волна 32: в модели с виляньем еда кончается им — у еды есть конец (ReactBeat.afterMeal).
+        XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .stand, available: all),
+                       [EatClip.down] + Array(repeating: EatClip.chew, count: EatClip.feedChews) + [EatClip.up, "happy_wag"])
+        XCTAssertEqual(PetStance.reaction(kind: Cooking.reactKind, ok: true, stance: .stand, available: all).last, "happy_wag")
+        XCTAssertEqual(PetStance.reaction(kind: "item", ok: true, stance: .stand, available: all).last, EatClip.up)
 
-        // Погладили стоя: наклон головы к руке и виляние хвостом, без удара — с какой стороны ни гладь.
+        // Погладили стоя: виляние хвостом, без удара — с какой стороны ни гладь. Волна 32: без head_tilt
+        // (шея набок читалась кривой мордой), наклон к руке кладёт PetChoreo.petting.
         for x: Float? in [nil, -1, 0, 1] {
             XCTAssertEqual(PetStance.reaction(kind: "pet", ok: true, stance: .stand, lookX: x, available: all),
-                           ["head_tilt", "happy_wag"])
+                           ["happy_wag"])
         }
         // Есть только виляние — одно виляние.
         let wagOnly = Set(PetClipNames.required).union(["happy_wag"])
@@ -102,6 +108,16 @@ final class PetStanceTests: XCTestCase {
         let wake = PetStance.reaction(kind: "wake", ok: true, stance: .sleep)
         XCTAssertEqual(wake, ["sleep_out", "lie_out"])
         XCTAssertEqual(PetStance.endStance(after: wake, from: .sleep), .stand)
+        // С зевком (волна 32): открыл глаза, зевнул лёжа, встал.
+        let wakeAll = PetStance.reaction(kind: "wake", ok: true, stance: .sleep, available: all)
+        XCTAssertEqual(wakeAll, ["sleep_out", "yawn", "lie_out"])
+        XCTAssertEqual(PetStance.endStance(after: wakeAll, from: .sleep), .stand)
+
+        // Ванна (волна 32): стоя — без клипа (садится в ванну позой), не отряхивается до воды; сидя — повёл ухом.
+        XCTAssertEqual(PetStance.reaction(kind: "bath", ok: true, stance: .stand, available: all), [])
+        XCTAssertEqual(PetStance.reaction(kind: "bath", ok: true, stance: .sit, available: all), ["ear_flick"])
+        // Нельзя — склонил голову, во сне — без движения.
+        XCTAssertEqual(PetStance.reaction(kind: "play", ok: false, stance: .stand, available: all), ["head_tilt"])
 
         // Без hop/play_bow игра — прыжок из контракта.
         XCTAssertEqual(PetStance.reaction(kind: "play", ok: true, stance: .stand), ["jump_to_idle"])
@@ -202,8 +218,8 @@ final class PetStanceTests: XCTestCase {
             XCTAssertEqual(m.filter { $0 == EatClip.chew }.count, chews, "\(m)")
             XCTAssertFalse(m.contains("eat"), "целый eat поднимает голову посреди еды: \(m)")
         }
-        // Частей нет — целые eat, как раньше (три на «Покормить»).
-        XCTAssertEqual(EatClip.meal(chews: EatClip.feedChews, available: Set(PetClipNames.required)), ["eat", "eat", "eat"])
+        // Частей нет — целые eat (волна 32: два на «Покормить» — жуёт три раза вместо шести).
+        XCTAssertEqual(EatClip.meal(chews: EatClip.feedChews, available: Set(PetClipNames.required)), ["eat", "eat"])
         XCTAssertEqual(EatClip.meal(chews: EatClip.itemChews, available: ["eat"]), ["eat"])
         XCTAssertEqual(EatClip.meal(chews: EatClip.feedChews, available: ["idle"]), [])
         XCTAssertTrue(EatClip.isEat("eat") && EatClip.isEat(EatClip.chew) && !EatClip.isEat("idle_2"))
@@ -225,10 +241,10 @@ final class PetStanceTests: XCTestCase {
         XCTAssertFalse(PetStance.intro(for: .eating).isEmpty)
         XCTAssertEqual(PetStance.introSteps(for: .idle, after: feed), [])
 
-        // Без частей eat (старый clips.json): три eat реакции тоже покрывают intro.
+        // Без частей eat (старый clips.json): целые eat реакции тоже покрывают intro.
         let req = Set(PetClipNames.required)
         let oldFeed = PetStance.reaction(kind: "feed", ok: true, stance: .stand, available: req)
-        XCTAssertEqual(oldFeed, ["eat", "eat", "eat"])
+        XCTAssertEqual(oldFeed, ["eat", "eat"])
         XCTAssertEqual(PetStance.introSteps(for: .eating, after: oldFeed, available: req), [])
 
         // Реакция сразу кончается циклом позы «ест» и в том же положении — на стыке нечего перезапускать.
