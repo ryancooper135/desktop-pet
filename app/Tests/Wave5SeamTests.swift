@@ -145,7 +145,7 @@ final class Wave5SeamTests: XCTestCase {
             XCTAssertTrue(Economy.settle(&f).isEmpty)
         }
         XCTAssertGreaterThan(oks, 0)
-        XCTAssertEqual(f.econ.wallet.coins, EconomyConfig.shared.coinsStart + paid, "капсула за билетик монет не тратит")
+        XCTAssertEqual(f.econ.wallet.coins, EconomyConfig.shared.coinsStart + paid + DogLevel.coinsPaid(f.level), "капсула за билетик монет не тратит")
         XCTAssertEqual(f.econ.paidSeq, f.seq, "оплачено всё до последней записи")
     }
 

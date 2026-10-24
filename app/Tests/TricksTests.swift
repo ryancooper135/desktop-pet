@@ -256,23 +256,24 @@ final class TricksTests: XCTestCase {
         }
         let learned = Tricks.attempt(.sit, in: &f, now: now, roll: 0)
         XCTAssertEqual(learned.coins, Tricks.learnCoins)
-        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins)
+        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins + DogLevel.coinsPaid(f.level))
         XCTAssertEqual(f.econ.daily.care, 0, "потолок ухода не тратится")
         XCTAssertEqual(f.econ.lastEarn?.kind, "trick")
         XCTAssertEqual(f.econ.lastEarn?.coins, Tricks.learnCoins)
         XCTAssertEqual(f.econ.lastEarn?.capped, false)
         // Повтор выученного — без монет.
         XCTAssertEqual(Tricks.attempt(.sit, in: &f, now: now + Tricks.gap, roll: 0).coins, 0)
-        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins)
+        XCTAssertEqual(f.econ.wallet.coins, wallet0 + Tricks.learnCoins + DogLevel.coinsPaid(f.level))
 
         // Вечер, потолок ухода выбран: разовая награда всё равно целиком, иначе сгорела бы навсегда.
         let cap = EconomyConfig.shared.careDailyCap
         f.econ.daily.care = cap
-        let w1 = f.econ.wallet.coins
+        // Опыт за трюк поднимает уровень пса — монеты за уровни считаем отдельно (волна 33).
+        let w1 = f.econ.wallet.coins - DogLevel.coinsPaid(f.level)
         let lie = teachOutcome(.lie, &f, from: now + Tricks.gap)
         XCTAssertTrue(lie.learnedNow)
         XCTAssertEqual(lie.coins, Tricks.learnCoins)
-        XCTAssertEqual(f.econ.wallet.coins, w1 + Tricks.learnCoins)
+        XCTAssertEqual(f.econ.wallet.coins, w1 + Tricks.learnCoins + DogLevel.coinsPaid(f.level))
         XCTAssertEqual(f.econ.daily.care, cap)
     }
 

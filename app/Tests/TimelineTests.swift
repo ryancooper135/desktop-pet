@@ -69,9 +69,9 @@ final class TimelineTests: XCTestCase {
     // MARK: точные моменты смены позы
 
     func testPoseChangesAtExactMinute() {
-        let r = Catalog.rules
         for needs in [[:], hungryNeeds, criticalNeeds] {
             let f = file(needs, hearts: needs == criticalNeeds ? 1 : nil)
+            let r = ItemPerks.rules(f)   // со стадией роста (волна 33), как у Presenter
             let o = f.owner
             let tl = timeline(f)
             for (a, b) in zip(tl, tl.dropFirst()) where a.pose != b.pose && b.t - 120 > a.t {

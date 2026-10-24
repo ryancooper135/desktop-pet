@@ -305,6 +305,8 @@ final class WalkTests: XCTestCase {
     private func walking(now: Double, until: Double, find: String = "cone") -> SaveFile {
         var f = wFile(at: now)
         f.pet.outing = Outing(from: now, until: until, find: find)
+        // Взрослый пёс (волна 33): щенок голодает быстрее, и заметки о беде вытесняют «Вернулся!».
+        f.growth.points = GrowthConfig.shared.adult
         return f
     }
 

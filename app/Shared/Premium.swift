@@ -209,6 +209,13 @@ enum ItemPerks {
         return out
     }
 
+    /// Всё, что меняет ядро: польза вещей × стадия роста (волна 33). trip_time_x — не ядро, его читают походы.
+    static func coreMods(_ f: SaveFile) -> [String: Double] {
+        var out = mods(f)
+        for (k, x) in Growth.mods(f) where k != "trip_time_x" && x != 1 { out[k] = (out[k] ?? 1) * x }
+        return out
+    }
+
     // MARK: правила ядра с пользой вещей
 
     private static let lock = NSLock()
@@ -217,7 +224,7 @@ enum ItemPerks {
     /// Правила ядра для этого сейва: base, а польза вещей вплетена в баффы кухни (ядро перемножает
     /// все _x по линиям дома, а у кухни бафф есть на каждом уровне, включая нулевой). Без пользы — base.
     static func rules(_ f: SaveFile, base: Rules = Catalog.rules) -> Rules {
-        let m = mods(f)
+        let m = coreMods(f)
         guard !m.isEmpty else { return base }
         let sig = (base.preset ?? "-") + "|" + m.keys.sorted().map { "\($0)=\(m[$0]!)" }.joined(separator: ",")
         lock.lock(); defer { lock.unlock() }

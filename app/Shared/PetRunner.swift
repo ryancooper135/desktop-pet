@@ -14,6 +14,8 @@ enum PetRunner {
         settleFutureMarks(&f, now: now)
         // Волна 32: пёс убежал — поиски заводятся при первой записи, часы назад их закрывают (Runaway).
         Runaway.observe(&f, now: now)
+        // Волна 33: рост досматривает время до now по стейту до догона (беды по дороге), уют — от двора.
+        Growth.observe(&f, now: now, cozy: Yard.cozy(f.yard))
         if f.pet.t - now > 300 {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return
@@ -24,6 +26,8 @@ enum PetRunner {
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.
         Postcards.refresh(&f, now: now)
         Shards.settle(&f, now: now)
+        // Опыт пса — по журналу, один раз на запись (волна 33).
+        DogLevel.settle(&f, now: now)
     }
 
     /// Метки «последний раз» из будущего (часы перевели назад; перелёт их не двигает — это unix-время)
@@ -124,6 +128,7 @@ enum PetRunner {
         let coins = Economy.settle(&f).reduce(0) { $0 + $1.coins }
         // Клочки ✂️ за день заботы, сундук недели, рекорды и находки — тоже по журналу, один раз (волна 32).
         Shards.settle(&f, now: now)
+        DogLevel.settle(&f, now: now)
         return ActOutcome(ok: res.ok, reason: res.reason, coins: coins)
     }
 

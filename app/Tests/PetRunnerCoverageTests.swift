@@ -15,9 +15,9 @@ final class PetRunnerCoverageTests: XCTestCase {
     // MARK: applyBuild
 
     func testExpiredBuildPauseIsForgiven() {
-        let r = Catalog.rules
         var f = SaveFile.fresh(now: rnT0)
         f.build = SaveFile.BuildInfo(expiresT: rnT0 + rnH, seenT: rnT0)
+        let r = ItemPerks.rules(f)
         let atExpiry = PetEngine.advance(f.pet, r, f.owner, rnT0 + rnH)
         let now = rnT0 + 5 * rnH
 
@@ -100,7 +100,7 @@ final class PetRunnerCoverageTests: XCTestCase {
         XCTAssertEqual(PetRunner.peek(f, at: rnT0 - 3600), f.pet)
         XCTAssertEqual(PetRunner.peek(f, at: rnT0), f.pet)
         let later = PetRunner.peek(f, at: rnT0 + 3 * rnH)
-        XCTAssertEqual(later, PetEngine.advance(f.pet, Catalog.rules, f.owner, rnT0 + 3 * rnH))
+        XCTAssertEqual(later, PetEngine.advance(f.pet, ItemPerks.rules(f), f.owner, rnT0 + 3 * rnH))
         XCTAssertEqual(later.t, rnT0 + 3 * rnH)
     }
 
@@ -150,8 +150,8 @@ final class PetRunnerCoverageTests: XCTestCase {
     // MARK: catchUp
 
     func testCatchUpLogsForecastEvents() {
-        let r = Catalog.rules
         var f = SaveFile.fresh(now: rnT0)
+        let r = ItemPerks.rules(f)
         let now = rnT0 + 48 * rnH
         let expected = PetEngine.forecast(f.pet, r, f.owner, horizonH: 48).filter { $0.t <= now && $0.kind != .level }
 

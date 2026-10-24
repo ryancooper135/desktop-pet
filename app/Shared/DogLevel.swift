@@ -309,6 +309,11 @@ enum DogLevel {
     }
 
     /// Награда за взятый уровень: 20 × L монет, каждый 5-й — ✂️.
+    /// Сколько монет уже выдано за уровни 2…paidLevel — для сверок кошелька.
+    static func coinsPaid(_ s: DogLevelLog, _ cfg: DogLevelConfig = .shared) -> Int {
+        s.paidLevel < 2 ? 0 : (2...s.paidLevel).reduce(0) { $0 + reward($1, cfg).coins }
+    }
+
     static func reward(_ l: Int, _ cfg: DogLevelConfig = .shared) -> (coins: Int, shards: Int) {
         (cfg.coinsPerLevel * l, l % cfg.shardsEvery == 0 ? cfg.shardsReward : 0)
     }
