@@ -147,6 +147,20 @@ enum IslandPlan {
         return IslandPick(primary: primary, secondary: secondary)
     }
 
+    /// Волна 33 E: кнопка развёрнутого островка для события (IslandEvents). pick — что ядро примет сейчас:
+    /// на «последнем сердечке» нужна та кнопка, что спасает; без неё — «Открыть».
+    static func act(for kind: IslandEvent.Kind, pick: IslandPick? = nil) -> IslandAct {
+        switch kind {
+        case .lastChance:
+            if let p = pick?.primary, p.action != nil { return p }
+            return .open
+        case .hungry: return .feed
+        case .trip: return .walk
+        case .home: return .pet
+        case .runaway, .bank, .levelUp: return .open
+        }
+    }
+
     /// Ключ события прогноза (шкала или беда) → шкала для иконки таймера.
     static func timerNeed(key: String?) -> Need? {
         guard let key else { return nil }
