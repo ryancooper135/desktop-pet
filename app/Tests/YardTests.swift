@@ -94,7 +94,7 @@ final class YardTests: XCTestCase {
                 XCTAssertEqual(Yard.rate(state([st.id: l], at: t0), dogLevel: 1, cfg), Double(want[st.id]![l - 1]), "\(st.id) ур.\(l)")
             }
         }
-        XCTAssertEqual(Yard.totalStationCost(cfg), 791_950, "все станции на максимуме ≈ 792k")
+        XCTAssertEqual(Yard.totalStationCost(cfg), 658_550, "все станции на максимуме ≈ 659k")
         XCTAssertEqual(Yard.maxRate(cfg), 532)
         // Окупаемость улучшения = цена / прибавка ставки / 24; на максимуме — нет.
         XCTAssertEqual(Yard.paybackDays("dryer", level: 1, cfg)!, 60.0 / 2 / 24, accuracy: 1e-9)

@@ -104,11 +104,11 @@ struct YardConfig: Hashable, Sendable {
         YardStation(id: "pies", name: "Пирожковая печь", rates: [18, 27, 38, 50, 65],
                     prices: [4500, 7200, 10800, 16200, 23400], portionHours: 6, portionName: "пирожок", portionPantry: 8),
         YardStation(id: "photo", name: "Фотобудка", rates: [24, 36, 50, 67, 86],
-                    prices: [8500, 13600, 20400, 30600, 44200], portionHours: nil, portionName: nil, portionPantry: 0),
+                    prices: [8500, 13600, 20400, 30600, 41000], portionHours: nil, portionName: nil, portionPantry: 0),
         YardStation(id: "sausage", name: "Сосисочный конвейер", rates: [32, 48, 67, 90, 115],
-                    prices: [15000, 24000, 36000, 54000, 78000], portionHours: 4, portionName: "сосиска", portionPantry: 10),
+                    prices: [15000, 24000, 36000, 49500, 54000], portionHours: 4, portionName: "сосиска", portionPantry: 10),
         YardStation(id: "mill", name: "Лунная мельница", rates: [42, 63, 88, 118, 151],
-                    prices: [26000, 41600, 62400, 93600, 135200], portionHours: nil, portionName: nil, portionPantry: 0),
+                    prices: [26000, 41600, 54000, 64500, 71000], portionHours: nil, portionName: nil, portionPantry: 0),
     ]
 
     /// Плиты по ярусам в порядке покупки. Цена станции-плиты = постройка станции.
