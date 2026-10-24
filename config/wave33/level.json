@@ -1,0 +1,152 @@
+{
+  "_comment": "Волна 33 A: уровень пса (RESEARCH/20 §3). Кусок для config/economy.json — раздел dog_level переносится как есть. Умолчания те же в DogLevelConfig (app/Shared/DogLevel.swift), тест DogLevelTests.testLevelJsonMatchesDefaults сверяет.",
+  "dog_level": {
+    "curve": { "max_level": 40, "base": 20, "k": 4, "pow": 1.6, "round": 5 },
+    "xp": {
+      "day_cap": 150,
+      "first_bonus": 5,
+      "good_day": { "xp": 15, "hearts": 3 },
+      "sources": {
+        "act.feed": { "xp": 2, "group": "feed" },
+        "act.pet": { "xp": 1, "per_day": 10, "group": "pet" },
+        "act.play": { "xp": 3, "group": "play" },
+        "act.bath": { "xp": 8, "per_day": 1, "group": "bath" },
+        "ev.back_home": { "xp": 10, "group": "walk" },
+        "trip.first": { "xp": 15, "group": "trip_first" },
+        "yard.collect": { "xp": 4, "per_day": 2, "group": "collect" },
+        "game.catch": { "xp": 5, "per_day": 6, "group": "game" },
+        "game.blockduo": { "xp": 5, "per_day": 6, "group": "game" },
+        "game.zombie": { "xp": 5, "per_day": 6, "group": "game" },
+        "game.challenge": { "xp": 10, "per_day": 1, "group": "challenge" },
+        "task.done": { "xp": 5, "per_day": 3, "group": "task" },
+        "ask.done": { "xp": 5, "group": "ask" },
+        "trick.learn": { "xp": 20, "group": "trick" },
+        "yard.tier": { "xp": 25, "group": "yard_tier" }
+      }
+    },
+    "rewards": { "coins_per_level": 20, "shards_every": 5, "shards": 5 },
+    "migrate": { "xp_per_care_day": 60, "max_level": 10 },
+    "unlocks": {
+      "1": [
+        { "kind": "yard", "id": "yard.0", "text": "Подоконник" },
+        { "kind": "game", "id": "game.catch", "text": "Лови мячик" },
+        { "kind": "feature", "id": "capsule", "text": "Капсула" }
+      ],
+      "2": [
+        { "kind": "station", "id": "dryer", "text": "Сушилка сухариков" },
+        { "kind": "place", "id": "bus_stop", "text": "Остановка без автобуса" }
+      ],
+      "3": [
+        { "kind": "game", "id": "game.blockduo", "text": "Блок Дуо" },
+        { "kind": "shop", "id": "shop.rare", "text": "В лавке редкие вещи" }
+      ],
+      "4": [
+        { "kind": "yard", "id": "yard.1", "text": "Дворик" },
+        { "kind": "station", "id": "bone_bed", "text": "Косточковая грядка" }
+      ],
+      "5": [
+        { "kind": "place", "id": "laundromat", "text": "Прачечная 24/7" },
+        { "kind": "home", "id": "home.2", "text": "2-й уровень линий дома", "value": 2 }
+      ],
+      "6": [
+        { "kind": "game", "id": "game.zombie", "text": "Щенок против зомби" }
+      ],
+      "7": [
+        { "kind": "station", "id": "porridge", "text": "Котелок каши" },
+        { "kind": "feature", "id": "tasks.3", "text": "Третье задание дня", "value": 3 }
+      ],
+      "8": [
+        { "kind": "place", "id": "cat_hill", "text": "Холм-кот" }
+      ],
+      "9": [
+        { "kind": "yard", "id": "yard.2", "text": "Сад" }
+      ],
+      "10": [
+        { "kind": "station", "id": "spinner", "text": "Прялка из шерсти" },
+        { "kind": "shop", "id": "shop.slots", "text": "В лавке 4 места", "value": 4 }
+      ],
+      "11": [
+        { "kind": "place", "id": "arcade", "text": "Аркада «Пиксель»" },
+        { "kind": "feature", "id": "games.challenge", "text": "Челлендж дня в играх" }
+      ],
+      "12": [
+        { "kind": "yard", "id": "yard.3", "text": "Парк" },
+        { "kind": "home", "id": "home.3", "text": "3-й уровень линий дома", "value": 3 },
+        { "kind": "room", "id": "room.second", "text": "Вторая комната" }
+      ],
+      "13": [
+        { "kind": "shop", "id": "shop.epic", "text": "В лавке эпические вещи" }
+      ],
+      "14": [
+        { "kind": "station", "id": "pie_oven", "text": "Пирожковая печь" }
+      ],
+      "15": [
+        { "kind": "place", "id": "forest_tv", "text": "Телевизор в лесу" },
+        { "kind": "perk", "id": "tips_chance_pct", "text": "Чаевые при сборе чаще", "value": 150 }
+      ],
+      "16": [
+        { "kind": "room", "id": "room.guest", "text": "Гостевая комната" },
+        { "kind": "feature", "id": "capsule.gold", "text": "Золотой шарик за ✂️" }
+      ],
+      "17": [
+        { "kind": "game", "id": "game.hide", "text": "Прятки (скоро)" },
+        { "kind": "shop", "id": "shop.slot_day", "text": "+1 место в лавке на сутки", "value": 1 }
+      ],
+      "18": [
+        { "kind": "station", "id": "photo_booth", "text": "Фотобудка" }
+      ],
+      "19": [
+        { "kind": "place", "id": "lighthouse", "text": "Маяк в поле" }
+      ],
+      "20": [
+        { "kind": "yard", "id": "yard.4", "text": "Квартал" },
+        { "kind": "perk", "id": "walk_time_pct", "text": "Прогулки на 10% короче", "value": -10 }
+      ],
+      "21": [
+        { "kind": "shop", "id": "shop.seasonal", "text": "В лавке вещи по сезону" }
+      ],
+      "22": [
+        { "kind": "perk", "id": "chef_dishes", "text": "Кухня шефа: +1 блюдо в день", "value": 1 }
+      ],
+      "23": [
+        { "kind": "station", "id": "sausage_line", "text": "Сосисочный конвейер" }
+      ],
+      "24": [
+        { "kind": "place", "id": "echo_well", "text": "Колодец эха" }
+      ],
+      "25": [
+        { "kind": "perk", "id": "stations_pct", "text": "Все станции +5%", "value": 5 }
+      ],
+      "26": [
+        { "kind": "shop", "id": "shop.slots", "text": "В лавке 5 мест", "value": 5 }
+      ],
+      "27": [
+        { "kind": "game", "id": "game.rhythm", "text": "Ритм-тявк (скоро)" },
+        { "kind": "shop", "id": "shop.slot_day", "text": "+1 место в лавке на сутки", "value": 1 }
+      ],
+      "28": [
+        { "kind": "station", "id": "moon_mill", "text": "Лунная мельница" }
+      ],
+      "29": [
+        { "kind": "feature", "id": "stations.gold_look", "text": "Золотые таблички станций" }
+      ],
+      "30": [
+        { "kind": "place", "id": "rocket", "text": "Картонная ракета" }
+      ],
+      "31": [ { "kind": "perk", "id": "stations_pct", "text": "Все станции +2%", "value": 2 } ],
+      "32": [ { "kind": "perk", "id": "stations_pct", "text": "Все станции +2%", "value": 2 } ],
+      "33": [ { "kind": "perk", "id": "stations_pct", "text": "Все станции +2%", "value": 2 } ],
+      "34": [ { "kind": "perk", "id": "stations_pct", "text": "Все станции +2%", "value": 2 } ],
+      "35": [
+        { "kind": "item", "id": "collar_35", "text": "Ошейник «35»" }
+      ],
+      "36": [ { "kind": "perk", "id": "yard_decor_slots", "text": "+1 место для мебели на дворе", "value": 1 } ],
+      "37": [ { "kind": "perk", "id": "yard_decor_slots", "text": "+1 место для мебели на дворе", "value": 1 } ],
+      "38": [ { "kind": "perk", "id": "yard_decor_slots", "text": "+1 место для мебели на дворе", "value": 1 } ],
+      "39": [ { "kind": "perk", "id": "yard_decor_slots", "text": "+1 место для мебели на дворе", "value": 1 } ],
+      "40": [
+        { "kind": "title", "id": "title.prince", "text": "Князь двора" }
+      ]
+    }
+  }
+}
