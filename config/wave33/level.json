@@ -42,7 +42,7 @@
       ],
       "4": [
         { "kind": "yard", "id": "yard.1", "text": "Дворик" },
-        { "kind": "station", "id": "bone_bed", "text": "Косточковая грядка" }
+        { "kind": "station", "id": "bones", "text": "Косточковая грядка" }
       ],
       "5": [
         { "kind": "place", "id": "laundromat", "text": "Прачечная 24/7" },
@@ -78,7 +78,7 @@
         { "kind": "shop", "id": "shop.epic", "text": "В лавке эпические вещи" }
       ],
       "14": [
-        { "kind": "station", "id": "pie_oven", "text": "Пирожковая печь" }
+        { "kind": "station", "id": "pies", "text": "Пирожковая печь" }
       ],
       "15": [
         { "kind": "place", "id": "forest_tv", "text": "Телевизор в лесу" },
@@ -93,7 +93,7 @@
         { "kind": "shop", "id": "shop.slot_day", "text": "+1 место в лавке на сутки", "value": 1 }
       ],
       "18": [
-        { "kind": "station", "id": "photo_booth", "text": "Фотобудка" }
+        { "kind": "station", "id": "photo", "text": "Фотобудка" }
       ],
       "19": [
         { "kind": "place", "id": "lighthouse", "text": "Маяк в поле" }
@@ -109,7 +109,7 @@
         { "kind": "perk", "id": "chef_dishes", "text": "Кухня шефа: +1 блюдо в день", "value": 1 }
       ],
       "23": [
-        { "kind": "station", "id": "sausage_line", "text": "Сосисочный конвейер" }
+        { "kind": "station", "id": "sausage", "text": "Сосисочный конвейер" }
       ],
       "24": [
         { "kind": "place", "id": "echo_well", "text": "Колодец эха" }
@@ -125,7 +125,7 @@
         { "kind": "shop", "id": "shop.slot_day", "text": "+1 место в лавке на сутки", "value": 1 }
       ],
       "28": [
-        { "kind": "station", "id": "moon_mill", "text": "Лунная мельница" }
+        { "kind": "station", "id": "mill", "text": "Лунная мельница" }
       ],
       "29": [
         { "kind": "feature", "id": "stations.gold_look", "text": "Золотые таблички станций" }
