@@ -268,6 +268,8 @@ enum PetModel {
         let body = model ?? StubDog.make()
         body.name = bodyName
         if let rgb = look.color { PetRoom.recolorFur(body, rgb) }
+        // Глаза держатся головы, а не ушей (волна 32, EyePin) — до PetRig и prepareCoat.
+        if model != nil { PetRig.pinEyes(body) }
         let bounds = body.visualBounds(relativeTo: nil)
         if model != nil, bounds.extents.y > 0 {
             let k = look.height / bounds.extents.y
