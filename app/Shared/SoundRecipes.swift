@@ -55,6 +55,8 @@ struct Tone: Sendable, Equatable {
     var cutoff: Double
     /// Нота хореографии (мяч, хруст): её можно отменить, если анимацию перебили (SynthCore.cancelChoreo).
     var choreo = false
+    /// Нота музыки (MusicTheme): снимается SynthCore.cancelMusic, когда музыку выключили или ушли с экрана.
+    var music = false
 
     /// Когда нота замолкает целиком.
     var end: Double { at + env.length }
@@ -130,6 +132,8 @@ enum SoundCue: Sendable, Hashable {
     case feed
     /// Тявк-тявк: радость, «Поиграть», щекотка.
     case yip
+    /// Игривое «р-р-р» с подъёмом в конце: редкая замена тявка в игре и щекотке (PetVoice).
+    case growl
     /// Помыли: пузыри.
     case bath
     /// Отказ: две низкие ноты «не-а».
@@ -173,6 +177,17 @@ enum SoundRecipe {
         }
     }
 
+    /// Ноты звука; voice = false («Лай и рычание» выключены) — без собачьих голосов: тявк становится
+    /// «динь-динь», рычание молчит, у нового щенка остаётся арпеджио.
+    static func tones(_ cue: SoundCue, voice: Bool) -> [Tone] {
+        guard !voice, cue.isVoice else { return tones(cue) }
+        switch cue {
+        case .yip: return tones(.ok)
+        case .hello: return arpeggio([5, 7, 8, 10])
+        default: return []
+        }
+    }
+
     static func tones(_ cue: SoundCue) -> [Tone] {
         switch cue {
         case .button:
@@ -204,13 +219,34 @@ enum SoundRecipe {
             ]
 
         case .yip:
-            // Квадрат через фильтр — «голос»; быстрый подъём высоты делает из ноты тявк.
+            // Мягкий тявк (волна 32): светлый треугольник скользит вверх, под ним тихое тело квадрата через
+            // тёплый фильтр и еле слышный выдох. Второй — чуть выше.
             return [
-                Tone(.square, n(7), to: n(9), glide: 0.04,
-                     env: Envelope(attack: 0.004, hold: 0.03, release: 0.07), gain: 0.14, cutoff: 2400),
-                Tone(at: 0.13, .square, n(8), to: n(10), glide: 0.035,
-                     env: Envelope(attack: 0.003, hold: 0.02, release: 0.06), gain: 0.12, cutoff: 2400),
+                Tone(.triangle, n(7), to: n(9), glide: 0.03,
+                     env: Envelope(attack: 0.004, hold: 0.025, release: 0.08), gain: 0.17),
+                Tone(.square, n(2), to: n(4), glide: 0.03,
+                     env: Envelope(attack: 0.004, hold: 0.02, release: 0.06), gain: 0.05, cutoff: 1200),
+                Tone(.noise, 1800, env: Envelope(attack: 0.003, hold: 0.005, release: 0.03), gain: 0.04, cutoff: 1800),
+                Tone(at: 0.14, .triangle, n(8), to: n(10), glide: 0.028,
+                     env: Envelope(attack: 0.004, hold: 0.02, release: 0.08), gain: 0.15),
+                Tone(at: 0.14, .square, n(3), to: n(5), glide: 0.028,
+                     env: Envelope(attack: 0.004, hold: 0.015, release: 0.06), gain: 0.045, cutoff: 1200),
             ]
+
+        case .growl:
+            // «Р-р-р»: частые низкие толчки квадрата через тёмный фильтр поверх тихого шума, громкость
+            // качается — получается рокот. В конце — вопросительное «м?» вверх: играет, а не злится.
+            var out: [Tone] = [
+                Tone(.noise, 500, env: Envelope(attack: 0.03, hold: 0.22, release: 0.08), gain: 0.05, cutoff: 500),
+            ]
+            for i in 0..<11 {
+                out.append(Tone(at: 0.03 * Double(i), .square, n(-5),
+                                env: Envelope(attack: 0.004, hold: 0.007, release: 0.022),
+                                gain: i % 2 == 0 ? 0.12 : 0.08, cutoff: 700))
+            }
+            out.append(Tone(at: 0.36, .triangle, n(3), to: n(5), glide: 0.06,
+                            env: Envelope(attack: 0.004, hold: 0.02, release: 0.1), gain: 0.13))
+            return out
 
         case .bath:
             // Пузырь — синус, который быстро скользит вверх на три ступени.
@@ -322,8 +358,8 @@ enum SoundRecipe {
 
     /// Обычный звук позже на offset секунд, как нота хореографии: его снимает cancelChoreo, если
     /// анимацию перебили («Голос»: тявк на прыжке, а не на нажатии).
-    static func delayed(_ cue: SoundCue, by offset: Double) -> [Tone] {
-        choreo(tones(cue).map { var t = $0; t.at += max(0, offset); return t })
+    static func delayed(_ cue: SoundCue, by offset: Double, voice: Bool = true) -> [Tone] {
+        choreo(tones(cue, voice: voice).map { var t = $0; t.at += max(0, offset); return t })
     }
 
     private static func choreo(_ tones: [Tone]) -> [Tone] {

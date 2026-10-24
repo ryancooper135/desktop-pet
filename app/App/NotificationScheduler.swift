@@ -1,6 +1,8 @@
 // Локальные уведомления по прогнозу ядра (NotificationPlanner → notificationPlan, тексты из lines.json).
 // После каждого изменения стейта план пересчитывается: снимаем все pending с префиксом pet. и ставим заново.
 // Разрешение спрашиваем один раз, после первой кормёжки (flags.notifAsked).
+// Волна 32: переключатель «Уведомления» (PetPref.notifications). Выключили — снимаем всё поставленное
+// и не спрашиваем разрешение; включили — спрашиваем, если ещё не спрашивали, и ставим план заново.
 
 import Foundation
 @preconcurrency import PetCore
@@ -25,10 +27,28 @@ enum NotificationScheduler {
     static func requestOnce() async {
         // Под UI-тестами системный запрос закрывал питомца на всех кадрах анимаций.
         guard !Env.isTesting else { return }
-        guard !PetStore.load().flags.notifAsked else { return }
+        guard PetPref.notifications.isOn(), !PetStore.load().flags.notifAsked else { return }
         _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.flags.notifAsked = true }
         let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         if granted { await reschedule() }
+    }
+
+    /// Переключатель «Уведомления» сменили в настройках.
+    static func prefChanged() async {
+        if PetPref.notifications.isOn(), !Env.isTesting, await permission() == .notAsked {
+            _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in f.flags.notifAsked = true }
+            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+        }
+        await reschedule()
+    }
+
+    /// Что разрешил iPhone — для подписи в настройках.
+    nonisolated static func permission() async -> NotifPermission {
+        switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return .allowed
+        case .notDetermined: return .notAsked
+        default: return .denied
+        }
     }
 
     /// Последний запущенный пересчёт. Пересчёты идут строго по очереди: install ждёт центр уведомлений
@@ -49,10 +69,13 @@ enum NotificationScheduler {
 
     private static func rescheduleNow() async {
         guard !Env.isUnitTest else { return }
-        guard await allowed() else { return }
+        // Выключены в настройках — только снять поставленное (для этого разрешение не нужно).
+        let on = PetPref.notifications.isOn()
+        if on { guard await allowed() else { return } }
         let now = Clock.now()
         let f = PetStore.load()
-        let notes = f.pet.alive ? NotificationPlanner.plan(f, now: now) : NotificationPlanner.buildNotes(f, now: now)
+        let planned = f.pet.alive ? NotificationPlanner.plan(f, now: now) : NotificationPlanner.buildNotes(f, now: now)
+        let notes = NotifPref.notes(planned, on: on)
         let scheduled = await install(notes, offset: Clock.offset)
         // Что уже успело уйти — помним, от этого планировщик держит паузу между уведомлениями.
         _ = try? PetStore.shared.mutate { (g: inout SaveFile) -> Void in

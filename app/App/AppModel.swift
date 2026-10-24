@@ -454,7 +454,7 @@ final class AppModel {
     func tickle() {
         guard snap.alive, snap.pose != .away else { return }
         react("tickle")
-        Feel.bump(.yip)
+        Feel.bump(SoundKit.shared.dogCue(.tickle))
     }
 
     /// После «Блок Дуо» (волна 12): экран закрылся — Шиба в комнате подпрыгивает, виляет и говорит фразу про партию.
@@ -504,7 +504,8 @@ final class AppModel {
     /// Ответ ядра на действие из приложения. AppActions.perform зовёт сразу после записи, до виджетов и острова.
     func settle(_ a: PetAction, _ out: ActOutcome, delta: [String: Int]) {
         if out.ok {
-            Feel.success(SoundRecipe.forAction(kind: a.kind, ok: true))
+            // «Поиграть»: тявк, а изредка игривое рычание (волна 32, PetVoice).
+            Feel.success(a == .play ? SoundKit.shared.dogCue(.play) : SoundRecipe.forAction(kind: a.kind, ok: true))
             lastDelta = delta
             popDelta(delta)
             if a == .pet { heartBurst() }

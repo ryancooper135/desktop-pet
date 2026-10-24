@@ -7,6 +7,8 @@
 // В тестах (юнит и UI) звука нет совсем: аудиосессия на CI ни к чему.
 // Звук-отклик на касание (кнопки, игры, отказы, сердца) идёт через Feel (App/FeelKit.swift): там кулдаун
 // и тишина после фона. Напрямую сюда — только хореография (мяч, хруст, тявк «Голоса»).
+// Волна 32: «Лай и рычание» (PetPref.voice) снимает собачьи голоса; тихая музыка (MusicTheme) — только на
+// экранах с .petMusic, по своему переключателю «Музыка», и молчит, если на iPhone уже играет другая музыка.
 
 import AVFoundation
 import SwiftUI
@@ -30,13 +32,23 @@ final class SoundKit {
 
     // MARK: что звучит
 
+    /// «Лай и рычание» включены (нет значения — да).
+    static var voice: Bool { PetPref.voice.isOn() }
+
     func play(_ cue: SoundCue) {
-        schedule(SoundRecipe.tones(cue))
+        schedule(SoundRecipe.tones(cue, voice: Self.voice))
     }
 
     /// Звук позже, вместе с анимацией (трюк «Голос»). Перебили хореографию — не прозвучит.
     func play(_ cue: SoundCue, after offset: Double) {
-        schedule(SoundRecipe.delayed(cue, by: offset))
+        schedule(SoundRecipe.delayed(cue, by: offset, voice: Self.voice))
+    }
+
+    private var petVoice = PetVoice()
+
+    /// Тявк или — редко — игривое рычание на игру и щекотку (PetVoice: пауза, не два раза подряд).
+    func dogCue(_ event: PetVoice.Event) -> SoundCue {
+        petVoice.cue(event, at: ProcessInfo.processInfo.systemUptime, roll: Double.random(in: 0..<1))
     }
 
     /// Игра с мячом началась через offset секунд (PetChoreo.begin): пинок, удары отскоков, тычок лапой.
@@ -62,11 +74,81 @@ final class SoundKit {
 
     func becameActive() {
         suspended = false
+        restartMusic()
     }
 
     func wentBackground() {
         suspended = true
+        musicTask?.cancel()
+        musicTask = nil
         stop()
+    }
+
+    // MARK: музыка
+
+    /// Экраны с музыкой (последний — сверху): закрыли верхний — снова играет тот, что под ним.
+    private var musicStack: [(token: Int, kind: MusicTheme.Kind)] = []
+    private var musicToken = 0
+    private var musicTask: Task<Void, Never>?
+    /// За сколько секунд до такта класть его ноты в синтезатор.
+    private static let musicLead = 0.3
+
+    static var musicOn: Bool { PetPref.music.isOn() }
+
+    /// Экран с музыкой появился. Вернуть токен для stopMusic.
+    func startMusic(_ kind: MusicTheme.Kind) -> Int {
+        musicToken += 1
+        musicStack.append((token: musicToken, kind: kind))
+        restartMusic()
+        return musicToken
+    }
+
+    /// Экран с музыкой ушёл.
+    func stopMusic(_ token: Int) {
+        let wasTop = musicStack.last?.token == token
+        musicStack.removeAll { $0.token == token }
+        if wasTop { restartMusic() }
+    }
+
+    /// Переключатель «Музыка» сменили.
+    func musicPrefChanged() {
+        restartMusic()
+    }
+
+    private func restartMusic() {
+        musicTask?.cancel()
+        musicTask = nil
+        if let engine, engine.isRunning { core.cancelMusic() }
+        guard let kind = musicStack.last?.kind, Self.musicOn, !suspended, !Env.isTesting else { return }
+        musicTask = Task { [weak self] in await self?.musicLoop(kind) }
+    }
+
+    /// Такт за тактом по кругу: ноты такта кладутся за musicLead до его начала. Отстали (движок
+    /// поднимался, приложение тормозило) — следующий такт с небольшой паузы, без догоняния.
+    private func musicLoop(_ kind: MusicTheme.Kind) async {
+        let bar = MusicTheme.barLength(kind)
+        var due = ProcessInfo.processInfo.systemUptime + 0.5
+        var i = 0
+        while !Task.isCancelled {
+            let now = ProcessInfo.processInfo.systemUptime
+            if due < now + 0.02 { due = now + 0.05 }
+            // На iPhone уже играет другая музыка (Spotify, подкаст) — свою не накладываем.
+            if !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
+                let lead = due - now
+                guard pushMusic(MusicTheme.bar(i, kind).map { var t = $0; t.at += lead; return t }) else { return }
+            }
+            i += 1
+            due += bar
+            let wait = due - Self.musicLead - ProcessInfo.processInfo.systemUptime
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+        }
+    }
+
+    private func pushMusic(_ tones: [Tone]) -> Bool {
+        guard Self.musicOn, !suspended, !Env.isTesting, ensureRunning() else { return false }
+        core.push(tones)
+        armIdle()
+        return true
     }
 
     /// Остановить движок; недоигранное выбрасывается. Следующий звук поднимет движок снова.
@@ -154,6 +236,29 @@ final class SoundKit {
             if Task.isCancelled { return }
             self?.stop()
         }
+    }
+}
+
+/// Тихая музыка, пока экран на виду (мини-игры, лавка). На главном экране музыки нет.
+struct PetMusic: ViewModifier {
+    let kind: MusicTheme.Kind
+    @State private var token: Int?
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                if token == nil { token = SoundKit.shared.startMusic(kind) }
+            }
+            .onDisappear {
+                if let token { SoundKit.shared.stopMusic(token) }
+                token = nil
+            }
+    }
+}
+
+extension View {
+    func petMusic(_ kind: MusicTheme.Kind) -> some View {
+        modifier(PetMusic(kind: kind))
     }
 }
 
