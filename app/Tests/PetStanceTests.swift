@@ -70,7 +70,8 @@ final class PetStanceTests: XCTestCase {
     // MARK: реакции
 
     func testReactions() {
-        let all = Set(PetClipNames.required + PetClipNames.optional)
+        // Части еды режутся из eat при загрузке модели — в полной модели они есть.
+        let all = Set(PetClipNames.required + PetClipNames.optional).union(EatClip.parts)
         // Покормили — один подход к миске: голова вниз один раз, жуёт, голова вверх один раз.
         XCTAssertEqual(PetStance.reaction(kind: "feed", ok: true, stance: .stand),
                        [EatClip.down] + Array(repeating: EatClip.chew, count: EatClip.feedChews) + [EatClip.up])

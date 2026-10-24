@@ -74,7 +74,8 @@ enum ChoreoPath {
     static let bowlDrop: Float = 0.3
     /// За сколько секунд до конца еды корм кончается: последние ~0,96 с подхода (eat_up, кадры 41–64 клипа eat)
     /// Шиба поднимает голову — к этому моменту миска уже пустая. Дальше она только уходит домой, без второй порции.
-    static let foodDoneBeforeEnd: Double = 0.9
+    /// Ровно длина eat_up: при коротком подходе (3 жевка, волна 32) 0,9 с не хватало — корм таял уже при подъёме.
+    static let foodDoneBeforeEnd: Double = Double(64 - EatClip.chewTo) / 24
 
     /// Когда идёт еда: от начала шагов до первого eat (или его части, EatClip) и до конца подряд идущих. Нет — nil.
     static func eatWindow(_ steps: [String], duration: (String) -> Double) -> (start: Double, end: Double)? {
