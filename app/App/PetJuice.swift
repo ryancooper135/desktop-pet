@@ -15,19 +15,10 @@ enum PetSpring {
         SoftSpring.step(x: x, v: v, target: target, omega: omega, zeta: zeta, dt: dt)
     }
 
-    /// Скорость толчка, после которого пружина из покоя отклонится на peak.
+    /// Скорость толчка, после которого пружина из покоя отклонится на peak. Формула — ReactBeat (Shared, волна 32):
+    /// её же гоняют логические тесты отклика (ReactBeatTests).
     static func impulse(peak: Float, omega: Float, zeta: Float) -> Float {
-        let z = min(max(zeta, 0), 1)
-        let perV: Float
-        if z >= 0.999 {
-            perV = 1 / (omega * Float(M_E))
-        } else {
-            let a = z * omega
-            let wd = omega * (1 - z * z).squareRoot()
-            let t = atan2(wd, a) / wd
-            perV = exp(-a * t) * sin(wd * t) / wd
-        }
-        return perV > 0 ? peak / perV : 0
+        ReactBeat.impulse(peak: peak, omega: omega, zeta: zeta)
     }
 }
 
@@ -35,8 +26,8 @@ enum PetSpring {
 
 /// Дыхание и пружины. target* пишет PetModel.apply по позе, система плавно подтягивает текущие значения.
 struct JuiceComponent: Component {
-    static let omega: Float = 14
-    static let squashZeta: Float = 0.55
+    static let omega: Float = ReactBeat.springOmega
+    static let squashZeta: Float = ReactBeat.springZeta
     static let yawZeta: Float = 0.8
 
     var rate: Float = 0.3            // вдохов в секунду

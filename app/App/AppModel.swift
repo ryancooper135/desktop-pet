@@ -131,6 +131,8 @@ final class AppModel {
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var lookTask: Task<Void, Never>?
     @ObservationIgnored private var poseTask: Task<Void, Never>?
+    /// Действие, чью реакцию не показали сразу (кнопка была закрыта, ReactBeat.showsAtOnce): покажем по ответу ядра.
+    @ObservationIgnored private var heldReaction: String? = nil
     /// Отложенный шаг ссылки pet://… (closeFirst или лист поверх листа). Новая ссылка и «закрыть всё» его отменяют.
     @ObservationIgnored private var routeTask: Task<Void, Never>?
     /// Прогулка на прошлом взгляде на состояние: по её исчезновению ловим возвращение.
@@ -429,8 +431,16 @@ final class AppModel {
 
     /// Реакция сцены сразу, ядро — следом. Отклик один — итог из settle (AppActions.perform): ядро отвечает
     /// за миллисекунды, а «тик» нажатия перед «получилось/нельзя» был двойным откликом (волна 29).
+    /// Волна 32: на закрытую кнопку (спит, откат) реакцию не начинаем — ядро ответит «нельзя», и пёс сразу покажет
+    /// отказ, а не начнёт есть или играть, чтобы через миг передумать. Если ядро всё же пустило — покажем в settle.
     func act(_ a: PetAction) {
-        react(a.kind)
+        let gate = file.flatMap { NeedHints.gates($0, at: Clock.now())[a.kind] }
+        if ReactBeat.showsAtOnce(gate) {
+            heldReaction = nil
+            react(a.kind)
+        } else {
+            heldReaction = a.kind
+        }
         Feel.prepare(.success, .denied)
         Task { _ = await AppActions.shared.perform(a, source: .app) }
     }
@@ -505,7 +515,10 @@ final class AppModel {
 
     /// Ответ ядра на действие из приложения. AppActions.perform зовёт сразу после записи, до виджетов и острова.
     func settle(_ a: PetAction, _ out: ActOutcome, delta: [String: Int]) {
+        let held = heldReaction == a.kind
+        heldReaction = nil
         if out.ok {
+            if held { react(a.kind) }
             // «Поиграть»: тявк, а изредка игривое рычание (волна 32, PetVoice).
             Feel.success(a == .play ? SoundKit.shared.dogCue(.play) : SoundRecipe.forAction(kind: a.kind, ok: true))
             lastDelta = delta

@@ -229,6 +229,97 @@ final class PetRig {
         return try? MeshResource.generate(from: next)
     }
 
+    /// Глаза держатся головы (волна 32, EyePin): у вершин глаз и шерсти рядом вес ушей отходит Head — глаз больше
+    /// не уезжает вверх под шерсть, когда клип или тап двигает уши. Звать при загрузке модели (PetModel.assemble),
+    /// до rig и prepareCoat: веки (lidMesh) и развёртка шерсти берут уже новые веса. Не вышло — модель как была.
+    static func pinEyes(_ body: Entity) {
+        var queue: [Entity] = [body]
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            queue += Array(e.children)
+            guard let m = e as? ModelEntity, !m.jointNames.isEmpty, let mats = m.model?.materials,
+                  PetRoom.shibaMaterials.contains(mats.count) else { continue }
+            let light = mats.map(Self.brightness)
+            guard let fur = light[0], let white = light[3], let pupil = light[4], let black = light[5],
+                  looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black) else { continue }
+            pinEyes(m)
+        }
+    }
+
+    private static func pinEyes(_ m: ModelEntity) {
+        guard var model = m.model else { return }
+        let mesh = model.mesh
+        let contents = mesh.contents
+        // Индексы влияний — в скелете части; нет его — порядок костей сущности.
+        func names(_ part: MeshResource.Part) -> [String] {
+            if let sid = part.skeletonID {
+                for s in contents.skeletons where s.id == sid { return s.jointNames }
+            }
+            return m.jointNames
+        }
+        func bones(_ names: [String]) -> (moving: Set<Int>, head: Int)? {
+            guard let head = PetModel.boneIndex(names, "Head") else { return nil }
+            var moving = Set<Int>()
+            for (i, n) in names.enumerated() where (n.split(separator: "/").last ?? "").hasPrefix("Ear") {
+                moving.insert(i)
+            }
+            for leaf in ["Ear1.L", "Ear1.R", "Ear2.L", "Ear2.R"] {
+                if let j = PetModel.boneIndex(names, leaf) { moving.insert(j) }
+            }
+            moving.remove(head)
+            return moving.isEmpty ? nil : (moving, head)
+        }
+        func weights(_ part: MeshResource.Part) -> [BoneWeight] {
+            (part.jointInfluences?.influences.elements ?? []).map { BoneWeight(joint: $0.jointIndex, weight: $0.weight) }
+        }
+        var changed = false
+        var models: [MeshResource.Model] = []
+        for var mm in contents.models {
+            // Глаза ищем в своей модели меша: у частей одной модели общая система координат.
+            let eyeParts = mm.parts.filter { (3...5).contains($0.materialIndex) && $0.jointInfluences != nil }
+            let need = eyeParts.contains { part in
+                bones(names(part)).map { EyePin.needed(eyeInfluences: weights(part), moving: $0.moving) } ?? false
+            }
+            guard need, let eyes = EyePin.eyes(eyeParts.flatMap { $0.positions.elements }) else {
+                models.append(mm)
+                continue
+            }
+            var parts: [MeshResource.Part] = []
+            for var part in mm.parts {
+                if var ji = part.jointInfluences, let b = bones(names(part)),
+                   let next = EyePin.pin(weights(part), perVertex: ji.influencesPerVertex,
+                                         positions: part.positions.elements,
+                                         eye: (3...5).contains(part.materialIndex), eyes: eyes,
+                                         moving: b.moving, anchor: b.head) {
+                    ji.influences = .init(next.map { MeshJointInfluence(jointIndex: $0.joint, weight: $0.weight) })
+                    part.jointInfluences = ji
+                    changed = true
+                }
+                parts.append(part)
+            }
+            mm.parts = MeshPartCollection(parts)
+            models.append(mm)
+        }
+        guard changed else { return }
+        var next = contents
+        next.models = MeshModelCollection(models)
+        let joints = m.jointNames.count
+        do {
+            try mesh.replace(with: next)
+        } catch {
+            // Не дал заменить на месте — новый меш с тем же содержимым (как PetRoom.prepareFurUV).
+            guard let fresh = try? MeshResource.generate(from: next) else { return }
+            model.mesh = fresh
+            m.model = model
+            if m.jointNames.count != joints {
+                model.mesh = mesh
+                m.model = model
+            }
+            return
+        }
+        if m.jointNames.count != joints { try? mesh.replace(with: contents) }
+    }
+
     /// Подмножества 3…5 — глаза, а не часть шерсти: радужка и зрачок темнее шерсти, «белок» заметно отличается от неё.
     nonisolated static func looksLikeEyes(fur: CGFloat, white: CGFloat, pupil: CGFloat, black: CGFloat) -> Bool {
         pupil < fur && black < fur && abs(white - fur) > 0.1

@@ -62,8 +62,9 @@ enum EatClip {
     static let chewFrom = 17
     static let chewTo = 41
 
-    /// Сколько раз жуёт «Покормить» (≈7,7 с, как раньше три eat) и «вещь» (ровно одна длина eat).
-    static let feedChews = 6
+    /// Сколько раз жуёт «Покормить» (волна 32: 3 вместо 6, ≈4,7 с вместо 7,7 — ReactBeat.mealChews) и «вещь»
+    /// (ровно одна длина eat).
+    static let feedChews = ReactBeat.mealChews
     static let itemChews = 1
 
     static func isEat(_ name: String) -> Bool { name == "eat" || parts.contains(name) }
