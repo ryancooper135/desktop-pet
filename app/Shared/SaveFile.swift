@@ -138,6 +138,11 @@ struct SaveFile: Codable, Sendable {
     var tips = TipLog()
     /// Волна 32: учёт клочков ✂️ — дни заботы, сундук недели, рекорды, находки, разовые награды (Premium.swift).
     var shardLog = ShardLog()
+    /// Волна 33 (RESEARCH/20): уровень пса, рост, двор-тайкун, походы по карте. Пустое не пишется.
+    var level = DogLevelLog()
+    var growth = GrowthLog()
+    var yard = YardState()
+    var trip = TripLog()
 
     /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
@@ -212,6 +217,7 @@ struct SaveFile: Codable, Sendable {
         case birthTz
         case tips
         case shardLog
+        case level, growth, yard, trip
     }
 
     init(from decoder: Decoder) throws {
@@ -284,6 +290,10 @@ struct SaveFile: Codable, Sendable {
         shardLog = (try? c.decodeIfPresent(ShardLog.self, forKey: .shardLog)) ?? ShardLog()
         // Старый сейв без учёта: прошлый журнал клочками не платит — считаем с текущей записи.
         if shardLog.seenSeq < 0 || shardLog.isEmpty { shardLog.seenSeq = seq }
+        level = (try? c.decodeIfPresent(DogLevelLog.self, forKey: .level)) ?? DogLevelLog()
+        growth = (try? c.decodeIfPresent(GrowthLog.self, forKey: .growth)) ?? GrowthLog()
+        yard = (try? c.decodeIfPresent(YardState.self, forKey: .yard)) ?? YardState()
+        trip = (try? c.decodeIfPresent(TripLog.self, forKey: .trip)) ?? TripLog()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -342,6 +352,10 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(birthTz, forKey: .birthTz)
         if !tips.isEmpty { try c.encode(tips, forKey: .tips) }
         if !shardLog.isEmpty { try c.encode(shardLog, forKey: .shardLog) }
+        if !level.isEmpty { try c.encode(level, forKey: .level) }
+        if !growth.isEmpty { try c.encode(growth, forKey: .growth) }
+        if !yard.isEmpty { try c.encode(yard, forKey: .yard) }
+        if !trip.isEmpty { try c.encode(trip, forKey: .trip) }
     }
 }
 
