@@ -48,7 +48,7 @@ final class AppActions {
     }
 
     /// Текст отказа. Прогулка «не готов» (волна 20) — тот же тост, что у кнопки «Гулять»: какая шкала держит и её
-    /// число («Для прогулки сначала подкормить: сытость 35, нужно 40»), а не общее «покорми и почисти».
+    /// число («Для прогулки сначала покормить: сытость 25, нужно 30»), а не общее «покорми и почисти».
     static func refusal(_ a: PetAction, _ out: ActOutcome, file: SaveFile?, at t: Double, name: String) -> String {
         if a == .walk, out.reason == "not_ready", let f = file {
             let g = WalkPlan.gate(f, at: t)

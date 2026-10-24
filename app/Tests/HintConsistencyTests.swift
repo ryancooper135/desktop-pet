@@ -81,17 +81,20 @@ final class HintConsistencyTests: XCTestCase {
 
     func testWalkLockFoodAgreesWithStatusLine() throws {
         let t = try cMorning()
-        // Как сид walk_blocked (скриншоты ui-88): сытость 35, движение 0, остальное 80.
-        let sc = Screen(cFile(at: t, [.walk: 0, .food: 35]), at: t)
-        XCTAssertTrue(sc.timer.hasPrefix("Проголодается"), "строка статуса: ещё не голодный — \(sc.timer)")
-        let h = try XCTUnwrap(sc.hint)
-        XCTAssertEqual(h.go, .feed)
-        XCTAssertFalse(sc.has("покормить"), "не голодный — не «покормить»: \(sc.texts)")
-        XCTAssertFalse(sc.has("голодн"), "\(sc.texts)")
-        XCTAssertEqual(h.title, "Сначала подкормить")
-        XCTAssertEqual(h.detail, "Сытость 35, для прогулки нужно 40")
-        XCTAssertEqual(sc.gate.hint, "сначала подкормить", "подпись под «Гулять» — тем же словом, что плашка")
-        XCTAssertEqual(sc.gate.toast, "Для прогулки сначала подкормить: сытость 35, нужно 40")
+        // Волна 32: гулять можно с сытости 30 — это и есть порог «голодного». «Проголодается через…» в строке
+        // статуса и замок прогулки по еде больше не встречаются вместе: пока не голодный — гулять можно.
+        for v in [30.0, 35] {
+            let sc = Screen(cFile(at: t, [.walk: 0, .food: v]), at: t)
+            XCTAssertTrue(sc.timer.hasPrefix("Проголодается"), "строка статуса: ещё не голодный — \(sc.timer)")
+            XCTAssertTrue(sc.gate.ok, "сытость \(v): гулять можно")
+            XCTAssertFalse(sc.has("для прогулки нужно"), "\(v): \(sc.texts)")
+        }
+        // Чуть ниже порога — уже голодный: «покормить» и на замке, и на плашке, без «подкормить».
+        let sc = Screen(cFile(at: t, [.walk: 0, .food: 29]), at: t)
+        XCTAssertFalse(sc.timer.hasPrefix("Проголодается"), sc.timer)
+        XCTAssertEqual(sc.gate.hint, "сначала покормить")
+        XCTAssertEqual(sc.hint?.go, .feed)
+        XCTAssertFalse(sc.has("подкормить"), "\(sc.texts)")
     }
 
     func testWalkLockFoodWhenReallyHungry() throws {
@@ -99,14 +102,14 @@ final class HintConsistencyTests: XCTestCase {
         let sc = Screen(cFile(at: t, [.walk: 0, .food: 20]), at: t)
         XCTAssertFalse(sc.timer.hasPrefix("Проголодается"), "уже голодный — таймера «проголодается» нет")
         XCTAssertEqual(sc.gate.hint, "сначала покормить")
-        XCTAssertEqual(sc.gate.toast, "Для прогулки сначала покормить: сытость 20, нужно 40")
+        XCTAssertEqual(sc.gate.toast, "Для прогулки сначала покормить: сытость 20, нужно 30")
     }
 
     /// Каждая шкала, что держит прогулку: названа она, её число и сколько нужно. Порог — из условия конфига.
     func testEachWalkLockNamesRealStat() throws {
         let t = try cMorning()
         let r = Catalog.rules
-        XCTAssertEqual(WalkPlan.required(.food, r), 40)
+        XCTAssertEqual(WalkPlan.required(.food, r), 30, "волна 32: с сытости 30")
         XCTAssertEqual(WalkPlan.required(.clean, r), 30)
         XCTAssertEqual(WalkPlan.required(.energy, r), 30)
         XCTAssertEqual(WalkPlan.required(.fun, r), 0, "настроение прогулку не держит")
@@ -249,12 +252,13 @@ final class HintConsistencyTests: XCTestCase {
         XCTAssertEqual(sc.hint?.title, "Погладить — через 3 мин", "плашка — те же минуты, что бейдж")
         XCTAssertEqual(NeedHints.minutesLeft(try XCTUnwrap(g?.until), now: t), "3 мин", "и тост «ещё раз через…»")
 
-        // Откат миски, пока прогулку держит сытость: тот же глагол, что в «Сначала подкормить».
-        var w = cFile(at: t, [.walk: 0, .food: 35])
+        // Откат миски, пока прогулку держит сытость: тот же глагол, что в «Сначала покормить» (волна 32: порог 30).
+        var w = cFile(at: t, [.walk: 0, .food: 25])
         w.pet.cooldowns[Catalog.mainFood] = t + 100
         let h = try XCTUnwrap(Screen(w, at: t).hint)
         XCTAssertTrue(h.quiet)
-        XCTAssertEqual(h.title, "Подкормить — через 2 мин")
+        XCTAssertEqual(h.title, "Покормить — через 2 мин")
+        XCTAssertEqual(Screen(w, at: t).gate.hint, "сначала покормить")
     }
 
     // MARK: «завтра» — только когда правда завтра

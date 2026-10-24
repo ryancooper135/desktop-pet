@@ -89,10 +89,11 @@ final class FreshEyesTests: XCTestCase {
 
     // MARK: «Гулять» с замком — без тоста-повтора плашки
 
-    /// ui-88-walk-locked: сид walk_blocked (еды 35 < 40) — плашка «Сначала подкормить → Гулять», тост повторял её.
+    /// ui-88-walk-locked: сид walk_blocked — плашка «Сначала … → Гулять», тост повторял её. Волна 32: сытость с 30
+    /// уже пускает, сид держит чистотой 29 < 30 — плашка «Сначала помыть → Гулять».
     func testLockedWalkToastSilentWhenPlateSaysIt() throws {
         let t = try fNoon()
-        let f = fFile(at: t, [.walk: 0, .food: 35])
+        let f = fFile(at: t, [.walk: 0, .clean: 29])
         let gate = WalkPlan.gate(f, at: t)
         XCTAssertFalse(gate.ok)
         XCTAssertEqual(gate.reason, "not_ready")

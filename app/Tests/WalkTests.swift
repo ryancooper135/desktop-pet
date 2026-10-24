@@ -157,25 +157,40 @@ final class WalkTests: XCTestCase {
 
     func testGateNotReadyNamesWhatToDo() throws {
         let t = try wMorning()
-        let hungry = WalkPlan.gate(wFile(at: t, [.food: 35]), at: t)
+        let hungry = WalkPlan.gate(wFile(at: t, [.food: 25]), at: t)
         XCTAssertFalse(hungry.ok)
         XCTAssertEqual(hungry.reason, "not_ready")
-        // Волна 20: сытость 35 — ещё не «голодный» (< 30), поэтому «подкормить», и в тосте — шкала и число.
-        XCTAssertEqual(hungry.hint, "сначала подкормить")
-        XCTAssertEqual(hungry.toast, "Для прогулки сначала подкормить: сытость 35, нужно 40")
+        // Волна 20: в тосте — шкала и число. Волна 32: порог сытости 30 = «голодный», поэтому ниже — сразу «покормить».
+        XCTAssertEqual(hungry.hint, "сначала покормить")
+        XCTAssertEqual(hungry.toast, "Для прогулки сначала покормить: сытость 25, нужно 30")
 
-        let two = WalkPlan.gate(wFile(at: t, [.food: 35, .clean: 20]), at: t)
+        let two = WalkPlan.gate(wFile(at: t, [.food: 25, .clean: 20]), at: t)
         XCTAssertEqual(two.reason, "not_ready")
-        XCTAssertEqual(two.hint, "сначала подкормить и помыть")
-        XCTAssertEqual(two.toast, "Для прогулки сначала подкормить и помыть: сытость 35 (нужно 40), чистота 20 (нужно 30)")
+        XCTAssertEqual(two.hint, "сначала покормить и помыть")
+        XCTAssertEqual(two.toast, "Для прогулки сначала покормить и помыть: сытость 25 (нужно 30), чистота 20 (нужно 30)")
         XCTAssertLessThanOrEqual(two.hint.count, 27, "подпись под кнопкой ужимается до 0.85 — длиннее не влезет")
 
-        let low = WalkPlan.gate(wFile(at: t, [.food: 20]), at: t)
-        XCTAssertEqual(low.hint, "сначала покормить", "голодный (< 30) — «покормить»")
-
-        let f = wFile(at: t, [.food: 35, .clean: 20, .energy: 10])
+        let f = wFile(at: t, [.food: 25, .clean: 20, .energy: 10])
         XCTAssertEqual(WalkPlan.lacking(PetRunner.peek(f, at: t), Catalog.rules), [.food, .clean, .energy])
         XCTAssertEqual(WalkPlan.lacking(PetRunner.peek(wFile(at: t), at: t), Catalog.rules), [])
+
+        // «Подкормить» — если порог сытости когда-нибудь снова поднимут выше «голодного»: слово от шкалы, не от числа.
+        XCTAssertEqual(WalkPlan.todoWord(WalkLack(need: .food, value: 35, required: 40, low: false)), "подкормить")
+        XCTAssertEqual(WalkPlan.todoWord(WalkLack(need: .food, value: 25, required: 40, low: true)), "покормить")
+    }
+
+    /// Волна 32 (ТЗ v2): гулять можно с сытости 30 — ровно на пороге и выше, ниже — нет.
+    func testWalkFromFood30() throws {
+        let t = try wMorning()
+        XCTAssertEqual(WalkPlan.required(.food, Catalog.rules), 30)
+        for v in [30.0, 31, 35, 39] {
+            let g = WalkPlan.gate(wFile(at: t, [.food: v]), at: t)
+            XCTAssertTrue(g.ok, "сытость \(v) — уже гуляем")
+        }
+        XCTAssertEqual(WalkPlan.gate(wFile(at: t, [.food: 29.5]), at: t).reason, "not_ready")
+        var f = wFile(at: t, [.food: 30])
+        XCTAssertTrue(PetRunner.apply(.walk, source: .app, to: &f, now: t).ok, "ядро тоже пускает")
+        XCTAssertNotNil(f.pet.outing)
     }
 
     func testGateRefusalsHaveHints() throws {

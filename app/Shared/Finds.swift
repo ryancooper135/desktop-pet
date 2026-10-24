@@ -217,7 +217,7 @@ enum WalkPlan {
         }
     }
 
-    /// «сытость 35, нужно 40»; несколько — «сытость 20 (нужно 40), чистота 25 (нужно 30)».
+    /// «сытость 25, нужно 30»; несколько — «сытость 20 (нужно 30), чистота 25 (нужно 30)».
     static func numbers(_ lacks: [WalkLack]) -> String {
         if lacks.count == 1, let l = lacks.first {
             return "\(Catalog.needName(l.need).lowercased()) \(l.value), нужно \(l.required)"

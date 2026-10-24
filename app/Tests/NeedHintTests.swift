@@ -74,16 +74,16 @@ final class NeedHintTests: XCTestCase {
 
     func testHintWalkBlockedLeadsToMissingAction() throws {
         let t = try hMorning()
-        // Хочет гулять сильнее, чем есть (0.4 > 0.3), но еды 35 < 40 — ядро не пустит.
-        let f = hFile(at: t, level: 80, [.walk: 0, .food: 35])
+        // Хочет гулять, но чистоты 29 < 30 — ядро не пустит. Волна 32: с сытостью так уже не выйдет — порог еды 30
+        // совпал с «голодным», и ниже него плашка сразу про еду; замок прогулки показываем на чистоте.
+        let f = hFile(at: t, level: 80, [.walk: 0, .clean: 29])
         XCTAssertEqual(Presenter.make(f, at: t).want, "walk", "пузырь — «Лапы чешутся»")
         let h = try XCTUnwrap(hint(f, at: t))
         XCTAssertEqual(h.key, "walk")
-        XCTAssertEqual(h.go, .feed)
-        // Волна 20: еды 35 — ещё не голодный (строка статуса: «Проголодается через…»), поэтому «подкормить»
-        // и настоящая причина с числом со шкалы.
-        XCTAssertEqual(h.title, "Сначала подкормить")
-        XCTAssertEqual(h.detail, "Сытость 35, для прогулки нужно 40")
+        XCTAssertEqual(h.go, .bath)
+        // Волна 20: настоящая причина с числом со шкалы.
+        XCTAssertEqual(h.title, "Сначала помыть")
+        XCTAssertEqual(h.detail, "Чистота 29, для прогулки нужно 30")
         XCTAssertEqual(h.then, "Гулять")
     }
 
@@ -170,9 +170,10 @@ final class NeedHintTests: XCTestCase {
             let f = hFile(at: t, level: 80, needs)
             return WalkPlan.gate(f, at: t).fix
         }
-        XCTAssertEqual(fix([.food: 30]), "feed")
+        XCTAssertEqual(fix([.food: 25]), "feed")
+        XCTAssertNil(fix([.food: 30]), "волна 32: с сытости 30 уже гуляем")
         XCTAssertEqual(fix([.clean: 20]), "bath")
-        XCTAssertEqual(fix([.food: 30, .clean: 20]), "feed", "первым — как в подписи «подкормить и помыть»")
+        XCTAssertEqual(fix([.food: 25, .clean: 20]), "feed", "первым — как в подписи «покормить и помыть»")
         XCTAssertNil(fix([.energy: 20]), "силы кнопкой не поднять")
         XCTAssertNil(fix([:]), "готов — исправлять нечего")
     }
