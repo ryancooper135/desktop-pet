@@ -1,0 +1,178 @@
+{
+  "_about": "Волна 33 D: карта необычных мест (RESEARCH/20-tycoon-design.md §5). Цифры и тексты — здесь, в Swift те же значения по умолчанию (PlacesConfig). Поход идёт поверх обычной прогулки ядра (outing): место задаёт время и находку, ядро — шкалы и ранний возврат (ночь, беда).",
+  "version": 1,
+  "updated": "2026-10-24",
+
+  "places": {
+    "tiers_pct": { "rare": 25, "very_rare": 5 },
+    "_tiers_pct": "Обычная — остаток до 100 (70 %). На месте дня ★ оба редких шанса ×star_rare_x (50 % и 10 %, обычная 40 %).",
+    "star_rare_x": 2,
+    "repeat_coins": 5,
+    "set_shards": 8,
+    "_set_shards": "Все 6 находок места — 8 ✂️ один раз за место (ach. place_set).",
+    "shard_chance_pct": 3,
+    "_shard_chance_pct": "Случайный клочок за поход: 1 ✂️, не больше одного за поход.",
+    "xp": { "trip": 10, "first_visit": 15 },
+    "_xp": "Опыт пса считает DogLevel (агент A) по журналу: place.back, value — опыт за поход.",
+    "fast": { "level": 20, "x": 0.9 },
+    "_fast": "С уровня пса 20 походы короче (×0.9). Множитель роста (щенок 1.3 / подросток 1.0 / взрослый 0.85) передаёт Growth.",
+    "well": { "place": "echo_well", "coins": 20, "chance_pct": 10, "shards": 1 },
+    "_well": "«Бросить монетку» в Колодец эха: раз в сутки, 20 монет, 10 % — 1 ✂️. Открывается вместе с колодцем.",
+    "forecasts": [
+      "солнечно, ветер с юга",
+      "дождик к обеду, потом радуга",
+      "облачно, но по-доброму",
+      "туман и запах блинов",
+      "ясно, хороший день для прогулки",
+      "листопад, местами лужи"
+    ],
+    "_forecasts": "Погоды в приложении нет — прогноз по хешу дня. Появится погода — подставить её в {forecast}.",
+
+    "list": [
+      {
+        "id": "bus_stop", "name": "Остановка без автобуса", "emoji": "🚏", "level": 2, "minutes": 30,
+        "about": "Будка посреди поля. На расписании 1997 год, автобусов с тех пор не было.",
+        "finds": [
+          { "id": "bus_stop.ticket", "name": "Билетик-корешок", "emoji": "🎫", "tier": "common" },
+          { "id": "bus_stop.button", "name": "Пуговица", "emoji": "🔘", "tier": "common" },
+          { "id": "bus_stop.wrapper", "name": "Фантик", "emoji": "🍬", "tier": "common" },
+          { "id": "bus_stop.badge", "name": "Значок «Маршрут 0»", "emoji": "📛", "tier": "rare" },
+          { "id": "bus_stop.postcard", "name": "Старая открытка", "emoji": "💌", "tier": "rare" },
+          { "id": "bus_stop.key", "name": "Ключ от ниоткуда", "emoji": "🗝", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "wait", "text": "Посидел на лавке и подождал. Вдали гудел автобус, но так и не приехал." },
+          { "id": "paper", "text": "Ветер принёс газету. Новостей в ней нет, только кроссворд, разгаданный наполовину." },
+          { "id": "pigeon", "text": "Рядом сел голубь. Посидели вдвоём, помолчали." }
+        ]
+      },
+      {
+        "id": "laundry", "name": "Прачечная 24/7", "emoji": "🧺", "level": 5, "minutes": 40,
+        "about": "Пустая прачечная с мигающей вывеской. Барабаны крутятся сами, внутри всегда тепло.",
+        "finds": [
+          { "id": "laundry.sock", "name": "Носок в полоску", "emoji": "🧦", "tier": "common" },
+          { "id": "laundry.clothespin", "name": "Прищепка", "emoji": "📎", "tier": "common" },
+          { "id": "laundry.coin", "name": "Монетка", "emoji": "🪙", "tier": "common" },
+          { "id": "laundry.plaid", "name": "Тёплый плед-лоскут", "emoji": "🧣", "tier": "rare" },
+          { "id": "laundry.ring", "name": "Кольцо от стирки", "emoji": "💍", "tier": "rare" },
+          { "id": "laundry.twin_sock", "name": "Носок-близнец", "emoji": "🧦", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "drum", "text": "Смотрел в барабан и крутил головой, пока всё не закружилось." },
+          { "id": "towel", "text": "Машинка пискнула «готово» и выдала тёплое полотенце. Вытерся — стал чище.",
+            "effect": { "kind": "need", "need": "clean", "add": 10 } },
+          { "id": "foam", "text": "Из сушилки вылетело облако пены. Пахло лавандой и немножко им." }
+        ]
+      },
+      {
+        "id": "cat_hill", "name": "Холм-кот", "emoji": "⛰", "level": 8, "minutes": 50,
+        "about": "Травяной холм, который дышит. Если присмотреться, из травы торчат усы: это спит огромный кот.",
+        "finds": [
+          { "id": "cat_hill.fur", "name": "Клочок шерсти", "emoji": "🧶", "tier": "common" },
+          { "id": "cat_hill.daisy", "name": "Ромашка", "emoji": "🌼", "tier": "common" },
+          { "id": "cat_hill.cone", "name": "Шишка", "emoji": "🌰", "tier": "common" },
+          { "id": "cat_hill.bell", "name": "Кошачий колокольчик", "emoji": "🔔", "tier": "rare" },
+          { "id": "cat_hill.feather", "name": "Перо", "emoji": "🪶", "tier": "rare" },
+          { "id": "cat_hill.dream", "name": "Сон кота", "emoji": "🔮", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "sigh", "text": "Холм вздохнул: трава поднялась и опустилась. Кажется, ему снилось хорошее." },
+          { "id": "eye", "text": "Холм приоткрыл один глаз. Пёс замер и не шевелился, пока глаз не закрылся." },
+          { "id": "purr", "text": "Холм замурчал. Пёс прилёг в траву и проспал десять минут.",
+            "effect": { "kind": "need", "need": "energy", "add": 10 } }
+        ]
+      },
+      {
+        "id": "arcade", "name": "Аркада «Пиксель»", "emoji": "🕹", "level": 11, "minutes": 60,
+        "about": "Заброшенный зал игровых автоматов. Света нет, а экраны всё равно светятся.",
+        "finds": [
+          { "id": "arcade.token", "name": "Жетон", "emoji": "🪙", "tier": "common" },
+          { "id": "arcade.mushroom_button", "name": "Кнопка-грибок", "emoji": "🍄", "tier": "common" },
+          { "id": "arcade.joystick", "name": "Кусок джойстика", "emoji": "🕹", "tier": "common" },
+          { "id": "arcade.cartridge", "name": "Картридж без надписи", "emoji": "💾", "tier": "rare" },
+          { "id": "arcade.scoreboard", "name": "Табло рекордов", "emoji": "📟", "tier": "rare" },
+          { "id": "arcade.pixel_ball", "name": "Призовой мячик-пиксель", "emoji": "🟨", "tier": "very_rare", "role": "toy" }
+        ],
+        "events": [
+          { "id": "record", "text": "Автомат сам включился и показал таблицу рекордов. Первая строчка — твоя." },
+          { "id": "token", "text": "Из автомата выпал жетон. Принёс его тебе: +1 🎟.",
+            "spent": "Из автомата выпал жетон, но жетон на этой неделе уже был. Оставил его там.",
+            "effect": { "kind": "ticket" } },
+          { "id": "bits", "text": "Экран показал пса в восемь бит. Похож, только квадратнее." }
+        ]
+      },
+      {
+        "id": "forest_tv", "name": "Телевизор в лесу", "emoji": "📺", "level": 15, "minutes": 75,
+        "about": "Старый ламповый телевизор на пне посреди ельника. Провода нет, а он работает.",
+        "finds": [
+          { "id": "forest_tv.antenna", "name": "Антенна-рожки", "emoji": "📡", "tier": "common" },
+          { "id": "forest_tv.mushroom", "name": "Гриб", "emoji": "🍄", "tier": "common" },
+          { "id": "forest_tv.tape", "name": "Лента от кассеты", "emoji": "📼", "tier": "common" },
+          { "id": "forest_tv.remote", "name": "Пульт без кнопок", "emoji": "🎛", "tier": "rare" },
+          { "id": "forest_tv.cassette", "name": "Кассета «Пёс и я»", "emoji": "📼", "tier": "rare" },
+          { "id": "forest_tv.static_jar", "name": "Помеха в банке", "emoji": "🫙", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "face", "text": "Помехи на экране сложились в собачью морду. Он гавкнул на неё, она — на него." },
+          { "id": "forecast", "text": "Телевизор показал прогноз на завтра: {forecast}.",
+            "effect": { "kind": "forecast" } },
+          { "id": "cartoon", "text": "Включился мультик. Пёс досмотрел до конца и остался очень доволен.",
+            "effect": { "kind": "need", "need": "fun", "add": 10 } }
+        ]
+      },
+      {
+        "id": "lighthouse", "name": "Маяк в поле", "emoji": "🗼", "level": 19, "minutes": 90,
+        "about": "Маяк среди пшеницы. До моря сто километров, а он всё равно светит.",
+        "finds": [
+          { "id": "lighthouse.wheat", "name": "Колосок", "emoji": "🌾", "tier": "common" },
+          { "id": "lighthouse.shell", "name": "Ракушка", "emoji": "🐚", "tier": "common" },
+          { "id": "lighthouse.bulb", "name": "Лампочка", "emoji": "💡", "tier": "common" },
+          { "id": "lighthouse.flag", "name": "Флажок", "emoji": "🚩", "tier": "rare" },
+          { "id": "lighthouse.keeper_key", "name": "Ключ смотрителя", "emoji": "🔑", "tier": "rare" },
+          { "id": "lighthouse.light", "name": "Кусочек света", "emoji": "✨", "tier": "very_rare", "role": "light" }
+        ],
+        "events": [
+          { "id": "howl", "text": "Свет маяка прошёл над пшеницей. Пёс не удержался и завыл." },
+          { "id": "thanks", "text": "С маяка сбросили записку: «Спасибо, что зашёл». Кто — не видно." },
+          { "id": "foxes", "text": "В пшенице бегала стайка лис. Звали играть, но он постеснялся." }
+        ]
+      },
+      {
+        "id": "echo_well", "name": "Колодец эха", "emoji": "🪣", "level": 24, "minutes": 105,
+        "about": "Старый каменный колодец. Отвечает лаем на лай, иногда не своим голосом.",
+        "finds": [
+          { "id": "echo_well.pebble", "name": "Камешек", "emoji": "🪨", "tier": "common" },
+          { "id": "echo_well.moss", "name": "Мох", "emoji": "🌿", "tier": "common" },
+          { "id": "echo_well.bucket", "name": "Ведёрко", "emoji": "🪣", "tier": "common" },
+          { "id": "echo_well.holed_coin", "name": "Монета с дыркой", "emoji": "🪙", "tier": "rare" },
+          { "id": "echo_well.echo_bottle", "name": "Эхо в бутылке", "emoji": "🍾", "tier": "rare" },
+          { "id": "echo_well.letter", "name": "Письмо со дна", "emoji": "✉️", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "echo", "text": "Гавкнул в колодец. Колодец ответил, но другим голосом." },
+          { "id": "coins", "text": "На дне блестят монетки. Можно бросить свою на удачу, раз в день.",
+            "effect": { "kind": "well" } },
+          { "id": "bubbles", "text": "Из колодца вылетели пузыри. Один лопнул прямо на носу." }
+        ]
+      },
+      {
+        "id": "rocket", "name": "Картонная ракета", "emoji": "🚀", "level": 30, "minutes": 120,
+        "about": "Ракета из коробок и скотча на пустыре. «Полёт» назначен на завтра.",
+        "finds": [
+          { "id": "rocket.tape", "name": "Скотч", "emoji": "🧻", "tier": "common" },
+          { "id": "rocket.nut", "name": "Гайка", "emoji": "🔩", "tier": "common" },
+          { "id": "rocket.foil_star", "name": "Звезда из фольги", "emoji": "⭐", "tier": "common" },
+          { "id": "rocket.helmet", "name": "Шлем-дуршлаг", "emoji": "🪖", "tier": "rare" },
+          { "id": "rocket.moon_map", "name": "Карта Луны", "emoji": "🗺", "tier": "rare" },
+          { "id": "rocket.moon_stone", "name": "Лунный камень", "emoji": "🌑", "tier": "very_rare", "role": "decor" }
+        ],
+        "events": [
+          { "id": "countdown", "text": "Начался обратный отсчёт. На нуле ракета чихнула дымом и осталась на месте." },
+          { "id": "cabin", "text": "Посидел в кабине в шлеме-дуршлаге. Вышел отличный кадр для открытки.",
+            "effect": { "kind": "photo" } },
+          { "id": "star", "text": "Над ракетой упала звезда. Он что-то загадал, но не говорит что." }
+        ]
+      }
+    ]
+  }
+}
