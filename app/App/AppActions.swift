@@ -144,7 +144,7 @@ final class AppActions {
         stepsBusy = true
         defer { stepsBusy = false }
         let f = PetStore.load()
-        guard f.pet.alive else { return }
+        guard f.pet.alive else { await syncRunawaySteps(f); return }
         let now = Clock.now()
         let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: now)).timeIntervalSince1970
         guard let from = PetRunner.stepsFrom(lastStepsT: f.lastStepsT, createdT: f.createdT,
@@ -155,5 +155,27 @@ final class AppActions {
         guard let n = await StepsSync.count(from: realFrom, to: realTo), n >= StepsSync.minSteps else { return }
         guard PetStore.load().lastStepsT == f.lastStepsT else { return }
         _ = await perform(.steps(n), source: .steps)
+    }
+
+    /// Волна 32: пёс убежал — шаги хозяина идут в поиски (Runaway.addSteps), монет за них нет.
+    private func syncRunawaySteps(_ f: SaveFile) async {
+        let now = Clock.now()
+        guard let from = Runaway.stepsFrom(f, at: now) else { return }
+        let realFrom = Date(timeIntervalSince1970: from - Clock.offset)
+        let realTo = Date(timeIntervalSince1970: now - Clock.offset)
+        guard let n = await StepsSync.count(from: realFrom, to: realTo), n >= StepsSync.minSteps else { return }
+        // Пока ждали шагомер, другой заход мог уже засчитать это окно — тогда молчим.
+        let mark = f.runaway.stepsT
+        let outcome = try? PetStore.shared.mutate { (g: inout SaveFile) -> Runaway.Outcome? in
+            guard g.runaway.stepsT == mark else { return nil }
+            return Runaway.addSteps(n, &g, now: now)
+        }
+        guard let outcome = outcome ?? nil else { return }
+        AppModel.shared.refresh()
+        if outcome == .found {
+            AppModel.shared.show(Runaway.toast(.found), emoji: "🐾")
+            Feel.success()
+        }
+        await afterChange()
     }
 }

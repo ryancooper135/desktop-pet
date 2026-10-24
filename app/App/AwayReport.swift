@@ -47,6 +47,12 @@ enum AwayBuilder {
             let cause = s.events.last(where: { $0.kind == "death" })?.key
             cards.append(AwayReport.Card(id: "death", icon: "heart.slash",
                                          text: deathText(cause, name: f.petName)))
+            // Волна 32: убежал, но ещё можно найти — так и говорим, а не «больше нет».
+            if let st = Runaway.status(f, at: now), st.canReturn {
+                return AwayReport(id: "away-\(Int(now))", greet: Runaway.title(f.petName, st),
+                                  subtitle: subtitle(s.awayH), cards: cards,
+                                  cta: "Его ещё можно найти — поиски на главном экране.", died: true)
+            }
             return AwayReport(id: "away-\(Int(now))", greet: PetNames.gone(f.petName),
                               subtitle: subtitle(s.awayH), cards: cards,
                               cta: "Можно начать заново с новым щенком.", died: true)

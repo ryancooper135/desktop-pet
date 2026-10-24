@@ -453,26 +453,26 @@
     "value": 3
    },
    {
-    "t": 1788473280,
+    "t": 1788475380,
     "kind": "heart",
     "value": 2
    },
    {
-    "t": 1788473280,
+    "t": 1788475380,
     "kind": "level",
     "value": 3
    },
    {
-    "t": 1788515940,
+    "t": 1788519360,
     "kind": "heart",
     "value": 1
    },
    {
-    "t": 1788515940,
+    "t": 1788519360,
     "kind": "last_chance"
    },
    {
-    "t": 1788544740,
+    "t": 1788555300,
     "kind": "death",
     "key": "starve"
    }
@@ -626,12 +626,12 @@
      "key": "starve"
     },
     {
-     "at": 1788470820,
+     "at": 1788473640,
      "trigger": "critical",
      "kind": "level"
     },
     {
-     "at": 1788513720,
+     "at": 1788517620,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -749,7 +749,7 @@
      "key": "starve"
     },
     {
-     "at": 1788515940,
+     "at": 1788519360,
      "trigger": "last_chance",
      "kind": "last_chance"
     }

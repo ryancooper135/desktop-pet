@@ -832,6 +832,57 @@ final class AppModel {
         }
     }
 
+    /// Волна 32: пёс убежал — что показать в пустой комнате (Runaway). nil — пёс дома.
+    func runawayStatus(now: Double = Clock.now()) -> Runaway.Status? {
+        guard let f = file, !f.pet.alive else { return nil }
+        return Runaway.status(f, at: now)
+    }
+
+    /// «Искать по следам»: один поиск за заход.
+    func searchTrail() {
+        let now = Clock.now()
+        do {
+            let out = try PetStore.shared.mutate { (f: inout SaveFile) -> Runaway.Outcome in
+                Runaway.searchTrail(&f, now: now)
+            }
+            refresh(now: now)
+            switch out {
+            case .found:
+                Feel.success(.hearts)
+                show(Runaway.toast(out), emoji: "🐾")
+            case .ok:
+                Feel.soft()
+                show(Runaway.toast(out), emoji: "🐾")
+            case .no:
+                refuse(Runaway.toast(out))
+            }
+            Task { await AppActions.shared.afterChange() }
+        } catch {
+            storeError = error.localizedDescription
+        }
+    }
+
+    /// «Вернуть домой»: нашёлся (следы/шаги) или сразу за ✂️. Тот же пёс — имя, память, вещи.
+    func bringBack(_ way: Runaway.Way) {
+        let now = Clock.now()
+        do {
+            let out = try PetStore.shared.mutate { (f: inout SaveFile) -> Runaway.Outcome in
+                Runaway.bringBack(&f, way: way, now: now)
+            }
+            refresh(now: now)
+            if out == .ok {
+                // Здоровается SoundLayer (alive false → true), как у нового щенка.
+                Feel.success()
+                show(Runaway.toast(out, way: way), emoji: "🏠")
+            } else {
+                refuse(Runaway.toast(out))
+            }
+            Task { await AppActions.shared.afterChange() }
+        } catch {
+            storeError = error.localizedDescription
+        }
+    }
+
     /// «Попробовать снова» на экране ошибки: только чтение. Файла нет — ошибка остаётся, решает хозяин.
     func retryStore() {
         do {

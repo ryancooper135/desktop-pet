@@ -100,11 +100,17 @@ final class VectorTests: XCTestCase {
     }
 
     func testPresets() throws {
-        let strict = try rules()
+        // по умолчанию с волны 32 — «Обычно», между «Строго» и «Средне»
+        let normal = try rules()
+        XCTAssertEqual(normal.preset, "normal")
+        XCTAssertEqual(normal.regenAllGe, 18)
+        XCTAssertEqual(normal.lastChanceH, 10)
+        XCTAssertEqual(normal.distress[.dirty]?.hoursPerHeart, 33)
+        XCTAssertEqual(normal.distress[.toska]?.graceH, 10)
+        let strict = try rules(preset: "strict")
         XCTAssertEqual(strict.preset, "strict")
-        let explicit = try rules(preset: "strict")
-        XCTAssertEqual(explicit.lastChanceH, strict.lastChanceH)
-        XCTAssertEqual(explicit.regenAllGe, strict.regenAllGe)
+        XCTAssertEqual(strict.lastChanceH, 8)
+        XCTAssertEqual(strict.regenAllGe, 40)
         let medium = try rules(preset: "medium")
         XCTAssertEqual(medium.preset, "medium")
         XCTAssertEqual(medium.distress[.dirty]?.hoursPerHeart, 48)

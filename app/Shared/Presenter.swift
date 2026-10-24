@@ -230,6 +230,12 @@ enum Presenter {
            let e = plateEvent(upcoming ?? ForecastTools.upcoming(s, at: t, horizonH: 12, owner: o), need: need, at: t) {
             snap.timer = NeedTimer(kind: "low", start: t, end: e.t, title: ForecastTools.title(e))
         }
+        // Волна 32: убежал, но его ещё можно найти — не «больше нет», а «нет дома» (виджет, остров, сцена).
+        if !s.alive, let st = Runaway.status(f, at: t), st.canReturn {
+            let title = Runaway.title(name, st)
+            snap.line = title
+            snap.islandLine = title
+        }
         return snap
     }
 
@@ -479,7 +485,7 @@ enum Presenter {
     static func statusText(at t: Double = Clock.now()) -> String {
         let f = PetStore.load()
         let snap = make(f, at: t)
-        if !snap.alive { return "\(PetNames.gone(snap.name)). Открой приложение." }
+        if !snap.alive { return "\(Runaway.status(f, at: t)?.canReturn == true ? snap.line : PetNames.gone(snap.name)). Открой приложение." }
         var parts = ["\(snap.name): \(snap.line)"]
         parts.append("Сердечки: \(heartsSpoken(snap.hearts, of: snap.heartsMax)).")
         if let w = snap.wantText { parts.append("Хочет: \(w).") }

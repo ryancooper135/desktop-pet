@@ -45,10 +45,20 @@
       },
       "night_damage_x": 0.0,
       "last_heart": { "timer_h_awake": 8, "no_death_first_h_after_wake": 3 },
-      "preset": "strict",
+      "preset": "normal",
       "presets": {
-        "_note": "Строгость смерти. Пресет накладывается на care.hearts: объекты сливаются по ключам, числа и строки заменяются, ключи с «_» — пометки. strict = значения выше как есть. Условие «clean < 0» не бывает никогда: грязь не беда, только мухи и запах. Сравнение по образам игроков — RESEARCH/12-balance-options.md. Выбор за Вадимом.",
+        "_note": "Строгость смерти. Пресет накладывается на care.hearts: объекты сливаются по ключам, числа и строки заменяются, ключи с «_» — пометки. strict = значения выше как есть. Условие «clean < 0» не бывает никогда: грязь не беда, только мухи и запах. Сравнение по образам игроков — RESEARCH/12-balance-options.md. По умолчанию с волны 32 — normal («Обычно», между «Строго» и «Средне»), решение Вадима в ТЗ v2.",
         "strict": { "_name": "Строго" },
+        "normal": {
+          "_name": "Обычно",
+          "_why": "Волна 32 (ТЗ v2): по умолчанию — между «Строго» и «Средне». Голод как в строгом, грязь и тоска — посередине, сердца возвращаются при всех шкалах ≥ 18 (при 25 и 20 после выходных они почти не растут — тот же порок, что у «Строго»).",
+          "regen_requires_all_ge": 18,
+          "distress": {
+            "dirty": { "grace_h_awake": 16, "hours_per_heart": 33 },
+            "toska": { "grace_h_awake": 10, "hours_per_heart": 27 }
+          },
+          "last_heart": { "timer_h_awake": 10 }
+        },
         "medium": {
           "_name": "Средне",
           "regen_requires_all_ge": 15,
@@ -110,8 +120,8 @@
   },
 
   "currency": {
-    "coins":   { "name": "Монеты",   "icon": "🪙", "start": 150 },
-    "tickets": { "name": "Билетики", "icon": "🎟", "start": 1, "_note": "только для капсульного автомата; монетами — максимум 1 в день по 200" },
+    "coins":   { "name": "Монеты",   "icon": "🪙", "start": 20, "_start": "Волна 32: «из грязи в князи» — щенок начинает почти без гроша (было 150). Еда «Покормить» бесплатна, первые 15 минут монеты не нужны; первые покупки — после пары дней ухода." },
+    "tickets": { "name": "Билетики", "icon": "🎟", "start": 1, "_start": "единственное сокровище щенка: один шарик из автомата в первый же день", "_note": "только для капсульного автомата; монетами — максимум 1 в день по 200" },
     "shards":  { "name": "Клочки",   "icon": "🧶", "start": 0, "_note": "из дубликатов капсул; тратятся в Ателье" }
   },
 
@@ -139,8 +149,9 @@
     },
     "weekly_quest": { "coins": 200, "tickets": 2, "_note": "кооп-цель с друзьями (шаги/игры), бонус за участие 50 даже при провале" },
     "habits": {
-      "daily_cap": 70,
-      "steps": { "coins_per_steps": 250, "cap": 40 },
+      "daily_cap": 90,
+      "_daily_cap": "волна 32: +~25 % (было 70; шаги 250 → 200 на монету, потолок шагов 40 → 50)",
+      "steps": { "coins_per_steps": 200, "cap": 50 },
       "duolingo_open": { "coins": 10, "per_day": 1 },
       "slept_on_time": { "coins": 15, "window_min": 30 },
       "alarm_no_snooze": { "coins": 5 },
@@ -158,8 +169,9 @@
     "owner_level_up_coins_x_level": 40,
     "care": {
       "_note": "монеты за удачное действие ухода (act.<тип> с ok); потолок daily_cap в местные сутки; типа нет — 0",
-      "coins": { "feed": 2, "pet": 1, "play": 3, "bath": 5, "walk": 5 },
-      "daily_cap": 30
+      "coins": { "feed": 3, "pet": 1, "play": 4, "bath": 6, "walk": 6 },
+      "daily_cap": 38,
+      "_wave32": "волна 32: доход ухода +~25 % (было feed 2, play 3, bath 5, walk 5, потолок 30)"
     }
   },
 
@@ -324,7 +336,19 @@
   },
 
   "death": {
-    "permanent": true,
+    "permanent": false,
+    "comeback": {
+      "_note": "волна 32: мягкая смерть — пёс убежал. Срок от первого захода после побега; следы — разные заходы (trail_gap_h); вернувшийся приходит усталым и грязным, часть монет уходит на объявления. Нет возврата: срок вышел, третий побег за window_days (max_in_window возвращений), часы назад",
+      "search_h": 72,
+      "trails": 2,
+      "trail_gap_h": 4,
+      "steps": 3000,
+      "shards": 30,
+      "max_in_window": 2,
+      "window_days": 30,
+      "back": { "hearts": 2.5, "needs": { "food": 40, "clean": 20, "energy": 60, "fun": 30, "love": 30, "walk": 30 } },
+      "coins_lost_pct": 20
+    },
     "keep": ["coins", "tickets", "shards", "house", "furniture", "wardrobe", "owner_level", "album"],
     "lose": ["pet", "bond_level", "traits", "age", "pet_achievements", "friend_streaks_of_pet"],
     "mourning_hours": 12,

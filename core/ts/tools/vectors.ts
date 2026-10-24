@@ -85,7 +85,7 @@ const oKiev = defaultOwner(r, 180);
   ], t + 30 * H, 2);
 }
 // 7. два захода «только покормить» до смерти
-{ const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 6, sc.visits, sc.opts); record('careless2', o, s, res.log, res.state.diedAt ?? T0 + 6 * 86400, 12); }
+{ const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 8, sc.visits, sc.opts); record('careless2', o, s, res.log, res.state.diedAt ?? T0 + 8 * 86400, 12); }
 // 8. один заход «до максимума» в 12:00, дом стартовый
 { const sc = scenario('full1_noon'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 4, sc.visits, sc.opts); record('full1_noon', o, s, res.log, T0 + 4 * 86400, 12); }
 // 9. прогулка с находкой: отказы (мало шкал, ванна, away), шаги на прогулке, три прогулки (последняя обрезана ночью)
@@ -136,7 +136,9 @@ const oKiev = defaultOwner(r, 180);
   ], t + 4 * H, 1);
 }
 
-// 11–12. пресеты строгости: Swift строит правила по полю preset
+// 11–13. пресеты строгости (по умолчанию normal): Swift строит правила по полю preset
+r = makeRules(cfg, 'strict');
+{ const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_strict', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }
 r = makeRules(cfg, 'medium');
 { const sc = scenario('careless2'); const s = startAt(r, 7.5); const res = runDays(r, o, clone(s), 10, sc.visits, sc.opts); record('careless2_medium', o, s, res.log, res.state.diedAt ?? T0 + 10 * 86400, 12); }
 r = makeRules(cfg, 'soft');

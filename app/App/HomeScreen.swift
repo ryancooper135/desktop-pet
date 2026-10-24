@@ -213,16 +213,8 @@ struct HomeScreen: View {
                         NeedsHandle()
                     }
                 } else {
-                    Button {
-                        confirmStartOver = true
-                    } label: {
-                        Text("Начать заново")
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .frame(maxWidth: .infinity, minHeight: 50)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PetPalette.accent)
-                    .accessibilityIdentifier("act.startOver")
+                    // Волна 32: пёс убежал — сначала поиски, «Начать заново» остаётся запасным путём.
+                    RunawayPanel(name: snap.name) { confirmStartOver = true }
                 }
             }
             .padding(.horizontal, 16)
@@ -316,6 +308,10 @@ struct HomeScreen: View {
         .confirmationDialog("Начать заново с новым щенком?", isPresented: $confirmStartOver, titleVisibility: .visible) {
             Button("Начать заново", role: .destructive) { model.startOver() }
             Button("Отмена", role: .cancel) {}
+        } message: {
+            if model.runawayStatus()?.canReturn == true {
+                Text("Того пса уже не найти: поиски закончатся. Дом, вещи и монеты останутся.")
+            }
         }
     }
 
@@ -414,5 +410,93 @@ private struct StatusScrim: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// Волна 32: пустая комната после побега (Runaway). Что случилось, сколько осталось и чем вернуть того же пса;
+/// «Начать заново» (act.startOver) — всегда внизу. Кегли фиксированные, как у остальной панели главного экрана.
+private struct RunawayPanel: View {
+    @Environment(AppModel.self) private var model
+    let name: String
+    let startOver: () -> Void
+
+    var body: some View {
+        let st = model.runawayStatus()
+        let canReturn = st?.canReturn == true
+        VStack(spacing: 8) {
+            if let st {
+                VStack(spacing: 4) {
+                    Text(Runaway.title(name, st))
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                    Text(Runaway.detail(st))
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(12)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("runaway.status")
+
+                if st.canReturn {
+                    if st.found {
+                        Button {
+                            model.bringBack(st.steps >= st.stepsNeed ? .steps : .trails)
+                        } label: {
+                            Text("Вернуть домой")
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(PetPalette.accent)
+                        .accessibilityIdentifier("act.bringBack")
+                    } else {
+                        // Не готово — кнопка всё равно жмётся: отказ тостом, а не немая серая кнопка (волна 29).
+                        Button {
+                            model.searchTrail()
+                        } label: {
+                            Text(st.trailReady ? "Искать по следам" : "Искать снова через \(Runaway.hoursText(st.trailInH))")
+                                .font(.system(size: 17, weight: .bold, design: .rounded))
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(st.trailReady ? PetPalette.accent : .gray)
+                        .accessibilityIdentifier("act.searchTrail")
+
+                        Button {
+                            model.bringBack(.shards)
+                        } label: {
+                            Text("Вернуть сразу за \(st.shardsCost) ✂️ (есть \(st.shardsHave))")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel(Text("Вернуть сразу за \(st.shardsCost) \(EconText.plural(st.shardsCost, "клочок", "клочка", "клочков")), у тебя \(st.shardsHave)"))
+                        .accessibilityIdentifier("act.bringBackShards")
+                    }
+                }
+            }
+
+            if canReturn {
+                Button(action: startOver) {
+                    Text("Взять нового щенка")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("act.startOver")
+            } else {
+                Button(action: startOver) {
+                    Text("Начать заново")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(PetPalette.accent)
+                .accessibilityIdentifier("act.startOver")
+            }
+        }
     }
 }

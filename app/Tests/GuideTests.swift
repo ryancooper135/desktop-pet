@@ -97,6 +97,14 @@ final class GuideTests: XCTestCase {
         }
         XCTAssertTrue(text("last").contains(Guides.hours(r.lastChanceH)))
         XCTAssertTrue(text("last").contains(Guides.hours(r.noDeathAfterWakeH)))
+        // Волна 32: смерть мягкая — пёс убегает, правила говорят, как вернуть и что насовсем.
+        XCTAssertTrue(text("last").contains("убежит из дома"), text("last"))
+        XCTAssertTrue(text("last").contains("3 суток"), text("last"))
+        XCTAssertTrue(text("last").contains("3000 шагов"), text("last"))
+        XCTAssertFalse(text("last").contains("навсегда"), text("last"))
+        let hard = Guides.rulesItems(r, economy: try JSONDecoder().decode(JSONValue.self, from: Data(#"{"death":{"permanent":true,"comeback":{"search_h":72}}}"#.utf8)),
+                                     name: "Шиба", owner: owner).first(where: { $0.id == "last" })?.text ?? ""
+        XCTAssertTrue(hard.contains("навсегда"), hard)
         XCTAssertTrue(text("night").contains(Guides.hm(owner.bedMin)))
         XCTAssertTrue(text("regen").contains(Guides.num(r.regenAllGe)))
         XCTAssertTrue(text("help").contains("«Спасти»"))

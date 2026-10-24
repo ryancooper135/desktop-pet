@@ -95,9 +95,17 @@ enum Guides {
         out.append(RuleItem(id: "night", icon: "moon.fill", title: "Ночью не страшно",
                             text: "Пока ты спишь (\(hm(owner.bedMin))–\(hm(owner.wakeMin)), от «Ложусь в» в настройках), сердечки не уходят и беды не копятся. Считаются только часы, когда ты не спишь."))
 
-        let deathWord = (e?["death"]["permanent"].bool ?? true) ? "Это навсегда — вернуть его будет нельзя." : "Потом его можно будет вернуть."
-        out.append(RuleItem(id: "last", icon: "heart.slash.fill", title: "Последнее сердечко",
-                            text: "Сердечки не падают ниже одного. Дальше идёт последний шанс: \(hours(r.lastChanceH)) твоего бодрствования, пока \(name) в беде. Не помог — \(name) умрёт. \(deathWord) В первые \(hours(r.noDeathAfterWakeH)) после твоего подъёма этого не случится."))
+        // Волна 32: на последнем сердечке пёс не умирает, а убегает — его можно найти (Runaway).
+        let rc = e.map { RunawayConfig(json: $0) } ?? RunawayConfig()
+        let lastText: String
+        if rc.enabled {
+            lastText = "Сердечки не падают ниже одного. Дальше идёт последний шанс: \(hours(r.lastChanceH)) твоего бодрствования, пока \(name) в беде. Не помог — \(name) убежит из дома. "
+                + "Вернуть можно за \(Runaway.hoursText(rc.searchH)): найти по следам, пройти \(rc.steps) шагов или сразу за \(Runaway.shardsCost(rc)) ✂️.Вернётся уставшим, а часть монет уйдёт на поиски. "
+                + "Третий побег за месяц — уже насовсем. В первые \(hours(r.noDeathAfterWakeH)) после твоего подъёма этого не случится."
+        } else {
+            lastText = "Сердечки не падают ниже одного. Дальше идёт последний шанс: \(hours(r.lastChanceH)) твоего бодрствования, пока \(name) в беде. Не помог — \(name) умрёт. Это навсегда — вернуть его будет нельзя. В первые \(hours(r.noDeathAfterWakeH)) после твоего подъёма этого не случится."
+        }
+        out.append(RuleItem(id: "last", icon: "heart.slash.fill", title: "Последнее сердечко", text: lastText))
 
         if let h = ignoreDeathH(r, owner: owner) {
             out.append(RuleItem(id: "ignore", icon: "hourglass", title: "Если совсем забыть",

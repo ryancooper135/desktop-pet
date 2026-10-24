@@ -108,7 +108,7 @@
      "walk": 54.50000000000209,
      "look": 1.9999999999999576
     },
-    "hearts": 5.8808975000000885,
+    "hearts": 6,
     "grace": {
      "starve": 0,
      "dirty": 0,
@@ -152,14 +152,7 @@
      "urgent": false
     }
    ],
-   "rescue": {
-    "key": "food",
-    "action": {
-     "type": "feed",
-     "item": "kibble"
-    },
-    "because": "food"
-   }
+   "rescue": null
   },
   {
    "t": 1788336000,
@@ -174,7 +167,7 @@
      "walk": 49.10000000000316,
      "look": 0.4999999999999629
     },
-    "hearts": 5.8808975000000885,
+    "hearts": 6,
     "grace": {
      "starve": 0,
      "dirty": 0,
@@ -245,7 +238,7 @@
      "walk": 31.100000000004123,
      "look": 0
     },
-    "hearts": 5.8808975000000885,
+    "hearts": 6,
     "grace": {
      "starve": 0.5333333333333333,
      "dirty": 0,
@@ -323,7 +316,7 @@
      "walk": 13.100000000003867,
      "look": 0
     },
-    "hearts": 5.382230833333537,
+    "hearts": 5.501333333333449,
     "grace": {
      "starve": 6.5333333333333155,
      "dirty": 0,
@@ -407,7 +400,7 @@
      "walk": 5.600000000003883,
      "look": 0
     },
-    "hearts": 5.162230833333588,
+    "hearts": 5.2813333333334995,
     "grace": {
      "starve": 8.533333333333337,
      "dirty": 0,
@@ -487,7 +480,7 @@
      "walk": 0.2000000000039902,
      "look": 0
     },
-    "hearts": 4.915749351852146,
+    "hearts": 5.06133333333355,
     "grace": {
      "starve": 10.533333333333436,
      "dirty": 0,
@@ -496,7 +489,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788420240,
+    "lastHeartLossT": null,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -571,7 +564,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 4.072416018518883,
+    "hearts": 4.3018580246915965,
     "grace": {
      "starve": 16.533333333333676,
      "dirty": 5.149999999999987,
@@ -580,7 +573,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788420240,
+    "lastHeartLossT": 1788424380,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -655,7 +648,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 3.1328326851855772,
+    "hearts": 3.5196358024693657,
     "grace": {
      "starve": 22.533333333333335,
      "dirty": 11.150000000000134,
@@ -664,7 +657,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788445800,
+    "lastHeartLossT": 1788452280,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -739,7 +732,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 2.7906104629633512,
+    "hearts": 3.258895061728622,
     "grace": {
      "starve": 24.53333333333322,
      "dirty": 13.150000000000233,
@@ -748,7 +741,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788468360,
+    "lastHeartLossT": 1788452280,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -819,7 +812,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 2.4483882407411253,
+    "hearts": 2.9981543209878785,
     "grace": {
      "starve": 26.533333333333108,
      "dirty": 15.150000000000333,
@@ -828,7 +821,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788468360,
+    "lastHeartLossT": 1788508740,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -903,7 +896,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1.4217215740744473,
+    "hearts": 2.129820987654523,
     "grace": {
      "starve": 32.53333333333277,
      "dirty": 21.15000000000008,
@@ -912,7 +905,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788518220,
+    "lastHeartLossT": 1788508740,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -929,15 +922,14 @@
     "finds": {},
     "pantry": 0
    },
-   "level": 3,
+   "level": 2,
    "moods": [
-    "critical",
     "hungry",
     "smelly",
     "bored",
     "wants_love"
    ],
-   "mood": "critical",
+   "mood": "hungry",
    "daypart": "day",
    "wants": [
     {
@@ -988,16 +980,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1,
+    "hearts": 1.2475987654322767,
     "grace": {
      "starve": 38.53333333333243,
      "dirty": 27.14999999999974,
      "toska": 36.86666666666586
     },
-    "lastChanceH": 4.450000000000013,
+    "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788539220,
+    "lastHeartLossT": 1788533520,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -1079,10 +1071,10 @@
      "dirty": 29.149999999999626,
      "toska": 38.86666666666574
     },
-    "lastChanceH": 2.4500000000000197,
+    "lastChanceH": 9.683333333333318,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788539220,
+    "lastHeartLossT": 1788558060,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -1160,10 +1152,10 @@
      "dirty": 31.149999999999512,
      "toska": 40.86666666666563
     },
-    "lastChanceH": 0.4500000000000233,
+    "lastChanceH": 7.683333333333236,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788539220,
+    "lastHeartLossT": 1788558060,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -1245,10 +1237,10 @@
      "dirty": 31.149999999999512,
      "toska": 40.86666666666563
     },
-    "lastChanceH": 0.4500000000000233,
+    "lastChanceH": 7.683333333333236,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788539220,
+    "lastHeartLossT": 1788558060,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -1330,10 +1322,10 @@
     "dirty": 31.149999999999512,
     "toska": 40.86666666666563
    },
-   "lastChanceH": 0.4500000000000233,
+   "lastChanceH": 7.683333333333236,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788539220,
+   "lastHeartLossT": 1788558060,
    "cooldowns": {},
    "home": {
     "bath": 0,
@@ -1353,7 +1345,7 @@
   "horizonH": 72,
   "events": [
    {
-    "t": 1788598860,
+    "t": 1788622860,
     "kind": "death",
     "key": "starve"
    }
@@ -1433,7 +1425,7 @@
     "kind": "wake"
    },
    {
-    "t": 1788420300,
+    "t": 1788424440,
     "kind": "heart",
     "value": 5
    },
@@ -1443,14 +1435,9 @@
     "key": "dirty"
    },
    {
-    "t": 1788445860,
+    "t": 1788452340,
     "kind": "heart",
     "value": 4
-   },
-   {
-    "t": 1788468420,
-    "kind": "heart",
-    "value": 3
    },
    {
     "t": 1788473700,
@@ -1461,17 +1448,22 @@
     "kind": "wake"
    },
    {
-    "t": 1788518280,
+    "t": 1788508800,
+    "kind": "heart",
+    "value": 3
+   },
+   {
+    "t": 1788533580,
     "kind": "heart",
     "value": 2
    },
    {
-    "t": 1788539280,
+    "t": 1788558120,
     "kind": "heart",
     "value": 1
    },
    {
-    "t": 1788539280,
+    "t": 1788558120,
     "kind": "last_chance"
    },
    {
@@ -1501,10 +1493,10 @@
     "dirty": 31.149999999999512,
     "toska": 40.86666666666563
    },
-   "lastChanceH": 0.4500000000000233,
+   "lastChanceH": 7.683333333333236,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788539220,
+   "lastHeartLossT": 1788558060,
    "cooldowns": {},
    "home": {
     "bath": 0,
@@ -1573,14 +1565,14 @@
      "key": "starve"
     },
     {
-     "at": 1788420300,
+     "at": 1788424440,
      "trigger": "heart_lost",
      "kind": "heart"
     },
     {
-     "at": 1788518280,
-     "trigger": "critical",
-     "kind": "level"
+     "at": 1788508800,
+     "trigger": "heart_lost",
+     "kind": "heart"
     }
    ]
   },
@@ -1659,10 +1651,10 @@
      "dirty": 31.149999999999512,
      "toska": 40.86666666666563
     },
-    "lastChanceH": 0.4500000000000233,
+    "lastChanceH": 7.683333333333236,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788539220,
+    "lastHeartLossT": 1788558060,
     "cooldowns": {},
     "home": {
      "bath": 0,

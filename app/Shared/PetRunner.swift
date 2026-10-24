@@ -12,6 +12,8 @@ enum PetRunner {
     /// Часы назад больше чем на 5 минут — не считаем, пишем clock_back (ядро не умеет назад).
     static func catchUp(_ f: inout SaveFile, now: Double) {
         settleFutureMarks(&f, now: now)
+        // Волна 32: пёс убежал — поиски заводятся при первой записи, часы назад их закрывают (Runaway).
+        Runaway.observe(&f, now: now)
         if f.pet.t - now > 300 {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return

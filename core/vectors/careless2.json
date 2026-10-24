@@ -242,7 +242,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 4.8666666666666885,
+    "hearts": 4.984567901234578,
     "grace": {
      "starve": 0,
      "dirty": 0.11666666666666665,
@@ -304,11 +304,11 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "play",
     "action": {
-     "type": "bath"
+     "type": "play"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
@@ -340,7 +340,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 4.6444444444445026,
+    "hearts": 4.836419753086525,
     "grace": {
      "starve": 0,
      "dirty": 4.116666666666657,
@@ -393,11 +393,11 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "pet",
     "action": {
-     "type": "bath"
+     "type": "pet"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
@@ -429,7 +429,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 3.526851851851979,
+    "hearts": 4.3879349046019565,
     "grace": {
      "starve": 0,
      "dirty": 16.116666666667033,
@@ -438,7 +438,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788448440,
+    "lastHeartLossT": null,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -491,11 +491,11 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "play",
     "action": {
-     "type": "bath"
+     "type": "play"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
@@ -527,7 +527,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 3.0824074074075005,
+    "hearts": 4.118574635241608,
     "grace": {
      "starve": 0,
      "dirty": 20.116666666666806,
@@ -536,7 +536,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788448440,
+    "lastHeartLossT": null,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -580,11 +580,11 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "pet",
     "action": {
-     "type": "bath"
+     "type": "pet"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
@@ -616,7 +616,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1.7490740740740955,
+    "hearts": 3.3104938271608373,
     "grace": {
      "starve": 0,
      "dirty": 32.11666666666613,
@@ -625,7 +625,382 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788542040,
+    "lastHeartLossT": 1788513300,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {},
+    "pantry": 5
+   },
+   "level": 2,
+   "moods": [
+    "smelly",
+    "bored",
+    "wants_love"
+   ],
+   "mood": "smelly",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.8,
+     "urgent": true
+    },
+    {
+     "key": "play",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "pet",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    },
+    {
+     "key": "food",
+     "strength": 0.04999999999996845,
+     "urgent": false
+    }
+   ],
+   "rescue": {
+    "key": "play",
+    "action": {
+     "type": "play"
+    },
+    "because": "toska"
+   }
+  },
+  {
+   "t": 1788555600,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788555600,
+   "do": {
+    "type": "feed",
+    "item": "carrot"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788593400,
+   "expect": {
+    "t": 1788593400,
+    "needs": {
+     "food": 66.59999999999977,
+     "clean": 0,
+     "energy": 100,
+     "fun": 0,
+     "love": 0,
+     "walk": 0,
+     "look": 0
+    },
+    "hearts": 3.041133557800596,
+    "grace": {
+     "starve": 0,
+     "dirty": 36.1166666666659,
+     "toska": 46.39999999999865
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": 1788513300,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {},
+    "pantry": 5
+   },
+   "level": 2,
+   "moods": [
+    "sleep",
+    "smelly",
+    "bored",
+    "wants_love"
+   ],
+   "mood": "sleep",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.8,
+     "urgent": true
+    },
+    {
+     "key": "pet",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": {
+    "key": "pet",
+    "action": {
+     "type": "pet"
+    },
+    "because": "toska"
+   }
+  },
+  {
+   "t": 1788598800,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788598800,
+   "do": {
+    "type": "feed",
+    "item": "carrot"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788636600,
+   "expect": {
+    "t": 1788636600,
+    "needs": {
+     "food": 47.50000000000158,
+     "clean": 0,
+     "energy": 59.749999999997904,
+     "fun": 0,
+     "love": 0,
+     "walk": 0,
+     "look": 0
+    },
+    "hearts": 2.2330527497198713,
+    "grace": {
+     "starve": 0,
+     "dirty": 48.11666666666522,
+     "toska": 58.399999999997966
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": 1788595560,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {},
+    "pantry": 5
+   },
+   "level": 2,
+   "moods": [
+    "smelly",
+    "bored",
+    "wants_love"
+   ],
+   "mood": "smelly",
+   "daypart": "day",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.8,
+     "urgent": true
+    },
+    {
+     "key": "play",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "pet",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    },
+    {
+     "key": "food",
+     "strength": 0.04999999999996845,
+     "urgent": false
+    }
+   ],
+   "rescue": {
+    "key": "play",
+    "action": {
+     "type": "play"
+    },
+    "because": "toska"
+   }
+  },
+  {
+   "t": 1788642000,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788642000,
+   "do": {
+    "type": "feed",
+    "item": "carrot"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788679800,
+   "expect": {
+    "t": 1788679800,
+    "needs": {
+     "food": 66.59999999999977,
+     "clean": 0,
+     "energy": 100,
+     "fun": 0,
+     "love": 0,
+     "walk": 0,
+     "look": 0
+    },
+    "hearts": 1.9636924803596225,
+    "grace": {
+     "starve": 0,
+     "dirty": 52.11666666666499,
+     "toska": 62.39999999999774
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": 1788649020,
+    "cooldowns": {},
+    "home": {
+     "bath": 0,
+     "bed": 0,
+     "kitchen": 0,
+     "kennel": 0,
+     "play": 0,
+     "yard": 0
+    },
+    "alive": true,
+    "diedAt": null,
+    "cause": null,
+    "outing": null,
+    "finds": {},
+    "pantry": 5
+   },
+   "level": 3,
+   "moods": [
+    "sleep",
+    "critical",
+    "smelly",
+    "bored",
+    "wants_love"
+   ],
+   "mood": "critical",
+   "daypart": "night",
+   "wants": [
+    {
+     "key": "bath",
+     "strength": 0.8,
+     "urgent": true
+    },
+    {
+     "key": "pet",
+     "strength": 0.7,
+     "urgent": true
+    },
+    {
+     "key": "walk",
+     "strength": 0.4,
+     "urgent": false
+    }
+   ],
+   "rescue": {
+    "key": "pet",
+    "action": {
+     "type": "pet"
+    },
+    "because": "toska"
+   }
+  },
+  {
+   "t": 1788685200,
+   "do": {
+    "type": "feed",
+    "item": "stew"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788685200,
+   "do": {
+    "type": "feed",
+    "item": "carrot"
+   },
+   "ok": true
+  },
+  {
+   "t": 1788723000,
+   "expect": {
+    "t": 1788723000,
+    "needs": {
+     "food": 47.50000000000158,
+     "clean": 0,
+     "energy": 59.749999999997904,
+     "fun": 0,
+     "love": 0,
+     "walk": 0,
+     "look": 0
+    },
+    "hearts": 1.1556116722787382,
+    "grace": {
+     "starve": 0,
+     "dirty": 64.11666666666432,
+     "toska": 74.39999999999706
+    },
+    "lastChanceH": null,
+    "napUntil": null,
+    "bathUntil": null,
+    "lastHeartLossT": 1788649020,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -679,15 +1054,15 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "play",
     "action": {
-     "type": "bath"
+     "type": "play"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
-   "t": 1788555600,
+   "t": 1788728400,
    "do": {
     "type": "feed",
     "item": "stew"
@@ -695,7 +1070,7 @@
    "ok": true
   },
   {
-   "t": 1788555600,
+   "t": 1788728400,
    "do": {
     "type": "feed",
     "item": "carrot"
@@ -703,9 +1078,9 @@
    "ok": true
   },
   {
-   "t": 1788593400,
+   "t": 1788766200,
    "expect": {
-    "t": 1788593400,
+    "t": 1788766200,
     "needs": {
      "food": 66.59999999999977,
      "clean": 0,
@@ -715,16 +1090,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1.3046296296296704,
+    "hearts": 1,
     "grace": {
      "starve": 0,
-     "dirty": 36.1166666666659,
-     "toska": 46.39999999999865
+     "dirty": 68.11666666666409,
+     "toska": 78.39999999999684
     },
-    "lastChanceH": null,
+    "lastChanceH": 8.299999999999915,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788542040,
+    "lastHeartLossT": 1788731280,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -769,15 +1144,15 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "pet",
     "action": {
-     "type": "bath"
+     "type": "pet"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
-   "t": 1788598800,
+   "t": 1788771600,
    "do": {
     "type": "feed",
     "item": "stew"
@@ -785,7 +1160,7 @@
    "ok": true
   },
   {
-   "t": 1788598800,
+   "t": 1788771600,
    "do": {
     "type": "feed",
     "item": "carrot"
@@ -793,13 +1168,13 @@
    "ok": true
   },
   {
-   "t": 1788632100,
+   "t": 1788796080,
    "expect": {
-    "t": 1788632100,
+    "t": 1788796080,
     "needs": {
-     "food": 53.750000000001755,
+     "food": 66.00000000000193,
      "clean": 0,
-     "energy": 64.12499999999767,
+     "energy": 72.69999999999823,
      "fun": 0,
      "love": 0,
      "walk": 0,
@@ -808,13 +1183,13 @@
     "hearts": 1,
     "grace": {
      "starve": 0,
-     "dirty": 46.86666666666529,
-     "toska": 57.14999999999804
+     "dirty": 76.41666666666362,
+     "toska": 86.69999999999636
     },
-    "lastChanceH": -0.016666666666643248,
+    "lastChanceH": -7.522454881225826e-14,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788603240,
+    "lastHeartLossT": 1788731280,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -825,7 +1200,7 @@
      "yard": 0
     },
     "alive": false,
-    "diedAt": 1788632100,
+    "diedAt": 1788796080,
     "cause": "dirty",
     "outing": null,
     "finds": {},
@@ -843,11 +1218,11 @@
  ],
  "forecast": {
   "from": {
-   "t": 1788632100,
+   "t": 1788796080,
    "needs": {
-    "food": 53.750000000001755,
+    "food": 66.00000000000193,
     "clean": 0,
-    "energy": 64.12499999999767,
+    "energy": 72.69999999999823,
     "fun": 0,
     "love": 0,
     "walk": 0,
@@ -856,13 +1231,13 @@
    "hearts": 1,
    "grace": {
     "starve": 0,
-    "dirty": 46.86666666666529,
-    "toska": 57.14999999999804
+    "dirty": 76.41666666666362,
+    "toska": 86.69999999999636
    },
-   "lastChanceH": -0.016666666666643248,
+   "lastChanceH": -7.522454881225826e-14,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788603240,
+   "lastHeartLossT": 1788731280,
    "cooldowns": {},
    "home": {
     "bath": 0,
@@ -873,7 +1248,7 @@
     "yard": 0
    },
    "alive": false,
-   "diedAt": 1788632100,
+   "diedAt": 1788796080,
    "cause": "dirty",
    "outing": null,
    "finds": {},
@@ -882,14 +1257,14 @@
   "horizonH": 72,
   "events": [
    {
-    "t": 1788632100,
+    "t": 1788796080,
     "kind": "death",
     "key": "dirty"
    }
   ]
  },
  "away": {
-  "now": 1788632100,
+  "now": 1788796080,
   "journal": [
    {
     "t": 1788253200,
@@ -1016,21 +1391,77 @@
      "type": "feed",
      "item": "carrot"
     }
+   },
+   {
+    "t": 1788642000,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788642000,
+    "action": {
+     "type": "feed",
+     "item": "carrot"
+    }
+   },
+   {
+    "t": 1788685200,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788685200,
+    "action": {
+     "type": "feed",
+     "item": "carrot"
+    }
+   },
+   {
+    "t": 1788728400,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788728400,
+    "action": {
+     "type": "feed",
+     "item": "carrot"
+    }
+   },
+   {
+    "t": 1788771600,
+    "action": {
+     "type": "feed",
+     "item": "stew"
+    }
+   },
+   {
+    "t": 1788771600,
+    "action": {
+     "type": "feed",
+     "item": "carrot"
+    }
    }
   ],
   "from": 1788247800,
-  "to": 1788632100,
-  "awayH": 106.75,
+  "to": 1788796080,
+  "awayH": 152.3,
   "show": true,
   "greet": null,
   "cta": null,
-  "sleptH": 33.5,
+  "sleptH": 50,
   "heartsFrom": 5,
   "heartsTo": 1,
   "needs": {
-   "food": -26.249999999998245,
+   "food": -13.999999999998067,
    "clean": -80,
-   "energy": -15.87500000000233,
+   "energy": -7.3000000000017735,
    "fun": -80,
    "love": -80,
    "walk": -80,
@@ -1143,11 +1574,6 @@
     "ok": true
    },
    {
-    "t": 1788448500,
-    "kind": "heart",
-    "value": 4
-   },
-   {
     "t": 1788469200,
     "kind": "act",
     "key": "feed",
@@ -1168,11 +1594,6 @@
     "kind": "wake"
    },
    {
-    "t": 1788509700,
-    "kind": "heart",
-    "value": 3
-   },
-   {
     "t": 1788512400,
     "kind": "act",
     "key": "feed",
@@ -1185,9 +1606,9 @@
     "ok": true
    },
    {
-    "t": 1788542100,
+    "t": 1788513360,
     "kind": "heart",
-    "value": 2
+    "value": 4
    },
    {
     "t": 1788555600,
@@ -1210,10 +1631,9 @@
     "kind": "wake"
    },
    {
-    "t": 1788598800,
-    "kind": "act",
-    "key": "feed",
-    "ok": true
+    "t": 1788595620,
+    "kind": "heart",
+    "value": 3
    },
    {
     "t": 1788598800,
@@ -1222,27 +1642,102 @@
     "ok": true
    },
    {
-    "t": 1788603300,
+    "t": 1788598800,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788642000,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788642000,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788649080,
+    "kind": "heart",
+    "value": 2
+   },
+   {
+    "t": 1788651900,
+    "kind": "sleep"
+   },
+   {
+    "t": 1788681600,
+    "kind": "wake"
+   },
+   {
+    "t": 1788685200,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788685200,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788728400,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788728400,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788731340,
     "kind": "heart",
     "value": 1
    },
    {
-    "t": 1788603300,
+    "t": 1788731340,
     "kind": "last_chance"
    },
    {
-    "t": 1788632100,
+    "t": 1788738300,
+    "kind": "sleep"
+   },
+   {
+    "t": 1788768000,
+    "kind": "wake"
+   },
+   {
+    "t": 1788771600,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788771600,
+    "kind": "act",
+    "key": "feed",
+    "ok": true
+   },
+   {
+    "t": 1788796080,
     "kind": "death",
     "key": "dirty"
    }
   ],
   "died": true,
   "state": {
-   "t": 1788632100,
+   "t": 1788796080,
    "needs": {
-    "food": 53.750000000001755,
+    "food": 66.00000000000193,
     "clean": 0,
-    "energy": 64.12499999999767,
+    "energy": 72.69999999999823,
     "fun": 0,
     "love": 0,
     "walk": 0,
@@ -1251,13 +1746,13 @@
    "hearts": 1,
    "grace": {
     "starve": 0,
-    "dirty": 46.86666666666529,
-    "toska": 57.14999999999804
+    "dirty": 76.41666666666362,
+    "toska": 86.69999999999636
    },
-   "lastChanceH": -0.016666666666643248,
+   "lastChanceH": -7.522454881225826e-14,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788603240,
+   "lastHeartLossT": 1788731280,
    "cooldowns": {},
    "home": {
     "bath": 0,
@@ -1268,7 +1763,7 @@
     "yard": 0
    },
    "alive": false,
-   "diedAt": 1788632100,
+   "diedAt": 1788796080,
    "cause": "dirty",
    "outing": null,
    "finds": {},
@@ -1326,12 +1821,13 @@
      "key": "fun"
     },
     {
-     "at": 1788389640,
-     "trigger": "critical",
-     "kind": "level"
+     "at": 1788334200,
+     "trigger": "hungry",
+     "kind": "distress",
+     "key": "starve"
     },
     {
-     "at": 1788432540,
+     "at": 1788436380,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -1385,11 +1881,11 @@
   },
   {
    "from": {
-    "t": 1788632100,
+    "t": 1788796080,
     "needs": {
-     "food": 53.750000000001755,
+     "food": 66.00000000000193,
      "clean": 0,
-     "energy": 64.12499999999767,
+     "energy": 72.69999999999823,
      "fun": 0,
      "love": 0,
      "walk": 0,
@@ -1398,13 +1894,13 @@
     "hearts": 1,
     "grace": {
      "starve": 0,
-     "dirty": 46.86666666666529,
-     "toska": 57.14999999999804
+     "dirty": 76.41666666666362,
+     "toska": 86.69999999999636
     },
-    "lastChanceH": -0.016666666666643248,
+    "lastChanceH": -7.522454881225826e-14,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788603240,
+    "lastHeartLossT": 1788731280,
     "cooldowns": {},
     "home": {
      "bath": 0,
@@ -1415,13 +1911,13 @@
      "yard": 0
     },
     "alive": false,
-    "diedAt": 1788632100,
+    "diedAt": 1788796080,
     "cause": "dirty",
     "outing": null,
     "finds": {},
     "pantry": 5
    },
-   "now": 1788632130,
+   "now": 1788796110,
    "opts": {
     "horizonH": 72,
     "quietFromMin": 1320,

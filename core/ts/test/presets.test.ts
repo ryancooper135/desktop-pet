@@ -17,17 +17,38 @@ const run = (r: Rules, k: string, days = 21) => runScenario(r, defaultOwner(r), 
 /** Правила без поля preset — для сравнения значений. */
 const values = (r: Rules) => { const { preset: _p, ...rest } = r; return JSON.stringify(rest, (_k, v) => typeof v === 'function' ? String(v) : v); };
 
-test('пресеты: строго по умолчанию, список из конфига', () => {
+test('пресеты: «Обычно» по умолчанию (волна 32), список из конфига', () => {
   const c = cfg();
-  assert.equal(c.care.hearts.preset, 'strict');
-  assert.deepEqual(presetNames(c), ['strict', 'medium', 'soft']);
-  assert.equal(makeRules(c).preset, 'strict');
+  assert.equal(c.care.hearts.preset, 'normal');
+  assert.deepEqual(presetNames(c), ['strict', 'normal', 'medium', 'soft']);
+  assert.equal(makeRules(c).preset, 'normal');
   assert.equal(makeRules(c, 'soft').preset, 'soft');
-  assert.equal(values(makeRules(c)), values(makeRules(c, 'strict')));
+  assert.equal(values(makeRules(c)), values(makeRules(c, 'normal')));
+});
+
+test('пресеты: «Обычно» строго между «Строго» и «Средне»', () => {
+  const [s, n, m] = ['strict', 'normal', 'medium'].map(p => makeRules(cfg(), p));
+  const between = (a: number, x: number, b: number) => a < x && x < b;
+  assert.ok(between(m.hearts.regenAllGe, n.hearts.regenAllGe, s.hearts.regenAllGe));
+  assert.ok(between(s.hearts.lastChanceH, n.hearts.lastChanceH, m.hearts.lastChanceH));
+  for (const d of ['dirty', 'toska'] as const) {
+    assert.ok(between(s.distress[d].graceH, n.distress[d].graceH, m.distress[d].graceH), d);
+    assert.ok(between(s.distress[d].hoursPerHeart, n.distress[d].hoursPerHeart, m.distress[d].hoursPerHeart), d);
+  }
+  assert.equal(n.distress.starve.hoursPerHeart, s.distress.starve.hoursPerHeart);
+  const ign = [s, n, m].map(r => ignoreUntilDeath(r, defaultOwner(r), startAt(r, START_HOUR))!);
+  assert.ok(between(ign[0], ign[1], ign[2]), `игнор: ${ign}`);
+  // без ванны умирает позже строгого и раньше среднего; после выходных сердца растут, но медленнее среднего
+  const nb = ['strict', 'normal', 'medium'].map(p => run(makeRules(cfg(), p), 'nobath').diedDay!);
+  assert.ok(between(nb[0], nb[1], nb[2]), `без ванны: ${nb}`);
+  const wk = run(n, 'weekend');
+  assert.equal(wk.diedDay, null);
+  assert.ok(wk.heartsByDay[14] > wk.heartsByDay[7] + 0.3, `обычно: ${wk.heartsByDay[7]} → ${wk.heartsByDay[14]}`);
 });
 
 test('пресеты: strict — пустая заплатка, конфиг без пресетов даёт те же правила', () => {
   const c = cfg();
+  c.care.hearts.preset = 'strict';
   const bare = cfg();
   delete bare.care.hearts.preset;
   delete bare.care.hearts.presets;
