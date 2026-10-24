@@ -36,7 +36,7 @@ private func live(_ f: inout SaveFile, until end: Double, care: Bool = true) {
 
 private func configURL() -> URL {
     URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent("config/wave33/growth.json")
+        .deletingLastPathComponent().appendingPathComponent("config/economy.json")
 }
 
 final class GrowthTests: XCTestCase {
@@ -73,7 +73,7 @@ final class GrowthTests: XCTestCase {
     func testConfigFileMatchesDefaults() throws {
         let data = try Data(contentsOf: configURL())
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
-        XCTAssertEqual(GrowthConfig(json: json), GrowthConfig(), "config/wave33/growth.json и умолчания в Swift разошлись")
+        XCTAssertEqual(GrowthConfig(json: json), GrowthConfig(), "config/economy.json и умолчания в Swift разошлись")
         XCTAssertEqual(GrowthConfig.shared, GrowthConfig(json: json), "раздел growth в economy.json расходится с волной 33")
         XCTAssertEqual(GrowthConfig(json: .null), GrowthConfig())
     }

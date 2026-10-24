@@ -8,7 +8,7 @@
 // Колодец эха — отдельная кнопка «Бросить монетку»: раз в сутки, 20 🪙, 10 % — 1 ✂️.
 // Уровень пса и множитель роста приходят параметрами: DogLevel и Growth (агенты A и B) здесь не читаем.
 // Случайность — только хеш (StableHash + StableRandom): тот же сейв даёт ту же находку на любом устройстве.
-// Цифры и тексты — config/wave33/places.json, здесь те же значения по умолчанию.
+// Цифры и тексты — config/places.json, здесь те же значения по умолчанию.
 
 import Foundation
 @preconcurrency import PetCore
@@ -179,7 +179,7 @@ struct PlacesConfig: Hashable, Sendable {
         "листопад, местами лужи"
     ]
 
-    /// Восемь мест §5. Тест сверяет с config/wave33/places.json.
+    /// Восемь мест §5. Тест сверяет с config/places.json.
     static let stubPlaces: [Place] = [
         Place(id: "bus_stop", name: "Остановка без автобуса", emoji: "🚏", level: 2, minutes: 30,
               about: "Будка посреди поля. На расписании 1997 год, автобусов с тех пор не было.",
@@ -613,6 +613,8 @@ enum Places {
         f.trip.xp += r.xp
         f.trip.last = r
         f.log("place.back", t: back, key: p.id, value: r.xp)
+        // Опыт пса начисляет DogLevel: за возвращение — ev.back_home (поход идёт поверх прогулки), за первый раз — trip.first.
+        if first { f.log("trip.first", t: back, key: p.id) }
         return r
     }
 
@@ -719,7 +721,7 @@ enum Places {
         noteLines(r, cfg).joined(separator: "\n")
     }
 
-    /// Подпись ✂️ для Shards.reasonText (при слиянии добавить туда).
+    /// Подпись ✂️ — её спрашивает Shards.reasonText.
     static func reasonText(_ reason: String) -> String? {
         switch reason {
         case shardReason: return "нашёлся в походе"

@@ -1,4 +1,4 @@
-// Волна 33 D: карта необычных мест и походы поверх прогулки. Конфиг совпадает с config/wave33/places.json,
+// Волна 33 D: карта необычных мест и походы поверх прогулки. Конфиг совпадает с config/places.json,
 // поход без прогулки не начинается, с похода ровно одна находка, всё решает хеш, полный набор платит один раз,
 // ✂️ не больше одного за поход, у каждого события есть текст записки, колодец — раз в сутки.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
@@ -86,11 +86,11 @@ final class PlacesTests: XCTestCase {
 
     func testConfigFileMatchesDefaults() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("config/wave33/places.json")
+            .deletingLastPathComponent().appendingPathComponent("config/places.json")
         let e = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url))
         let c = PlacesConfig(json: e)
         XCTAssertEqual(c.places.count, 8, "все места из файла разобрались")
-        XCTAssertEqual(c, PlacesConfig(), "значения по умолчанию — те же, что в config/wave33/places.json")
+        XCTAssertEqual(c, PlacesConfig(), "значения по умолчанию — те же, что в config/places.json")
         XCTAssertEqual(PlacesConfig(json: .null), PlacesConfig())
     }
 
@@ -234,8 +234,9 @@ final class PlacesTests: XCTestCase {
         XCTAssertEqual(f.trip.visits["bus_stop"], 1)
         XCTAssertEqual(r.xp, 25, "10 за поход + 15 за первый визит")
         XCTAssertEqual(f.trip.xp, 25)
-        XCTAssertEqual(f.journal.last?.kind, "place.back")
-        XCTAssertEqual(f.journal.last?.value, 25)
+        let tail = f.journal.suffix(2).map(\.kind)
+        XCTAssertEqual(tail, ["place.back", "trip.first"], "первый визит — запись trip.first для опыта пса")
+        XCTAssertEqual(f.journal.last(where: { $0.kind == "place.back" })?.value, 25)
         XCTAssertNil(f.trip.active)
         XCTAssertEqual(f.trip.last, r)
         let lines = Places.noteLines(r)

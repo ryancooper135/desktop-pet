@@ -70,13 +70,13 @@ final class YardTests: XCTestCase {
 
     func testConfigJSONMatchesDefaults() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("config/wave33/yard.json")
+            .deletingLastPathComponent().appendingPathComponent("config/economy.json")
         let json = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url))
         let c = YardConfig(json: json)
         XCTAssertEqual(c.tiers, cfg.tiers)
         XCTAssertEqual(c.stations, cfg.stations)
         XCTAssertEqual(c.plates, cfg.plates)
-        XCTAssertEqual(c, cfg, "кусок config/wave33/yard.json = значения по умолчанию")
+        XCTAssertEqual(c, cfg, "кусок config/economy.json = значения по умолчанию")
         XCTAssertEqual(YardConfig(json: .null), cfg)
     }
 

@@ -498,6 +498,7 @@ enum Shards {
 
     /// Подпись начисления: «за день заботы».
     static func reasonText(_ reason: String) -> String {
+        if let t = Places.reasonText(reason) { return t }
         switch reason {
         case "care_day": return "за день заботы"
         case "week_chest": return "сундук недели"

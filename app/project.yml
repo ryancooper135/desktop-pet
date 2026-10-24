@@ -29,6 +29,8 @@ targets:
       - Shared
       - path: ../config/economy.json
         buildPhase: resources
+      - path: ../config/places.json
+        buildPhase: resources
       - path: ../content/ru/lines.json
         buildPhase: resources
         optional: true
@@ -79,6 +81,8 @@ targets:
       - Widgets
       - Shared
       - path: ../config/economy.json
+        buildPhase: resources
+      - path: ../config/places.json
         buildPhase: resources
       - path: ../content/ru/lines.json
         buildPhase: resources

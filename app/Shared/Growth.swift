@@ -9,7 +9,7 @@
 // Пороги: подросток 10 очков, взрослый 35 (идеальный уход — день 10 и 35, забытый — около сотого дня),
 // седая морда 365 — только вид. Вид (look) плавный по очкам, механика (mods, perks) — по стадии.
 // Вызов: Growth.observe в PetRunner.catchUp до advance — тогда пропущенное время повторяется по ядру точно.
-// Цифры — config/wave33/growth.json (при слиянии — раздел growth в config/economy.json).
+// Цифры — раздел growth в config/economy.json.
 
 import Foundation
 @preconcurrency import PetCore

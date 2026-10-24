@@ -11,7 +11,7 @@
 // Перерождения нет (волна 33).
 //
 // Уровень пса и уровни линий дома — ПАРАМЕТРЫ: DogLevel здесь не читается, связывает сливающий.
-// Цифры — раздел yard в config/economy.json (кусок — config/wave33/yard.json), без ключа — значения ниже.
+// Цифры — раздел yard в config/economy.json, без ключа — значения ниже.
 
 import Foundation
 @preconcurrency import PetCore

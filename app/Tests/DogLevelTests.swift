@@ -1,6 +1,6 @@
 // Волна 33 A: уровень пса (DogLevel.swift). Кривая = таблица RESEARCH/20 §3; опыт по журналу идемпотентно,
 // часы назад не платят, потолок 150 в сутки и лимиты по видам; ур. 40 — предел; награды за уровни один раз;
-// старый сейв — не выше ур. 10; открытия по таблице; модель «неделя ухода → ур. 10»; конфиг = config/wave33/level.json.
+// старый сейв — не выше ур. 10; открытия по таблице; модель «неделя ухода → ур. 10»; конфиг = config/economy.json.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
 import Foundation
@@ -71,7 +71,7 @@ final class DogLevelTests: XCTestCase {
 
     func testLevelJsonMatchesDefaults() throws {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("config/wave33/level.json")
+            .deletingLastPathComponent().appendingPathComponent("config/economy.json")
         let json = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url))
         let fromJson = DogLevelConfig(json: json)
         let code = DogLevelConfig()
