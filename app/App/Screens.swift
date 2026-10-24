@@ -185,9 +185,10 @@ struct SettingsScreen: View {
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
 
     /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
+    /// PET_DEVTOOLS=1 — показать и под UI-тестом: так YardDemoUITests доходит до «Двор 3D».
     static var showDevTools: Bool {
         #if DEBUG
-        return !Env.isUITest
+        return !Env.isUITest || Env.value("PET_DEVTOOLS") == "1"
         #else
         return false
         #endif
@@ -566,6 +567,13 @@ struct PreviewCatalogScreen: View {
         let items = previewCatalog()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
+                // Двор в 3D (волна 33 F): станции и ярусы — отдельным экраном, RealityView в ленте превью тяжёл.
+                NavigationLink { YardArtDemoScreen() } label: {
+                    Text("Двор 3D: станции и ярусы")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(PetPalette.accent)
+                }
+                .accessibilityIdentifier("yard.demo")
                 ForEach(items.indices, id: \.self) { i in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(items[i].name)
