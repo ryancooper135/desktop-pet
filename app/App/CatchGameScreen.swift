@@ -33,6 +33,8 @@ struct CatchGameScreen: View {
     @State private var frozen = false
     /// Приложение активно — зеркало scenePhase для цикла кадров: окружение, взятое задачей, не обновляется.
     @State private var live = true
+    /// Раунд «просто так» (волна 32): причина MiniGames.busy на старте; nil — настоящий.
+    @State private var free: String?
 
     /// Сид UI-тестов: одна и та же раскладка на каждом прогоне.
     static let testSeed: UInt64 = 7
@@ -45,7 +47,7 @@ struct CatchGameScreen: View {
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
-                IntroCard(gate: gate, best: model.file?.catchBest ?? 0, left: coinsLeft) { start() }
+                IntroCard(note: note, name: model.snap.name, best: model.file?.catchBest ?? 0, left: coinsLeft) { start() }
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             case .playing:
@@ -57,7 +59,7 @@ struct CatchGameScreen: View {
                     .padding(.bottom, 12)
             case .done(let r):
                 Spacer(minLength: 0)
-                DoneCard(result: r, again: gate == nil, start: { start() }, close: { model.showCatch = false })
+                DoneCard(result: r, start: { start() }, close: { model.showCatch = false })
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             }
@@ -70,9 +72,14 @@ struct CatchGameScreen: View {
         .accessibilityIdentifier("catch.screen")
     }
 
-    private var gate: String? {
-        guard let f = model.file else { return Tricks.loadingReason }
-        return CatchGame.gate(f, at: model.snap.t)
+    /// Плашка «просто так» на карточке «Играть» (волна 32): пёс занят или монеты на сегодня кончились. Играть можно всегда.
+    private var note: String? {
+        model.file.flatMap { MiniGames.note($0, at: model.snap.t, left: coinsLeft) }
+    }
+
+    /// Занят ли пёс прямо сейчас — тогда раунд «просто так».
+    private var busyNow: String? {
+        model.file.flatMap { MiniGames.busy($0, at: model.snap.t) }
     }
 
     private var coinsLeft: Int {
@@ -185,10 +192,7 @@ struct CatchGameScreen: View {
     // MARK: раунд
 
     private func start() {
-        guard gate == nil else {
-            Feel.denied()
-            return
-        }
+        free = busyNow
         Feel.prepare(.tap, .nudge)
         Feel.tap(.button)
         round = CatchRound(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max))
@@ -236,7 +240,7 @@ struct CatchGameScreen: View {
         do {
             r = try PetStore.shared.mutate { f in
                 CatchGame.finish(score: round.score, caught: round.caught, missed: round.missed,
-                                 in: &f, now: Clock.now())
+                                 in: &f, now: Clock.now(), free: free)
             }
         } catch {
             model.refuse(RefuseText.text("store"))
@@ -252,6 +256,7 @@ struct CatchGameScreen: View {
     /// PET_CATCH=play|done — детерминированные снимки (сид 7, автопилот).
     private func uiTestSetup() {
         guard Env.isUITest, phase == .intro, let mode = Env.value("PET_CATCH") else { return }
+        free = busyNow
         switch mode {
         case "play":
             let (r, x) = CatchGame.autoplay(seed: Self.testSeed, until: Self.testFreezeT)
@@ -300,9 +305,11 @@ private struct CatchPop: Identifiable {
 
 // MARK: - Карточки
 
-/// «Играть»: правила в две строки, рекорд, сколько монет ещё дадут сегодня.
+/// «Играть»: правила в две строки, рекорд, сколько монет ещё дадут сегодня. Пёс занят или монеты кончились —
+/// плашка «играем просто так» (волна 32), но «Играть» нажимается всегда.
 private struct IntroCard: View {
-    let gate: String?
+    let note: String?
+    let name: String
     let best: Int
     let left: Int
     let start: () -> Void
@@ -333,11 +340,11 @@ private struct IntroCard: View {
                          text: left > 0 ? "Ещё до \(EconText.coins(left))" : "Монеты на сегодня всё")
                     .accessibilityIdentifier("catch.left")
             }
-            if let gate {
+            if let note {
                 HStack(spacing: 8) {
-                    Image(systemName: gate == "asleep" ? "moon.zzz.fill" : (gate == "away" ? "figure.walk" : "exclamationmark.circle.fill"))
+                    Image(systemName: MiniGames.noteIcon(note))
                         .accessibilityHidden(true)
-                    Text(Tricks.reasonText(gate))
+                    Text(MiniGames.noteText(note, name: name))
                         .multilineTextAlignment(.leading)
                 }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -348,7 +355,7 @@ private struct IntroCard: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("catch.gate")
             }
-            GameButton(title: "Играть", icon: "play.fill", enabled: gate == nil, action: start)
+            GameButton(title: "Играть", icon: "play.fill", enabled: true, action: start)
                 .accessibilityIdentifier("catch.play")
         }
         .padding(20)
@@ -361,7 +368,6 @@ private struct IntroCard: View {
 private struct DoneCard: View {
     @Environment(AppModel.self) private var model
     let result: CatchResult
-    let again: Bool
     let start: () -> Void
     let close: () -> Void
 
@@ -408,7 +414,7 @@ private struct DoneCard: View {
                     .foregroundStyle(PetPalette.green)
             }
             HStack(spacing: 10) {
-                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: again, action: start)
+                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: true, action: start)
                     .accessibilityIdentifier("catch.again")
                 GameButton(title: "Готово", icon: "checkmark", enabled: true, filled: false, action: close)
                     .accessibilityIdentifier("catch.done")
@@ -576,62 +582,44 @@ private struct BowlView: View {
 }
 
 /// Кнопка «Мини-игры» в ряду над панелью, за «Трюками» (волна 12; в волне 9 тут был один мячик): только значок,
-/// по нажатию — меню «Лови мячик» и «Блок Дуо». Седьмой круг в ряд на iPhone Air уже не влезает, поэтому игры
-/// живут под одной кнопкой. Когда играть нельзя (спит, гуляет, устал…) — серая, но нажимается: тост с причиной,
-/// кнопка качается. Пускает обе игры один и тот же CatchGame.gate. Id — open.games, пункты — open.catch, open.blockduo и open.zombie.
+/// по нажатию — меню «Лови мячик», «Блок Дуо» и «Щенок против зомби». Седьмой круг в ряд на iPhone Air уже не влезает,
+/// поэтому игры живут под одной кнопкой. Волна 32: открывается всегда — спит, гуляет, устал… — игра идёт «просто так»
+/// (MiniGames.busy), об этом говорит карточка «Играть». Id — open.games, пункты — open.catch, open.blockduo и open.zombie.
 struct GamesButton: View {
     @Environment(AppModel.self) private var model
-    /// Время снимка: по нему CatchGame.gate.
+    /// Время снимка: по нему MiniGames.busy.
     let t: Double
-    @State private var taps = 0
-    @State private var refusals = 0
 
-    private var gate: String? {
-        model.file.map { CatchGame.gate($0, at: t) } ?? Tricks.loadingReason
+    private var busy: String? {
+        model.file.flatMap { MiniGames.busy($0, at: t) }
     }
 
     var body: some View {
-        let gate = gate
-        Group {
-            if let gate {
-                Button {
-                    taps += 1
-                    refusals += 1
-                    model.refuse(Tricks.reasonText(gate))
-                } label: {
-                    icon
-                }
-                .buttonStyle(SquishStyle())
-            } else {
-                Menu {
-                    Button {
-                        model.showCatch = true
-                    } label: {
-                        Label(CatchConfig.shared.name, systemImage: "tennisball.fill")
-                    }
-                    .accessibilityIdentifier("open.catch")
-                    Button {
-                        model.showBlockDuo = true
-                    } label: {
-                        Label(BlockDuoConfig.shared.name, systemImage: "square.grid.3x3.fill")
-                    }
-                    .accessibilityIdentifier("open.blockduo")
-                    Button {
-                        model.showZombie = true
-                    } label: {
-                        Label(ZombieConfig.shared.name, systemImage: "teddybear.fill")
-                    }
-                    .accessibilityIdentifier("open.zombie")
-                } label: {
-                    icon
-                }
+        Menu {
+            Button {
+                model.showCatch = true
+            } label: {
+                Label(CatchConfig.shared.name, systemImage: "tennisball.fill")
             }
+            .accessibilityIdentifier("open.catch")
+            Button {
+                model.showBlockDuo = true
+            } label: {
+                Label(BlockDuoConfig.shared.name, systemImage: "square.grid.3x3.fill")
+            }
+            .accessibilityIdentifier("open.blockduo")
+            Button {
+                model.showZombie = true
+            } label: {
+                Label(ZombieConfig.shared.name, systemImage: "teddybear.fill")
+            }
+            .accessibilityIdentifier("open.zombie")
+        } label: {
+            icon
         }
-        .opacity(gate == nil ? 1 : 0.55)
         .glassEffect(.regular.interactive(), in: Circle())
-        .modifier(RefuseShake(trigger: refusals))
         .accessibilityLabel(Text("Мини-игры"))
-        .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
+        .accessibilityValue(Text(busy.map { MiniGames.noteText($0, name: model.snap.name) } ?? ""))
         .accessibilityHint(Text(PetNames.adapt("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой", name: model.snap.name)))
         .accessibilityIdentifier("open.games")
     }
@@ -639,7 +627,6 @@ struct GamesButton: View {
     private var icon: some View {
         Image(systemName: "gamecontroller.fill")
             .font(.system(size: 18, weight: .semibold))
-            .symbolEffect(.bounce, value: taps)
             .foregroundStyle(PetPalette.ink)
             .frame(width: 48, height: 48)
             .contentShape(Circle())

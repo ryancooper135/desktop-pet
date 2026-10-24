@@ -301,7 +301,7 @@ final class ZombieRunTests: XCTestCase {
     func testFinishWhileAsleepKeepsRecordWithoutPlay() {
         var f = zFile()
         f.pet.napUntil = zT0 + 1800
-        XCTAssertEqual(ZombieRun.gate(f, at: zT0), "asleep")
+        XCTAssertEqual(MiniGames.busy(f, at: zT0), "asleep")
         let r = ZombieRun.finish(ZombieRun.autoplay(seed: 3, until: 10, zCfg()), in: &f, now: zT0, zCfg())
         XCTAssertFalse(r.played)
         XCTAssertEqual(r.reason, "asleep")

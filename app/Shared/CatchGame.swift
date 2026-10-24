@@ -203,6 +203,8 @@ struct CatchResult: Hashable, Sendable {
     var played = false
     /// Почему ядро не приняло игру (уснул, пока играли); nil — приняло или очков нет.
     var reason: String?
+    /// Раунд «просто так» (волна 32): почему — MiniGames.busy на старте; nil — настоящий.
+    var free: String?
 
     var totalCoins: Int { coins + careCoins }
 }
@@ -249,15 +251,6 @@ enum CatchGame {
 
     static func clampBowl(_ x: Double) -> Double { Swift.min(bowlRange.upperBound, Swift.max(bowlRange.lowerBound, x)) }
 
-    /// Можно ли играть: та же причина, что у трюков (умер, гуляет, моется, спит, беда), плюс отказ ядра
-    /// на play (нет сил). nil — можно.
-    static func gate(_ f: SaveFile, at t: Double) -> String? {
-        if let r = Tricks.gate(f, at: t) { return r }
-        var s = PetRunner.peek(f, at: t)
-        let res = PetEngine.act(&s, Catalog.rules, PetRunner.owner(f, at: t), .play)
-        return res.ok ? nil : (res.reason ?? "unavailable")
-    }
-
     // MARK: награда
 
     /// Бафф дома к монетам мини-игр (линия «Игровая», home_upgrades.play): ×1,1 «Игровой комплекс», ×1,15 «Батут и горка».
@@ -295,14 +288,17 @@ enum CatchGame {
     }
 
     /// Раунд кончился: рекорд, монеты с потолком, настроение через ядерный play. Пишет только в f.
+    /// free — причина «просто так» (MiniGames.busy в начале раунда): тогда только рекорд, без монет, без play
+    /// и без счётчика партий (волна 32).
     @discardableResult
     static func finish(score: Int, caught: Int = 0, missed: Int = 0, in f: inout SaveFile, now: Double,
-                       _ cfg: CatchConfig = .shared) -> CatchResult {
+                       free: String? = nil, _ cfg: CatchConfig = .shared) -> CatchResult {
         var r = CatchResult(score: Swift.max(0, score), caught: caught, missed: missed)
+        r.free = free
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
-        f.catchGames += 1
-        let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg)
+        if free == nil { f.catchGames += 1 }
+        let wish = free == nil ? want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg) : 0
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.catchCoins += got
@@ -312,8 +308,8 @@ enum CatchGame {
         r.isRecord = r.score > f.catchBest
         f.catchBest = Swift.max(f.catchBest, r.score)
         r.best = f.catchBest
-        // Ни одного пойманного — это не игра: настроение не трогаем.
-        if r.score > 0 {
+        // Ни одного пойманного — это не игра: настроение не трогаем. «Просто так» — тоже.
+        if r.score > 0, free == nil {
             let out = PetRunner.apply(.play, source: .app, to: &f, now: now)
             r.played = out.ok
             r.careCoins = out.ok ? out.coins : 0
@@ -364,8 +360,9 @@ enum CatchGame {
         return "Время вышло!"
     }
 
-    /// «+12 монет», «На сегодня монет хватит» или nil (очков нет).
+    /// «+12 монет», «На сегодня монет хватит», «Играли просто так — без монет» или nil (очков нет).
     static func rewardText(_ r: CatchResult) -> String? {
+        if r.free != nil { return MiniGames.freeReward }
         if r.totalCoins > 0 { return "+\(EconText.coins(r.totalCoins))" }
         if r.capped { return "На сегодня монет за игру хватит" }
         return nil

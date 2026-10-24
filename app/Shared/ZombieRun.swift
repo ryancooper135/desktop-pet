@@ -432,6 +432,8 @@ struct ZombieResult: Hashable, Sendable {
     var isRecord = false
     var played = false
     var reason: String?
+    /// Раунд «просто так» (волна 32): почему — MiniGames.busy на старте; nil — настоящий.
+    var free: String?
 
     var totalCoins: Int { coins + careCoins }
 }
@@ -499,18 +501,17 @@ enum ZombieRun {
         return Swift.max(0, Swift.min(own, all))
     }
 
-    /// Можно ли играть — как в других мини-играх: причина трюков или отказ ядра на play. nil — можно.
-    static func gate(_ f: SaveFile, at t: Double) -> String? { CatchGame.gate(f, at: t) }
-
+    /// free — раунд «просто так» (MiniGames.busy на старте, волна 32): только рекорд.
     /// Раунд кончился (или его бросили): рекорд, монеты с потолками, настроение через ядерный play. Пишет только в f.
     @discardableResult
-    static func finish(_ r: ZombieRound, in f: inout SaveFile, now: Double, _ cfg: ZombieConfig = .shared) -> ZombieResult {
+    static func finish(_ r: ZombieRound, in f: inout SaveFile, now: Double, free: String? = nil, _ cfg: ZombieConfig = .shared) -> ZombieResult {
         var res = ZombieResult(score: Swift.max(0, r.score), friends: r.friends, hugs: r.hugs, hearts: r.hearts,
                                survived: r.survived)
+        res.free = free
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
-        f.zombieGames += 1
-        let wish = CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        if free == nil { f.zombieGames += 1 }
+        let wish = free != nil ? 0 : CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
         // Волна 30: пёс умер, пока шёл раунд, — монет нет, как в «Лови мячик» и «Блок Дуо» (DECISIONS, волна 13).
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.zombieCoins += got
@@ -520,8 +521,8 @@ enum ZombieRun {
         res.isRecord = res.score > f.zombieBest
         f.zombieBest = Swift.max(f.zombieBest, res.score)
         res.best = f.zombieBest
-        // Ни одного друга — это не игра: настроение не трогаем.
-        if res.score > 0 {
+        // Ни одного друга — это не игра: настроение не трогаем. «Просто так» — тоже.
+        if res.score > 0, free == nil {
             let out = PetRunner.apply(.play, source: .app, to: &f, now: now)
             res.played = out.ok
             res.careCoins = out.ok ? out.coins : 0
@@ -539,8 +540,9 @@ enum ZombieRun {
         return "Зацеловали!"
     }
 
-    /// «+12 монет», «На сегодня монет хватит» или nil (очков нет).
+    /// «+12 монет», «На сегодня монет хватит», «Играли просто так — без монет» или nil (очков нет).
     static func rewardText(_ r: ZombieResult) -> String? {
+        if r.free != nil { return MiniGames.freeReward }
         if r.totalCoins > 0 { return "+\(EconText.coins(r.totalCoins))" }
         if r.capped { return "На сегодня монет за игры хватит" }
         return nil

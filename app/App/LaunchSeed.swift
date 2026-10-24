@@ -268,8 +268,9 @@ enum LaunchSeed {
                 f.seen = f.pet
                 f.lastSeenT = now
             case "wants_pet", "walk_blocked", "walk_hungry":
-                // Волна 18 (ui-88/89): «Погладь меня» — ласки 10, остальное 80; «Лапы чешутся», но еды 35 < 40 —
-                // «Гулять» с замком, плашка «Сначала подкормить → Гулять» (волна 20: ещё не голодный — «подкормить»).
+                // Волна 18 (ui-88/89): «Погладь меня» — ласки 10, остальное 80; «Лапы чешутся», но чистоты 29 < 30 —
+                // «Гулять» с замком, плашка «Сначала помыть → Гулять». Волна 32: гулять можно с сытости 30 (= «голодный»
+                // порог), «подкормить перед прогулкой» больше не бывает — замок держит чистота, а не еда.
                 // Волна 20 (ui-93, walk_hungry): еды 20 — уже голодный: плашка «Покормить», таймер «Совсем оголодает».
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
@@ -277,7 +278,7 @@ enum LaunchSeed {
                     f.pet.needs[.love] = 10
                 } else {
                     f.pet.needs[.walk] = 0
-                    f.pet.needs[.food] = seed == "walk_hungry" ? 20 : 35
+                    if seed == "walk_hungry" { f.pet.needs[.food] = 20 } else { f.pet.needs[.clean] = 29 }
                 }
                 f.seen = f.pet
                 f.lastSeenT = now

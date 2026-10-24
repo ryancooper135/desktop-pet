@@ -49,6 +49,8 @@ struct BlockDuoScreen: View {
     @State private var boardFrame: CGRect = .zero
     @State private var anim: Task<Void, Never>? = nil
     @State private var bounce = 0
+    /// Партия «просто так» (волна 32): причина MiniGames.busy на старте; nil — настоящая.
+    @State private var free: String?
 
     /// Сид UI-тестов: одна и та же партия на каждом прогоне.
     static let testSeed: UInt64 = 7
@@ -65,14 +67,14 @@ struct BlockDuoScreen: View {
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
-                BlockIntroCard(gate: gate, best: model.file?.blockduoBest ?? 0, left: coinsLeft) { start() }
+                BlockIntroCard(note: note, best: model.file?.blockduoBest ?? 0, left: coinsLeft) { start() }
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             case .playing:
                 playArea
             case .done(let r):
                 Spacer(minLength: 0)
-                BlockDoneCard(result: r, again: gate == nil, start: { start() }, close: { close() })
+                BlockDoneCard(result: r, start: { start() }, close: { close() })
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             }
@@ -84,9 +86,14 @@ struct BlockDuoScreen: View {
         .accessibilityIdentifier("blockduo.screen")
     }
 
-    private var gate: String? {
-        guard let f = model.file else { return Tricks.loadingReason }
-        return BlockDuo.gate(f, at: model.snap.t)
+    /// Плашка «просто так» на карточке «Играть» (волна 32): пёс занят или монеты на сегодня кончились. Играть можно всегда.
+    private var note: String? {
+        model.file.flatMap { MiniGames.note($0, at: model.snap.t, left: coinsLeft) }
+    }
+
+    /// Занят ли пёс прямо сейчас — тогда партия «просто так».
+    private var busyNow: String? {
+        model.file.flatMap { MiniGames.busy($0, at: model.snap.t) }
     }
 
     private var coinsLeft: Int {
@@ -324,10 +331,7 @@ struct BlockDuoScreen: View {
     // MARK: ходы
 
     private func start() {
-        guard gate == nil else {
-            Feel.denied()
-            return
-        }
+        free = busyNow
         Feel.tap(.button)
         anim?.cancel()
         begin(BlockDuoGame(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max)))
@@ -441,7 +445,7 @@ struct BlockDuoScreen: View {
         let g = game
         let r: BlockDuoResult
         do {
-            r = try PetStore.shared.mutate { f in BlockDuo.finish(g, in: &f, now: Clock.now()) }
+            r = try PetStore.shared.mutate { f in BlockDuo.finish(g, in: &f, now: Clock.now(), free: free) }
         } catch {
             model.refuse(RefuseText.text("store"))
             model.showBlockDuo = false
@@ -492,6 +496,7 @@ struct BlockDuoScreen: View {
     /// PET_BLOCKDUO=play|done — детерминированные снимки (сид 7, автопилот).
     private func uiTestSetup() {
         guard Env.isUITest, phase == .intro, let mode = Env.value("PET_BLOCKDUO") else { return }
+        free = busyNow
         switch mode {
         case "play":
             let g = BlockDuo.autoplay(seed: Self.testSeed, moves: Self.testFreezeMoves)
@@ -642,10 +647,11 @@ private struct TraySlot: View {
 
 // MARK: - Карточки
 
-/// «Играть»: правила в две строки, рекорд, сколько монет ещё дадут сегодня.
+/// «Играть»: правила в две строки, рекорд, сколько монет ещё дадут сегодня. Пёс занят или монеты кончились —
+/// плашка «играем просто так» (волна 32), но «Играть» нажимается всегда.
 private struct BlockIntroCard: View {
     @Environment(AppModel.self) private var model
-    let gate: String?
+    let note: String?
     let best: Int
     let left: Int
     let start: () -> Void
@@ -677,11 +683,11 @@ private struct BlockIntroCard: View {
                          text: left > 0 ? "Ещё до \(EconText.coins(left))" : "Монеты на сегодня всё")
                     .accessibilityIdentifier("blockduo.left")
             }
-            if let gate {
+            if let note {
                 HStack(spacing: 8) {
-                    Image(systemName: gate == "asleep" ? "moon.zzz.fill" : (gate == "away" ? "figure.walk" : "exclamationmark.circle.fill"))
+                    Image(systemName: MiniGames.noteIcon(note))
                         .accessibilityHidden(true)
-                    Text(Tricks.reasonText(gate))
+                    Text(MiniGames.noteText(note, name: model.snap.name))
                         .multilineTextAlignment(.leading)
                 }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -692,7 +698,7 @@ private struct BlockIntroCard: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("blockduo.gate")
             }
-            GameButton(title: "Играть", icon: "play.fill", enabled: gate == nil, action: start)
+            GameButton(title: "Играть", icon: "play.fill", enabled: true, action: start)
                 .accessibilityIdentifier("blockduo.play")
         }
         .padding(20)
@@ -705,7 +711,6 @@ private struct BlockIntroCard: View {
 private struct BlockDoneCard: View {
     @Environment(AppModel.self) private var model
     let result: BlockDuoResult
-    let again: Bool
     let start: () -> Void
     let close: () -> Void
 
@@ -753,7 +758,7 @@ private struct BlockDoneCard: View {
                     .foregroundStyle(PetPalette.green)
             }
             HStack(spacing: 10) {
-                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: again, action: start)
+                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: true, action: start)
                     .accessibilityIdentifier("blockduo.again")
                 GameButton(title: "Готово", icon: "checkmark", enabled: true, filled: false, action: close)
                     .accessibilityIdentifier("blockduo.done")

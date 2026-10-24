@@ -467,7 +467,8 @@ final class AppModel {
                 self.react(BlockDuo.reactKind)
                 Feel.success(.yip)
             }
-            self.speak(BlockDuo.shibaLine(r))
+            // Волна 32: «просто так» (спал, гулял, мылся…) — пёс не играл с нами, фразы в комнате нет.
+            if r.free == nil { self.speak(BlockDuo.shibaLine(r)) }
             if toast, let text = BlockDuo.toastText(r) {
                 self.show(text, emoji: "🧩")
             }
@@ -483,7 +484,8 @@ final class AppModel {
                 self.react(ZombieRun.reactKind)
                 Feel.success(.yip)
             }
-            self.speak(ZombieRun.shibaLine(r))
+            // Волна 32: «просто так» (спал, гулял, мылся…) — пёс не играл с нами, фразы в комнате нет.
+            if r.free == nil { self.speak(ZombieRun.shibaLine(r)) }
             if toast, let reward = ZombieRun.rewardText(r) {
                 self.show("Зомби: \(EconText.points(r.score)), \(reward)", emoji: "🧟")
             }

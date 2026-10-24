@@ -260,7 +260,7 @@ enum NeedHints {
         switch w.reason {
         case "not_ready":
             // Волна 20: заголовок — то же слово, что под кнопкой «Гулять» («подкормить», если он не голодный),
-            // подпись — та шкала, что держит, и её число: «Сытость 35, для прогулки нужно 40».
+            // подпись — та шкала, что держит, и её число: «Чистота 29, для прогулки нужно 30».
             let lacks = WalkPlan.lacks(s, r)
             if let fix = w.fix, let l = lacks.first(where: { WalkPlan.fixKind($0.need) == fix }) {
                 return act(fix, key: "walk", urgent: urgent, gate: g[fix], lead: "Сначала " + WalkPlan.todoWord(l),
@@ -286,7 +286,7 @@ enum NeedHints {
 
     private static func capitalized(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
 
-    /// «Сытость 35, для прогулки нужно 40» — число то же, что на шкале.
+    /// «Чистота 29, для прогулки нужно 30» — число то же, что на шкале.
     static func walkWhy(_ l: WalkLack) -> String {
         "\(Catalog.needName(l.need)) \(l.value), для прогулки нужно \(l.required)"
     }
