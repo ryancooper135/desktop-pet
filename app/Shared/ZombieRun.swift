@@ -511,7 +511,7 @@ enum ZombieRun {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         if free == nil { f.zombieGames += 1 }
-        let wish = free != nil ? 0 : CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        let wish = free != nil ? 0 : CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f), cfg.asCatch)
         // Волна 30: пёс умер, пока шёл раунд, — монет нет, как в «Лови мячик» и «Блок Дуо» (DECISIONS, волна 13).
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.zombieCoins += got
@@ -520,6 +520,8 @@ enum ZombieRun {
         res.capped = f.pet.alive && got < wish
         res.isRecord = res.score > f.zombieBest
         f.zombieBest = Swift.max(f.zombieBest, res.score)
+        // Рекорд «просто так» — без ✂️: Shards.settle его уже видел (волна 32).
+        if free != nil { f.shardLog.best["zombie"] = f.zombieBest }
         res.best = f.zombieBest
         // Ни одного друга — это не игра: настроение не трогаем. «Просто так» — тоже.
         if res.score > 0, free == nil {

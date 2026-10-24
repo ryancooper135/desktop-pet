@@ -55,6 +55,9 @@ struct CapsuleConfig: Hashable, Sendable {
     var pityStart = 3
     var duplicateShards: [Rarity: Int] = [.common: 5, .rare: 15, .epic: 50, .legendary: 150]
     var pools: [Rarity: [CapsuleItem]] = CapsuleConfig.stubPools
+    /// Волна 32: лоскутные вещи только за клочки ✂️ (premium.sinks.exclusives). В капсуле и лавке их нет,
+    /// но в коллекции они обычные вещи — поэтому в itemsById.
+    var exclusive: [CapsuleItem] = Shards.exclusiveItems()
 
     /// Заглушки, пока в economy.json нет capsule.pools. Тема — «осень».
     /// Старые id не переименовывать: по ним лежат вещи в сейвах. Новые — только в конец списка редкости.
@@ -96,10 +99,11 @@ struct CapsuleConfig: Hashable, Sendable {
         ],
     ]
 
-    /// Все предметы пулов по id — для инвентаря.
+    /// Все предметы пулов и лоскутные по id — для инвентаря.
     var itemsById: [String: CapsuleItem] {
         var out: [String: CapsuleItem] = [:]
         for list in pools.values { for it in list { out[it.id] = it } }
+        for it in exclusive where out[it.id] == nil { out[it.id] = it }
         return out
     }
 }
@@ -416,6 +420,12 @@ enum EconText {
     /// Кошелёк одной фразой для VoiceOver: «150 монет, 1 билетик».
     static func wallet(coins c: Int, tickets t: Int, lines: Lines = .shared) -> String {
         "\(coins(c, lines: lines)), \(tickets(t, lines: lines))"
+    }
+
+    /// Волна 32: с клочками ✂️ — «150 монет, 1 билетик, 12 клочков». Нет клочков — как раньше, без хвоста.
+    static func wallet(coins c: Int, tickets t: Int, shards s: Int, lines: Lines = .shared) -> String {
+        let base = wallet(coins: c, tickets: t, lines: lines)
+        return s > 0 ? "\(base), \(shards(s, lines: lines))" : base
     }
 
     /// Тост после действия: «+5 монет» или «На сегодня монет за заботу хватит». nil — показывать нечего.

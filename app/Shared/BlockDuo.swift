@@ -495,7 +495,7 @@ enum BlockDuo {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         if free == nil { f.blockduoGames += 1 }
-        let wish = free != nil ? 0 : CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        let wish = free != nil ? 0 : CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f), cfg.asCatch)
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.blockduoCoins += got
@@ -504,6 +504,8 @@ enum BlockDuo {
         r.capped = f.pet.alive && got < wish
         r.isRecord = r.score > f.blockduoBest
         f.blockduoBest = Swift.max(f.blockduoBest, r.score)
+        // Рекорд «просто так» — без ✂️: Shards.settle его уже видел (волна 32).
+        if free != nil { f.shardLog.best["blockduo"] = f.blockduoBest }
         r.best = f.blockduoBest
         // Ни одной фигуры — это не игра: настроение не трогаем. «Просто так» — тоже.
         if r.score > 0, free == nil {

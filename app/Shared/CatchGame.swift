@@ -262,6 +262,9 @@ enum CatchGame {
         return 1
     }
 
+    /// Множитель монет за раунд с вещами хозяина (волна 32, ItemPerks): дом × польза вещей.
+    static func coinsX(_ f: SaveFile) -> Double { coinsX(f.pet) * ItemPerks.coinsX(f) }
+
     /// Сколько монет хочется за раунд: 0 без очков; base…max пропорционально очкам до par_score;
     /// game — номер раунда за сутки (с 1), с него убывание; buff — бафф дома (coinsX), округление один раз в конце.
     /// Дневной потолок daily_cap бафф не поднимает: с ним до потолка просто доходят быстрее (DECISIONS.md).
@@ -298,7 +301,7 @@ enum CatchGame {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         if free == nil { f.catchGames += 1 }
-        let wish = free == nil ? want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg) : 0
+        let wish = free == nil ? want(score: r.score, game: f.catchGames, buff: coinsX(f), cfg) : 0
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.catchCoins += got
@@ -307,6 +310,8 @@ enum CatchGame {
         r.capped = f.pet.alive && got < wish
         r.isRecord = r.score > f.catchBest
         f.catchBest = Swift.max(f.catchBest, r.score)
+        // Рекорд «просто так» — без ✂️: Shards.settle его уже видел (волна 32).
+        if free != nil { f.shardLog.best["catch"] = f.catchBest }
         r.best = f.catchBest
         // Ни одного пойманного — это не игра: настроение не трогаем. «Просто так» — тоже.
         if r.score > 0, free == nil {

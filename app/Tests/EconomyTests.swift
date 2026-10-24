@@ -53,7 +53,7 @@ final class EconomyTests: XCTestCase {
         XCTAssertEqual(c.capsule.duplicateShards[.legendary], 150)
         XCTAssertEqual(c.rarity(.legendary).dogShow, "Чемпионская")
         for r in Rarity.allCases { XCTAssertFalse(c.capsule.pools[r, default: []].isEmpty, "пул \(r)") }
-        XCTAssertEqual(Set(c.capsule.itemsById.keys).count, c.capsule.pools.values.map(\.count).reduce(0, +), "id уникальны")
+        XCTAssertEqual(Set(c.capsule.itemsById.keys).count, c.capsule.pools.values.map(\.count).reduce(0, +) + c.capsule.exclusive.count, "id уникальны")
     }
 
     func testFreshFileStartsWithWallet() {

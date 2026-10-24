@@ -108,7 +108,7 @@ struct HomeScreen: View {
                         .accessibilityAction(named: Text("Шкалы")) { model.showNeeds = true }
                     Spacer(minLength: 0)
                     if let w = model.file?.econ.wallet {
-                        WalletChip(coins: w.coins, tickets: w.tickets) { model.showCapsule = true }
+                        WalletChip(coins: w.coins, tickets: w.tickets, shards: w.shards) { model.showCapsule = true }
                     }
                     Button {
                         model.showSettings = true

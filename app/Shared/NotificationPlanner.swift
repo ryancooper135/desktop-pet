@@ -21,7 +21,7 @@ enum NotificationPlanner {
     static let horizonH: Double = 336
 
     static func plan(_ f: SaveFile, now: Double) -> [PlannedNote] {
-        let r = Catalog.rules
+        let r = ItemPerks.rules(f)
         let o = PetRunner.owner(f, at: now)
         // Уже сработавшее из плана свежее старого lastSentT: берём самое позднее, иначе два в один день.
         let fired = f.notif.scheduled.filter { $0 <= now }.max()

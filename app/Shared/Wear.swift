@@ -33,6 +33,10 @@ enum Wear {
         "wreath_autumn":  WearInfo(slot: .head, shape: .wreath, color: 0xE08A2E, accent: 0xB8322B),
         "crown_champion": WearInfo(slot: .head, shape: .crown, color: 0xF2B01E, accent: 0xC23B4A),
         "backpack_mini":  WearInfo(slot: .back, shape: .backpack, color: 0xC98A4B, accent: 0x6B4428),
+        // волна 32: лоскутные, только за клочки ✂️
+        "scarf_patch":    WearInfo(slot: .neck, shape: .scarf, color: 0x8E6BBF, accent: 0xF2C14E),
+        "hat_patch":      WearInfo(slot: .head, shape: .genericHat, color: 0x4FA3A5, accent: 0xE2554B),
+        "blanket_patch":  WearInfo(slot: .back, shape: .genericBlanket, color: 0x6E8B3D, accent: 0xE8B04A),
     ]
 
     static func info(_ id: String) -> WearInfo? { table[id] }

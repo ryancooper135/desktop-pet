@@ -631,6 +631,12 @@ enum DecorColors {
     static let matCream: UInt32 = 0xf6ead6
     static let mushroomCap: UInt32 = 0xd9534f
     static let sofaTeal: UInt32 = 0x5fb3a8
+    // волна 32: лоскуты
+    static let patchViolet: UInt32 = 0x8e6bbf
+    static let patchTeal: UInt32 = 0x4fa3a5
+    static let patchYellow: UInt32 = 0xf2c14e
+    static let patchRed: UInt32 = 0xe2554b
+    static let patchGreen: UInt32 = 0x6e8b3d
     static let stone: UInt32 = 0xb9b4ac
     static let pumpkin: UInt32 = 0xf08a2a
     static let leafGreen: UInt32 = 0x5e8c3a
@@ -727,6 +733,21 @@ extension RoomDecor {
             for dx: Float in [-0.021, 0.021] {
                 part(ball(0.007), C.trophy, [sx + dx, y + 0.044, z], in: g, scale: [0.6, 1, 0.6], shade: 0.9)
             }
+        case "pillow_patch":
+            // Лоскутная подушка: четыре квадратика разного цвета.
+            let tiles: [(Float, Float, UInt32)] = [(-0.012, 0.007, C.patchViolet), (0.012, 0.007, C.patchYellow),
+                                                  (-0.012, 0.021, C.patchTeal), (0.012, 0.021, C.patchRed)]
+            for (dx, dy, c) in tiles {
+                part(box(0.024, 0.014, 0.03), c, [sx + dx, y + dy, z], in: g)
+            }
+        case "armchair_patch":
+            part(box(0.048, 0.016, 0.032), C.patchViolet, [sx, y + 0.008, z + 0.004], in: g)
+            part(box(0.024, 0.034, 0.01), C.patchTeal, [sx - 0.012, y + 0.017, z - 0.016], in: g, shade: 0.9)
+            part(box(0.024, 0.034, 0.01), C.patchYellow, [sx + 0.012, y + 0.017, z - 0.016], in: g, shade: 0.9)
+            for dx: Float in [-0.026, 0.026] {
+                part(box(0.008, 0.024, 0.032), C.patchGreen, [sx + dx, y + 0.012, z + 0.004], in: g, shade: 0.9)
+            }
+            part(box(0.016, 0.004, 0.012), C.patchRed, [sx, y + 0.018, z + 0.004], in: g)
         default:
             part(box(0.03, 0.03, 0.03), C.wicker, [sx, y + 0.015, z], in: g)
         }

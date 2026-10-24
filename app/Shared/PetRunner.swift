@@ -21,6 +21,7 @@ enum PetRunner {
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.
         Postcards.refresh(&f, now: now)
+        Shards.settle(&f, now: now)
     }
 
     /// Метки «последний раз» из будущего (часы перевели назад; перелёт их не двигает — это unix-время)
@@ -51,7 +52,7 @@ enum PetRunner {
     /// Шаг ядра до t с записью событий по дороге (ev.*) и наблюдением вкуса, если пёс вернулся с находкой.
     /// Общий для catchUp и applyBuild: иначе прогулка, закончившаяся до конца подписи, терялась для Tastes/Postcards.
     private static func advance(_ f: inout SaveFile, to t: Double) {
-        let r = Catalog.rules
+        let r = ItemPerks.rules(f)
         let horizon = (t - f.pet.t) / 3600
         for e in PetEngine.forecast(f.pet, r, f.owner, horizonH: horizon) where e.t <= t && e.kind != .level {
             let tail = e.key ?? e.value.map { String($0) } ?? ""
@@ -101,7 +102,7 @@ enum PetRunner {
         // чтобы журнал не шёл вспять.
         let moment = max(now, f.pet.t)
         let before = f.pet.needs
-        let res = PetEngine.act(&f.pet, Catalog.rules, f.owner, a.core)
+        let res = PetEngine.act(&f.pet, ItemPerks.rules(f), f.owner, a.core)
         // Тот же отказ подряд (жмут «Погладить» на перезарядке) не пишем: иначе 200 записей журнала
         // вытесняют неделю ухода, по которой считаются шерсть и открытки.
         let repeatRefusal = !res.ok && f.journal.last.map {
@@ -119,6 +120,8 @@ enum PetRunner {
         if OwnerSleep.counts(source) { OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin) }
         // Монеты за уход и шаги — по журналу, один раз на запись (Economy.settle).
         let coins = Economy.settle(&f).reduce(0) { $0 + $1.coins }
+        // Клочки ✂️ за день заботы, сундук недели, рекорды и находки — тоже по журналу, один раз (волна 32).
+        Shards.settle(&f, now: now)
         return ActOutcome(ok: res.ok, reason: res.reason, coins: coins)
     }
 
@@ -135,7 +138,7 @@ enum PetRunner {
     /// Стейт на момент t без записи. Назад не считаем.
     static func peek(_ f: SaveFile, at t: Double) -> PetState {
         guard t > f.pet.t else { return f.pet }
-        return PetEngine.advance(f.pet, Catalog.rules, f.owner, t)
+        return PetEngine.advance(f.pet, ItemPerks.rules(f), f.owner, t)
     }
 
     /// Владелец с поясом на момент t (виджет может прочитать файл в другом поясе).
