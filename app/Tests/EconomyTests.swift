@@ -34,15 +34,15 @@ final class EconomyTests: XCTestCase {
 
     func testConfigFromEconomyJSON() {
         let c = EconomyConfig.shared
-        XCTAssertEqual(c.coinsStart, 150)
+        XCTAssertEqual(c.coinsStart, 20)
         XCTAssertEqual(c.ticketsStart, 1)
         XCTAssertEqual(c.shardsStart, 0)
-        XCTAssertEqual(c.careDailyCap, 30)
-        XCTAssertEqual(c.careCoins["feed"], 2)
-        XCTAssertEqual(c.careCoins["bath"], 5)
-        XCTAssertEqual(c.stepsPerCoin, 250)
-        XCTAssertEqual(c.stepsCap, 40)
-        XCTAssertEqual(c.habitsCap, 70)
+        XCTAssertEqual(c.careDailyCap, 38)
+        XCTAssertEqual(c.careCoins["feed"], 3)
+        XCTAssertEqual(c.careCoins["bath"], 6)
+        XCTAssertEqual(c.stepsPerCoin, 200)
+        XCTAssertEqual(c.stepsCap, 50)
+        XCTAssertEqual(c.habitsCap, 90)
         XCTAssertEqual(c.capsule.priceCoins, 120)
         XCTAssertEqual(c.capsule.coinsStep, 40)
         XCTAssertEqual(c.capsule.maxCoinPulls, 10)
@@ -58,7 +58,7 @@ final class EconomyTests: XCTestCase {
 
     func testFreshFileStartsWithWallet() {
         let f = SaveFile.fresh(now: eT0)
-        XCTAssertEqual(f.econ.wallet, Econ.Wallet(coins: 150, tickets: 1, shards: 0))
+        XCTAssertEqual(f.econ.wallet, Econ.Wallet(coins: 20, tickets: 1, shards: 0))
         XCTAssertEqual(f.econ.paidSeq, 0)
         XCTAssertEqual(f.econ.capsule, Econ.CapsuleState(pulls: 0, pityEpic: 3, pityLegendary: 3))
         XCTAssertTrue(f.econ.items.isEmpty)
@@ -75,11 +75,11 @@ final class EconomyTests: XCTestCase {
             let out = PetRunner.apply(.pet, source: .widget, to: &f, now: eT0 + Double(h) * 3600)
             guard out.ok else {
                 XCTAssertEqual(out.coins, 0, "отказ не оплачивается")
-                XCTAssertEqual(f.econ.wallet.coins, 150)
+                XCTAssertEqual(f.econ.wallet.coins, 20)
                 continue
             }
             XCTAssertEqual(out.coins, 1)
-            XCTAssertEqual(f.econ.wallet.coins, 151)
+            XCTAssertEqual(f.econ.wallet.coins, 21)
             XCTAssertEqual(f.econ.paidSeq, f.seq, "оплачено всё до последней записи")
             XCTAssertEqual(f.econ.lastEarn?.kind, "pet")
             XCTAssertEqual(f.econ.lastEarn.flatMap { EconText.toast($0) }, "+1 монета")
@@ -92,12 +92,11 @@ final class EconomyTests: XCTestCase {
     func testCareDailyCapAndNextDay() {
         let t = eMidday()
         var f = SaveFile.fresh(now: t)
-        for i in 0..<5 { eAct(&f, "bath", t: t + Double(i) * 60) }       // 25
-        eAct(&f, "play", t: t + 400)                                       // 28
-        eAct(&f, "play", t: t + 500)                                       // 30, хотели 31
+        for i in 0..<6 { eAct(&f, "bath", t: t + Double(i) * 60) }       // 36
+        eAct(&f, "play", t: t + 500)                                       // 38, хотели 40
         let earned = Economy.settle(&f)
-        XCTAssertEqual(f.econ.wallet.coins, 150 + 30, "потолок 30 в сутки")
-        XCTAssertEqual(f.econ.daily.care, 30)
+        XCTAssertEqual(f.econ.wallet.coins, 20 + 38, "потолок 38 в сутки")
+        XCTAssertEqual(f.econ.daily.care, 38)
         XCTAssertEqual(earned.last?.coins, 2)
         XCTAssertEqual(earned.last?.capped, true)
         XCTAssertEqual(Economy.careLeftToday(f, at: t + 600), 0)
@@ -106,14 +105,14 @@ final class EconomyTests: XCTestCase {
         let more = Economy.settle(&f)
         XCTAssertEqual(more.map(\.coins), [0])
         XCTAssertEqual(more.first.flatMap { EconText.toast($0) }, "На сегодня монет за заботу хватит")
-        XCTAssertEqual(f.econ.wallet.coins, 180)
+        XCTAssertEqual(f.econ.wallet.coins, 58)
 
         // Следующие сутки: потолок с нуля.
-        XCTAssertEqual(Economy.careLeftToday(f, at: t + 86400), 30)
+        XCTAssertEqual(Economy.careLeftToday(f, at: t + 86400), 38)
         eAct(&f, "bath", t: t + 86400)
         Economy.settle(&f)
-        XCTAssertEqual(f.econ.wallet.coins, 185)
-        XCTAssertEqual(f.econ.daily.care, 5)
+        XCTAssertEqual(f.econ.wallet.coins, 64)
+        XCTAssertEqual(f.econ.daily.care, 6)
     }
 
     func testFailedAndUnknownActionsPayNothing() {
@@ -124,7 +123,7 @@ final class EconomyTests: XCTestCase {
         eAct(&f, "item", t: t + 120)
         f.log("ev.heart_lost", t: t + 180)
         XCTAssertTrue(Economy.settle(&f).isEmpty)
-        XCTAssertEqual(f.econ.wallet.coins, 150)
+        XCTAssertEqual(f.econ.wallet.coins, 20)
         XCTAssertEqual(f.econ.paidSeq, f.seq, "просмотренные записи всё равно отмечены")
     }
 
@@ -132,41 +131,41 @@ final class EconomyTests: XCTestCase {
         let t = eMidday()
         var f = SaveFile.fresh(now: t)
         for i in 0..<3 { eAct(&f, "feed", t: t + Double(i) * 60) }
-        XCTAssertEqual(Economy.settle(&f).map(\.coins), [2, 2, 2])
+        XCTAssertEqual(Economy.settle(&f).map(\.coins), [3, 3, 3])
         XCTAssertTrue(Economy.settle(&f).isEmpty, "второй раз — ничего")
-        XCTAssertEqual(f.econ.wallet.coins, 156)
+        XCTAssertEqual(f.econ.wallet.coins, 29)
 
         // Другой процесс прочитал файл после записи и тоже зовёт settle: оплачено уже записано в файле.
         let data = try JSONEncoder().encode(f)
         var other = try JSONDecoder().decode(SaveFile.self, from: data)
         XCTAssertTrue(Economy.settle(&other).isEmpty)
-        XCTAssertEqual(other.econ.wallet.coins, 156)
+        XCTAssertEqual(other.econ.wallet.coins, 29)
 
         // Запись, которую виджет сделал без settle, подбирается ровно один раз.
         eAct(&other, "play", t: t + 300)
-        XCTAssertEqual(Economy.settle(&other).map(\.coins), [3])
+        XCTAssertEqual(Economy.settle(&other).map(\.coins), [4])
         XCTAssertTrue(Economy.settle(&other).isEmpty)
-        XCTAssertEqual(other.econ.wallet.coins, 159)
+        XCTAssertEqual(other.econ.wallet.coins, 33)
 
         // Чужое устройство (будущая синхронизация) здесь не оплачивается.
         other.journal.append(JournalEntry(id: "other-device:99", t: t + 400, kind: "act.bath", source: .app, ok: true))
         XCTAssertTrue(Economy.settle(&other).isEmpty)
-        XCTAssertEqual(other.econ.wallet.coins, 159)
+        XCTAssertEqual(other.econ.wallet.coins, 33)
     }
 
     func testStepsIncomeWithCaps() {
         let t = eMidday()
         var f = SaveFile.fresh(now: t)
         eAct(&f, "steps", t: t, value: 1000)
-        XCTAssertEqual(Economy.settle(&f).map(\.coins), [4], "1000 шагов / 250")
+        XCTAssertEqual(Economy.settle(&f).map(\.coins), [5], "1000 шагов / 200")
         eAct(&f, "steps", t: t + 3600, value: 120)
-        XCTAssertTrue(Economy.settle(&f).isEmpty, "1120 шагов — всё ещё 4 монеты")
+        XCTAssertTrue(Economy.settle(&f).isEmpty, "1120 шагов — всё ещё 5 монет")
         eAct(&f, "steps", t: t + 7200, value: 9500)
-        XCTAssertEqual(Economy.settle(&f).map(\.coins), [36], "10620 шагов → 42, но потолок шагов 40")
+        XCTAssertEqual(Economy.settle(&f).map(\.coins), [45], "10620 шагов → 53, но потолок шагов 50")
         eAct(&f, "steps", t: t + 9000, value: 5000)
         XCTAssertTrue(Economy.settle(&f).isEmpty)
-        XCTAssertEqual(f.econ.wallet.coins, 190)
-        XCTAssertEqual(f.econ.daily.habits, 40)
+        XCTAssertEqual(f.econ.wallet.coins, 70)
+        XCTAssertEqual(f.econ.daily.habits, 50)
 
         // Общий потолок привычек меньше потолка шагов.
         let cfg = eConfig { $0.habitsCap = 10 }
@@ -348,7 +347,7 @@ final class EconomyTests: XCTestCase {
         obj["econ"] = nil
         let data = try JSONSerialization.data(withJSONObject: obj)
         var f = try JSONDecoder().decode(SaveFile.self, from: data)
-        XCTAssertEqual(f.econ.wallet, Econ.Wallet(coins: 150, tickets: 1, shards: 0))
+        XCTAssertEqual(f.econ.wallet, Econ.Wallet(coins: 20, tickets: 1, shards: 0))
         XCTAssertEqual(f.econ.paidSeq, old.seq, "старый журнал задним числом не оплачиваем")
         XCTAssertEqual(f.econ.capsule.pityEpic, 3)
         XCTAssertTrue(Economy.settle(&f).isEmpty)

@@ -1476,26 +1476,26 @@
     "key": "dirty"
    },
    {
-    "t": 1788727320,
+    "t": 1788727620,
     "kind": "heart",
     "value": 2
    },
    {
-    "t": 1788727320,
+    "t": 1788727680,
     "kind": "level",
     "value": 3
    },
    {
-    "t": 1788770220,
+    "t": 1788772500,
     "kind": "heart",
     "value": 1
    },
    {
-    "t": 1788770220,
+    "t": 1788772500,
     "kind": "last_chance"
    },
    {
-    "t": 1788799020,
+    "t": 1788808440,
     "kind": "death",
     "key": "starve"
    }
@@ -2612,12 +2612,13 @@
      "key": "fun"
     },
     {
-     "at": 1788389640,
-     "trigger": "critical",
-     "kind": "level"
+     "at": 1788334200,
+     "trigger": "hungry",
+     "kind": "distress",
+     "key": "starve"
     },
     {
-     "at": 1788432540,
+     "at": 1788436380,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -2723,12 +2724,12 @@
      "key": "starve"
     },
     {
-     "at": 1788727320,
+     "at": 1788727680,
      "trigger": "critical",
      "kind": "level"
     },
     {
-     "at": 1788771600,
+     "at": 1788772500,
      "trigger": "last_chance",
      "kind": "last_chance"
     }

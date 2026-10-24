@@ -85,6 +85,10 @@ struct HouseScreen: View {
                     .accessibilityLabel(Text(EconText.coins(coins)))
                     .accessibilityIdentifier("house.wallet")
             }
+            if let f = model.file {
+                RankCard(info: Rank.of(f, now: model.snap.t))
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -347,5 +351,47 @@ struct HouseButton: View {
         .accessibilityLabel(Text("Дом"))
         .accessibilityHint(Text("Улучшения дома за монеты"))
         .accessibilityIdentifier("open.house")
+    }
+}
+
+/// Волна 32 «из грязи в князи»: звание пса и путь до следующего (Rank). Ступеньки — дом и шерсть.
+struct RankCard: View {
+    let info: Rank.Info
+
+    var body: some View {
+        let color = info.isTop ? PetPalette.yellow : PetPalette.accent
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: info.isTop ? "crown.fill" : "figure.stairs")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(color)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(color.opacity(0.16)))
+                    .accessibilityHidden(true)
+                Text(Rank.title(info))
+                    .petFont(17, .bold)
+                    .foregroundStyle(PetPalette.ink)
+                    .axLines(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 0)
+            }
+            ProgressView(value: info.progress)
+                .tint(color)
+            Text(Rank.nextLine(info))
+                .petFont(14, .semibold)
+                .foregroundStyle(PetPalette.ink)
+            if !info.isTop {
+                Text(Rank.hint)
+                    .petFont(12, .medium)
+                    .foregroundStyle(PetPalette.soft)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(Rank.title(info)). \(Rank.nextLine(info))."))
+        .accessibilityHint(Text(info.isTop ? "" : Rank.hint))
+        .accessibilityIdentifier("house.rank")
     }
 }

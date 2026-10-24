@@ -488,11 +488,11 @@
     }
    ],
    "rescue": {
-    "key": "bath",
+    "key": "play",
     "action": {
-     "type": "bath"
+     "type": "play"
     },
-    "because": "dirty"
+    "because": "toska"
    }
   },
   {
@@ -508,7 +508,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 4.811111111111142,
+    "hearts": 4.947530864197565,
     "grace": {
      "starve": 0.2833333333333333,
      "dirty": 4.116666666666657,
@@ -590,7 +590,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 4.811111111111142,
+    "hearts": 4.947530864197565,
     "grace": {
      "starve": 0.2833333333333333,
      "dirty": 4.116666666666657,
@@ -672,7 +672,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 3.503518518518489,
+    "hearts": 3.8686419753086847,
     "grace": {
      "starve": 6.283333333333316,
      "dirty": 10.116666666666749,
@@ -681,7 +681,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788436440,
+    "lastHeartLossT": 1788440160,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -758,7 +758,7 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1.6368518518517596,
+    "hearts": 2.442379349046015,
     "grace": {
      "starve": 12.283333333333523,
      "dirty": 16.116666666667033,
@@ -767,7 +767,7 @@
     "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788459540,
+    "lastHeartLossT": 1788455340,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -786,15 +786,14 @@
     "finds": {},
     "pantry": 0
    },
-   "level": 3,
+   "level": 2,
    "moods": [
-    "critical",
     "hungry",
     "smelly",
     "bored",
     "wants_love"
    ],
-   "mood": "critical",
+   "mood": "hungry",
    "daypart": "day",
    "wants": [
     {
@@ -845,16 +844,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1,
+    "hearts": 1.373019079685755,
     "grace": {
      "starve": 16.28333333333369,
      "dirty": 20.116666666666806,
      "toska": 27.399999999999725
     },
-    "lastChanceH": 6.03333333333334,
+    "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788471120,
+    "lastHeartLossT": 1788469740,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -928,16 +927,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1,
+    "hearts": 1.373019079685755,
     "grace": {
      "starve": 16.28333333333369,
      "dirty": 20.116666666666806,
      "toska": 27.399999999999725
     },
-    "lastChanceH": 6.03333333333334,
+    "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788471120,
+    "lastHeartLossT": 1788469740,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -1011,16 +1010,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1,
+    "hearts": 1.373019079685755,
     "grace": {
      "starve": 16.28333333333369,
      "dirty": 20.116666666666806,
      "toska": 27.399999999999725
     },
-    "lastChanceH": 6.03333333333334,
+    "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788471120,
+    "lastHeartLossT": 1788469740,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -1094,16 +1093,16 @@
     "walk": 0,
     "look": 0
    },
-   "hearts": 1,
+   "hearts": 1.373019079685755,
    "grace": {
     "starve": 16.28333333333369,
     "dirty": 20.116666666666806,
     "toska": 27.399999999999725
    },
-   "lastChanceH": 6.03333333333334,
+   "lastChanceH": null,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788471120,
+   "lastHeartLossT": 1788469740,
    "cooldowns": {
     "pet": 1788248040
    },
@@ -1125,7 +1124,16 @@
   "horizonH": 72,
   "events": [
    {
-    "t": 1788528780,
+    "t": 1788512040,
+    "kind": "heart",
+    "value": 1
+   },
+   {
+    "t": 1788512040,
+    "kind": "last_chance"
+   },
+   {
+    "t": 1788547980,
     "kind": "death",
     "key": "starve"
    }
@@ -1156,7 +1164,7 @@
   "cta": "cta_hungry",
   "sleptH": 24.75,
   "heartsFrom": 5,
-  "heartsTo": 1,
+  "heartsTo": 1.373019079685755,
   "needs": {
    "food": -80,
    "clean": -80,
@@ -1250,28 +1258,19 @@
     "kind": "wake"
    },
    {
-    "t": 1788436500,
+    "t": 1788440220,
     "kind": "heart",
     "value": 4
    },
    {
-    "t": 1788448080,
+    "t": 1788455400,
     "kind": "heart",
     "value": 3
    },
    {
-    "t": 1788459600,
+    "t": 1788469800,
     "kind": "heart",
     "value": 2
-   },
-   {
-    "t": 1788471180,
-    "kind": "heart",
-    "value": 1
-   },
-   {
-    "t": 1788471180,
-    "kind": "last_chance"
    },
    {
     "t": 1788479100,
@@ -1290,16 +1289,16 @@
     "walk": 0,
     "look": 0
    },
-   "hearts": 1,
+   "hearts": 1.373019079685755,
    "grace": {
     "starve": 16.28333333333369,
     "dirty": 20.116666666666806,
     "toska": 27.399999999999725
    },
-   "lastChanceH": 6.03333333333334,
+   "lastChanceH": null,
    "napUntil": null,
    "bathUntil": null,
-   "lastHeartLossT": 1788471120,
+   "lastHeartLossT": 1788469740,
    "cooldowns": {
     "pet": 1788248040
    },
@@ -1370,12 +1369,13 @@
      "key": "fun"
     },
     {
-     "at": 1788389640,
-     "trigger": "critical",
-     "kind": "level"
+     "at": 1788334200,
+     "trigger": "hungry",
+     "kind": "distress",
+     "key": "starve"
     },
     {
-     "at": 1788432540,
+     "at": 1788436380,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -1439,16 +1439,16 @@
      "walk": 0,
      "look": 0
     },
-    "hearts": 1,
+    "hearts": 1.373019079685755,
     "grace": {
      "starve": 16.28333333333369,
      "dirty": 20.116666666666806,
      "toska": 27.399999999999725
     },
-    "lastChanceH": 6.03333333333334,
+    "lastChanceH": null,
     "napUntil": null,
     "bathUntil": null,
-    "lastHeartLossT": 1788471120,
+    "lastHeartLossT": 1788469740,
     "cooldowns": {
      "pet": 1788248040
     },
@@ -1473,7 +1473,13 @@
     "quietFromMin": 1320,
     "quietToMin": 540
    },
-   "plan": []
+   "plan": [
+    {
+     "at": 1788512400,
+     "trigger": "last_chance",
+     "kind": "last_chance"
+    }
+   ]
   }
  ]
 }

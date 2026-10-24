@@ -109,7 +109,7 @@ struct CapsuleConfig: Hashable, Sendable {
 }
 
 struct EconomyConfig: Hashable, Sendable {
-    var coinsStart = 150
+    var coinsStart = 20
     var ticketsStart = 1
     var shardsStart = 0
     var rarities: [Rarity: RarityInfo] = [
@@ -122,10 +122,10 @@ struct EconomyConfig: Hashable, Sendable {
     var careCoins: [String: Int] = [:]
     /// Потолок монет за уход в местные сутки.
     var careDailyCap = 0
-    var stepsPerCoin = 250
-    var stepsCap = 40
+    var stepsPerCoin = 200
+    var stepsCap = 50
     /// Общий потолок привычек в сутки (шаги и будущие duolingo/сон/тренировка).
-    var habitsCap = 70
+    var habitsCap = 90
     var capsule = CapsuleConfig()
 
     static let shared = EconomyConfig(json: Catalog.economy() ?? .null)
@@ -417,7 +417,7 @@ enum EconText {
     static func coins(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_coin", n, lines: lines))" }
     static func tickets(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_ticket", n, lines: lines))" }
     static func shards(_ n: Int, lines: Lines = .shared) -> String { "\(n) \(word("econ_shard", n, lines: lines))" }
-    /// Кошелёк одной фразой для VoiceOver: «150 монет, 1 билетик».
+    /// Кошелёк одной фразой для VoiceOver: «20 монет, 1 билетик».
     static func wallet(coins c: Int, tickets t: Int, lines: Lines = .shared) -> String {
         "\(coins(c, lines: lines)), \(tickets(t, lines: lines))"
     }

@@ -1198,33 +1198,24 @@
   "horizonH": 72,
   "events": [
    {
-    "t": 1788369060,
+    "t": 1788369120,
     "kind": "heart",
     "value": 4
    },
    {
-    "t": 1788383160,
+    "t": 1788385380,
     "kind": "heart",
     "value": 3
    },
    {
-    "t": 1788426060,
+    "t": 1788429360,
     "kind": "heart",
     "value": 2
    },
    {
-    "t": 1788426060,
+    "t": 1788429360,
     "kind": "level",
     "value": 3
-   },
-   {
-    "t": 1788440160,
-    "kind": "heart",
-    "value": 1
-   },
-   {
-    "t": 1788440160,
-    "kind": "last_chance"
    },
    {
     "t": 1788441660,
@@ -1232,7 +1223,21 @@
     "key": "clean"
    },
    {
-    "t": 1788468960,
+    "t": 1788444600,
+    "kind": "heart",
+    "value": 1
+   },
+   {
+    "t": 1788444600,
+    "kind": "last_chance"
+   },
+   {
+    "t": 1788470460,
+    "kind": "distress",
+    "key": "dirty"
+   },
+   {
+    "t": 1788517860,
     "kind": "death",
     "key": "starve"
    }
@@ -1424,7 +1429,7 @@
      "key": "starve"
     },
     {
-     "at": 1788376800,
+     "at": 1788378540,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -1522,12 +1527,12 @@
    },
    "plan": [
     {
-     "at": 1788369060,
+     "at": 1788369120,
      "trigger": "heart_lost",
      "kind": "heart"
     },
     {
-     "at": 1788440160,
+     "at": 1788444600,
      "trigger": "last_chance",
      "kind": "last_chance"
     }

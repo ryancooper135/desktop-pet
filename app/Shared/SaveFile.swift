@@ -119,6 +119,9 @@ struct SaveFile: Codable, Sendable {
     /// Кухня шефа (Cooking.swift): сколько блюд сегодня, когда последнее, всего, день бонуса. Пустое не пишется,
     /// новому щенку переходит — кухня остаётся вместе с домом.
     var cooking = CookLog()
+    /// Волна 32. Мягкая смерть (Runaway.swift): поиски сбежавшего пса и его возвращения. Пустое не пишется,
+    /// новому щенку не переходит — это история того пса.
+    var runaway = Runaway.Log()
     /// Волна 12. Свой персонаж вместо Шибы (CharacterStore, id папки), nil — Шиба. nil в файл не пишется,
     /// новому щенку переходит: это выбор хозяина, как вещи.
     var character: String?
@@ -204,6 +207,7 @@ struct SaveFile: Codable, Sendable {
         case shelf, toy, shop
         case habits
         case cooking
+        case runaway
         case character, characterName
         case birthTz
         case tips
@@ -272,6 +276,7 @@ struct SaveFile: Codable, Sendable {
         shop = try? c.decodeIfPresent(ShopDay.self, forKey: .shop)
         habits = (try? c.decodeIfPresent(HabitLog.self, forKey: .habits)) ?? HabitLog()
         cooking = (try? c.decodeIfPresent(CookLog.self, forKey: .cooking)) ?? CookLog()
+        runaway = (try? c.decodeIfPresent(Runaway.Log.self, forKey: .runaway)) ?? Runaway.Log()
         character = try? c.decodeIfPresent(String.self, forKey: .character)
         characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
         birthTz = try? c.decodeIfPresent(Int.self, forKey: .birthTz)
@@ -331,6 +336,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(shop, forKey: .shop)
         if !habits.isEmpty { try c.encode(habits, forKey: .habits) }
         if !cooking.isEmpty { try c.encode(cooking, forKey: .cooking) }
+        if !runaway.isEmpty { try c.encode(runaway, forKey: .runaway) }
         try c.encodeIfPresent(character, forKey: .character)
         try c.encodeIfPresent(characterName, forKey: .characterName)
         try c.encodeIfPresent(birthTz, forKey: .birthTz)

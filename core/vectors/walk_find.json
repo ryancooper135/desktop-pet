@@ -987,31 +987,31 @@
     "value": 4
    },
    {
-    "t": 1788454500,
+    "t": 1788457320,
     "kind": "heart",
     "value": 3
    },
    {
-    "t": 1788466080,
+    "t": 1788472500,
     "kind": "heart",
     "value": 2
    },
    {
-    "t": 1788466080,
+    "t": 1788472500,
     "kind": "level",
     "value": 3
    },
    {
-    "t": 1788477660,
+    "t": 1788515640,
     "kind": "heart",
     "value": 1
    },
    {
-    "t": 1788477660,
+    "t": 1788515640,
     "kind": "last_chance"
    },
    {
-    "t": 1788535260,
+    "t": 1788551580,
     "kind": "death",
     "key": "starve"
    }
@@ -1311,12 +1311,13 @@
      "key": "dirty"
     },
     {
-     "at": 1788383640,
-     "trigger": "critical",
-     "kind": "level"
+     "at": 1788338760,
+     "trigger": "hungry",
+     "kind": "distress",
+     "key": "starve"
     },
     {
-     "at": 1788424020,
+     "at": 1788435480,
      "trigger": "last_chance",
      "kind": "last_chance"
     }
@@ -1429,12 +1430,12 @@
      "key": "toska"
     },
     {
-     "at": 1788466080,
+     "at": 1788472500,
      "trigger": "critical",
      "kind": "level"
     },
     {
-     "at": 1788512400,
+     "at": 1788515640,
      "trigger": "last_chance",
      "kind": "last_chance"
     }

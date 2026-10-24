@@ -41,7 +41,7 @@ test('желания: сила 0..1, срочные первыми, без иг�
 test('настроение: полный игнор — сон, голод, критично, смерть', () => {
   const s = startAt(r, 7.5);
   const seen: string[] = [];
-  for (let h = 0; h <= 62; h += 0.5) {
+  for (let h = 0; h <= 66; h += 0.5) {
     const m = mood(s, r, o, s.t + h * H);
     assert.ok(MOODS.includes(m), m);
     if (seen[seen.length - 1] !== m) seen.push(m);

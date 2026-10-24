@@ -18,19 +18,19 @@ test('условия из конфига', () => {
   assert.throws(() => compileCond('mood < 3'));
 });
 
-test('полный игнор: смерть через 2,4–2,9 суток (§2.2)', () => {
-  const expect: [number, number][] = [[7.5, 59], [10, 58], [14, 68.5], [18, 66], [22, 66]];
+test('полный игнор: смерть через 2,6–3 суток (§2.2, «Обычно» с волны 32)', () => {
+  const expect: [number, number][] = [[7.5, 62.4], [10, 72.5], [14, 69.7], [18, 69.7], [22, 69.7]];
   for (const [h, want] of expect) {
     const got = ignoreUntilDeath(r, o, startAt(r, h))!;
     assert.ok(Math.abs(got - want) <= 1.5, `старт ${h}:00 → ${got.toFixed(1)} ч, ждали ≈${want}`);
   }
 });
 
-test('будка L4 заметно страхует (≈84 ч)', () => {
+test('будка L4 заметно страхует (≈99 ч)', () => {
   const s = startAt(r, 7.5);
   s.home.kennel = 3;
   const got = ignoreUntilDeath(r, o, s)!;
-  assert.ok(got > 78 && got < 90, `${got}`);
+  assert.ok(got > 92 && got < 106, `${got}`);
 });
 
 test('хронология игнора: L1 → беда → сердца → последний шанс → смерть', () => {

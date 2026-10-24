@@ -253,7 +253,7 @@ final class PetRig {
         // Индексы влияний — в скелете части; нет его — порядок костей сущности.
         func names(_ part: MeshResource.Part) -> [String] {
             if let sid = part.skeletonID {
-                for s in contents.skeletons where s.id == sid { return s.jointNames }
+                for s in contents.skeletons where s.id == sid { return s.joints.map(\.name) }
             }
             return m.jointNames
         }
@@ -286,13 +286,18 @@ final class PetRig {
             }
             var parts: [MeshResource.Part] = []
             for var part in mm.parts {
-                if var ji = part.jointInfluences, let b = bones(names(part)),
-                   let next = EyePin.pin(weights(part), perVertex: ji.influencesPerVertex,
+                // У JointInfluences нет геттера «влияний на вершину» — считаем по числу вершин.
+                let verts = part.positions.elements.count
+                if let ji = part.jointInfluences, verts > 0, ji.influences.elements.count % verts == 0,
+                   let b = bones(names(part)),
+                   let next = EyePin.pin(weights(part), perVertex: ji.influences.elements.count / verts,
                                          positions: part.positions.elements,
                                          eye: (3...5).contains(part.materialIndex), eyes: eyes,
                                          moving: b.moving, anchor: b.head) {
-                    ji.influences = .init(next.map { MeshJointInfluence(jointIndex: $0.joint, weight: $0.weight) })
-                    part.jointInfluences = ji
+                    part.jointInfluences = MeshResource.JointInfluences(
+                        influences: MeshBuffers.JointInfluences(
+                            next.map { MeshJointInfluence(jointIndex: $0.joint, weight: $0.weight) }),
+                        influencesPerVertex: ji.influences.elements.count / verts)
                     changed = true
                 }
                 parts.append(part)
