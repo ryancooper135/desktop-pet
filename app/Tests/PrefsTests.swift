@@ -1,4 +1,4 @@
-// Волна 32: переключатели «Звук и отклик», голос пса (тявк / редкое рычание), музыка мини-игр,
+// Волна 32: переключатели «Звук и отклик», голос пса (тявк / редкое рычание), музыка (лупы по местам),
 // выключение уведомлений. Без UIKit — идёт и на Linux (app/Package.swift).
 
 import Foundation
@@ -152,11 +152,12 @@ final class PrefsTests: XCTestCase {
 
     func testMusicInKeyQuietAndFlagged() {
         for k in MusicTheme.Kind.allCases {
-            XCTAssertEqual(MusicTheme.bars(k), 8)
+            XCTAssertGreaterThanOrEqual(MusicTheme.bars(k), 8)
             for i in 0..<MusicTheme.bars(k) {
-                XCTAssertEqual(MusicTheme.melody(k)[i].count, MusicTheme.stepsPerBar)
+                let line = MusicTheme.sheet(k)[i]
+                XCTAssertTrue(line.isEmpty || line.count == MusicTheme.stepsPerBar, "\(k) такт \(i)")
                 let bar = MusicTheme.bar(i, k)
-                XCTAssertFalse(bar.isEmpty)
+                XCTAssertEqual(bar.isEmpty, MusicTheme.isRest(i, k))
                 for t in bar {
                     XCTAssertTrue(t.music)
                     XCTAssertFalse(t.choreo)
@@ -168,11 +169,61 @@ final class PrefsTests: XCTestCase {
                     XCTAssertLessThan(t.end, MusicTheme.barLength(k), "нота не вылезает в следующий такт")
                 }
             }
-            XCTAssertEqual(MusicTheme.loopLength(k), MusicTheme.barLength(k) * 8, accuracy: 1e-9)
-            XCTAssertEqual(MusicTheme.bar(8, k), MusicTheme.bar(0, k), "по кругу")
-            XCTAssertEqual(MusicTheme.bar(-1, k), MusicTheme.bar(7, k))
+            let n = MusicTheme.bars(k)
+            XCTAssertEqual(MusicTheme.loopLength(k), MusicTheme.barLength(k) * Double(n), accuracy: 1e-9)
+            XCTAssertEqual(MusicTheme.bar(n, k), MusicTheme.bar(0, k), "по кругу")
+            XCTAssertEqual(MusicTheme.bar(-1, k), MusicTheme.bar(n - 1, k))
+            XCTAssertFalse(MusicTheme.bar(0, k).isEmpty, "луп начинается с музыки, а не с паузы")
         }
-        XCTAssertLessThan(MusicTheme.beat(.play), MusicTheme.beat(.calm))
+    }
+
+    func testEachPlaceHasItsOwnShortLoop() {
+        let kinds = MusicTheme.Kind.allCases
+        XCTAssertEqual(Set(kinds.map { MusicTheme.sheet($0) }).count, kinds.count, "у каждого места свой луп")
+        for k in kinds {
+            XCTAssertLessThanOrEqual(MusicTheme.loopLength(k), 30, "\(k): луп короткий")
+        }
+        XCTAssertLessThan(MusicTheme.beat(.play), MusicTheme.beat(.walk))
+        XCTAssertLessThan(MusicTheme.beat(.walk), MusicTheme.beat(.shop))
+        XCTAssertLessThan(MusicTheme.beat(.shop), MusicTheme.beat(.home))
+    }
+
+    func testMusicLeavesPauses() {
+        func restShare(_ k: MusicTheme.Kind) -> Double {
+            let n = MusicTheme.bars(k)
+            return Double((0..<n).filter { MusicTheme.isRest($0, k) }.count) / Double(n)
+        }
+        for k in MusicTheme.Kind.allCases {
+            XCTAssertGreaterThanOrEqual(restShare(k), 0.25, "\(k): после фраз — тишина")
+            // Пауза в конце лупа: повтор не встык.
+            XCTAssertTrue(MusicTheme.isRest(MusicTheme.bars(k) - 1, k))
+        }
+        for k in [MusicTheme.Kind.play, .shop, .walk] {
+            XCTAssertGreaterThan(restShare(.home), restShare(k), "на главном пауз больше всех")
+        }
+    }
+
+    func testSoftChiptune() {
+        for k in MusicTheme.Kind.allCases {
+            let bar = MusicTheme.bar(0, k)
+            let lead = bar.filter { $0.wave == .square }
+            XCTAssertFalse(lead.isEmpty, "\(k): 8-битная мелодия")
+            for t in lead {
+                XCTAssertGreaterThan(t.cutoff, 0, "квадрат только за фильтром — без писка")
+                XCTAssertLessThanOrEqual(t.cutoff, 1600)
+            }
+            XCTAssertTrue(bar.contains { $0.wave == .triangle && $0.freq < Scale.note(0) }, "мягкий бас")
+        }
+        // Лоу-фай: каждая вторая восьмая чуть запаздывает.
+        XCTAssertGreaterThan(MusicTheme.stepStart(1, .shop), MusicTheme.beat(.shop))
+        XCTAssertEqual(MusicTheme.stepStart(2, .shop), 2 * MusicTheme.beat(.shop), accuracy: 1e-12)
+    }
+
+    func testHomeIsQuietest() {
+        let home = MusicTheme.bar(0, .home).map(\.gain).max()!
+        for k in [MusicTheme.Kind.play, .shop, .walk] {
+            XCTAssertLessThan(home, MusicTheme.bar(0, k).map(\.gain).max()!)
+        }
     }
 
     func testMusicTakesAtMostTwoVoices() {
@@ -194,6 +245,43 @@ final class PrefsTests: XCTestCase {
         }
     }
 
+    func testHomeMusicFollowsTheDog() {
+        XCTAssertEqual(MusicTheme.homeKind(pose: .idle, alive: true), .home)
+        XCTAssertEqual(MusicTheme.homeKind(pose: .happy, alive: true), .home)
+        XCTAssertEqual(MusicTheme.homeKind(pose: .hungry, alive: true), .home)
+        XCTAssertEqual(MusicTheme.homeKind(pose: .away, alive: true), .walk, "пёс гуляет — музыка прогулки")
+        for quiet in [Pose.sleep, .nap, .critical, .dead] {
+            XCTAssertNil(MusicTheme.homeKind(pose: quiet, alive: true), "\(quiet): тишина")
+        }
+        XCTAssertNil(MusicTheme.homeKind(pose: .idle, alive: false))
+    }
+
+    func testQuietHoursFromBedToWake() {
+        // Отбой 23:00, подъём 7:30.
+        let bed = 23 * 60, wake = 7 * 60 + 30
+        XCTAssertFalse(MusicTheme.quietHours(localMin: 22 * 60 + 59, bedMin: bed, wakeMin: wake))
+        XCTAssertTrue(MusicTheme.quietHours(localMin: 23 * 60, bedMin: bed, wakeMin: wake))
+        XCTAssertTrue(MusicTheme.quietHours(localMin: 3 * 60, bedMin: bed, wakeMin: wake))
+        XCTAssertTrue(MusicTheme.quietHours(localMin: 7 * 60 + 29.5, bedMin: bed, wakeMin: wake))
+        XCTAssertFalse(MusicTheme.quietHours(localMin: 7 * 60 + 30, bedMin: bed, wakeMin: wake))
+        XCTAssertFalse(MusicTheme.quietHours(localMin: 12 * 60, bedMin: bed, wakeMin: wake))
+        // Отбой после полуночи.
+        XCTAssertFalse(MusicTheme.quietHours(localMin: 23 * 60 + 30, bedMin: 60, wakeMin: 9 * 60))
+        XCTAssertTrue(MusicTheme.quietHours(localMin: 2 * 60, bedMin: 60, wakeMin: 9 * 60))
+    }
+
+    // MARK: подписи под круглыми кнопками
+
+    func testRoundCaptionsShortRussianAndDistinct() {
+        XCTAssertEqual(Set(RoundCaption.all).count, RoundCaption.all.count)
+        for w in RoundCaption.all {
+            XCTAssertLessThanOrEqual(w.count, RoundCaption.maxLength, w)
+            XCTAssertFalse(w.contains(" "), "одно слово: \(w)")
+            XCTAssertTrue(w.unicodeScalars.allSatisfy { (0x0400...0x04FF).contains($0.value) }, w)
+        }
+        XCTAssertGreaterThanOrEqual(RoundCaption.room, 10, "место под подписью кеглем 10")
+    }
+
     // MARK: синтезатор
 
     private func run(_ core: SynthCore, seconds: Double, block: Int = 512) -> (samples: [Float], silent: [Bool]) {
@@ -213,7 +301,7 @@ final class PrefsTests: XCTestCase {
 
     func testCancelMusicKeepsSounds() {
         let core = SynthCore()
-        core.push(MusicTheme.bar(0, .calm) + MusicTheme.bar(1, .calm).map { var t = $0; t.at += 2.4; return t })
+        core.push(MusicTheme.bar(0, .shop) + MusicTheme.bar(1, .shop).map { var t = $0; t.at += MusicTheme.barLength(.shop); return t })
         core.push(SoundRecipe.tones(.death))
         _ = run(core, seconds: 0.1)
         core.cancelMusic()
@@ -243,7 +331,7 @@ final class PrefsTests: XCTestCase {
 
         // Снятие хореографии музыку не трогает.
         let other = SynthCore()
-        other.push(MusicTheme.bar(0, .calm))
+        other.push(MusicTheme.bar(0, .shop))
         _ = run(other, seconds: 0.01, block: 128)
         other.cancelChoreo()
         XCTAssertTrue(run(other, seconds: 0.1, block: 128).silent.allSatisfy { !$0 })
