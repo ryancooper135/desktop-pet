@@ -210,6 +210,12 @@ jobs:
             -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
             -quiet
 
+      # С -quiet текста падений в логе нет — печатаем его из xcresult.
+      - name: Unit failures
+        if: ${{ failure() && matrix.unit == '1' }}
+        run: |
+          xcrun xcresulttool get test-results summary --path "$OUT/PetTests.xcresult" | python3 -c 'import json,sys; [print(f.get("testIdentifierString"), "|", f.get("failureText")) for f in json.load(sys.stdin).get("testFailures", [])]' || true
+
       - name: Coverage
         if: ${{ matrix.unit == '1' && !cancelled() && steps.bft.outcome == 'success' }}
         run: |
