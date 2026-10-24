@@ -218,7 +218,7 @@ struct YardArtDemoScreen: View {
             Text("худшая станция \(worst.triangles) (\(worst.station.rawValue), ур. \(worst.level))")
                 .font(mono).foregroundStyle(PetPalette.soft)
                 .accessibilityIdentifier("yard.maxTris")
-            TimelineView(.periodic(from: .now, by: 1)) { _ in YardArtFpsLabel() }
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in YardArtFpsLabel(tick: ctx.date) }
         }
     }
 
@@ -278,7 +278,10 @@ struct YardArtDemoScreen: View {
 }
 
 /// Кадров в секунду по часам двора (YardArtSystem.fps), перечитывается раз в секунду из TimelineView.
+/// tick — дата тика: без входа SwiftUI считает метку той же и тело не пересчитывает (было «fps 0» навсегда).
 private struct YardArtFpsLabel: View {
+    let tick: Date
+
     var body: some View {
         Text("fps \(YardArtSystem.fps)")
             .font(.system(size: 13, weight: .semibold, design: .monospaced))
