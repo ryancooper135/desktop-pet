@@ -8,7 +8,7 @@ import XCTest
 final class SoundTests: XCTestCase {
     static let allCues: [SoundCue] = [
         .button, .boop, .petTick(1), .petTick(4), .petTick(30), .pet, .feed, .yip, .bath, .refuse,
-        .ok, .wake, .hearts, .heartLost, .hello, .death, .brush, .brushDone,
+        .ok, .wake, .hearts, .heartLost, .hello, .death, .brush, .brushDone, .growl,
     ]
 
     static var choreoTones: [Tone] {
@@ -99,6 +99,7 @@ final class SoundTests: XCTestCase {
                 XCTAssertLessThanOrEqual(t.gain, 0.4)
                 XCTAssertGreaterThanOrEqual(t.at, 0)
                 XCTAssertFalse(t.choreo, "\(cue): обычный звук не должен сниматься с хореографией")
+                XCTAssertFalse(t.music, "\(cue): звук — не музыка")
             }
         }
     }

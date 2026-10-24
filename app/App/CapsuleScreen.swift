@@ -56,6 +56,7 @@ struct CapsuleScreen: View {
             ShopSheet()
                 .environment(model)
                 .presentationDetents([.large])
+                .petMusic(.shop)
         }
         .animation(.snappy, value: refusal)
         .onDisappear {

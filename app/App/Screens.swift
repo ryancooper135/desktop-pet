@@ -1,6 +1,7 @@
 // Второстепенные экраны: шкалы по запросу, «Пока тебя не было», настройки, ошибка сохранения, каталог превью.
 
 import SwiftUI
+import UIKit
 @preconcurrency import PetCore
 
 // MARK: - Шкалы
@@ -170,6 +171,15 @@ struct SettingsScreen: View {
     @State private var guide: GuideKind?
     /// Звук только на этом телефоне (UserDefaults), по умолчанию включён. Читает SoundKit.
     @AppStorage(SoundKit.enabledKey) private var sound = true
+    // Волна 32: остальные переключатели «Звук и отклик» и «Уведомления» (PetPref), тоже по умолчанию включены.
+    @AppStorage(PetPref.voice.key) private var voice = true
+    @AppStorage(PetPref.music.key) private var music = true
+    @AppStorage(PetPref.haptics.key) private var haptics = true
+    @AppStorage(PetPref.notifications.key) private var notifications = true
+    /// Что разрешил iPhone; nil — ещё не спросили систему.
+    @State private var notifPermission: NotifPermission?
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     /// 20:00–23:55 и 00:00–02:00 с шагом 5 минут.
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
@@ -245,11 +255,37 @@ struct SettingsScreen: View {
                 }
 
                 Section {
-                    Toggle("Звук", isOn: $sound)
+                    Toggle(PetPref.sound.title, isOn: $sound)
                         .listRowBackground(PetPalette.card)
-                        .accessibilityIdentifier("settings.sound")
+                        .accessibilityIdentifier(PetPref.sound.id)
+                    Toggle(isOn: $voice) { prefLabel(.voice) }
+                        .disabled(!sound)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier(PetPref.voice.id)
+                    Toggle(isOn: $music) { prefLabel(.music) }
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier(PetPref.music.id)
+                    Toggle(PetPref.haptics.title, isOn: $haptics)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier(PetPref.haptics.id)
+                } header: {
+                    Text("Звук и отклик")
                 } footer: {
                     Text("Тихие звуки в одной тональности. В беззвучном режиме телефона их не слышно.")
+                }
+
+                Section {
+                    Toggle(PetPref.notifications.title, isOn: $notifications)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier(PetPref.notifications.id)
+                    if let p = notifPermission, NotifPref.needsSystemSettings(on: notifications, permission: p),
+                       let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                        Button("Открыть настройки iPhone") { openURL(url) }
+                            .listRowBackground(PetPalette.card)
+                            .accessibilityIdentifier("settings.notifications.system")
+                    }
+                } footer: {
+                    Text(NotifPref.footer(on: notifications, permission: notifPermission ?? .allowed))
                 }
 
                 Section {
@@ -345,6 +381,32 @@ struct SettingsScreen: View {
             .onChange(of: sound) { _, on in
                 // Выключили — замолчать сразу; включили — короткое «да», чтобы было слышно громкость.
                 if on { SoundKit.shared.play(.ok) } else { SoundKit.shared.stop() }
+                // Музыка играет по своему переключателю: движок поднимется снова, если она включена.
+                SoundKit.shared.musicPrefChanged()
+            }
+            .onChange(of: voice) { _, on in
+                if on { SoundKit.shared.play(.yip) }
+            }
+            .onChange(of: music) { _, _ in
+                SoundKit.shared.musicPrefChanged()
+            }
+            .onChange(of: haptics) { _, on in
+                // Включили — короткий отклик, чтобы почувствовать.
+                if on { Feel.haptic(.tap) }
+            }
+            .onChange(of: notifications) { _, _ in
+                Task {
+                    await NotificationScheduler.prefChanged()
+                    notifPermission = await NotificationScheduler.permission()
+                }
+            }
+            .task {
+                notifPermission = await NotificationScheduler.permission()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Вернулись из настроек iPhone — разрешение могло поменяться.
+                guard phase == .active else { return }
+                Task { notifPermission = await NotificationScheduler.permission() }
             }
             .onChange(of: island) { _, on in
                 guard loaded, on != model.file?.island.enabled else { return }
@@ -371,6 +433,18 @@ struct SettingsScreen: View {
 
     static func hm(_ m: Int) -> String {
         String(format: "%02d:%02d", m / 60, m % 60)
+    }
+
+    /// Переключатель с пояснением под названием (PetPref.footer).
+    private func prefLabel(_ p: PetPref) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(p.title)
+            if let f = p.footer {
+                Text(f)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     static func ownerSleepNote(_ est: SleepEstimate, name: String) -> String {

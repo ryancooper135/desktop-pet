@@ -255,6 +255,8 @@ struct HomeScreen: View {
         .background {
             SoundLayer()
         }
+        // Волна 32: еле слышный чиптюн дома, «прогулка», пока пёс гуляет; во сне и ночью — тишина.
+        .homeMusic(MusicTheme.homeKind(pose: snap.pose, alive: snap.alive), schedule: model.roomSchedule)
         .sheet(isPresented: $model.showNeeds) {
             NeedsSheet()
                 .environment(model)
@@ -278,6 +280,7 @@ struct HomeScreen: View {
             HouseScreen()
                 .environment(model)
                 .presentationDetents([.large])
+                .petMusic(.shop)
         }
         .sheet(isPresented: $model.showTricks) {
             // Половина экрана: пёс виден над листом, а выбрал команду — лист уезжает и пёс пробует.
@@ -294,16 +297,19 @@ struct HomeScreen: View {
             // На весь экран: лист тянулся бы вниз вместе с миской.
             CatchGameScreen()
                 .environment(model)
+                .petMusic(.play)
         }
         .fullScreenCover(isPresented: $model.showBlockDuo) {
             // Как мячик — на весь экран: перетаскивание фигур дралось бы со свайпом листа.
             BlockDuoScreen()
                 .environment(model)
+                .petMusic(.play)
         }
         .fullScreenCover(isPresented: $model.showZombie) {
             // Как мячик — на весь экран: палец ведёт Шибу по всему полю.
             ZombieRunScreen()
                 .environment(model)
+                .petMusic(.play)
                 // Экран ночной: без этого часы и значки сверху чёрные на тёмном.
                 .preferredColorScheme(.dark)
         }

@@ -13,6 +13,7 @@
 //   «Альбом» значком и «Гулять» без строчки, зазоры 4 и 2.
 // • волна 12: та же кнопка стала «Мини-игры» — меню «Лови мячик» / «Блок Дуо» (pet://blockduo, BlockDuoScreen.swift):
 //   седьмой кружок в ряд на iPhone Air не влезает.
+// • волна 32: под кругами мелкие подписи (RoundCaption.swift), ряд оставляет под ними RoundCaption.room.
 // Можно ли гулять, решает ядро (WalkPlan.gate → PetEngine.act на копии), здесь только вид.
 
 import SwiftUI
@@ -45,18 +46,25 @@ struct WalkRow: View {
                      spacing: CGFloat) -> some View {
         // Распорка — сама зазор до «Гулять»: у HStack со spacing она добавила бы лишний с обеих сторон.
         HStack(spacing: 0) {
+            // Волна 32: подписи под кругами (у «Альбома» с текстом — только когда он сжат до значка).
             HStack(spacing: spacing) {
                 AlbumButton(total: total, compact: compact)
+                    .roundCaption(compact ? RoundCaption.album : nil)
                 MachineButton()
+                    .roundCaption(RoundCaption.machine)
                 HouseButton()
+                    .roundCaption(RoundCaption.house)
                 TricksButton(gate: tricks)
+                    .roundCaption(RoundCaption.tricks)
                 GamesButton(t: snap.t)
+                    .roundCaption(RoundCaption.games)
             }
             Spacer(minLength: spacing)
             if let gate {
                 WalkButton(gate: gate, brief: brief)
             }
         }
+        .padding(.bottom, RoundCaption.room)
     }
 }
 

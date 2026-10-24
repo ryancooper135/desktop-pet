@@ -36,6 +36,8 @@ final class SynthCore: @unchecked Sendable {
     private let resetMark = Atomic<Int>(-1)
     /// Просьба снять ноты хореографии (Tone.choreo), записанные до этой отметки; −1 — нет просьбы.
     private let choreoMark = Atomic<Int>(-1)
+    /// То же для музыки (Tone.music, волна 32): ушли с экрана игры — музыка гаснет, звуки остаются.
+    private let musicMark = Atomic<Int>(-1)
     /// Сколько голосов звучало в конце последнего блока (для тестов и простоя).
     private let sounding = Atomic<Int>(0)
 
@@ -73,6 +75,8 @@ final class SynthCore: @unchecked Sendable {
     private var seed: UInt32 = 0x2545_F491
     /// Ноты хореографии с номером в кольце меньше этого не берём (их сняли раньше, чем дочитали).
     private var choreoBelow = 0
+    /// Ноты музыки с номером в кольце меньше этого не берём.
+    private var musicBelow = 0
     /// Сколько семплов гаснет снятый голос.
     static let fadeSamples = 256
 
@@ -127,6 +131,12 @@ final class SynthCore: @unchecked Sendable {
         choreoMark.store(written.load(ordering: .relaxed), ordering: .releasing)
     }
 
+    /// Музыку выключили или ушли с экрана: недоигранные такты снять, звучащие ноты музыки гаснут за
+    /// несколько миллисекунд. Звуки и хореография не трогаются.
+    func cancelMusic() {
+        musicMark.store(written.load(ordering: .relaxed), ordering: .releasing)
+    }
+
     /// Сколько голосов звучало в конце последнего блока.
     var activeVoices: Int { sounding.load(ordering: .relaxed) }
 
@@ -144,19 +154,12 @@ final class SynthCore: @unchecked Sendable {
         let cut = choreoMark.exchange(-1, ordering: .acquiringAndReleasing)
         if cut >= 0 {
             choreoBelow = max(choreoBelow, cut)
-            for v in 0..<Self.voiceCount where voices[v].on && voices[v].tone.choreo && voices[v].fade == 0 {
-                // Ещё не начала (ждёт внутри блока) — просто снять; звучит — короткий спад.
-                if voices[v].wait > 0 { voices[v].on = false } else { voices[v].fade = Self.fadeSamples }
-            }
-            var i = 0
-            while i < pendingCount {
-                if pending[i].tone.choreo {
-                    pendingCount -= 1
-                    pending[i] = pending[pendingCount]
-                } else {
-                    i += 1
-                }
-            }
+            drop(music: false)
+        }
+        let hush = musicMark.exchange(-1, ordering: .acquiringAndReleasing)
+        if hush >= 0 {
+            musicBelow = max(musicBelow, hush)
+            drop(music: true)
         }
         drainRing()
         startDue(frames: frames)
@@ -188,6 +191,27 @@ final class SynthCore: @unchecked Sendable {
         return false
     }
 
+    /// Снять ноты хореографии (music = false) или музыки (music = true): ещё не начавшие — сразу,
+    /// звучащие — коротким спадом, ждущие в очереди — выбросить.
+    private func drop(music: Bool) {
+        for v in 0..<Self.voiceCount where voices[v].on && voices[v].fade == 0 {
+            let t = voices[v].tone
+            guard music ? t.music : t.choreo else { continue }
+            // Ещё не начала (ждёт внутри блока) — просто снять; звучит — короткий спад.
+            if voices[v].wait > 0 { voices[v].on = false } else { voices[v].fade = Self.fadeSamples }
+        }
+        var i = 0
+        while i < pendingCount {
+            let t = pending[i].tone
+            if music ? t.music : t.choreo {
+                pendingCount -= 1
+                pending[i] = pending[pendingCount]
+            } else {
+                i += 1
+            }
+        }
+    }
+
     /// Мягкий ограничитель: тихое почти не трогает, громкое плавно упирается в ±2/3.
     static func limit(_ x: Double) -> Double {
         let c = min(max(x, -1), 1)
@@ -201,7 +225,9 @@ final class SynthCore: @unchecked Sendable {
         guard w > r else { return }
         for k in r..<w {
             let t = ring[k % Self.queueCapacity]
-            guard pendingCount < Self.queueCapacity, !(t.choreo && k < choreoBelow) else { continue }
+            guard pendingCount < Self.queueCapacity, !(t.choreo && k < choreoBelow), !(t.music && k < musicBelow) else {
+                continue
+            }
             let delay = Int((max(t.at, 0) * sampleRate).rounded())
             pending[pendingCount] = Pending(tone: t, start: clock + delay)
             pendingCount += 1
