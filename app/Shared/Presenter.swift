@@ -148,7 +148,7 @@ enum Presenter {
     static func make(file f: SaveFile, pet s: PetState, owner o: Owner, at t: Double,
                      upcoming: [ForecastEvent]? = nil,
                      reactionWindow: Double = Presenter.reactionWindow) -> PetSnapshot {
-        let r = Catalog.rules
+        let r = ItemPerks.rules(f)
         let mood = PetEngine.mood(s, r, o, now: t)
         let level = PetEngine.level(s, r)
         let lines = Lines.shared

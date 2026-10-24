@@ -494,7 +494,7 @@ enum BlockDuo {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         f.blockduoGames += 1
-        let wish = CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        let wish = CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f), cfg.asCatch)
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.blockduoCoins += got

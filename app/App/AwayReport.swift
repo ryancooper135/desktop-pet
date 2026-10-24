@@ -28,7 +28,7 @@ enum AwayBuilder {
 
     static func make(_ f: SaveFile, prev: PetState, now: Double) -> AwayReport? {
         guard prev.alive, now > prev.t else { return nil }
-        let r = Catalog.rules
+        let r = ItemPerks.rules(f)
         let o = PetRunner.owner(f, at: now)
         let s = PetEngine.awaySummary(prev, r, o, now: now, journal: f.timedActs(from: prev.t, to: now))
         let notable = s.events.contains { $0.kind != "sleep" && $0.kind != "wake" }

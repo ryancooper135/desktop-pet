@@ -126,6 +126,13 @@ struct ShopSheet: View {
                             .petFont(12, .medium)
                             .foregroundStyle(PetPalette.soft)
                     }
+                    // Волна 32: маленькая польза вещи одной строкой.
+                    if let perk = ItemPerks.line(o.id) {
+                        Text(perk)
+                            .petFont(12, .medium)
+                            .foregroundStyle(PetPalette.accent)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     Text("🪙 \(o.price)")
                         .petFont(14, .heavy)
                         .monospacedDigit()

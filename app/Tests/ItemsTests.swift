@@ -17,8 +17,10 @@ private func iFile(_ ids: [String] = [], coins: Int = 0) -> SaveFile {
     return f
 }
 
+/// Пулы капсулы и лоскутные вещи за клочки (волна 32): в коллекции они равны.
 private var allIds: [String] {
     Rarity.allCases.flatMap { (EconomyConfig.shared.capsule.pools[$0] ?? []).map(\.id) }
+        + EconomyConfig.shared.capsule.exclusive.map(\.id)
 }
 
 final class ItemCatalogTests: XCTestCase {
@@ -40,7 +42,7 @@ final class ItemCatalogTests: XCTestCase {
         XCTAssertTrue(ItemCatalog.decor.isDisjoint(with: Wear.table.keys))
         XCTAssertTrue(ItemCatalog.decor.isDisjoint(with: ItemCatalog.toys.keys))
         XCTAssertTrue(Set(ItemCatalog.toys.keys).isDisjoint(with: Wear.table.keys))
-        // Всё из ролей — из пулов.
+        // Всё из ролей — из пулов или лоскутное.
         for id in ItemCatalog.decor.union(ItemCatalog.toys.keys) { XCTAssertTrue(ids.contains(id), id) }
         XCTAssertEqual(ItemCatalog.emoji("nope"), "📦")
         XCTAssertNil(ItemCatalog.role("nope"))

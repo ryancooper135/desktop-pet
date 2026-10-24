@@ -207,7 +207,7 @@
     "odds": { "common": 70, "rare": 22, "epic": 7, "legendary": 1 },
     "pity": { "epic_every": 15, "legendary_every": 60, "start_counter": 3 },
     "duplicate_to_shards": { "common": 5, "rare": 15, "epic": 50, "legendary": 150 },
-    "atelier_price_shards": { "common": 40, "rare": 120, "epic": 400, "legendary": 1200 },
+    "atelier_price_shards": { "common": 40, "rare": 70, "epic": 180, "legendary": 450 },
     "pools_rotate_days": 14
   },
 
@@ -336,6 +336,44 @@
   "anti_inflation": {
     "targets": { "spend_to_earn_7d": [0.7, 1.05], "median_balance_vs_next_goal": 2.0 },
     "levers": ["minigame diminishing", "habit cap", "capsule escalation", "paid roulette", "toy durability", "consumable soap", "gift wrap fee", "weekend fair legendaries", "seasonal items", "vanity sinks"]
+  },
+
+  "premium": {
+    "_about": "Волна 32. ✂️ клочки — редкая игровая валюта (не покупается, не меняется на монеты). Дефицит: ≈45/нед активному, ≈15 ленивому (ECONOMY.md). Код: app/Shared/Premium.swift.",
+    "sources": {
+      "care_day": { "acts": 5, "shards": 3, "_note": "5 удачных дел за местные сутки (шаги не в счёт) — +3, раз в сутки" },
+      "week_chest": { "days": 5, "shards": 10, "_note": "5 дней заботы с понедельника — сундук +10, раз в неделю" },
+      "record": { "shards": 2, "_note": "побил свой рекорд в мини-игре (не первый раунд) — +2, не чаще раза в сутки" },
+      "walk_find": { "chance_pct": 10, "min": 1, "max": 2, "_note": "в находке с прогулки иногда клочок; бросок детерминирован по номеру находки" },
+      "new_find_kind": 2,
+      "achievements": { "good_days_7": 5, "good_days_30": 10, "good_days_100": 25, "first_dish": 3, "first_trick": 3 }
+    },
+    "sinks": {
+      "_atelier": "Ателье — вещь выбранной редкости, которой ещё нет: цены в capsule.atelier_price_shards (rare/epic/legendary)",
+      "exclusives": [
+        { "id": "pillow_patch", "name": "Лоскутная подушка", "price": 60 },
+        { "id": "scarf_patch", "name": "Лоскутный шарф", "price": 90 },
+        { "id": "hat_patch", "name": "Лоскутная шапочка", "price": 120 },
+        { "id": "armchair_patch", "name": "Лоскутное кресло", "price": 160 },
+        { "id": "blanket_patch", "name": "Лоскутная попонка", "price": 200 }
+      ],
+      "revive": { "base": 30, "step": 15, "max": 90, "_note": "цена возврата пса: base + step за каждый прошлый возврат; подключает зона смерти (Shards.reviveCost)" }
+    },
+    "perks": {
+      "_note": "польза вещей: % по редкости, сумма по виду не выше cap_pct; одежда — пока надета, мебель и игрушки — всегда; сердечки не трогают",
+      "pct": { "common": 3, "rare": 5, "epic": 8, "legendary": 12 },
+      "cap_pct": 20,
+      "items": {
+        "bandana_red": "fun", "bow_blue": "love", "leaf_hat": "clean", "bowl_plain": "food", "mat_check": "clean",
+        "bell_collar": "coins", "pumpkin_small": "food", "ball_tennis": "fun",
+        "scarf_knit": "love", "collar_star": "coins", "lamp_mushroom": "sleep", "raincoat": "clean",
+        "beret_red": "fun", "bowtie_dots": "love", "acorn_jar": "food", "ball_pumpkin": "fun",
+        "hoodie_pumpkin": "sleep", "sofa_mini": "sleep", "backpack_mini": "food", "wreath_autumn": "love",
+        "trophy_cup": "coins", "ball_star": "fun",
+        "cape_champion": "coins", "kennel_castle": "sleep", "crown_champion": "love",
+        "pillow_patch": "love", "scarf_patch": "fun", "hat_patch": "clean", "armchair_patch": "food", "blanket_patch": "sleep"
+      }
+    }
   },
 
   "analytics": { "upload": "batch on app open, max 1/10 min", "retention_days_raw": 90, "weekly_report": "mon 10:00" }

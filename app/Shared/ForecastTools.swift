@@ -106,7 +106,7 @@ enum ForecastTools {
     /// tzOffsetMin — закрепить пояс (тесты); nil — пояс устройства на момент каждой точки.
     static func timeline(_ f: SaveFile, now: Double, horizonH: Double = Budget.horizonH,
                          tzOffsetMin: Int? = nil) -> [PetSnapshot] {
-        let r = Catalog.rules
+        let r = ItemPerks.rules(f)
         func ownerAt(_ t: Double) -> Owner {
             var o = f.owner
             o.tzOffsetMin = tzOffsetMin ?? Clock.tzOffsetMin(at: t)

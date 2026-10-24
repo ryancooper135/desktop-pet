@@ -510,7 +510,7 @@ enum ZombieRun {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         f.zombieGames += 1
-        let wish = CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        let wish = CatchGame.want(score: res.score, game: f.zombieGames, buff: CatchGame.coinsX(f), cfg.asCatch)
         // Волна 30: пёс умер, пока шёл раунд, — монет нет, как в «Лови мячик» и «Блок Дуо» (DECISIONS, волна 13).
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.zombieCoins += got

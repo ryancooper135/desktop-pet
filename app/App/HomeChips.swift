@@ -7,10 +7,12 @@ import UIKit
 
 // MARK: - Волна 5: кошелёк, открытка, открытый вкус
 
-/// Кошелёк у шестерёнки: «🪙 150 · 🎟 1». Тап — автомат с капсулами.
+/// Кошелёк у шестерёнки: «🪙 150 · 🎟 1», а с клочками — «… ✂️ 12» (волна 32; нет клочков — ✂️ не показываем,
+/// чтобы ряд с именем не сжимался зря). Тап — автомат с капсулами.
 struct WalletChip: View {
     let coins: Int
     let tickets: Int
+    var shards: Int = 0
     let action: () -> Void
 
     var body: some View {
@@ -22,6 +24,11 @@ struct WalletChip: View {
                 Text("🎟").font(.system(size: 13))
                 Text("\(tickets)")
                     .contentTransition(.numericText(value: Double(tickets)))
+                if shards > 0 {
+                    Text("✂️").font(.system(size: 12))
+                    Text("\(shards)")
+                        .contentTransition(.numericText(value: Double(shards)))
+                }
             }
             .font(.system(size: 14, weight: .bold, design: .rounded))
             .monospacedDigit()
@@ -32,12 +39,13 @@ struct WalletChip: View {
             .background(Capsule().fill(PetPalette.card))
             .animation(.snappy, value: coins)
             .animation(.snappy, value: tickets)
+            .animation(.snappy, value: shards)
         }
         .fixedSize()
         .buttonStyle(SquishStyle())
         // Подпись прямо у кнопки: один элемент «150 монет, 1 билетик». Обёртка accessibilityElement(children: .ignore)
         // давала вложенную вторую кнопку «🪙, 150, 🎟, 1», и VoiceOver читал картинки по отдельности.
-        .accessibilityLabel(Text(EconText.wallet(coins: coins, tickets: tickets)))
+        .accessibilityLabel(Text(EconText.wallet(coins: coins, tickets: tickets, shards: shards)))
         .accessibilityHint(Text("Кошелёк. Открыть автомат с капсулами"))
         .accessibilityIdentifier("open.wallet")
     }

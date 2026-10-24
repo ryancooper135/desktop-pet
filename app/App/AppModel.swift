@@ -144,6 +144,8 @@ final class AppModel {
     @ObservationIgnored private var knownTastes: Set<String>? = nil
     /// В какие сутки уже сказали «На сегодня монет хватит» — не чаще раза в день.
     @ObservationIgnored private var capNoticeDay: Int? = nil
+    /// Время последней показанной награды клочками ✂️ — один тост на награду (волна 32).
+    @ObservationIgnored private var shardToastT: Double? = nil
     /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
     @ObservationIgnored private var pendingLine: String? = nil
 
@@ -509,6 +511,7 @@ final class AppModel {
             popDelta(delta)
             if a == .pet { heartBurst() }
             noteEarn(a, out)
+            noteShards()
             noteTaste(a)
             if let k = PostcardPhotos.kind(forAction: a.kind, key: a.key) { notePhoto(k, delay: PostcardCamera.actionDelay) }
             // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
@@ -539,6 +542,14 @@ final class AppModel {
         guard capNoticeDay != day else { return }
         capNoticeDay = day
         if let text = EconText.toast(e) { show(text, emoji: "🪙") }
+    }
+
+    /// «+3 ✂️ за день заботы» — клочки редкие, такую награду видно поверх тоста монет.
+    private func noteShards() {
+        let now = Clock.now()
+        guard let f = file, let g = Shards.freshGain(f, now: now, shownT: shardToastT) else { return }
+        shardToastT = g.t
+        show(Shards.toastText(g), emoji: "✂️")
     }
 
     /// Вкус еды или игрушки: любимое — сердечки и «Моё любимое!», нелюбимое — сдержанное «😑» и реплика.
@@ -1110,6 +1121,32 @@ final class AppModel {
             let r = try CapsuleMachine.perform(pay: pay)
             if case .success = r { Task { await AppActions.shared.afterChange() } }
             return r
+        } catch {
+            refuse(RefuseText.text("store"))
+            return nil
+        }
+    }
+
+    /// Мастерская ✂️ (волна 32): «Ателье» или лоскутная вещь за клочки. Вернёт текст отказа; nil — взяли
+    /// (тост с вещью покажет сама модель) или стор не записался (тогда уже показан отказ стора).
+    func takeShardOffer(_ o: ShardOffer) -> String? {
+        do {
+            let r: Result<CapsuleItem, ShardRefusal>
+            switch o.kind {
+            case .atelier(let rarity): r = try Shards.performAtelier(rarity)
+            case .exclusive(let id): r = try Shards.performBuy(id)
+            }
+            switch r {
+            case .failure(let why):
+                Feel.denied()
+                return Shards.refusalText(why)
+            case .success(let it):
+                refresh()
+                if it.rarity >= .epic { Feel.success(.hearts) } else { Feel.success(.ok) }
+                show("Теперь у тебя «\(it.name)»", emoji: "✂️")
+                Task { await AppActions.shared.afterChange() }
+                return nil
+            }
         } catch {
             refuse(RefuseText.text("store"))
             return nil

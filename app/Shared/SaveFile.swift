@@ -133,6 +133,8 @@ struct SaveFile: Codable, Sendable {
     /// Волна 18. Чему хозяин уже научился (NeedHint.swift, Tips): поглаживания пальцем и разовые подсказки жестов.
     /// Пустое в файл не пишется, новому щенку переходит: это знание хозяина, а не собаки.
     var tips = TipLog()
+    /// Волна 32: учёт клочков ✂️ — дни заботы, сундук недели, рекорды, находки, разовые награды (Premium.swift).
+    var shardLog = ShardLog()
 
     /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
@@ -205,6 +207,7 @@ struct SaveFile: Codable, Sendable {
         case character, characterName
         case birthTz
         case tips
+        case shardLog
     }
 
     init(from decoder: Decoder) throws {
@@ -273,6 +276,9 @@ struct SaveFile: Codable, Sendable {
         characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
         birthTz = try? c.decodeIfPresent(Int.self, forKey: .birthTz)
         tips = (try? c.decodeIfPresent(TipLog.self, forKey: .tips)) ?? TipLog()
+        shardLog = (try? c.decodeIfPresent(ShardLog.self, forKey: .shardLog)) ?? ShardLog()
+        // Старый сейв без учёта: прошлый журнал клочками не платит — считаем с текущей записи.
+        if shardLog.seenSeq < 0 || shardLog.isEmpty { shardLog.seenSeq = seq }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -329,6 +335,7 @@ struct SaveFile: Codable, Sendable {
         try c.encodeIfPresent(characterName, forKey: .characterName)
         try c.encodeIfPresent(birthTz, forKey: .birthTz)
         if !tips.isEmpty { try c.encode(tips, forKey: .tips) }
+        if !shardLog.isEmpty { try c.encode(shardLog, forKey: .shardLog) }
     }
 }
 

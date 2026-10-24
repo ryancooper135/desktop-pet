@@ -38,6 +38,8 @@ enum ItemCatalog {
     static let decor: Set<String> = [
         "bowl_plain", "mat_check", "lamp_mushroom", "sofa_mini", "kennel_castle",
         "pumpkin_small", "acorn_jar", "trophy_cup",
+        // волна 32: лоскутные, только за клочки ✂️
+        "pillow_patch", "armchair_patch",
     ]
 
     /// Мячики для «Поиграть».
@@ -56,6 +58,7 @@ enum ItemCatalog {
         "hoodie_pumpkin": "🎃", "sofa_mini": "🛋", "backpack_mini": "🎒", "wreath_autumn": "🍂",
         "trophy_cup": "🏆", "ball_star": "⭐",
         "cape_champion": "🦸", "kennel_castle": "🏰", "crown_champion": "👑",
+        "scarf_patch": "🧶", "hat_patch": "🧢", "blanket_patch": "🧵", "pillow_patch": "🛏", "armchair_patch": "🪑",
     ]
 
     static func emoji(_ id: String) -> String { emoji[id] ?? "📦" }

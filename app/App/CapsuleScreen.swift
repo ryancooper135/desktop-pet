@@ -5,6 +5,8 @@
 // Решения (Вадим может поменять): без билетиков и монет кнопки не гаснут — нажатие объясняет отказ текстом.
 // Волна 11: у предметов свои плоские иконки (ItemIcon), в коллекции кнопка по роли — надеть, на полку,
 // играть этим; под круткой карточка «Лавка дня» открывает ShopSheet (Shared/ShopDaily.swift).
+// Волна 32: под лавкой — «Мастерская ✂️» (WorkshopSheet, Shared/Premium.swift); у вещей в коллекции — строка пользы,
+// под коллекцией — что вещи дают вместе сейчас.
 
 import SwiftUI
 @preconcurrency import PetCore
@@ -21,6 +23,8 @@ struct CapsuleScreen: View {
     @State private var wobble = 0
     @State private var shattered = false
     @State private var flow: Task<Void, Never>?
+    /// Лист «Мастерская ✂️» (волна 32).
+    @State private var showWorkshop = false
 
     /// Сколько трясётся шарик и сколько ждёт тапа, прежде чем открыться сам.
     static let shakeFor: Double = 1.3
@@ -47,6 +51,7 @@ struct CapsuleScreen: View {
                 if let offer { pity(offer) }
                 if let offer { buttons(offer) }
                 shopCard
+                workshopCard
                 inventory
             }
             .padding(20)
@@ -54,6 +59,11 @@ struct CapsuleScreen: View {
         .background(PetPalette.bg.ignoresSafeArea())
         .sheet(isPresented: $model.showShop) {
             ShopSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showWorkshop) {
+            WorkshopSheet()
                 .environment(model)
                 .presentationDetents([.large])
         }
@@ -211,6 +221,44 @@ struct CapsuleScreen: View {
         .accessibilityIdentifier("capsule.shop")
     }
 
+    /// Вход в «Мастерскую ✂️» (волна 32): одна карточка как у лавки — коллекция ниже не съезжает.
+    private var workshopCard: some View {
+        let shards = model.file?.econ.wallet.shards ?? 0
+        return Button {
+            showWorkshop = true
+        } label: {
+            HStack(spacing: 10) {
+                Text("✂️")
+                    .font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Мастерская")
+                        .petFont(16, .bold)
+                        .foregroundStyle(PetPalette.ink)
+                    Text("Редкие вещи и лоскутное за клочки")
+                        .petFont(12, .medium)
+                        .foregroundStyle(PetPalette.soft)
+                }
+                Spacer(minLength: 0)
+                Text("✂️ \(shards)")
+                    .petFont(14, .heavy)
+                    .monospacedDigit()
+                    .foregroundStyle(PetPalette.ink)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(PetPalette.soft)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.card))
+            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(rarityColor(.epic).opacity(0.35), lineWidth: 1.5) }
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Мастерская, \(EconText.shards(shards))"))
+        .accessibilityHint(Text("Вещи за клочки"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("capsule.workshop")
+    }
+
     /// Что предмет делает сейчас и что сделает кнопка: подпись под именем и кнопка справа.
     private struct Use {
         var note: String
@@ -283,6 +331,13 @@ struct CapsuleScreen: View {
                                     .petFont(11, .medium)
                                     .foregroundStyle(on ? PetPalette.accent : PetPalette.soft)
                             }
+                            // Волна 32: польза вещи. Одежда помогает, только пока надета, — это в самой строке.
+                            if let perk = ItemPerks.line(it.id) {
+                                Text(perk)
+                                    .petFont(11, .medium)
+                                    .foregroundStyle(PetPalette.soft)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                         Spacer(minLength: 0)
                     }
@@ -296,6 +351,27 @@ struct CapsuleScreen: View {
                     if on { RoundedRectangle(cornerRadius: 12).strokeBorder(PetPalette.accent.opacity(0.55), lineWidth: 1.5) }
                 }
                 .accessibilityElement(children: .contain)
+            }
+            // Волна 32: что вещи дают вместе прямо сейчас (с потолком по каждому виду). Под списком,
+            // чтобы сама коллекция не съезжала вниз.
+            let perks = model.file.map { ItemPerks.summary($0) } ?? []
+            if !perks.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Вещи сейчас помогают")
+                        .petFont(12, .bold)
+                        .foregroundStyle(PetPalette.ink)
+                    ForEach(perks, id: \.self) { line in
+                        Text("· \(line)")
+                            .petFont(12, .medium)
+                            .foregroundStyle(PetPalette.soft)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 12).fill(PetPalette.card))
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("capsule.perks")
             }
         }
         .padding(.top, 6)

@@ -269,6 +269,9 @@ enum CatchGame {
         return 1
     }
 
+    /// Множитель монет за раунд с вещами хозяина (волна 32, ItemPerks): дом × польза вещей.
+    static func coinsX(_ f: SaveFile) -> Double { coinsX(f.pet) * ItemPerks.coinsX(f) }
+
     /// Сколько монет хочется за раунд: 0 без очков; base…max пропорционально очкам до par_score;
     /// game — номер раунда за сутки (с 1), с него убывание; buff — бафф дома (coinsX), округление один раз в конце.
     /// Дневной потолок daily_cap бафф не поднимает: с ним до потолка просто доходят быстрее (DECISIONS.md).
@@ -302,7 +305,7 @@ enum CatchGame {
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
         f.catchGames += 1
-        let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f.pet), cfg)
+        let wish = want(score: r.score, game: f.catchGames, buff: coinsX(f), cfg)
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.catchCoins += got
