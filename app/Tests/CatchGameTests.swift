@@ -299,39 +299,7 @@ final class CatchGameTests: XCTestCase {
         XCTAssertEqual(CatchGame.rewardText(CatchResult(score: 5, capped: true)), "На сегодня монет за игру хватит")
     }
 
-    // MARK: когда нельзя
-
-    func testGateLikeTricksPlusTired() {
-        XCTAssertNil(CatchGame.gate(cFile(), at: cT0))
-
-        var dead = cFile()
-        dead.pet.alive = false
-        XCTAssertEqual(CatchGame.gate(dead, at: cT0), "dead")
-
-        var away = cFile()
-        away.pet.outing = Outing(from: cT0 - 600, until: cT0 + 3600, find: "stick")
-        XCTAssertEqual(CatchGame.gate(away, at: cT0), "away")
-
-        var bath = cFile()
-        bath.pet.bathUntil = cT0 + 600
-        XCTAssertEqual(CatchGame.gate(bath, at: cT0), "bathing")
-
-        var nap = cFile()
-        nap.pet.napUntil = cT0 + 1800
-        XCTAssertEqual(CatchGame.gate(nap, at: cT0), "asleep")
-
-        let night = cT0 - 9 * 3600
-        XCTAssertEqual(CatchGame.gate(cFile(at: night), at: night), "asleep")
-
-        var bad = cFile()
-        bad.pet.hearts = 1
-        XCTAssertEqual(CatchGame.gate(bad, at: cT0), "unwell")
-
-        // Причины — обычные тексты отказа.
-        for r in ["dead", "away", "bathing", "asleep", "unwell", "tired"] {
-            XCTAssertNotEqual(RefuseText.text(r), "", r)
-        }
-    }
+    // MARK: когда пёс занят — раунд «просто так» (волна 32): MiniGamesTests
 
     func testFinishAfterDeathPaysNothing() {
         // Волна 13: пёс умер, пока шёл раунд, — монеты не капают (кошелёк переходит новому щенку), рекорд остаётся.

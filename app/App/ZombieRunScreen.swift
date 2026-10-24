@@ -44,6 +44,8 @@ struct ZombieRunScreen: View {
     @State private var posterDone: CGImage? = nil
     @State private var slobber = 0
     @State private var barkPulse = 0
+    /// Партия «просто так» (волна 32): причина MiniGames.busy на старте; nil — настоящая.
+    @State private var free: String?
 
     /// Сид UI-тестов: один и тот же раунд на каждом прогоне.
     static let testSeed: UInt64 = 7
@@ -58,14 +60,14 @@ struct ZombieRunScreen: View {
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
-                ZombieIntroCard(poster: posterIntro, gate: gate, best: model.file?.zombieBest ?? 0, left: coinsLeft) { start() }
+                ZombieIntroCard(poster: posterIntro, note: note, best: model.file?.zombieBest ?? 0, left: coinsLeft) { start() }
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             case .playing:
                 playArea
             case .done(let r):
                 Spacer(minLength: 0)
-                ZombieDoneCard(poster: posterDone, result: r, again: gate == nil, start: { start() }, close: { close() })
+                ZombieDoneCard(poster: posterDone, result: r, start: { start() }, close: { close() })
                     .padding(.horizontal, 20)
                 Spacer(minLength: 0)
             }
@@ -81,9 +83,14 @@ struct ZombieRunScreen: View {
         .accessibilityIdentifier("zombie.screen")
     }
 
-    private var gate: String? {
-        guard let f = model.file else { return Tricks.loadingReason }
-        return ZombieRun.gate(f, at: model.snap.t)
+    /// Плашка «просто так» на карточке «Играть» (волна 32): пёс занят или монеты на сегодня кончились. Играть можно всегда.
+    private var note: String? {
+        model.file.flatMap { MiniGames.note($0, at: model.snap.t, left: coinsLeft) }
+    }
+
+    /// Занят ли пёс прямо сейчас — тогда партия «просто так».
+    private var busyNow: String? {
+        model.file.flatMap { MiniGames.busy($0, at: model.snap.t) }
     }
 
     private var coinsLeft: Int {
@@ -287,10 +294,7 @@ struct ZombieRunScreen: View {
     // MARK: ход раунда
 
     private func start() {
-        guard gate == nil else {
-            Feel.denied()
-            return
-        }
+        free = busyNow
         Feel.prepare(.tap, .nudge)
         Feel.tap(.button)
         begin(ZombieRound(seed: Env.isUITest ? Self.testSeed : UInt64.random(in: 1...UInt64.max)))
@@ -413,7 +417,7 @@ struct ZombieRunScreen: View {
         let r0 = round
         let r: ZombieResult
         do {
-            r = try PetStore.shared.mutate { f in ZombieRun.finish(r0, in: &f, now: Clock.now()) }
+            r = try PetStore.shared.mutate { f in ZombieRun.finish(r0, in: &f, now: Clock.now(), free: free) }
         } catch {
             model.refuse(RefuseText.text("store"))
             model.showZombie = false
@@ -462,6 +466,7 @@ struct ZombieRunScreen: View {
     /// PET_ZOMBIE=play|done — детерминированные снимки (сид 7, автопилот).
     private func uiTestSetup() {
         guard Env.isUITest, phase == .intro, let mode = Env.value("PET_ZOMBIE") else { return }
+        free = busyNow
         switch mode {
         case "play":
             let r = ZombieRun.autoplay(seed: Self.testSeed, until: Self.testFreeze)
@@ -614,11 +619,12 @@ private struct ZombiePoster: View {
 
 // MARK: - Карточки
 
-/// «Играть»: постер, правила, рекорд, сколько монет ещё дадут сегодня.
+/// «Играть»: постер, правила, рекорд, сколько монет ещё дадут сегодня. Пёс занят или монеты кончились —
+/// плашка «играем просто так» (волна 32), но «Играть» нажимается всегда.
 private struct ZombieIntroCard: View {
     @Environment(AppModel.self) private var model
     let poster: CGImage?
-    let gate: String?
+    let note: String?
     let best: Int
     let left: Int
     let start: () -> Void
@@ -646,11 +652,11 @@ private struct ZombieIntroCard: View {
                          text: left > 0 ? "Ещё до \(EconText.coins(left))" : "Монеты на сегодня всё")
                     .accessibilityIdentifier("zombie.left")
             }
-            if let gate {
+            if let note {
                 HStack(spacing: 8) {
-                    Image(systemName: gate == "asleep" ? "moon.zzz.fill" : (gate == "away" ? "figure.walk" : "exclamationmark.circle.fill"))
+                    Image(systemName: MiniGames.noteIcon(note))
                         .accessibilityHidden(true)
-                    Text(Tricks.reasonText(gate))
+                    Text(MiniGames.noteText(note, name: model.snap.name))
                         .multilineTextAlignment(.leading)
                 }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -661,7 +667,7 @@ private struct ZombieIntroCard: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("zombie.gate")
             }
-            GameButton(title: "Играть", icon: "play.fill", enabled: gate == nil, action: start)
+            GameButton(title: "Играть", icon: "play.fill", enabled: true, action: start)
                 .accessibilityIdentifier("zombie.play")
         }
         .padding(16)
@@ -675,7 +681,6 @@ private struct ZombieDoneCard: View {
     @Environment(AppModel.self) private var model
     let poster: CGImage?
     let result: ZombieResult
-    let again: Bool
     let start: () -> Void
     let close: () -> Void
 
@@ -719,7 +724,7 @@ private struct ZombieDoneCard: View {
                     .foregroundStyle(PetPalette.green)
             }
             HStack(spacing: 10) {
-                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: again, action: start)
+                GameButton(title: "Ещё раз", icon: "arrow.counterclockwise", enabled: true, action: start)
                     .accessibilityIdentifier("zombie.again")
                 GameButton(title: "Готово", icon: "checkmark", enabled: true, filled: false, action: close)
                     .accessibilityIdentifier("zombie.done")

@@ -295,6 +295,8 @@ struct BlockDuoResult: Hashable, Sendable {
     var isRecord = false
     var played = false
     var reason: String?
+    /// Раунд «просто так» (волна 32): почему — MiniGames.busy на старте; nil — настоящий.
+    var free: String?
 
     var totalCoins: Int { coins + careCoins }
 }
@@ -484,17 +486,16 @@ enum BlockDuo {
         return Swift.max(0, Swift.min(own, all))
     }
 
-    /// Можно ли играть — как в «Лови мячик»: причина трюков или отказ ядра на play. nil — можно.
-    static func gate(_ f: SaveFile, at t: Double) -> String? { CatchGame.gate(f, at: t) }
-
+    /// free — раунд «просто так» (MiniGames.busy на старте, волна 32): только рекорд.
     /// Партия кончилась (или её бросили): рекорд, монеты с потолками, настроение через ядерный play. Пишет только в f.
     @discardableResult
-    static func finish(_ g: BlockDuoGame, in f: inout SaveFile, now: Double, _ cfg: BlockDuoConfig = .shared) -> BlockDuoResult {
+    static func finish(_ g: BlockDuoGame, in f: inout SaveFile, now: Double, free: String? = nil, _ cfg: BlockDuoConfig = .shared) -> BlockDuoResult {
         var r = BlockDuoResult(score: Swift.max(0, g.score), mine: g.mine, shiba: g.shiba, lines: g.lines, maxCombo: g.maxCombo)
+        r.free = free
         PetRunner.catchUp(&f, now: now)
         rollDay(&f, now: now)
-        f.blockduoGames += 1
-        let wish = CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
+        if free == nil { f.blockduoGames += 1 }
+        let wish = free != nil ? 0 : CatchGame.want(score: r.score, game: f.blockduoGames, buff: CatchGame.coinsX(f.pet), cfg.asCatch)
         // Пёс умер, пока шла игра, — монет нет: как у привычек и кухни, мёртвому не платим.
         let got = f.pet.alive ? Swift.min(wish, coinsLeft(f, now: now, cfg)) : 0
         f.blockduoCoins += got
@@ -504,8 +505,8 @@ enum BlockDuo {
         r.isRecord = r.score > f.blockduoBest
         f.blockduoBest = Swift.max(f.blockduoBest, r.score)
         r.best = f.blockduoBest
-        // Ни одной фигуры — это не игра: настроение не трогаем.
-        if r.score > 0 {
+        // Ни одной фигуры — это не игра: настроение не трогаем. «Просто так» — тоже.
+        if r.score > 0, free == nil {
             let out = PetRunner.apply(.play, source: .app, to: &f, now: now)
             r.played = out.ok
             r.careCoins = out.ok ? out.coins : 0
@@ -522,8 +523,9 @@ enum BlockDuo {
         return "Места больше нет!"
     }
 
-    /// «+12 монет», «На сегодня монет хватит» или nil (очков нет).
+    /// «+12 монет», «На сегодня монет хватит», «Играли просто так — без монет» или nil (очков нет).
     static func rewardText(_ r: BlockDuoResult) -> String? {
+        if r.free != nil { return MiniGames.freeReward }
         if r.totalCoins > 0 { return "+\(EconText.coins(r.totalCoins))" }
         if r.capped { return "На сегодня монет за игры хватит" }
         return nil
@@ -552,19 +554,5 @@ enum BlockDuo {
             "Ты ставишь, я помогаю — так веселее!",
         ]
         return lines[r.score % lines.count]
-    }
-}
-
-// MARK: - Общий потолок мини-игр
-
-enum MiniGames {
-    /// Если в economy.json нет minigames.daily_cap: столько же, сколько потолок одной игры.
-    static let defaultSharedCap = 60
-
-    /// Монет за все мини-игры сегодня (у каждой свои сутки в сейве: вчерашнее не в счёт).
-    static func coinsToday(_ f: SaveFile, now: Double) -> Int {
-        DayKey.today(f.catchCoins, day: f.catchDay, at: now)
-            + DayKey.today(f.blockduoCoins, day: f.blockduoDay, at: now)
-            + DayKey.today(f.zombieCoins, day: f.zombieDay, at: now)
     }
 }

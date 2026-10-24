@@ -374,7 +374,7 @@ final class BlockDuoTests: XCTestCase {
     func testFinishWhileAsleepKeepsRecordWithoutPlay() {
         var f = bFile()
         f.pet.napUntil = bT0 + 1800
-        XCTAssertEqual(BlockDuo.gate(f, at: bT0), "asleep")
+        XCTAssertEqual(MiniGames.busy(f, at: bT0), "asleep")
         let r = BlockDuo.finish(BlockDuo.autoplay(seed: 3, moves: 4), in: &f, now: bT0, bCfg())
         XCTAssertFalse(r.played)
         XCTAssertEqual(r.reason, "asleep")
