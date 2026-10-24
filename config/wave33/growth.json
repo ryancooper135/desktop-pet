@@ -1,0 +1,38 @@
+{
+  "growth": {
+    "_note": "Волна 33 B: рост щенок → подросток → взрослый (RESEARCH/20-tycoon-design.md, раздел 4). При слиянии — раздел growth в config/economy.json. Те же числа — умолчания GrowthConfig в app/Shared/Growth.swift; тест сверяет.",
+    "points": {
+      "_note": "g = base + span · (w_hearts·H + w_calm·N + w_visit·V), H = сердца в полночь / hearts_full; уют ≥ cozy_min даёт +cozy_bonus; не выше max_per_day. legacy_per_day — дни старого сейва до роста.",
+      "base": 0.25,
+      "span": 0.75,
+      "w_hearts": 0.5,
+      "w_calm": 0.3,
+      "w_visit": 0.2,
+      "hearts_full": 4,
+      "cozy_min": 45,
+      "cozy_bonus": 0.05,
+      "max_per_day": 1.0,
+      "legacy_per_day": 0.85,
+      "replay_max_h": 336,
+      "sample_min": 10
+    },
+    "phases": { "teen": 10, "adult": 35, "grey_from": 335, "grey": 365 },
+    "look": {
+      "_note": "Вид на старте стадии; между стартами — линейно по очкам. 1 — как у взрослого.",
+      "puppy": { "scale": 0.65, "head": 1.25, "legs": 0.8, "ear_droop": 0.7, "tail_curl": 0.35, "voice_pitch": 1.35, "voice_crack": 0 },
+      "teen":  { "scale": 0.85, "head": 1.08, "legs": 1.1, "ear_droop": 0.25, "tail_curl": 0.15, "voice_pitch": 1.12, "voice_crack": 0.3 },
+      "adult": { "scale": 1.0,  "head": 1.0,  "legs": 1.0, "ear_droop": 0,    "tail_curl": 1.0,  "voice_pitch": 0.92, "voice_crack": 0 }
+    },
+    "mods": {
+      "_note": "Ключи _x как у ItemPerks.mods; при слиянии перемножить в одной точке. trip_time_x — время похода на место карты (Places).",
+      "puppy": { "food_decay_x": 1.15, "energy_decay_x": 1.2, "sleep_regen_x": 1.2, "trip_time_x": 1.3 },
+      "teen":  { "fun_decay_x": 1.15 },
+      "adult": { "food_decay_x": 0.95, "fun_decay_x": 0.9, "trip_time_x": 0.85 }
+    },
+    "perks": {
+      "puppy": { "trick_limit": 2 },
+      "teen":  { "trick_refuse_pct": 15 },
+      "adult": { "find_double_pct": 10, "station_bonus_pct": 5 }
+    }
+  }
+}
