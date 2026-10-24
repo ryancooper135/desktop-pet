@@ -185,7 +185,7 @@ enum PetStance {
         case "feed", Cooking.reactKind:
             if standing {
                 let meal = EatClip.meal(chews: EatClip.feedChews, available: available)
-                out = meal.isEmpty ? [] : meal + ReactBeat.afterMeal
+                out = meal.isEmpty ? [] : meal + pick(ReactBeat.afterMeal, available: available)
             }
         case "item":
             if standing { out = EatClip.meal(chews: EatClip.itemChews, available: available) }
