@@ -63,6 +63,8 @@ final class YardScreenUITests: XCTestCase {
     /// Сад: улучшить сушилку, потом собрать полную копилку.
     @MainActor
     func testUpgradeAndCollect() throws {
+        // Сад с 3D-станциями: на CI дерево запросов медленное, 3 мин по умолчанию не хватало (прогон 40398816300).
+        executionTimeAllowance = 300
         let app = launch("yard_rich")
         let any = app.descendants(matching: .any)
         let screen = any["yard.screen"]
@@ -78,7 +80,7 @@ final class YardScreenUITests: XCTestCase {
 
         let up = any["yard.screen.station.dryer.up"]
         XCTAssertTrue(up.waitForExistence(timeout: 5), "нет кнопки «Улучшить» у сушилки")
-        for _ in 0..<5 where !up.isHittable {
+        for _ in 0..<5 where !inView(up, app) {
             screen.swipeUp()
             settle(0.5)
         }
@@ -88,7 +90,7 @@ final class YardScreenUITests: XCTestCase {
         snap("ui-34-yard-station")
 
         let close = any["yard.screen.close"]
-        for _ in 0..<5 where !close.isHittable {
+        for _ in 0..<5 where !inView(close, app) {
             screen.swipeDown()
             settle(0.4)
         }
