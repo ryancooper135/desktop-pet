@@ -162,6 +162,16 @@ enum IslandLook {
     static func shown(_ card: IslandCard?, next: IslandCard?, stale: Bool) -> IslandCard? {
         stale ? (next ?? card) : card
     }
+
+    /// Остаток таймера как у системного отсчёта: «40:00», «1:30:00», «0:05». Для снимков (petFrozenNow):
+    /// Text(timerInterval:pauseTime:) на паузе показывает прошедшее, а не остаток.
+    static func countdown(_ seconds: Double) -> String {
+        let s = seconds.isFinite ? max(0, Int(seconds.rounded(.up))) : 0
+        let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
+        let ss = sec < 10 ? "0\(sec)" : "\(sec)"
+        if h > 0 { return "\(h):\(m < 10 ? "0" : "")\(m):\(ss)" }
+        return "\(m):\(ss)"
+    }
 }
 
 // MARK: - Пиксельный пёс

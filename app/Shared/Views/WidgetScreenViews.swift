@@ -267,11 +267,12 @@ struct WidgetBankRow: View {
         if let line = look.bankLine {
             HStack(spacing: 6) {
                 PixelPigView().frame(width: 16, height: 12)
+                // Рядом «Собрать» — «+28 · полная в 21:10» в одну строку не влезает и резалось «в 2…»: две строки.
                 Text(line)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(look.bankFull ? PetPalette.accent : PetPalette.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                 Spacer(minLength: 0)
                 if look.canCollect { WidgetCollectButton() }
             }
@@ -390,9 +391,15 @@ struct WidgetTripTimer: View {
     @Environment(\.petFrozenNow) private var frozenNow
 
     var body: some View {
-        Text(timerInterval: Date(timeIntervalSince1970: min(from, until) - Clock.offset)...Date(timeIntervalSince1970: until - Clock.offset),
-             pauseTime: frozenNow.map { Date(timeIntervalSince1970: $0 - Clock.offset) },
-             countsDown: true)
+        Group {
+            if let t = frozenNow {
+                // Снимок: остаток текстом — таймер на паузе показал бы прошедшее.
+                Text(IslandLook.countdown(until - t))
+            } else {
+                Text(timerInterval: Date(timeIntervalSince1970: min(from, until) - Clock.offset)...Date(timeIntervalSince1970: until - Clock.offset),
+                     countsDown: true)
+            }
+        }
             .font(.system(size: size, weight: .semibold, design: .rounded))
             .monospacedDigit()
             .lineLimit(1)

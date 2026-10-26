@@ -287,4 +287,16 @@ final class IslandLookTests: XCTestCase {
         XCTAssertTrue(WidgetLook.collect(in: &f, now: noon).isEmpty)
         XCTAssertEqual(f.level.xp, xp1)
     }
+
+    // Волна 35 N: обратный отсчёт текстом — для замороженных снимков (Text(timerInterval:pauseTime:) показывал прошедшее).
+    func testCountdownText() {
+        XCTAssertEqual(IslandLook.countdown(2400), "40:00")
+        XCTAssertEqual(IslandLook.countdown(5400), "1:30:00")
+        XCTAssertEqual(IslandLook.countdown(3605), "1:00:05")
+        XCTAssertEqual(IslandLook.countdown(5), "0:05")
+        XCTAssertEqual(IslandLook.countdown(59.2), "1:00")
+        XCTAssertEqual(IslandLook.countdown(-30), "0:00")
+        XCTAssertEqual(IslandLook.countdown(.nan), "0:00")
+        XCTAssertEqual(IslandLook.countdown(.infinity), "0:00")
+    }
 }

@@ -133,6 +133,15 @@ final class FreshEyesTests: XCTestCase {
         XCTAssertEqual(DeepLink.step(target: "capsule", open: ["capsule", "shop"]), .closeFirst)
     }
 
+    // Волна 35 N: лист «Уровень» (AppModel.openRoutes → "level") — тоже чужой лист: pet://map и pet://yard сперва закрывают его.
+    func testDeepLinkClosesLevelSheetFirst() {
+        XCTAssertEqual(DeepLink.step(target: "map", open: ["level"]), .closeFirst)
+        XCTAssertEqual(DeepLink.step(target: "yard", open: ["level"]), .closeFirst)
+        XCTAssertEqual(DeepLink.step(target: "yard", open: ["map"]), .closeFirst)
+        XCTAssertEqual(DeepLink.step(target: "map", open: ["map"]), .go)
+        XCTAssertFalse(DeepLink.mayFollow("shop", open: ["capsule", "level"]))
+    }
+
     func testDeepLinkKeepsSheetsOnTheWay() {
         XCTAssertEqual(DeepLink.step(target: "needs", open: ["needs"]), .go)
         XCTAssertEqual(DeepLink.step(target: "shop", open: ["capsule"]), .go, "лавка — лист в автомате")

@@ -181,9 +181,15 @@ struct IslandCountdown: View {
     var body: some View {
         if let end = card.timerEnd {
             let start = min(card.progressFrom ?? card.from, end)
-            Text(timerInterval: Date(timeIntervalSince1970: start - Clock.offset)...Date(timeIntervalSince1970: end - Clock.offset),
-                 pauseTime: frozenNow.map { Date(timeIntervalSince1970: $0 - Clock.offset) },
-                 countsDown: true)
+            Group {
+                if let t = frozenNow {
+                    // Снимок: остаток текстом — таймер на паузе показал бы прошедшее.
+                    Text(IslandLook.countdown(end - t))
+                } else {
+                    Text(timerInterval: Date(timeIntervalSince1970: start - Clock.offset)...Date(timeIntervalSince1970: end - Clock.offset),
+                         countsDown: true)
+                }
+            }
                 .monospacedDigit()
                 .font(.system(size: size, weight: .semibold, design: .rounded))
                 .foregroundStyle(card.glyph.tint)
@@ -232,16 +238,17 @@ struct IslandTripBar: View {
                     .foregroundStyle(PetPalette.soft)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Group {
-                            if frozenNow != nil {
-                                ProgressView(value: p)
-                            } else {
-                                ProgressView(timerInterval: Date(timeIntervalSince1970: from - Clock.offset)...Date(timeIntervalSince1970: end - Clock.offset),
-                                             countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
-                            }
+                        if frozenNow != nil {
+                            // Снимок: полоса фигурами. ProgressView — системный UIProgressView, ImageRenderer
+                            // его не рисует и ставит на его месте красный значок-«запрет».
+                            Capsule().fill(PetPalette.soft.opacity(0.3)).frame(height: 4)
+                            Capsule().fill(PetPalette.green).frame(width: max(4, geo.size.width * CGFloat(p)), height: 4)
+                        } else {
+                            ProgressView(timerInterval: Date(timeIntervalSince1970: from - Clock.offset)...Date(timeIntervalSince1970: end - Clock.offset),
+                                         countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
+                                .progressViewStyle(.linear)
+                                .tint(PetPalette.green)
                         }
-                        .progressViewStyle(.linear)
-                        .tint(PetPalette.green)
                         Circle()
                             .fill(PetPalette.fur)
                             .overlay(Circle().stroke(Color.white, lineWidth: 1.5))

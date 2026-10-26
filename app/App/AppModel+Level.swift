@@ -32,6 +32,8 @@ struct LevelSeen {
     static let growFor: Double = 3
     /// Пауза после закрытия мини-игры: экран уезжает, игра дописывает партию в стор.
     static let gameDelay: Double = 1.4
+    /// busyUntil дальше этого от «сейчас» — часы ушли назад: не ждём (самая длинная сцена ~7 с).
+    static let staleBusy: Double = 30
 
     /// Сцены и рост включены: в обычном запуске всегда, в UI-тестах — только с сидом level*.
     static var on: Bool {
@@ -98,7 +100,9 @@ extension AppModel {
             levelSeen.level = paid
             levelSeen.save()
         }
-        guard now >= levelSeen.busyUntil, !levelSceneBlocked else { return }
+        // Волна 35 N: часы перевели назад посреди сцены — busyUntil «в будущем» на часы; сцена длится секунды, такое не ждём.
+        let busy = now < levelSeen.busyUntil && levelSeen.busyUntil - now < LevelSeen.staleBusy
+        guard !busy, !levelSceneBlocked else { return }
         if let s = LevelInfo.summary(after: levelSeen.level, upTo: paid) {
             levelSeen.level = paid
             levelSeen.save()
@@ -161,7 +165,7 @@ extension AppModel {
 
     /// Сцена кончилась — следом может ждать вторая (уровень и рост разом): не ждать тикера 30 с.
     private func refreshAfterScene() {
-        let left = max(0, levelSeen.busyUntil - Clock.now())
+        let left = min(LevelSeen.staleBusy, max(0, levelSeen.busyUntil - Clock.now()))
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(left + 0.1))
             self?.refresh()

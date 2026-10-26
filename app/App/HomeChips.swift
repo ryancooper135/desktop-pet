@@ -85,6 +85,9 @@ struct LevelChip: View {
                     .fixedSize()
                     .foregroundStyle(PetPalette.ink)
                     .contentTransition(.numericText(value: Double(p.level)))
+                    // Волна 35 N: без приоритета ряд отдавал тексту половину места, и при узком кошельке («20 · 1»)
+                    // «ур. 12» резалось в «ур....». Текст целиком, полоске — остаток (не меньше 36).
+                    .layoutPriority(1)
                 XpBar(fraction: p.fraction, height: 5)
                     .frame(minWidth: 18)
             }
