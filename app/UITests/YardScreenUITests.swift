@@ -4,6 +4,10 @@
 //   ui-34-yard-plates   «Дворик»: сушилка, карточка «Дорожка» и полоска «ещё 80 🪙»
 //   ui-34-yard-station  «Сад»: сушилка выросла до ур. 4
 //   ui-34-yard-collect  полная копилка собрана: тост со свинкой
+// Волна 35 M (значение сцены ещё «dog=<клип>,gold=<станции>»):
+//   ui-35-yard-dog      Шиба у каши смотрит на пар (PET_YARD_DOG=porridge)
+//   ui-35-yard-plate    объёмные таблички «+N/ч» над станциями, у косточек золотая
+//   ui-35-yard-gold     сушилке купили золотую табличку за 60 ✂️
 
 import XCTest
 
@@ -13,9 +17,10 @@ final class YardScreenUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch(_ seed: String) -> XCUIApplication {
+    private func launch(_ seed: String, dog: String? = nil) -> XCUIApplication {
         let app = ScreenshotUITests.makeApp()
         app.launchEnvironment["PET_SEED"] = seed
+        if let dog { app.launchEnvironment["PET_YARD_DOG"] = dog }
         app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
         app.launchEnvironment["PET_SCHEME"] = "light"
         app.launchEnvironment["PET_OPEN"] = "yard"
@@ -95,6 +100,51 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(tapWhenReady(close), "нет крестика")
         XCTAssertTrue(screen.waitForNonExistence(timeout: 5), "двор не закрылся")
         XCTAssertTrue(any["open.yard"].waitForExistence(timeout: 10), "на главной нет кнопки «Двор»")
+        app.terminate()
+    }
+
+    /// Шиба сам ходит к станциям; в тесте держим его у каши, чтобы снимок был про дело, а не про дорогу.
+    @MainActor
+    func testDogAtStation() throws {
+        let app = launch("yard_rich", dog: "porridge")
+        let scene = app.descendants(matching: .any)["yard.screen.scene"]
+        XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
+        XCTAssertTrue(wait(scene, valueHas: "dog=act.porridge", timeout: 10),
+                      "пёс не у каши (\(String(describing: scene.value)))")
+        XCTAssertTrue(scene.label.contains("Шиба"), "VoiceOver не говорит, где Шиба: \(scene.label)")
+        settle(4)
+        snap("ui-35-yard-dog")
+        app.terminate()
+    }
+
+    /// Таблички в сцене, потом золотая табличка сушилки за клочки.
+    @MainActor
+    func testGoldPlate() throws {
+        let app = launch("yard_rich")
+        let any = app.descendants(matching: .any)
+        let screen = any["yard.screen"]
+        let scene = any["yard.screen.scene"]
+        XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
+        XCTAssertTrue(wait(scene, valueHas: "gold=bones"), "сид yard_rich: косточки золотые (\(String(describing: scene.value)))")
+        XCTAssertTrue(scene.label.contains("/ч"), "VoiceOver не читает доход станций: \(scene.label)")
+        settle(3)
+        snap("ui-35-yard-plate")
+
+        let gold = any["yard.screen.station.dryer.gold"]
+        XCTAssertTrue(gold.waitForExistence(timeout: 5), "нет кнопки золотой таблички у сушилки")
+        for _ in 0..<6 where !gold.isHittable {
+            screen.swipeUp()
+            settle(0.5)
+        }
+        XCTAssertTrue(tapWhenReady(gold), "золотая табличка не нажимается")
+        XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer"), "сушилка не стала золотой (\(String(describing: scene.value)))")
+        XCTAssertTrue(any["yard.screen.station.dryer.goldOwned"].waitForExistence(timeout: 5), "нет строки «Золотая табличка»")
+        for _ in 0..<6 where !scene.isHittable {
+            screen.swipeDown()
+            settle(0.4)
+        }
+        settle(1.5)
+        snap("ui-35-yard-gold")
         app.terminate()
     }
 

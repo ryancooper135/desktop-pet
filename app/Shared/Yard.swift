@@ -87,6 +87,9 @@ struct YardConfig: Hashable, Sendable {
     var tipLuckX: Double = 1.5
     /// Прибавка ко всем станциям по уровню пса: уровень → %, суммируется (ур. 25 +5, 31–34 по +2).
     var levelBoost: [Int: Int] = [25: 5, 31: 2, 32: 2, 33: 2, 34: 2]
+    /// Золотая табличка станции (волна 35 M): сток клочков, +goldPct % к ставке этой станции.
+    var goldPrice = 60
+    var goldPct = 3
 
     static let stubTiers: [YardTier] = [
         YardTier(name: "Подоконник", level: 1, price: 0),
@@ -198,6 +201,10 @@ struct YardConfig: Hashable, Sendable {
             for (k, v) in lb { if let l = Int(k), let n = v.double { m[l] = max(0, Int(n)) } }
             levelBoost = m
         }
+
+        let g = y["gold"]
+        goldPrice = max(0, int(g["price_shards"], goldPrice))
+        goldPct = max(0, int(g["pct"], goldPct))
     }
 
     func station(_ id: String) -> YardStation? { stations.first { $0.id == id } }
@@ -232,6 +239,8 @@ struct YardState: Codable, Hashable, Sendable {
     var collects = 0
     /// Всего собрано монет (статистика).
     var collected = 0
+    /// Станции с золотой табличкой (id; волна 35 M). Старые сейвы — без поля, пусто.
+    var gold: [String] = []
 
     init() {}
 
@@ -240,7 +249,7 @@ struct YardState: Codable, Hashable, Sendable {
     func owns(_ plate: String) -> Bool { plates.contains(plate) || stations[plate] != nil }
 
     enum CodingKeys: String, CodingKey {
-        case plates, stations, bank, t, food, larder, tipDay, tipsToday, collects, collected
+        case plates, stations, bank, t, food, larder, tipDay, tipsToday, collects, collected, gold
     }
 
     init(from decoder: Decoder) throws {
@@ -255,6 +264,23 @@ struct YardState: Codable, Hashable, Sendable {
         tipsToday = (try? c.decodeIfPresent(Int.self, forKey: .tipsToday)) ?? 0
         collects = (try? c.decodeIfPresent(Int.self, forKey: .collects)) ?? 0
         collected = (try? c.decodeIfPresent(Int.self, forKey: .collected)) ?? 0
+        gold = (try? c.decodeIfPresent([String].self, forKey: .gold)) ?? []
+    }
+
+    /// Пустой список табличек не пишем — сейв без золота байт в байт как до волны 35.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(plates, forKey: .plates)
+        try c.encode(stations, forKey: .stations)
+        try c.encode(bank, forKey: .bank)
+        try c.encode(t, forKey: .t)
+        try c.encode(food, forKey: .food)
+        try c.encode(larder, forKey: .larder)
+        try c.encode(tipDay, forKey: .tipDay)
+        try c.encode(tipsToday, forKey: .tipsToday)
+        try c.encode(collects, forKey: .collects)
+        try c.encode(collected, forKey: .collected)
+        if !gold.isEmpty { try c.encode(gold, forKey: .gold) }
     }
 }
 
@@ -295,6 +321,16 @@ enum YardTierGate: Hashable, Sendable {
     case maxed
 }
 
+/// Золотая табличка: чем кончилась покупка.
+enum YardGoldResult: Hashable, Sendable {
+    case ok(price: Int)
+    /// Уже золотая.
+    case owned
+    case notBuilt
+    case noShards(need: Int)
+    case unknown
+}
+
 /// Пёс-помощник у станции: +pct % к её ставке (взрослый и дома, волна 34 G).
 struct YardHelper: Hashable, Sendable {
     let station: String
@@ -329,15 +365,26 @@ enum Yard {
     /// Общая ставка 🪙/ч: сумма по станциям, с прибавкой от уровня пса и от пса-помощника.
     static func rate(_ s: YardState, dogLevel: Int, helper: YardHelper? = nil, _ cfg: YardConfig = .shared) -> Double {
         s.stations.keys.sorted().reduce(0) { sum, id in
-            sum + stationRate(id, level: s.stations[id] ?? 0, dogLevel: dogLevel, helper: helper, cfg)
+            sum + stationRate(id, level: s.stations[id] ?? 0, dogLevel: dogLevel, helper: helper,
+                              gold: s.gold.contains(id), cfg)
         }
     }
 
-    /// Ставка одной станции для таблички «+14/ч» (с прибавкой от уровня; помощник — только своей станции).
-    static func stationRate(_ id: String, level: Int, dogLevel: Int, helper: YardHelper? = nil,
+    /// Ставка одной станции для таблички «+14/ч» (с прибавкой от уровня; помощник — только своей станции;
+    /// золотая табличка — +goldPct % этой станции, проценты складываются).
+    static func stationRate(_ id: String, level: Int, dogLevel: Int, helper: YardHelper? = nil, gold: Bool = false,
                             _ cfg: YardConfig = .shared) -> Double {
         let near = helper?.station == id ? max(0, helper?.pct ?? 0) : 0
-        return Double(cfg.station(id)?.rate(level) ?? 0) * (1 + Double(cfg.boostPct(dogLevel: dogLevel) + near) / 100)
+        let shine = gold ? cfg.goldPct : 0
+        return Double(cfg.station(id)?.rate(level) ?? 0)
+            * (1 + Double(cfg.boostPct(dogLevel: dogLevel) + near + shine) / 100)
+    }
+
+    /// Ставка поставленной станции по состоянию (с её золотом). 0 — станции нет.
+    static func stationRate(_ id: String, in s: YardState, dogLevel: Int, helper: YardHelper? = nil,
+                            _ cfg: YardConfig = .shared) -> Double {
+        guard let lv = s.stations[id] else { return 0 }
+        return stationRate(id, level: lv, dogLevel: dogLevel, helper: helper, gold: s.gold.contains(id), cfg)
     }
 
     /// У какой станции встанет пёс: самая доходная по базовой ставке, при равенстве — раньше в конфиге.
@@ -468,6 +515,20 @@ enum Yard {
         return .upgraded(level: lv + 1, price: price)
     }
 
+    /// Золотая табличка станции за клочки: начислить по старой ставке, списать, позолотить. Одна на станцию.
+    @discardableResult
+    static func gild(_ id: String, _ s: inout YardState, shards: inout Int, now: Double, dogLevel: Int,
+                     helper: YardHelper? = nil, _ cfg: YardConfig = .shared) -> YardGoldResult {
+        guard cfg.station(id) != nil else { return .unknown }
+        guard s.stations[id] != nil else { return .notBuilt }
+        guard !s.gold.contains(id) else { return .owned }
+        guard shards >= cfg.goldPrice else { return .noShards(need: cfg.goldPrice - shards) }
+        accrue(&s, now: now, dogLevel: dogLevel, helper: helper, cfg)
+        shards -= cfg.goldPrice
+        s.gold.append(id)
+        return .ok(price: cfg.goldPrice)
+    }
+
     // MARK: сбор
 
     /// Сбор — тап по копилке. В кошелёк floor(bank), дробь остаётся; порции целыми, остаток часов остаётся.
@@ -595,6 +656,19 @@ enum Yard {
         if case .upgraded(let lv, _) = r {
             f.econ.wallet.coins = coins
             f.log("yard.up", t: now, key: id, value: lv)
+        }
+        return r
+    }
+
+    /// Золотая табличка из клочков кошелька. В журнал yard.gold (key — станция, value — цена в клочках).
+    @discardableResult
+    static func gild(_ id: String, in f: inout SaveFile, now: Double, dogLevel: Int,
+                     _ cfg: YardConfig = .shared) -> YardGoldResult {
+        var shards = f.econ.wallet.shards
+        let r = gild(id, &f.yard, shards: &shards, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
+        if case .ok(let price) = r {
+            f.econ.wallet.shards = shards
+            f.log("yard.gold", t: now, key: id, value: price)
         }
         return r
     }

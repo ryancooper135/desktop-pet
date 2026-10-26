@@ -41,6 +41,23 @@ extension AppModel {
             }
     }
 
+    /// Золотая табличка станции за клочки ✂️ (волна 35 M): +goldPct % к её доходу и золотой вид в сцене.
+    @discardableResult
+    func goldYardStation(_ id: String) -> YardGoldResult? {
+        let r = yardWrite { f, now in Yard.gild(id, in: &f, now: now, dogLevel: DogLevel.level(f)) }
+        guard let r else { return nil }
+        switch r {
+        case .ok:
+            Feel.success(.coins)
+            show("Табличка теперь золотая: +\(YardConfig.shared.goldPct) %", emoji: "🏅")
+        case .noShards(let need): refuse("Не хватает: ещё \(EconText.shards(need))")
+        case .owned: refuse("Табличка уже золотая")
+        case .notBuilt: refuse("Сначала поставь станцию")
+        case .unknown: refuse(RefuseText.text("store"))
+        }
+        return r
+    }
+
     /// Открыть следующий ярус — это уровень линии дома «Участок» (HomeShop.buy, там же гейт и журнал yard.tier).
     @discardableResult
     func openYardTier() -> HomeShop.BuyResult? {
