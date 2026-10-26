@@ -29,7 +29,8 @@ enum DeepLink {
 
     /// Цели, которые что-то открывают. Остальное (pet://home и незнакомое) — «закрыть всё», это и так .go.
     static let routes: Set<String> = ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch",
-                                      "blockduo", "zombie", "brush", "habits", "kitchen", "characters"]
+                                      "blockduo", "zombie", "brush", "habits", "kitchen", "characters",
+                                      "map"]  // волна 34 H: карта мест
 
     /// open — что показано сейчас (имена как у хостов; открытка — "postcard").
     static func step(target host: String?, open: Set<String>) -> Step {

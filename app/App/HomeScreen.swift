@@ -285,6 +285,7 @@ struct HomeScreen: View {
                 .environment(model)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $model.showMap) { PlacesMapScreen().environment(model).presentationDetents([.large]) }
         .fullScreenCover(isPresented: $model.showCatch) {
             // На весь экран: лист тянулся бы вниз вместе с миской.
             CatchGameScreen()
