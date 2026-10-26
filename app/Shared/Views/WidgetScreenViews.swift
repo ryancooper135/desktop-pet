@@ -243,8 +243,9 @@ struct WidgetCollectButton: View {
         Button(intent: CollectIntent(.widget)) {
             HStack(spacing: 4) {
                 Image(systemName: "hand.tap.fill")
-                if !compact { Text("Собрать") }
+                if !compact { Text("Собрать").lineLimit(1) }
             }
+            .fixedSize()
             .font(.system(size: 12, weight: .bold, design: .rounded))
             .foregroundStyle(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(Color.white))
             .padding(.horizontal, compact ? 8 : 10)
@@ -270,7 +271,7 @@ struct WidgetBankRow: View {
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(look.bankFull ? PetPalette.accent : PetPalette.ink)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: 0)
                 if look.canCollect { WidgetCollectButton() }
             }
