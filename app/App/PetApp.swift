@@ -67,7 +67,12 @@ struct RootView: View {
             // «Доброе утро», отложенное под отчётом «Пока тебя не было».
             model.sayPending()
         }
-        .onChange(of: model.anyCover) { _, busy in if !busy { guide.check() } }
+        .onChange(of: model.anyCover) { _, busy in
+            guard !busy else { return }
+            guide.check()
+            // Волна 35 N: сцена уровня/роста, отложенная под листом или отчётом «Пока тебя не было», — сразу, не через тикер 30 с.
+            model.refresh()
+        }
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.

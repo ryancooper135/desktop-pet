@@ -981,6 +981,8 @@ final class AppModel {
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
             (showBlockDuo, "blockduo"), (showZombie, "zombie"), (showHabits, "habits"), (showKitchen, "kitchen"),
             (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
+            // Волна 35 N: лист уровня тоже лист — без него pet://map поверх «Уровня» терял карту, флаг оставался true.
+            (showLevel, "level"),
         ]
         for (on, name) in flags where on { out.insert(name) }
         return out
