@@ -66,6 +66,8 @@ struct PetStage: View {
         let app = model
         // Реплика Шибы на экране — челюсть «говорит» (PetRig.say, JawTalk); без кости Jaw ничего не происходит.
         let say = model?.sayLine
+        // Рост (волна 34 I): размер, голова, уши, хвост, миска; nil — взрослый вид.
+        let growth = model?.growthLook
         let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
                                          zombie: model?.showZombie ?? false, away: model?.away != nil)
         let off = self.stageOff
@@ -101,6 +103,8 @@ struct PetStage: View {
             RoomLighting.setup(room, schedule: schedule, dark: dark)
             content.add(room)
             content.add(PetRoom.camera())
+            PetRig.setGrowth(growth, on: pet)
+            PetChoreo.growBowl(room)
             stand.isEnabled = !off
             room.isEnabled = !off
             // Лапы на матрасе лежанки, а не в нём (RoomPlan.petLift).
@@ -130,6 +134,7 @@ struct PetStage: View {
             if woke { ClipPlayer.wake(pet) }
             PetModel.apply(pose: pose, reduceMotion: reduceMotion, reaction: reaction, lookX: lookX, to: pet)
             PetRig.say(say, to: pet)
+            PetRig.setGrowth(growth, on: pet)
             if let coat { PetRoom.applyCoat(coat, to: pet) }
             PetWear.apply(worn, to: pet)
             PetWear.applyTufts(left: tufts.left, total: tufts.total, stage: tuftStage, to: pet)
@@ -141,6 +146,7 @@ struct PetStage: View {
                              RoomDecor.applyToy(toy, to: room)]
                 let rebuilt = built.contains(true)
                 RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt)
+                PetChoreo.growBowl(room)
             }
             PetChoreo.setHome(pet, home)
         }

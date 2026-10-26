@@ -49,6 +49,12 @@ final class PetRig {
     private var eyesClosed = false
     static let lidsName = "petEyeLids"
 
+    /// Рост (волна 34 I, Growth.look): голова крупнее, уши висят, хвост не завит. nil или взрослый — как было.
+    /// Один на все риги (пёс один): кэш ригов сбрасывается, а рост не должен теряться до следующего update сцены.
+    private static var growth: GrowthLook?
+    /// Масштаб кости Head из позы покоя: голову растим от него, а не от единицы.
+    private var headScale = SIMD3<Float>(repeating: 1)
+
     static func rig(for pet: Entity) -> PetRig? {
         let id = pet.id
         if let r = rigs[id] { return r }
@@ -99,6 +105,7 @@ final class PetRig {
         base = joints.map { m.jointTransforms[$0].rotation }
         last = joints.map { _ in nil }
         self.head = head
+        headScale = m.jointTransforms[head].scale
         snout = find("TongueTip") ?? find("Jaw")
         if snout == head { snout = nil }
         setUpJaw(m)
@@ -343,8 +350,10 @@ final class PetRig {
     /// в системе модели и переводятся в систему каждой кости — не зависим от того, как экспорт повернул кости.
     func look(_ angle: Float, wiggle w: TapWiggle.Pose = .zero) {
         guard let m = skin, joints.count >= 2 else { return }
+        // Рост держит кости каждый кадр (клип их перезаписывает), как и взгляд.
+        let g = Self.growth.flatMap { Self.grown($0) ? $0 : nil }
         let moving = abs(angle) >= 1e-4 || abs(w.roll) >= 1e-5 || abs(w.ear) >= 1e-5
-            || w.tail.contains { abs($0) >= 1e-5 }
+            || w.tail.contains { abs($0) >= 1e-5 } || g != nil
         if !moving && last.allSatisfy({ $0 == nil }) { return }
         var tr = m.jointTransforms
         guard tr.count == parents.count else { return }
@@ -359,6 +368,7 @@ final class PetRig {
                 tr[joints[k]].rotation = base[k]
                 last[k] = nil
             }
+            if let h = head { tr[h].scale = headScale }
             m.jointTransforms = tr
             return
         }
@@ -367,7 +377,10 @@ final class PetRig {
         let up = simd_normalize(m.convert(direction: ChoreoPath.up, from: nil))
         // «Вперёд» — от головы к морде по позе клипа, без вертикальной части. Нет морды — без наклона и ушей.
         var fwd: SIMD3<Float>?
-        if let h = head, let n = snout, w.roll != 0 || w.ear != 0 {
+        // Уши щенка висят вперёд, хвост раскручен назад-вниз (доля от взрослого завитка).
+        let droop = Float(g?.earDroop ?? 0) * 0.55
+        let uncurl = Float(1 - (g?.tailCurl ?? 1)) * 0.35
+        if let h = head, let n = snout, w.roll != 0 || w.ear != 0 || droop != 0 || uncurl != 0 {
             var pose = tr
             for j in joints { pose[j].rotation = rot[j] }
             let d = position(n, pose) - position(h, pose)
@@ -391,13 +404,16 @@ final class PetRig {
                 q = q * spin(j, up, angle * share)
                 if let f = fwd { q = q * spin(j, f, w.roll * share) }
             case .ear(let share):
-                if let sd = side { q = q * spin(j, sd, w.ear * share) }
+                if let sd = side { q = q * spin(j, sd, (w.ear - droop) * share) }
             case .tail(let i):
+                if uncurl != 0, let sd = side { q = q * spin(j, sd, uncurl) }
                 if i < w.tail.count { q = q * spin(j, up, w.tail[i]) }
             }
             tr[j].rotation = q
             last[k] = q
         }
+        // Голова щенка крупнее тела: масштаб кости Head (шапка и веки идут за ней — PetWear, setEyes).
+        if let h = head { tr[h].scale = headScale * Float(g?.head ?? 1) }
         m.jointTransforms = tr
     }
 
@@ -432,6 +448,26 @@ final class PetRig {
     private static func same(_ a: simd_quatf, _ b: simd_quatf) -> Bool {
         let d = a.vector - b.vector
         return max(abs(d.x), abs(d.y), abs(d.z), abs(d.w)) < 1e-5
+    }
+
+    // MARK: рост (волна 34 I)
+
+    /// Вид отличим от взрослого: иначе кости не трогаем вовсе.
+    private static func grown(_ g: GrowthLook) -> Bool {
+        abs(g.head - 1) > 0.005 || g.earDroop > 0.005 || g.tailCurl < 0.995
+    }
+
+    /// Рост на сцене: размер обёртки (короткие лапы — чуть ниже по вертикали, морду выравнивает голова), пятно-тень
+    /// и миска под размер, кости — в look. Надетое растёт само: оно на костях. nil — взрослый вид.
+    static func setGrowth(_ look: GrowthLook?, on pet: Entity) {
+        let s = Float(look?.scale ?? 1)
+        let legs = Float(1 + ((look?.legs ?? 1) - 1) * 0.35)
+        pet.scale = SIMD3<Float>(s, s * legs, s)
+        if let blob = pet.parent?.children.first(where: { $0.name == "blobShadow" }) {
+            blob.scale = SIMD3<Float>(Float(ChoreoPath.body.width) * s, 1, Float(ChoreoPath.body.length) * s)
+        }
+        PetChoreo.growth = s
+        growth = look
     }
 
     /// Кадр лица: пружина взгляда, моргание, во сне глаза закрыты.

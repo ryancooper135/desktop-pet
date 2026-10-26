@@ -15,7 +15,17 @@ struct WalletChip: View {
     var shards: Int = 0
     let action: () -> Void
 
+    // Волна 34 I: под кошельком — уровень пса той же ширины («ур. 7» и полоска опыта). Столбик, а не ряд:
+    // в ряд с кошельком карточке с именем осталось бы слишком мало места.
     var body: some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            wallet
+            LevelChip()
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var wallet: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text("🪙").font(.system(size: 13))
@@ -48,6 +58,73 @@ struct WalletChip: View {
         .accessibilityLabel(Text(EconText.wallet(coins: coins, tickets: tickets, shards: shards)))
         .accessibilityHint(Text("Кошелёк. Открыть автомат с капсулами"))
         .accessibilityIdentifier("open.wallet")
+    }
+}
+
+/// Волна 34 I: уровень пса под кошельком — «ур. 7» и тонкая полоска опыта до следующего. Тап — лист «Уровень».
+/// Лист висит здесь, а не в HomeScreen: значок и есть его хозяин. Тут же — опыт за мини-игры: открылась игра —
+/// запомнить опыт, закрылась — начислить и показать «+5 опыта» над псом (AppModel+Level).
+struct LevelChip: View {
+    @Environment(AppModel.self) private var model
+
+    private var gameOpen: Bool { model.showCatch || model.showBlockDuo || model.showZombie }
+
+    var body: some View {
+        @Bindable var model = model
+        let p = model.file.map { DogLevel.progress($0) } ?? LevelProgress(level: 1, xp: 0, into: 0, need: 0)
+        Button {
+            Feel.tap(.button)
+            model.showLevel = true
+        } label: {
+            HStack(spacing: 7) {
+                Text(LevelInfo.chipText(p))
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .foregroundStyle(PetPalette.ink)
+                    .contentTransition(.numericText(value: Double(p.level)))
+                XpBar(fraction: p.fraction, height: 5)
+                    .frame(minWidth: 36)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(Capsule().fill(PetPalette.card))
+            .animation(.snappy, value: p)
+            .modifier(HitPad())
+        }
+        .buttonStyle(SquishStyle())
+        .padding(-HitPad.pad)
+        .accessibilityLabel(Text(LevelInfo.chipLabel(p)))
+        .accessibilityHint(Text("Что даёт опыт и что откроется дальше"))
+        .accessibilityIdentifier("level.chip")
+        .sheet(isPresented: $model.showLevel) {
+            LevelSheet()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
+        .onChange(of: gameOpen) { _, open in
+            if open { model.gameOpened() } else { model.gameClosed() }
+        }
+    }
+}
+
+/// Тонкая полоска опыта: доля уровня 0…1. Общая для значка в шапке и листа «Уровень».
+struct XpBar: View {
+    let fraction: Double
+    var height: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(PetPalette.soft.opacity(0.22))
+                Capsule()
+                    .fill(PetPalette.accent)
+                    .frame(width: max(height, geo.size.width * min(1, max(0, fraction))))
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
     }
 }
 

@@ -35,13 +35,23 @@ final class SoundKit {
     /// «Лай и рычание» включены (нет значения — да).
     static var voice: Bool { PetPref.voice.isOn() }
 
+    /// Голос по росту (волна 34 I, Growth.look; ставит AppModel.noteLevel): щенок выше, подросток иногда срывается.
+    static var voicePitch: Double = 1
+    static var voiceCrack: Double = 0
+
     func play(_ cue: SoundCue) {
-        schedule(SoundRecipe.tones(cue, voice: Self.voice))
+        schedule(grown(cue, SoundRecipe.tones(cue, voice: Self.voice)))
     }
 
     /// Звук позже, вместе с анимацией (трюк «Голос»). Перебили хореографию — не прозвучит.
     func play(_ cue: SoundCue, after offset: Double) {
-        schedule(SoundRecipe.delayed(cue, by: offset, voice: Self.voice))
+        schedule(grown(cue, SoundRecipe.delayed(cue, by: offset, voice: Self.voice)))
+    }
+
+    /// Собачий голос — с поправкой роста; кнопки, хруст и заглушки при выключенном голосе — как есть.
+    private func grown(_ cue: SoundCue, _ tones: [Tone]) -> [Tone] {
+        guard Self.voice, cue.isVoice else { return tones }
+        return GrowthVoice.apply(tones, pitch: Self.voicePitch, crack: Self.voiceCrack, roll: Double.random(in: 0..<1))
     }
 
     private var petVoice = PetVoice()

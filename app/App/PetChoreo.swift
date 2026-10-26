@@ -106,6 +106,8 @@ struct PetFace: Component {
 @MainActor
 enum PetChoreo {
     static let blend: Double = 0.35
+    /// Рост пса (волна 34 I, ставит PetRig.setGrowth): щенку миска поменьше и ближе — под его морду.
+    static var growth: Float = 1
 
     nonisolated static func duration(_ name: String) -> Double {
         guard let c = ClipTable.shared?.clips[name] else { return 0 }
@@ -543,10 +545,25 @@ enum PetChoreo {
         if let room { roomPart(room, "ball")?.position = cs.ball }
     }
 
+    /// Миска дома — под рост пса (волна 34 I). Пока она у морды, размер ведёт placeBowl.
+    static func growBowl(_ room: Entity?) {
+        guard let room, let bowl = roomPart(room, "bowl"), bowl.position == PetRoom.bowlPos else { return }
+        bowl.scale = SIMD3<Float>(repeating: 0.6 + 0.4 * growth)
+    }
+
     static func placeBowl(_ room: Entity?, _ b: ChoreoPath.BowlPose) {
         guard let room, let bowl = roomPart(room, "bowl") else { return }
-        bowl.position = b.position
-        bowl.scale = b.scale
+        let g = growth
+        if g == 1 || b.position == PetRoom.bowlPos {
+            bowl.position = b.position
+        } else {
+            // Под мордой: точка от центра подставки по полу ближе во столько же раз, во сколько пёс меньше.
+            var local = ChoreoPath.toStand(b.position)
+            local.x *= g
+            local.z *= g
+            bowl.position = ChoreoPath.toWorld(local)
+        }
+        bowl.scale = b.scale * (0.6 + 0.4 * g)
         if let food = roomPart(bowl, "food") {
             food.isEnabled = b.food > 0.01
             let side = 0.7 + 0.3 * b.food
