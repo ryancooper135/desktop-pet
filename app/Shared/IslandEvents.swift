@@ -239,6 +239,12 @@ enum IslandEvents {
         OwnerSleep.hm(PetEngine.localMin(t, Owner(bedMin: 0, wakeMin: 0, tzOffsetMin: tz)))
     }
 
+    /// «1/2 следа», «0/1 след», «3/5 следов», «0/11 следов»: слово согласовано с числом рядом — всего следов
+    /// (волна 36 O; было всегда «следа»).
+    static func trailsText(_ trails: Int, _ need: Int) -> String {
+        "\(trails)/\(need) " + EconText.plural(need, "след", "следа", "следов")
+    }
+
     /// Все события, что идут сейчас или начнутся в горизонте прогноза.
     static func candidates(_ i: IslandInput, _ cfg: IslandEventsConfig = .shared) -> [IslandEvent] {
         let now = i.now
@@ -248,7 +254,7 @@ enum IslandEvents {
         func runaway(from: Double, until: Double, trails: Int, need: Int, found: Bool) -> IslandEvent {
             let h = Int(max(0, until - max(now, from)) / 3600)
             return IslandEvent(kind: .runaway, from: from, until: until,
-                               title: found ? "\(i.name) нашёлся!" : "Найди \(i.name): \(trails)/\(need) следа, \(h) ч",
+                               title: found ? "\(i.name) нашёлся!" : "Найди \(i.name): \(trailsText(trails, need)), \(h) ч",
                                detail: found ? "Верни домой" : "Ищи по следам или шагами",
                                soon: "Может убежать к \(hm(from))", compact: found ? "✓" : "\(trails)/\(need)",
                                pose: .away, timerEnd: until, progressFrom: nil, ring: nil)

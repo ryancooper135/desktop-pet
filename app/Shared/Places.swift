@@ -398,6 +398,40 @@ struct TripLog: Codable, Hashable, Sendable {
     }
 }
 
+/// Волна 36 O: тост «Сходил: …» ровно один раз, кто бы ни досчитал поход — пауза notePlaceBack, тикер, виджет,
+/// интент или вход в приложение. Помнит номер последнего рассказанного похода (TripLog.count растёт на каждом
+/// settle). Ничего не пишет в сейв: живёт в памяти приложения.
+struct TripHerald: Hashable, Sendable {
+    /// Тост только о свежем возвращении: старше — его уже покажет (или показал) отчёт «Пока тебя не было».
+    static let window: Double = 3600
+
+    private(set) var petId: String?
+    /// Походов рассказано (= TripLog.count на момент последнего взгляда).
+    private(set) var told = 0
+
+    init() {}
+
+    /// Всё, что уже есть в сейве, считать рассказанным: первый взгляд, отчёт «Пока тебя не было» с карточкой места.
+    mutating func sync(_ f: SaveFile) {
+        petId = f.petId
+        told = f.trip.count
+    }
+
+    /// Что рассказать сейчас: последний поход, если о нём ещё не говорили, пёс дома и жив, а вернулся недавно.
+    func due(_ f: SaveFile, now: Double) -> TripResult? {
+        guard petId == f.petId, f.trip.count > told, f.trip.active == nil, f.pet.alive,
+              let r = f.trip.last, now - r.t < Self.window else { return nil }
+        return r
+    }
+
+    /// Забрать новость (ровно один раз). Новый пёс или откат сейва — просто запомнить, что есть.
+    mutating func take(_ f: SaveFile, now: Double) -> TripResult? {
+        let r = due(f, now: now)
+        sync(f)
+        return r
+    }
+}
+
 // MARK: - Походы
 
 enum PlaceRefusal: Error, Hashable, Sendable {
@@ -466,10 +500,11 @@ enum Places {
     }
 
     /// Место дня ★: одно из открытых, по хешу пса и местных суток. Нет открытых — nil.
+    /// Волна 36 O: сутки — DayKey.of (пояс телефона на момент now), как у уровня и всех дневных счётчиков.
     static func placeOfDay(_ f: SaveFile, dogLevel: Int, now: Double, _ cfg: PlacesConfig = .shared) -> String? {
         let open = unlocked(dogLevel: dogLevel, cfg)
         guard !open.isEmpty else { return nil }
-        let day = DayKey.of(now, tzOffsetMin: f.owner.tzOffsetMin)
+        let day = DayKey.of(now)
         return open[Int(hash("\(f.petId):star:\(day)") % UInt64(open.count))].id
     }
 
@@ -563,8 +598,7 @@ enum Places {
         let n = f.trip.count
         f.trip.count += 1
         let back = max(a.start, min(now, a.until))
-        let tz = f.owner.tzOffsetMin
-        let day = DayKey.of(a.start, tzOffsetMin: tz)
+        let day = DayKey.of(a.start)   // волна 36 O: сутки по DayKey, как у уровня (был owner.tzOffsetMin)
         let key = "\(f.petId):place:\(p.id):\(day):\(n)"
 
         // Находка: редкость, потом вещь внутри редкости.
@@ -617,8 +651,8 @@ enum Places {
         case .need(let need, let add):
             f.pet.needs[need] = min(100, max(0, (f.pet.needs[need] ?? 0) + add))
         case .ticket:
-            let week = Shards.week(DayKey.of(back, tzOffsetMin: tz))
-            if f.trip.ticketWeek != week {
+            let week = Shards.week(DayKey.of(back))
+            if week > f.trip.ticketWeek {   // неделя назад (перелёт на запад) второй жетон не даёт
                 f.trip.ticketWeek = week
                 f.econ.wallet.tickets += 1
                 r.ticket = true
@@ -666,7 +700,8 @@ enum Places {
         guard let w = cfg.place(cfg.wellPlace) else { return .unknown }
         if !isOpen(w, dogLevel: dogLevel) { return .locked(level: w.level) }
         if !f.pet.alive { return .dead }
-        if f.trip.wellDay == DayKey.of(now, tzOffsetMin: f.owner.tzOffsetMin) { return .notToday }
+        // Сутки назад не откатываются (DayKey): перелёт на запад второй монетки в те же сутки не даёт.
+        if f.trip.wellDay >= DayKey.of(now) { return .notToday }
         if f.econ.wallet.coins < cfg.wellCoins { return .notEnough(need: cfg.wellCoins - f.econ.wallet.coins) }
         return nil
     }
@@ -676,7 +711,7 @@ enum Places {
                      _ cfg: PlacesConfig = .shared) -> Result<WellResult, PlaceRefusal> {
         if let r = wishRefusal(f, dogLevel: dogLevel, now: now, cfg) { return .failure(r) }
         guard Economy.spend(&f, coins: cfg.wellCoins) else { return .failure(.notEnough(need: cfg.wellCoins)) }
-        let day = DayKey.of(now, tzOffsetMin: f.owner.tzOffsetMin)
+        let day = DayKey.of(now)
         f.trip.wellDay = day
         let got = Int(hash("\(f.petId):well:\(day)") % 100) < cfg.wellChancePct ? cfg.wellShards : 0
         pay(&f, wellReason, got, now: now)

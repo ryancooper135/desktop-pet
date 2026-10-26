@@ -120,9 +120,15 @@ enum LevelInfo {
     /// «Щенок · примерно 6 дней до подростка», «Подросток · примерно 20 дней до взрослого», «Взрослый».
     static func growthLine(_ f: SaveFile, _ cfg: GrowthConfig = .shared) -> String {
         let ph = Growth.phase(f, cfg)
-        guard let n = Growth.next(f.growth.points, cfg), let d = growthDays(f, cfg) else { return ph.title }
+        guard let left = growthLeft(f, cfg) else { return ph.title }
+        return "\(ph.title) · \(left)"
+    }
+
+    /// «примерно 6 дней до подростка»; nil — взрослый.
+    static func growthLeft(_ f: SaveFile, _ cfg: GrowthConfig = .shared) -> String? {
+        guard let n = Growth.next(f.growth.points, cfg), let d = growthDays(f, cfg) else { return nil }
         let to = n.phase == .teen ? "подростка" : "взрослого"
-        return "\(ph.title) · примерно \(EconText.days(d)) до \(to)"
+        return "примерно \(EconText.days(d)) до \(to)"
     }
 
     /// Что даёт стадия — одной строкой под ростом.
@@ -132,6 +138,43 @@ enum LevelInfo {
         case .teen: return "Иногда упрямится на трюках, нужно больше игр"
         case .adult: return "Иногда приносит две находки, меньше ест"
         }
+    }
+
+    // MARK: VoiceOver (волна 36 O)
+    // Лист «Уровень» собирает строки в один элемент (.combine) — без своей подписи VoiceOver читал бы «·», «/»,
+    // эмодзи 🪙 ✂️ и имя значка. Здесь те же факты словами.
+
+    /// «Рост. Щенок, примерно 6 дней до подростка. Учит только «Сидеть» и «Лежать», быстрее устаёт».
+    static func growthSpeech(_ f: SaveFile, _ cfg: GrowthConfig = .shared) -> String {
+        let ph = Growth.phase(f, cfg)
+        let head = growthLeft(f, cfg).map { "\(ph.title), \($0)" } ?? ph.title
+        return "Рост. \(head). \(perksLine(ph))"
+    }
+
+    /// «Опыт: 320 из 430»; на пределе — как на экране.
+    static func xpSpeech(_ p: LevelProgress) -> String {
+        p.isMax ? "Это предел — выше уровней нет" : "Опыт: \(p.into) из \(p.need)"
+    }
+
+    /// «Награда: 160 монет» или «Награда: 200 монет и 5 клочков».
+    static func rewardSpeech(coins: Int, shards: Int) -> String {
+        var s = "Награда: " + EconText.coins(coins)
+        if shards > 0 { s += " и " + EconText.shards(shards) }
+        return s
+    }
+
+    /// Строка ленты «Дальше»: «Уровень 11: Челлендж дня. Награда: 220 монет и 5 клочков».
+    static func rowSpeech(level: Int, unlocks: [LevelUnlock], _ cfg: DogLevelConfig = .shared) -> String {
+        let r = DogLevel.reward(level, cfg)
+        let what = unlocks.isEmpty ? "" : ": " + unlocks.map(\.text).joined(separator: ", ")
+        return "Уровень \(level)\(what). " + rewardSpeech(coins: r.coins, shards: r.shards)
+    }
+
+    /// Строка «За что опыт»: «Покормить: 8 опыта, раз в день».
+    static func sourceSpeech(_ s: XpSource) -> String {
+        let head = "\(s.title): \(s.xp) \(xpWord(s.xp))"
+        if s.perDay == 1 { return head + ", раз в день" }
+        return s.perDay > 0 ? head + ", \(EconText.times(s.perDay)) в день" : head
     }
 
     // MARK: сцены

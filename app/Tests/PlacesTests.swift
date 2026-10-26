@@ -52,6 +52,11 @@ private func refusal<T>(_ r: Result<T, PlaceRefusal>) -> PlaceRefusal? {
 
 final class PlacesTests: XCTestCase {
 
+    override func tearDown() {
+        Clock.zoneOverride = nil
+        super.tearDown()
+    }
+
     // MARK: сохранение
 
     func testEmptyIsNotWritten() throws {
@@ -560,6 +565,134 @@ final class PlacesTests: XCTestCase {
             lucky += r.shards
         }
         XCTAssertEqual(Double(lucky) * 100 / Double(days), 10, accuracy: 4, "клочок из колодца ~10 %")
+    }
+
+    // MARK: тост «Сходил» (волна 36 O)
+
+    /// Пауза notePlaceBack и догон (тикер, вход, виджет) гоняются: кто бы ни досчитал поход, новость одна.
+    func testHeraldTellsOnceWhoeverSettles() throws {
+        let t = try pMorning()
+        var f = pFile(at: t)
+        var herald = TripHerald()
+        herald.sync(f)
+        let a = try XCTUnwrap(trip(Places.go("bus_stop", in: &f, dogLevel: 2, now: t)))
+        XCTAssertNil(herald.due(f, now: t + 60), "в походе рассказывать нечего")
+        let start = f
+
+        // Путь 1: догон (вход в приложение, тикер) досчитал первым, пауза notePlaceBack пришла следом.
+        var byTicker = start
+        PetRunner.catchUp(&byTicker, now: a.until + 300)
+        XCTAssertEqual(byTicker.trip.count, 1)
+        var h1 = herald
+        let r1 = try XCTUnwrap(h1.take(byTicker, now: a.until + 300))
+        XCTAssertNil(h1.take(byTicker, now: a.until + 310), "второй раз не рассказывает")
+        PetRunner.catchUp(&byTicker, now: a.until + 301.6)   // запоздалая пауза: settle уже был
+        PetRunner.catchUp(&byTicker, now: a.until + 360)
+        XCTAssertEqual(byTicker.trip.count, 1)
+        XCTAssertNil(h1.take(byTicker, now: a.until + 360), "пауза после догона тоста не повторяет")
+
+        // Путь 2: пауза сработала раньше, чем пёс дошёл до дома (прогулка ещё идёт) — тоста нет, settle позже.
+        var byPause = start
+        PetRunner.catchUp(&byPause, now: a.until - 600)
+        var h2 = herald
+        XCTAssertNil(h2.take(byPause, now: a.until - 600), "ещё в пути")
+        PetRunner.catchUp(&byPause, now: a.until + 300)
+        let r2 = try XCTUnwrap(h2.take(byPause, now: a.until + 301.6))
+        PetRunner.catchUp(&byPause, now: a.until + 600)
+        XCTAssertNil(h2.take(byPause, now: a.until + 600))
+        XCTAssertEqual(byPause.trip.count, 1)
+        XCTAssertEqual(r1.place, r2.place)
+        XCTAssertEqual(r1.t, r2.t, "одна и та же новость, кто бы ни досчитал")
+    }
+
+    /// Первый взгляд и отчёт «Пока тебя не было» с карточкой места — уже рассказано; старое, мёртвое, чужое — молчим.
+    func testHeraldSkipsOldDeadAndOtherPet() throws {
+        var f = pFile(at: pT0)
+        pBack(&f, "bus_stop", at: pT0 + 3600)
+        var h = TripHerald()
+        XCTAssertNil(h.take(f, now: pT0 + 3700), "до первого sync — чужой пёс, просто запомнить")
+        XCTAssertNil(h.take(f, now: pT0 + 3700))
+
+        pBack(&f, "bus_stop", at: pT0 + 7200)
+        var seen = h
+        seen.sync(f)   // отчёт показал карточку place0
+        XCTAssertNil(seen.due(f, now: pT0 + 7300))
+        XCTAssertNotNil(h.due(f, now: pT0 + 7300))
+        XCTAssertNil(h.due(f, now: pT0 + 7200 + TripHerald.window), "старше часа — не тост, а отчёт")
+        var dead = f
+        dead.pet.alive = false
+        XCTAssertNil(h.due(dead, now: pT0 + 7300))
+        var other = f
+        other.petId = "другой"
+        XCTAssertNil(h.take(other, now: pT0 + 7300), "новый пёс: его походы до первого взгляда не рассказываем")
+        pBack(&other, "bus_stop", at: pT0 + 9000)
+        XCTAssertNotNil(h.take(other, now: pT0 + 9000))
+    }
+
+    // MARK: сутки = DayKey (волна 36 O)
+
+    /// В том же поясе сутки мест те же, что были по owner.tzOffsetMin: поведение не меняется.
+    func testSameZoneSameDay() {
+        for off in [-300, 0, 60, 120, 330, 600] {
+            Clock.zoneOverride = TimeZone(secondsFromGMT: off * 60)
+            for h in stride(from: 0.0, to: 48, by: 0.5) {
+                let t = pT0 + h * 3600
+                XCTAssertEqual(DayKey.of(t), DayKey.of(t, tzOffsetMin: off), "\(off) \(h)")
+            }
+            var f = pFile(at: pT0)
+            XCTAssertEqual(f.owner.tzOffsetMin, off)
+            let fresh = Places.placeOfDay(f, dogLevel: 30, now: pT0 + 5 * 3600)
+            f.owner.tzOffsetMin = off + 600   // устаревший пояс в сейве больше ничего не решает
+            XCTAssertEqual(Places.placeOfDay(f, dogLevel: 30, now: pT0 + 5 * 3600), fresh)
+        }
+    }
+
+    /// Перелёт на запад: сутки назад не откатываются — вторая монетка в колодец в те же сутки не летит.
+    func testWellAfterFlightWest() {
+        Clock.zoneOverride = TimeZone(secondsFromGMT: 2 * 3600)
+        let d = DayKey.of(pT0) + 1
+        let t = DayKey.start(d, tzOffsetMin: 120) + 1800   // 00:30 по +2 = вчера 17:30 по −5
+        var f = pFile(at: t)
+        f.econ.wallet.coins = 100
+        guard case .success = Places.wish(&f, dogLevel: 24, now: t) else { return XCTFail("бросок") }
+        XCTAssertEqual(f.trip.wellDay, d)
+        Clock.zoneOverride = TimeZone(secondsFromGMT: -5 * 3600)
+        XCTAssertEqual(DayKey.of(t + 60), d - 1)
+        XCTAssertEqual(refusal(Places.wish(&f, dogLevel: 24, now: t + 60)), .notToday)
+        XCTAssertFalse(Places.canWish(f, dogLevel: 24, now: t + 60))
+        // Новые сутки уже по новому поясу — снова можно.
+        let next = DayKey.start(d + 1, tzOffsetMin: -300) + 60
+        XCTAssertTrue(Places.canWish(f, dogLevel: 24, now: next))
+        guard case .success = Places.wish(&f, dogLevel: 24, now: next) else { return XCTFail("новые сутки") }
+        XCTAssertEqual(f.trip.wellDay, d + 1)
+    }
+
+    /// Жетон раз в неделю: перелёт на запад через границу недели второй не даёт.
+    func testTicketAfterFlightWest() throws {
+        Clock.zoneOverride = TimeZone(secondsFromGMT: 2 * 3600)
+        var d = DayKey.of(pT0)
+        while ((d + 3) % 7 + 7) % 7 != 0 { d += 1 }   // первые сутки недели (Shards.week)
+        let t = DayKey.start(d, tzOffsetMin: 120) + 3600 + 1800   // 01:30 по +2, а по −5 ещё прошлая неделя
+        let ev = try XCTUnwrap(Places.place("arcade")?.events.first { $0.effect == .ticket })
+        var f = pFile(at: t)
+        let had = f.econ.wallet.tickets
+
+        func nextToken(from k0: Int) throws -> (TripResult, Int) {
+            var k = k0
+            while k < k0 + 400 {
+                let r = try XCTUnwrap(pBack(&f, "arcade", at: t + Double(k)))
+                k += 1
+                if r.event == ev.id { return (r, k) }
+            }
+            throw XCTSkip("жетон не выпал")
+        }
+        let (first, k) = try nextToken(from: 0)
+        XCTAssertTrue(first.ticket)
+        Clock.zoneOverride = TimeZone(secondsFromGMT: -5 * 3600)
+        XCTAssertLessThan(Shards.week(DayKey.of(t + Double(k))), f.trip.ticketWeek)
+        let (second, _) = try nextToken(from: k)
+        XCTAssertFalse(second.ticket, "неделя назад второго жетона не даёт")
+        XCTAssertEqual(f.econ.wallet.tickets, had + 1)
     }
 
     func testRefusalTexts() {

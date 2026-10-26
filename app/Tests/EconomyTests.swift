@@ -430,6 +430,33 @@ final class EconomyTests: XCTestCase {
         XCTAssertEqual(EconText.rarityShowName(.rare), "Породистая")
         XCTAssertEqual(EconText.ui("capsule_pity", ["count": "3", "total": "15"]), "До эпической: 3/15")
     }
+
+    // MARK: окупаемость двора (волна 36 O)
+
+    /// Любая покупка во дворе, что приносит доход (постройка станции и каждое улучшение), окупается не дольше
+    /// 90 дней по базовой ставке без прибавок (та же формула, что Yard.paybackDays: цена / прибавка 🪙/ч / 24).
+    /// Двор только читается: тест ловит правку конфига, после которой станция перестанет окупаться.
+    func testYardPaybackWithin90Days() throws {
+        let limit = 90.0 + 1e-9
+        let cfg = YardConfig.shared
+        XCTAssertFalse(cfg.stations.isEmpty)
+        XCTAssertEqual(cfg.stations.map(\.id), YardConfig.stubStations.map(\.id), "конфиг = заглушки")
+        var worst = (id: "", level: 0, days: 0.0)
+        for st in cfg.stations {
+            XCTAssertGreaterThanOrEqual(st.maxLevel, 1, st.id)
+            let build = Double(try XCTUnwrap(st.price(toLevel: 1))) / Double(st.rate(1)) / 24
+            XCTAssertLessThanOrEqual(build, limit, "\(st.id): постройка окупается \(build) дн.")
+            if build > worst.days { worst = (st.id, 0, build) }
+            for l in 1..<st.maxLevel {
+                let d = try XCTUnwrap(Yard.paybackDays(st.id, level: l, cfg), "\(st.id) ур. \(l)")
+                XCTAssertGreaterThan(d, 0)
+                XCTAssertLessThanOrEqual(d, limit, "\(st.id): улучшение \(l)→\(l + 1) окупается \(d) дн.")
+                if d > worst.days { worst = (st.id, l, d) }
+            }
+            XCTAssertNil(Yard.paybackDays(st.id, level: st.maxLevel, cfg), "на максимуме улучшать нечего")
+        }
+        XCTAssertGreaterThan(worst.days, 80, "граница не пустая: самое долгое — \(worst)")
+    }
 }
 
 private extension Result {

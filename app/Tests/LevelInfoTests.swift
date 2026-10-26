@@ -103,6 +103,47 @@ final class LevelInfoTests: XCTestCase {
         XCTAssertEqual(LevelInfo.grewText(.adult), "Вырос! Совсем взрослый")
     }
 
+    // MARK: VoiceOver (волна 36 O)
+
+    /// Лист «Уровень» читается словами: без «·», «/», 🪙 ✂️; рост — с подписью «Рост» и тем, что даёт стадия.
+    func testSpeechReadsWords() {
+        let cfg = GrowthConfig()
+        var f = iFile()
+        XCTAssertEqual(LevelInfo.growthSpeech(f, cfg),
+                       "Рост. Щенок, примерно 12 дней до подростка. Учит только «Сидеть» и «Лежать», быстрее устаёт")
+        f.growth.points = 35
+        XCTAssertEqual(LevelInfo.growthSpeech(f, cfg), "Рост. Взрослый. Иногда приносит две находки, меньше ест")
+        // Видимая строка не изменилась (на неё смотрят UI-тесты: «Щенок» в level.growth).
+        XCTAssertEqual(LevelInfo.growthLine(iFile(), cfg), "Щенок · примерно 12 дней до подростка")
+        XCTAssertTrue(LevelInfo.growthSpeech(iFile(), cfg).contains("Щенок"))
+
+        XCTAssertEqual(LevelInfo.xpSpeech(LevelProgress(level: 7, xp: 1000, into: 320, need: 430)), "Опыт: 320 из 430")
+        XCTAssertEqual(LevelInfo.xpSpeech(LevelProgress(level: 40, xp: 9999, into: 0, need: 0)),
+                       "Это предел — выше уровней нет")
+
+        XCTAssertEqual(LevelInfo.rewardSpeech(coins: 160, shards: 0), "Награда: 160 монет")
+        XCTAssertEqual(LevelInfo.rewardSpeech(coins: 201, shards: 5), "Награда: 201 монета и 5 клочков")
+        XCTAssertEqual(LevelInfo.rewardSpeech(coins: 22, shards: 1), "Награда: 22 монеты и 1 клочок")
+
+        XCTAssertEqual(LevelInfo.sourceSpeech(XpSource(title: "Покормить", xp: 8, perDay: 1)), "Покормить: 8 опыта, раз в день")
+        XCTAssertEqual(LevelInfo.sourceSpeech(XpSource(title: "Погладить", xp: 1, perDay: 10)), "Погладить: 1 опыт, 10 раз в день")
+        XCTAssertEqual(LevelInfo.sourceSpeech(XpSource(title: "Прогулка", xp: 12, perDay: 0)), "Прогулка: 12 опыта")
+
+        let u = [LevelUnlock(kind: .feature, id: "a", text: "Челлендж дня"), LevelUnlock(kind: .item, id: "b", text: "Мячик")]
+        let r = DogLevel.reward(11)
+        XCTAssertEqual(LevelInfo.rowSpeech(level: 11, unlocks: u),
+                       "Уровень 11: Челлендж дня, Мячик. " + LevelInfo.rewardSpeech(coins: r.coins, shards: r.shards))
+        XCTAssertEqual(LevelInfo.rowSpeech(level: 11, unlocks: []),
+                       "Уровень 11. " + LevelInfo.rewardSpeech(coins: r.coins, shards: r.shards))
+
+        // Всё, что лист реально покажет, — без значков и разделителей.
+        var said = [LevelInfo.growthSpeech(iFile(), cfg)] + LevelInfo.sources().map(LevelInfo.sourceSpeech)
+        for step in LevelInfo.upcoming(after: 1) { said.append(LevelInfo.rowSpeech(level: step.level, unlocks: step.unlocks)) }
+        for line in said {
+            for bad in ["·", "🪙", "✂️", "+"] { XCTAssertFalse(line.contains(bad), "\(line) содержит \(bad)") }
+        }
+    }
+
     // MARK: сцена нового уровня
 
     func testSummaryOneAndMany() throws {

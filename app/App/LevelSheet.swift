@@ -48,6 +48,7 @@ struct LevelSheet: View {
                 .petFont(15, .semibold)
                 .monospacedDigit()
                 .foregroundStyle(PetPalette.ink)
+                .accessibilityLabel(LevelInfo.xpSpeech(p))
                 .accessibilityIdentifier("level.xp")
             Text(LevelInfo.todayLine(f, now: now))
                 .petFont(13, .medium)
@@ -65,7 +66,6 @@ struct LevelSheet: View {
                     Text(LevelInfo.growthLine(f))
                         .petFont(15, .semibold)
                         .foregroundStyle(PetPalette.ink)
-                        .accessibilityIdentifier("level.growth")
                     Text(LevelInfo.perksLine(Growth.phase(f)))
                         .petFont(13, .medium)
                         .foregroundStyle(PetPalette.soft)
@@ -74,9 +74,14 @@ struct LevelSheet: View {
             } icon: {
                 Image(systemName: "ruler.fill")
                     .foregroundStyle(PetPalette.accent)
+                    .accessibilityHidden(true)
             }
         }
+        // Волна 36 O: одна фраза словами (без «·» и имени значка); id тот же — теперь на самом элементе,
+        // а не на строке внутри .combine.
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(LevelInfo.growthSpeech(f))
+        .accessibilityIdentifier("level.growth")
     }
 
     // MARK: что дальше
@@ -125,6 +130,7 @@ struct LevelSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(LevelInfo.rowSpeech(level: level, unlocks: unlocks))
     }
 
     // MARK: за что опыт
@@ -146,6 +152,7 @@ struct LevelSheet: View {
                             .multilineTextAlignment(.trailing)
                     }
                     .accessibilityElement(children: .combine)
+                    .accessibilityLabel(LevelInfo.sourceSpeech(s))
                 }
             }
         }

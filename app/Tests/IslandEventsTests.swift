@@ -62,6 +62,18 @@ final class IslandEventsTests: XCTestCase {
         XCTAssertEqual(IslandEvent.Kind.allCases.map(\.rank), [1, 2, 3, 4, 4, 5, 6])
     }
 
+    /// Волна 36 O: слово «след» согласовано с числом всего следов.
+    func testTrailsWordAgrees() {
+        XCTAssertEqual(IslandEvents.trailsText(0, 1), "0/1 след")
+        XCTAssertEqual(IslandEvents.trailsText(1, 2), "1/2 следа")
+        XCTAssertEqual(IslandEvents.trailsText(2, 4), "2/4 следа")
+        XCTAssertEqual(IslandEvents.trailsText(3, 5), "3/5 следов")
+        XCTAssertEqual(IslandEvents.trailsText(0, 11), "0/11 следов")
+        XCTAssertEqual(IslandEvents.trailsText(0, 14), "0/14 следов")
+        XCTAssertEqual(IslandEvents.trailsText(5, 21), "5/21 след")
+        XCTAssertEqual(IslandEvents.trailsText(0, 22), "0/22 следа")
+    }
+
     func testOneEventAtATime() {
         var i = calm()
         i.outlook.hunger = [IslandSpan(from: noon, until: nil)]

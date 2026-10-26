@@ -82,23 +82,33 @@ extension AppModel {
         }
     }
 
-    /// Вернулся из похода при открытом приложении: досчитать поход (находка места, событие) и сказать тостом.
+    /// Вернулся из похода при открытом приложении: досчитать поход (находка места, событие); тост скажет refresh.
     /// Зовётся из noteWalk после праздника прогулки — пауза, чтобы всплывашка находки ядра успела показаться.
+    /// Волна 36 O: поход мог досчитать кто-то другой (тикер, виджет, интент, вход) — тост всё равно один,
+    /// его выдаёт TripHerald в notePlaceNews, а не тот, кто первым сделал settle.
     func notePlaceBack() {
-        guard file?.trip.active != nil else { return }
+        guard let f = file, f.trip.active != nil || tripHerald.due(f, now: Clock.now()) != nil else { return }
+        placeBackWaiting = true
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.6))
-            guard let self, !Task.isCancelled else { return }
+            guard let self else { return }
             let now = Clock.now()
-            let r = try? PetStore.shared.mutate { (f: inout SaveFile) -> TripResult? in
-                let was = f.trip.active != nil
+            let changed = (try? PetStore.shared.mutate { (f: inout SaveFile) -> Bool in
+                let before = f.trip.count
                 PetRunner.catchUp(&f, now: now)
-                return was && f.trip.active == nil ? f.trip.last : nil
-            }
+                return f.trip.count != before
+            }) ?? false
+            self.placeBackWaiting = false
             self.refresh(now: now)
-            guard let r, let line = Places.awayLines(r).first else { return }
-            self.show(line, emoji: Places.place(r.place)?.emoji)
-            Task { await AppActions.shared.afterChange() }
+            if changed { Task { await AppActions.shared.afterChange() } }
         }
+    }
+
+    /// Тост «Сходил: …» о свежем походе — ровно один раз, после паузы notePlaceBack и не поверх отчёта
+    /// «Пока тебя не было» (закроют — RootView позовёт refresh, и тост выйдет тогда).
+    func notePlaceNews(_ f: SaveFile, now: Double) {
+        guard !placeBackWaiting, away == nil else { return }
+        guard let r = tripHerald.take(f, now: now), let line = Places.awayLines(r).first else { return }
+        show(line, emoji: Places.place(r.place)?.emoji)
     }
 }

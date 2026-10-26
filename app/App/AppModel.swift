@@ -59,6 +59,10 @@ final class AppModel {
     @ObservationIgnored var levelSeen = LevelSeen()
     /// Лист «Карта» (волна 34, PlacesMapScreen): походы в места, pet://map.
     var showMap = false
+    /// Волна 36 O: о каком походе уже сказали тостом «Сходил: …» (AppModel+Places, notePlaceNews).
+    @ObservationIgnored var tripHerald = TripHerald()
+    /// Идёт пауза notePlaceBack (1.6 с после праздника прогулки): тост о походе ждёт её.
+    @ObservationIgnored var placeBackWaiting = false
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -177,6 +181,7 @@ final class AppModel {
             toy = ItemCatalog.toy(f)
             noteCharacter(f.character)
             knownTastes = Set(f.tastes.opened.keys)
+            tripHerald.sync(f)
             // Ушёл гулять при прошлом визите (seen), а вернулся, пока приложение было закрыто, — встретим на входе.
             outing = (f.seen ?? f.pet).outing
         } catch {
@@ -209,7 +214,7 @@ final class AppModel {
         }
         let expires = ProvisioningProfile.expirationDate()
         do {
-            let result = try PetStore.shared.mutate { (f: inout SaveFile) -> (report: AwayReport?, paused: Bool) in
+            let result = try PetStore.shared.mutate { (f: inout SaveFile) -> (report: AwayReport?, paused: Bool, f: SaveFile) in
                 let prev = f.seen ?? f.pet
                 // Сначала срок подписи: если сборка истекала, это время питомцу прощается (sign_pause).
                 PetRunner.applyBuild(&f, expires: expires, now: now)
@@ -220,9 +225,13 @@ final class AppModel {
                 f.lastSeenT = now
                 // Сон хозяина: зашёл — значит, не спит (OwnerSleep).
                 OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin)
-                return (report, paused)
+                return (report, paused, f)
             }
-            if let report = result.report, away == nil { away = report }
+            if let report = result.report, away == nil {
+                away = report
+                // Отчёт уже рассказал о походе карточкой — тоста «Сходил: …» не будет.
+                if report.cards.contains(where: { $0.id == "place0" }) { tripHerald.sync(result.f) }
+            }
             if result.paused { show("Пока подпись не работала, время в комнате стояло") }
             noteStoreRecovery()
         } catch {
@@ -273,6 +282,7 @@ final class AppModel {
             if card != pendingCard { pendingCard = card }
             noteOwnerSleep(f, now: now)
             noteLevel(f, now: now)
+            notePlaceNews(f, now: now)
         } catch {
             storeError = error.localizedDescription
         }
