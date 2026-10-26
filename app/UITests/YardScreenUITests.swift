@@ -83,20 +83,14 @@ final class YardScreenUITests: XCTestCase {
 
         let up = any["yard.screen.station.dryer.up"]
         XCTAssertTrue(up.waitForExistence(timeout: 5), "нет кнопки «Улучшить» у сушилки")
-        for _ in 0..<5 where !up.isHittable {
-            screen.swipeUp()
-            settle(0.5)
-        }
+        reveal(up, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(up), "«Улучшить» не нажимается")
         XCTAssertTrue(wait(scene, valueHas: "dryer=4"), "сушилка не выросла (\(String(describing: scene.value)))")
         settle(1)
         snap("ui-34-yard-station")
 
         let close = any["yard.screen.close"]
-        for _ in 0..<5 where !close.isHittable {
-            screen.swipeDown()
-            settle(0.4)
-        }
+        reveal(close, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(close), "нет крестика")
         XCTAssertTrue(screen.waitForNonExistence(timeout: 5), "двор не закрылся")
         XCTAssertTrue(any["open.yard"].waitForExistence(timeout: 10), "на главной нет кнопки «Двор»")
@@ -136,24 +130,41 @@ final class YardScreenUITests: XCTestCase {
 
         let gold = any["yard.screen.station.dryer.gold"]
         XCTAssertTrue(gold.waitForExistence(timeout: 5), "нет кнопки золотой таблички у сушилки")
-        for _ in 0..<6 where !gold.isHittable {
-            screen.swipeUp()
-            settle(0.5)
-        }
+        reveal(gold, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(gold), "золотая табличка не нажимается")
         XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer"), "сушилка не стала золотой (\(String(describing: scene.value)))")
         XCTAssertTrue(any["yard.screen.station.dryer.goldOwned"].waitForExistence(timeout: 5), "нет строки «Золотая табличка»")
-        // Наверх до шапки: сцена видна целиком (isHittable у неё правда уже при краешке на экране).
-        let close = any["yard.screen.close"]
-        for _ in 0..<8 where !close.isHittable {
-            screen.swipeDown()
-            settle(0.4)
-        }
+        // Наверх до шапки: сцена видна целиком.
+        reveal(any["yard.screen.close"], in: screen, app: app)
+        reveal(scene, in: screen, app: app)
         // Золото пересобрало сцену: ждём, пока новая отрисуется (пёс в ней — значит, кадры идут).
         _ = wait(scene, valueHas: "dog3d=on", timeout: 30)
         settle(3)
         snap("ui-35-yard-gold")
         app.terminate()
+    }
+
+    /// Прокрутить экран двора, пока рамка e целиком не окажется в окне. Не swipeUp/swipeDown: их середина экрана
+    /// попадает в 3D-сцену, и на CI свайп то листал, то нет; и не isHittable: у кнопки за краем экрана в ScrollView
+    /// он бывает true. Тянем пальцем ниже сцены (или выше — вниз) по рамкам, до 8 рывков.
+    @MainActor
+    private func reveal(_ e: XCUIElement, in screen: XCUIElement, app: XCUIApplication) {
+        guard e.waitForExistence(timeout: 5) else { return }
+        let win = app.windows.firstMatch.frame
+        let top = win.minY + 60, bottom = win.maxY - 60
+        for _ in 0..<8 {
+            let f = e.frame
+            if f.minY >= top && f.maxY <= bottom { return }
+            let low = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
+            let high = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
+            // Ниже окна — тянем вверх, выше — вниз; шаг ~четверть экрана, чтобы не проскочить.
+            if f.maxY > bottom {
+                low.press(forDuration: 0.05, thenDragTo: high, withVelocity: .slow, thenHoldForDuration: 0.1)
+            } else {
+                high.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.1)
+            }
+            settle(0.5)
+        }
     }
 
     /// Значение элемента содержит text (ждём до timeout секунд).
