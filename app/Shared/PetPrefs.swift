@@ -334,8 +334,10 @@ enum RoundCaption {
     static let house = "Дом"
     static let tricks = "Трюки"
     static let games = "Игры"
+    /// Волна 34 G: круг «Двор» справа над рядом (App/YardEntry.swift).
+    static let yard = "Двор"
 
-    static let all = [album, machine, house, tricks, games]
+    static let all = [album, machine, house, tricks, games, yard]
     /// Не длиннее — иначе шрифт ужимается и слово плохо читается.
     static let maxLength = 7
     /// Сколько места ряд оставляет под подписями, pt.

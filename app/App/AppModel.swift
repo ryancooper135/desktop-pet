@@ -37,6 +37,8 @@ final class AppModel {
     var showShop = false
     /// Экран «Дом»: улучшения за монеты.
     var showHouse = false
+    /// Экран «Двор» (волна 34 G, YardScreen): тайкун во дворе, на весь экран.
+    var showYard = false
     /// Лист «Трюки».
     var showTricks = false
     /// Мини-игра «Лови мячик» (CatchGameScreen), на весь экран.
@@ -964,6 +966,7 @@ final class AppModel {
     var openRoutes: Set<String> {
         var out: Set<String> = []
         let flags: [(Bool, String)] = [
+            (showYard, "yard"),
             (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
             (showBlockDuo, "blockduo"), (showZombie, "zombie"), (showHabits, "habits"), (showKitchen, "kitchen"),
@@ -984,6 +987,7 @@ final class AppModel {
             showCapsule = true
             follow(host)
         case "house": showHouse = true
+        case "yard": showYard = true   // волна 34 G: pet://yard — экран «Двор»
         case "tricks": showTricks = true
         case "catch": showCatch = true
         case "blockduo": showBlockDuo = true
@@ -1028,6 +1032,7 @@ final class AppModel {
         showCapsule = false
         showShop = false
         showHouse = false
+        showYard = false
         showTricks = false
         showCatch = false
         showBlockDuo = false
@@ -1426,7 +1431,7 @@ final class AppModel {
     /// Поверх комнаты что-то открыто: лист, игра, открытка, «Пока тебя не было» или расчёсывание. Подсказки
     /// GuideCenter ждут, пока это пройдёт (волна 23): второй лист поверх первого iOS не показывает и молча роняет.
     var anyCover: Bool {
-        brush != nil || postcard != nil || away != nil
+        brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
             || showBlockDuo || showZombie || showHabits || showKitchen
     }
