@@ -713,7 +713,7 @@ final class ScreenshotUITests: XCTestCase {
                                     env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "settings"],
                                     marker: "settings.intro", lazyIn: "settings.habits", keepRunning: true)
         let row = app.descendants(matching: .any)["settings.intro"]
-        if waitHittable(row, timeout: 3) {
+        if inView(row, app) {
             if tap(row, expecting: app.buttons["intro.next"], name: "ui-92-settings-intro-reopen") {
                 settle(1)
                 snap("ui-92-settings-intro-reopen")
@@ -954,7 +954,7 @@ final class ScreenshotUITests: XCTestCase {
             // Нижние строки Form создаются лениво: маркера может не быть, пока не прокрутишь.
             _ = app.descendants(matching: .any)[lazyIn].firstMatch.waitForExistence(timeout: 20)
             settle(1.0)
-            for _ in 0..<5 where !(element.exists && element.isHittable) {
+            for _ in 0..<8 where !inView(element, app) {
                 app.swipeUp()
                 settle(0.6)
             }
@@ -1054,6 +1054,14 @@ extension XCTestCase {
     /// Дождаться, пока элемент можно нажать: есть в дереве, на экране и не перекрыт (лист доехал, затемнение ушло).
     @MainActor
     @discardableResult
+    /// Элемент на экране по рамке. isHittable у ленивой строки Form за краем экрана не false, а падение теста
+    /// («Activation point invalid») — поэтому при прокрутке смотрим на рамку.
+    func inView(_ e: XCUIElement, _ app: XCUIApplication) -> Bool {
+        guard e.exists else { return false }
+        let f = e.frame, screen = app.windows.firstMatch.frame
+        return !f.isEmpty && screen.insetBy(dx: 0, dy: 40).contains(CGPoint(x: f.midX, y: f.midY))
+    }
+
     func waitHittable(_ e: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         if e.exists && e.isHittable { return true }
         let ready = NSPredicate(format: "exists == true AND hittable == true")

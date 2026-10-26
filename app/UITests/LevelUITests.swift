@@ -47,9 +47,10 @@ final class LevelUITests: XCTestCase {
         let app = launch("level_up")
         let any = app.descendants(matching: .any)
 
-        // Сцена идёт сама: refresh видит оплаченный, но не показанный уровень. Тост живёт пару секунд — ждём его.
+        // Сцена идёт сама: refresh видит оплаченный, но не показанный уровень. Тост «Уровень 3!» живёт 2.6 с, потом
+        // его сменяет «Открылось: …» — пока тест закрывает системные окна, первый можно пропустить. Годится любой из двух.
         let toast = any.matching(identifier: "toast")
-            .matching(NSPredicate(format: "label CONTAINS %@", "Уровень 3")).firstMatch
+            .matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "Уровень 3", "Открылось")).firstMatch
         XCTAssertTrue(toast.waitForExistence(timeout: 15), "нет тоста нового уровня")
         snap("ui-34-level-up")
 
