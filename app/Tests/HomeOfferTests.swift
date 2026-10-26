@@ -15,6 +15,13 @@ private func oFile(coins: Int) -> SaveFile {
     return f
 }
 
+/// Пёс на уровне L без доплат за уровни (волна 34 G: гейт линий дома по уровню).
+private func oLevel(_ f: inout SaveFile, _ l: Int) {
+    f.level.started = true
+    f.level.xp = DogLevel.xpTo(l)
+    f.level.paidLevel = l
+}
+
 final class HomeOfferTests: XCTestCase {
 
     func testRowsForFreshSave() {
@@ -22,7 +29,7 @@ final class HomeOfferTests: XCTestCase {
         XCTAssertEqual(rows.map(\.id), HomeLine.allCases)
         for r in rows {
             XCTAssertEqual(r.level, 0, "\(r.id): старт")
-            XCTAssertEqual(r.top, 3)
+            XCTAssertEqual(r.top, r.id == .yard ? 4 : 3, "у двора пятый уровень — «Квартал»")
             XCTAssertFalse(r.levelName.isEmpty)
             XCTAssertNotNil(r.next)
             XCTAssertEqual(r.next?.index, 1)
@@ -41,6 +48,10 @@ final class HomeOfferTests: XCTestCase {
         XCTAssertEqual(play.next?.price, 500)
         XCTAssertEqual(play.next?.need, 0)
         XCTAssertTrue(play.canBuy)
+        XCTAssertNil(play.next?.gate)
+        let yard = rows.first { $0.id == .yard }!
+        XCTAssertEqual(yard.next?.gate, .plates(3), "Дворик ждёт плит «Подоконника»")
+        XCTAssertEqual(HomeOffer.buttonTitle(yard), "Сначала плиты двора")
     }
 
     func testKitchenFridgeFeedsItself() {
@@ -53,6 +64,7 @@ final class HomeOfferTests: XCTestCase {
 
     func testRowAfterBuyAndAtTop() {
         var f = oFile(coins: 20_000)
+        oLevel(&f, 12)
         HomeShop.buy(.bed, in: &f, now: oT0)
         var bed = HomeOffer.rows(f).first { $0.id == .bed }!
         XCTAssertEqual(bed.level, 1)
@@ -74,8 +86,8 @@ final class HomeOfferTests: XCTestCase {
         var f = oFile(coins: 0)
         f.pet.home[.yard] = 9   // битый сейв
         let y = HomeOffer.rows(f).first { $0.id == .yard }!
-        XCTAssertEqual(y.level, 3)
-        XCTAssertEqual(y.levelName, "Парк")
+        XCTAssertEqual(y.level, 4)
+        XCTAssertEqual(y.levelName, "Квартал")
         XCTAssertTrue(y.maxed)
     }
 
@@ -83,6 +95,15 @@ final class HomeOfferTests: XCTestCase {
         let rows = HomeOffer.rows(oFile(coins: 600))
         XCTAssertEqual(HomeOffer.buttonTitle(rows.first { $0.id == .bath }!), "Не хватает 100")
         XCTAssertEqual(HomeOffer.buttonTitle(rows.first { $0.id == .bed }!), "Купить", "ровно хватает")
+        // второй уровень — с ур. 5 пса: кнопка говорит причину, а не «Купить»
+        var f = oFile(coins: 20_000)
+        f.pet.home[.bed] = 1
+        let bed = HomeOffer.rows(f).first { $0.id == .bed }!
+        XCTAssertEqual(bed.next?.gate, .level(5))
+        XCTAssertFalse(bed.canBuy)
+        XCTAssertEqual(HomeOffer.buttonTitle(bed), "Нужен ур. 5 пса")
+        oLevel(&f, 5)
+        XCTAssertTrue(HomeOffer.rows(f).first { $0.id == .bed }!.canBuy)
     }
 
     func testRefusalAndBoughtTexts() {
@@ -91,6 +112,8 @@ final class HomeOfferTests: XCTestCase {
         XCTAssertTrue(HomeOffer.refusal(.noCoins(need: 35))?.contains("35") ?? false)
         XCTAssertEqual(HomeOffer.refusal(.maxed), HomeOffer.maxedText)
         XCTAssertNotNil(HomeOffer.refusal(.unknown))
+        XCTAssertEqual(HomeOffer.refusal(.needLevel(12)), "Пёс ещё мал: нужен ур. 12")
+        XCTAssertEqual(HomeOffer.refusal(.needPlates(2)), "Сначала купи все плиты яруса — осталось 2")
 
         XCTAssertEqual(HomeOffer.bought(.ok(level: 1, price: 700), line: .bath), "Готово: Ванна")
         XCTAssertNil(HomeOffer.bought(.maxed, line: .bath))
@@ -106,7 +129,7 @@ final class HomeOfferTests: XCTestCase {
         defer { StoreHooks.removeTempStore(dir) }
         let store = PetStore(dir: dir)
         try store.startOver(now: oT0)
-        try store.mutate { (f: inout SaveFile) -> Void in f.econ.wallet.coins = 800 }
+        try store.mutate { (f: inout SaveFile) -> Void in f.econ.wallet.coins = 800; oLevel(&f, 5) }
 
         XCTAssertEqual(try HomeOffer.perform(.bath, store: store, now: oT0 + 60), .ok(level: 1, price: 700))
         var f = try XCTUnwrap(store.read())

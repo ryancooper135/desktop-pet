@@ -296,11 +296,12 @@
       { "name": "Корзина игрушек",     "price": 500,  "buff": { "fun_decay_x": 0.9 } },
       { "name": "Игровой комплекс",    "price": 1400, "buff": { "fun_decay_x": 0.8, "minigame_coins_x": 1.1 } },
       { "name": "Батут и горка",       "price": 3000, "buff": { "fun_decay_x": 0.7, "minigame_coins_x": 1.15 } } ] },
-    "yard":    { "name": "Дворик",         "levels": [
+    "yard":    { "name": "Участок",        "levels": [
       { "name": "Подоконник",          "price": 0 },
       { "name": "Дворик",              "price": 700,  "buff": { "walk_decay_x": 0.85, "dig": true } },
       { "name": "Сад",                 "price": 1700, "buff": { "walk_decay_x": 0.75, "npc_visitors": true, "memorial_garden": true } },
-      { "name": "Парк",                "price": 3500, "buff": { "walk_decay_x": 0.65, "dig_per_day": 5, "friend_visit_coins_x": 2 } } ] },
+      { "name": "Парк",                "price": 3500, "buff": { "walk_decay_x": 0.65, "dig_per_day": 5, "friend_visit_coins_x": 2 } },
+      { "name": "Квартал",             "price": 9000, "buff": { "walk_decay_x": 0.55, "dig_per_day": 5, "friend_visit_coins_x": 2 } } ] },
     "rooms": [
       { "id": "wardrobe", "name": "Гардеробная",   "price": 1500, "buff": { "outfit_slots": 5 } },
       { "id": "room2",    "name": "Вторая комната","price": 2500, "buff": { "furniture_slots": 12 } },
@@ -336,9 +337,9 @@
   },
 
   "rank": {
-    "_note": "Волна 32 «из грязи в князи»: звание пса = ступеньки дома (сумма уровней шести линий, 0..18) + шерсть (Колтуны 0 … Гладкий 3). Дом переживает щенка, шерсть — нет. Показывается в «Доме».",
+    "_note": "Волна 32 «из грязи в князи»: звание пса = ступеньки дома (сумма уровней шести линий, 0..19; с волны 34 у двора ярус «Квартал», порог Князя 21) + шерсть (Колтуны 0 … Гладкий 3). Дом переживает щенка, шерсть — нет. Показывается в «Доме».",
     "titles": ["Бродяжка", "Найдёныш", "Домашний", "Любимец", "Барин", "Князь"],
-    "at": [0, 2, 5, 9, 14, 20],
+    "at": [0, 2, 5, 9, 14, 21],
     "coat_points": [0, 1, 2, 3]
   },
   "death": {

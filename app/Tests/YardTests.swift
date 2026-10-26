@@ -405,4 +405,63 @@ final class YardTests: XCTestCase {
         XCTAssertLessThanOrEqual(f.pet.pantry, max(cap, before) + 1e-9)
         XCTAssertEqual(f.pet.pantry - before + f.yard.larder, 30, accuracy: 1e-9, "что не влезло — ждёт в larder")
     }
+
+    // MARK: пёс-помощник (волна 34 G)
+
+    /// Пёс встаёт у самой доходной станции; при равенстве — у той, что раньше в конфиге.
+    func testHelperStationPicksBestRate() {
+        XCTAssertNil(Yard.helperStation(YardState(), cfg))
+        XCTAssertEqual(Yard.helperStation(state(["dryer": 5, "bones": 1], at: t0), cfg), "dryer")   // 14 > 6
+        XCTAssertEqual(Yard.helperStation(state(["dryer": 1, "bones": 1], at: t0), cfg), "bones")   // 4 < 6
+        XCTAssertEqual(Yard.helperStation(state(["spinner": 1, "bones": 3], at: t0), cfg), "bones") // 13 = 13
+    }
+
+    /// +5 % только своей станции и складывается с прибавкой от уровня.
+    func testHelperBonusOnlyNearItsStation() {
+        let s = state(["dryer": 5, "mill": 5], at: t0)
+        let h = YardHelper(station: "mill", pct: 5)
+        XCTAssertEqual(Yard.stationRate("mill", level: 5, dogLevel: 1, helper: h, cfg), 151 * 1.05, accuracy: 1e-9)
+        XCTAssertEqual(Yard.stationRate("dryer", level: 5, dogLevel: 1, helper: h, cfg), 14, accuracy: 1e-9)
+        XCTAssertEqual(Yard.rate(s, dogLevel: 1, helper: h, cfg), 14 + 151 * 1.05, accuracy: 1e-9)
+        XCTAssertEqual(Yard.rate(s, dogLevel: 25, helper: h, cfg), 14 * 1.05 + 151 * 1.10, accuracy: 1e-9)
+        XCTAssertEqual(Yard.rate(s, dogLevel: 1, helper: YardHelper(station: "mill", pct: 0), cfg), 165, accuracy: 1e-9)
+        // Копилка с помощником полнеет быстрее, потолок — те же 12 ч по его ставке.
+        let full = Yard.peek(s, now: t0 + 20 * hour, dogLevel: 1, helper: h, calm)
+        XCTAssertEqual(full.bank, (14 + 151 * 1.05) * 12, accuracy: 1e-6)
+    }
+
+    /// По сейву: помогает только взрослый пёс, который дома; щенок, гуляющий и сбежавший — нет.
+    func testHelperFromSave() {
+        var f = SaveFile.fresh(now: t0)
+        f.yard.stations = ["dryer": 2, "mill": 1]
+        f.yard.t = t0
+        XCTAssertNil(Yard.helper(f, cfg), "щенок не помогает")
+        XCTAssertEqual(Yard.rate(f, dogLevel: 1, cfg), 6 + 42, accuracy: 1e-9)
+
+        f.growth.points = GrowthConfig.shared.adult + 1
+        XCTAssertEqual(Growth.phase(f), .adult)
+        XCTAssertEqual(Yard.helper(f, cfg), YardHelper(station: "mill", pct: 5))
+        XCTAssertEqual(Yard.rate(f, dogLevel: 1, cfg), 6 + 42 * 1.05, accuracy: 1e-9)
+
+        var away = f
+        away.pet.outing = Outing(from: t0 - 600, until: t0 + 3600, find: "cone")
+        XCTAssertNil(Yard.helper(away, cfg), "на прогулке — не у станции")
+        var gone = f
+        gone.pet.alive = false
+        XCTAssertNil(Yard.helper(gone, cfg), "сбежал — не помогает")
+
+        var none = f
+        none.yard.stations = [:]
+        XCTAssertNil(Yard.helper(none, cfg), "станций нет")
+    }
+
+    /// Сбор по сейву со взрослым псом дома — на 5 % больше у его станции.
+    func testHelperRaisesCollect() {
+        var f = SaveFile.fresh(now: t0)
+        f.yard.stations = ["mill": 1]
+        f.yard.t = t0
+        f.growth.points = GrowthConfig.shared.adult + 1
+        let h = Yard.collect(in: &f, now: t0 + 12 * hour, dogLevel: 1, calm)
+        XCTAssertEqual(h.coins, Int((42 * 1.05 * 12).rounded(.down)))
+    }
 }

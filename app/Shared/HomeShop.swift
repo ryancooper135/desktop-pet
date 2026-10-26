@@ -22,7 +22,17 @@ enum HomeShop {
         case ok(level: Int, price: Int)
         case maxed
         case noCoins(need: Int)
+        /// Пёс не дорос до этого уровня линии (волна 34 G).
+        case needLevel(Int)
+        /// Двор: сначала плиты прошлых ярусов — сколько осталось.
+        case needPlates(Int)
         case unknown
+    }
+
+    /// Почему следующий уровень закрыт не монетами: уровень пса или плиты двора.
+    enum Gate: Equatable, Sendable {
+        case level(Int)
+        case plates(Int)
     }
 
     static let shared: [Line] = lines(Catalog.economy() ?? .null)
@@ -51,16 +61,48 @@ enum HomeShop {
         return i < l.levels.count ? (i, l.levels[i]) : nil
     }
 
-    /// Купить следующий уровень линии. Не хватает монет или максимум — ничего не меняет.
+    /// Уровень пса для уровня линии (волна 34 G): ярусы двора — по таблице уровней (Дворик 4 … Квартал 20),
+    /// 2-й и 3-й уровень остальных линий — ур. 5 и 12. 0 — не держит.
+    static func needLevel(_ id: HomeLine, index: Int, _ cfg: DogLevelConfig = .shared) -> Int {
+        guard index >= 1 else { return 0 }
+        let key = id == .yard ? "yard.\(index)" : "home.\(index)"
+        return DogLevel.needLevel(key, cfg) ?? 0
+    }
+
+    /// Что держит следующий уровень кроме монет; nil — только монеты. Купленное раньше не отнимается:
+    /// гейт смотрит лишь на следующий уровень.
+    static func gate(_ f: SaveFile, _ id: HomeLine, _ all: [Line] = shared) -> Gate? {
+        guard let n = next(f, id, all) else { return nil }
+        let dog = DogLevel.level(f)
+        if id == .yard {
+            // Ярус двора: плиты прошлых ярусов и уровень пса — то же правило, что у кнопки на экране двора.
+            switch Yard.nextTier(f.yard, yardLevel: n.index - 1, dogLevel: dog) {
+            case .plates(_, let left): return .plates(left.count)
+            case .level(_, let need): return .level(need)
+            case .open, .maxed: break
+            }
+        }
+        let need = needLevel(id, index: n.index)
+        return dog < need ? .level(need) : nil
+    }
+
+    /// Купить следующий уровень линии. Не хватает монет, пёс не дорос или максимум — ничего не меняет.
     @discardableResult
     static func buy(_ id: HomeLine, in f: inout SaveFile, now: Double, _ all: [Line] = shared) -> BuyResult {
         guard line(id, all) != nil else { return .unknown }
         // Время до покупки — по старым баффам: иначе новая лежанка задним числом «досыпала» бы за прошлое.
         PetRunner.catchUp(&f, now: now)
         guard let n = next(f, id, all) else { return .maxed }
+        switch gate(f, id, all) {
+        case .level(let l): return .needLevel(l)
+        case .plates(let k): return .needPlates(k)
+        case nil: break
+        }
         guard Economy.spend(&f, coins: n.level.price) else { return .noCoins(need: n.level.price - f.econ.wallet.coins) }
         f.pet.home[id] = n.index
         f.log("home.buy", t: now, key: id.rawValue, value: n.index)
+        // Новый ярус двора — опыт пса (правило yard.tier в DogLevel).
+        if id == .yard { f.log("yard.tier", t: now, key: "\(n.index)", value: n.index) }
         return .ok(level: n.index, price: n.level.price)
     }
 

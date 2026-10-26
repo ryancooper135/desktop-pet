@@ -16,6 +16,19 @@ private func hRich(_ coins: Int = 50_000) -> SaveFile {
     return f
 }
 
+/// Пёс на уровне L (опыт и выплаты уже учтены — settle ничего не доплатит).
+private func hLevel(_ f: inout SaveFile, _ l: Int) {
+    f.level.started = true
+    f.level.xp = DogLevel.xpTo(l)
+    f.level.paidLevel = l
+}
+
+/// Плиты яруса «Подоконник» куплены — двор готов к «Дворику».
+private func hSill(_ f: inout SaveFile) {
+    f.yard.plates = ["window", "daisy"]
+    f.yard.stations["dryer"] = 1
+}
+
 final class HomeShopTests: XCTestCase {
 
     // MARK: конфиг
@@ -24,7 +37,8 @@ final class HomeShopTests: XCTestCase {
         let all = HomeShop.shared
         XCTAssertEqual(all.map(\.id), HomeLine.allCases, "все шесть линий, в порядке HomeLine")
         for l in all {
-            XCTAssertEqual(l.levels.count, 4, "\(l.id): база + 3 уровня")
+            // волна 34 G: у двора пятый уровень — «Квартал»
+            XCTAssertEqual(l.levels.count, l.id == .yard ? 5 : 4, "\(l.id): база + уровни")
             XCTAssertEqual(l.levels[0].price, 0, "\(l.id): стартовый уровень бесплатный")
             XCTAssertFalse(l.name.isEmpty)
         }
@@ -73,6 +87,7 @@ final class HomeShopTests: XCTestCase {
 
     func testMaxedAfterLastLevel() {
         var f = hRich()
+        hLevel(&f, 12)
         for want in 1...3 {
             XCTAssertEqual(HomeShop.buy(.kennel, in: &f, now: hT0), .ok(level: want, price: HomeShop.line(.kennel)!.levels[want].price))
         }
@@ -85,6 +100,8 @@ final class HomeShopTests: XCTestCase {
 
     func testLinesAreIndependent() {
         var f = hRich()
+        hLevel(&f, 5)
+        hSill(&f)
         HomeShop.buy(.bed, in: &f, now: hT0)
         HomeShop.buy(.bed, in: &f, now: hT0)
         HomeShop.buy(.yard, in: &f, now: hT0)
@@ -93,10 +110,90 @@ final class HomeShopTests: XCTestCase {
         XCTAssertEqual(HomeShop.level(f, .bath), 0)
     }
 
+    // MARK: гейт по уровню пса (волна 34 G)
+
+    func testSecondLevelNeedsDogLevel5() {
+        var f = hRich()
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0), .ok(level: 1, price: HomeShop.line(.bed)!.levels[1].price))
+        let coins = f.econ.wallet.coins
+        let journal = f.journal.count
+        XCTAssertEqual(HomeShop.gate(f, .bed), .level(5))
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0), .needLevel(5))
+        XCTAssertEqual(f.econ.wallet.coins, coins, "отказ не списывает")
+        XCTAssertEqual(HomeShop.level(f, .bed), 1)
+        XCTAssertEqual(f.journal.count, journal)
+        hLevel(&f, 5)
+        XCTAssertNil(HomeShop.gate(f, .bed))
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0), .ok(level: 2, price: HomeShop.line(.bed)!.levels[2].price))
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0), .needLevel(12))
+        hLevel(&f, 12)
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0), .ok(level: 3, price: HomeShop.line(.bed)!.levels[3].price))
+    }
+
+    func testNeedLevelTable() {
+        XCTAssertEqual(HomeShop.needLevel(.bath, index: 1), 0)
+        XCTAssertEqual(HomeShop.needLevel(.bath, index: 2), 5)
+        XCTAssertEqual(HomeShop.needLevel(.kitchen, index: 3), 12)
+        XCTAssertEqual(HomeShop.needLevel(.yard, index: 1), 4)
+        XCTAssertEqual(HomeShop.needLevel(.yard, index: 2), 9)
+        XCTAssertEqual(HomeShop.needLevel(.yard, index: 3), 12)
+        XCTAssertEqual(HomeShop.needLevel(.yard, index: 4), 20)
+    }
+
+    func testYardTierNeedsPlatesThenLevel() {
+        var f = hRich()
+        hLevel(&f, 4)
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0), .needPlates(3), "окно, ромашка, сушилка")
+        hSill(&f)
+        hLevel(&f, 3)
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0), .needLevel(4))
+        hLevel(&f, 4)
+        let coins = f.econ.wallet.coins
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0 + 60), .ok(level: 1, price: 700))
+        XCTAssertEqual(f.econ.wallet.coins, coins - 700)
+        let tier = try! XCTUnwrap(f.journal.last { $0.kind == "yard.tier" })
+        XCTAssertEqual(tier.value, 1)
+        // Опыт за ярус придёт со следующим settle.
+        let xp = f.level.xp
+        DogLevel.settle(&f, now: hT0 + 120)
+        XCTAssertGreaterThanOrEqual(f.level.xp - xp, 25)
+    }
+
+    func testKvartalIsTopYardTier() {
+        var f = hRich(20_000)
+        f.pet.home[.yard] = 3
+        // все плиты ярусов 0…3 без кухонных
+        for p in YardConfig.shared.plates where p.tier < 4 && p.kitchen == 0 {
+            if p.isStation { f.yard.stations[p.id] = 1 } else { f.yard.plates.append(p.id) }
+        }
+        hLevel(&f, 19)
+        XCTAssertEqual(HomeShop.next(f, .yard)?.level.name, "Квартал")
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0), .needLevel(20))
+        hLevel(&f, 20)
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0), .ok(level: 4, price: 9000))
+        XCTAssertEqual(HomeShop.buy(.yard, in: &f, now: hT0), .maxed)
+    }
+
+    func testOldSaveKeepsBoughtLevels() {
+        var f = hRich()
+        f.pet.home[.bath] = 3
+        f.pet.home[.yard] = 3
+        f.pet.home[.bed] = 2
+        hLevel(&f, 1)
+        PetRunner.catchUp(&f, now: hT0 + 3600)
+        XCTAssertEqual(HomeShop.level(f, .bath), 3, "купленное не отнимаем")
+        XCTAssertEqual(HomeShop.level(f, .yard), 3)
+        XCTAssertEqual(HomeShop.level(f, .bed), 2)
+        XCTAssertEqual(HomeShop.buy(.bath, in: &f, now: hT0 + 3600), .maxed)
+        XCTAssertEqual(HomeShop.buy(.bed, in: &f, now: hT0 + 3600), .needLevel(12))
+        XCTAssertEqual(HomeShop.level(f, .bed), 2)
+    }
+
     // MARK: кухня в деле
 
     func testKitchenAutofeedAfterPurchase() {
         var f = hRich()
+        hLevel(&f, 5)
         HomeShop.buy(.kitchen, in: &f, now: hT0)
         HomeShop.buy(.kitchen, in: &f, now: hT0)
         XCTAssertEqual(HomeShop.level(f, .kitchen), 2)

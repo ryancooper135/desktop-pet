@@ -60,11 +60,12 @@ final class RankTests: XCTestCase {
         XCTAssertEqual(Rank.info(home: 12, coat: .normal).title, "Барин")
         XCTAssertEqual(Rank.info(home: 16, coat: .normal).title, "Барин")
         XCTAssertEqual(Rank.info(home: 16, coat: .sleek).title, "Барин")
-        XCTAssertEqual(Rank.info(home: 17, coat: .sleek).title, "Князь")
+        XCTAssertEqual(Rank.info(home: 17, coat: .sleek).title, "Барин")
+        XCTAssertEqual(Rank.info(home: 18, coat: .sleek).title, "Князь")
         // Ступенька вверх по дому никогда не опускает звание.
         for coat in CoatStage.allCases {
             var prev = -1
-            for h in 0...18 {
+            for h in 0...19 {
                 let i = Rank.info(home: h, coat: coat).index
                 XCTAssertGreaterThanOrEqual(i, prev)
                 prev = i
@@ -75,7 +76,7 @@ final class RankTests: XCTestCase {
     /// Князь — почти полный дом и шерсть не хуже «Обычной»; лохматый в полном доме — ещё Барин.
     func testPrinceNeedsHouseAndCoat() {
         let maxHome = HomeShop.shared.reduce(0) { $0 + $1.levels.count - 1 }
-        XCTAssertEqual(maxHome, 18)
+        XCTAssertEqual(maxHome, 19)
         let top = Rank.info(home: maxHome, coat: .sleek)
         XCTAssertTrue(top.isTop)
         XCTAssertEqual(top.title, "Князь")
