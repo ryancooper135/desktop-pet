@@ -158,6 +158,7 @@ final class TricksTests: XCTestCase {
 
     func testUnlockOrder() {
         var f = kFile()
+        f.growth.points = 40  // взрослый: щенку открыты только два первых (testPuppyLimit)
         XCTAssertEqual(Tricks.rows(f).map(\.locked), [false, true, true, true, true, true])
         let o = Tricks.attempt(.lie, in: &f, now: kT0, roll: 0)
         XCTAssertFalse(o.ok)
@@ -349,5 +350,81 @@ final class TricksTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(store.read()).tricks[.sit].learned != nil)
         try store.startOver(now: kT0 + 600)
         XCTAssertTrue(try XCTUnwrap(store.read()).tricks.isEmpty, "новый щенок учится с нуля")
+    }
+
+    // MARK: рост (Growth.perks)
+
+    func testPuppyLimit() {
+        var f = kFile()
+        XCTAssertEqual(Growth.phase(f), .puppy)
+        var t = teach(.sit, &f, from: kT0)
+        t = teach(.lie, &f, from: t)
+        XCTAssertEqual(Tricks.rows(f).map(\.young), [false, false, true, true, true, true])
+        XCTAssertEqual(Tricks.rows(f).map(\.locked), [false, false, false, true, true, true])
+        let o = Tricks.attempt(.bow, in: &f, now: t, roll: 0)
+        XCTAssertFalse(o.ok)
+        XCTAssertEqual(o.reason, Tricks.growReason)
+        XCTAssertEqual(f.tricks[.bow].tries, 0, "щенок не пробует")
+        XCTAssertEqual(Tricks.reasonText(o.reason, for: .bow), "Подрастёт — научится")
+        // Подрос — открыто дальше по обычному порядку.
+        f.growth.points = 10
+        XCTAssertEqual(Tricks.rows(f).map(\.young), [false, false, false, false, false, false])
+        XCTAssertTrue(Tricks.attempt(.bow, in: &f, now: t + Tricks.gap, roll: 0).ok)
+    }
+
+    func testLearnedStaysForPuppy() {
+        // Старый сейв: трюк выучен, а очков роста мало — выученное не отнимаем.
+        var f = kFile()
+        f.tricks[.bow].learned = kT0 - 100
+        f.tricks[.bow].n = Tricks.needed
+        XCTAssertFalse(Tricks.young(.bow, in: f))
+        XCTAssertTrue(Tricks.young(.jump, in: f))
+    }
+
+    func testTeenRefusesSometimesWithoutPenalty() {
+        var f = kFile()
+        f.growth.points = 20
+        XCTAssertEqual(Growth.phase(f), .teen)
+        var refused = 0, tried = 0
+        var t = kT0
+        let before = f.pet.needs
+        for _ in 0..<400 {
+            let o = Tricks.attempt(.sit, in: &f, now: t)
+            tried += 1
+            if o.refused {
+                refused += 1
+                XCTAssertFalse(o.ok)
+                XCTAssertNil(o.reason, "пробовал — просто не захотел")
+                XCTAssertFalse(o.counted)
+                XCTAssertEqual(o.love, 0)
+            }
+            t += 1
+        }
+        XCTAssertEqual(f.tricks[.sit].tries, tried)
+        let share = Double(refused) / Double(tried)
+        XCTAssertGreaterThan(share, 0.08)
+        XCTAssertLessThan(share, 0.22)
+        XCTAssertGreaterThanOrEqual(f.pet.needs[.love] ?? 0, before[.love] ?? 0, "без штрафа")
+
+        // Детерминированно: тот же файл — тот же исход.
+        var a = kFile(); a.growth.points = 20
+        var b = a
+        let ra = (0..<50).map { Tricks.attempt(.sit, in: &a, now: kT0 + Double($0)).refused }
+        let rb = (0..<50).map { Tricks.attempt(.sit, in: &b, now: kT0 + Double($0)).refused }
+        XCTAssertEqual(ra, rb)
+    }
+
+    func testForcedRollNeverRefuses() {
+        var f = kFile()
+        f.growth.points = 20
+        for i in 0..<100 { XCTAssertFalse(Tricks.attempt(.sit, in: &f, now: kT0 + Double(i), roll: 0).refused) }
+    }
+
+    func testAdultAndPuppyNeverRefuse() {
+        for pts in [0.0, 40] {
+            var f = kFile()
+            f.growth.points = pts
+            for i in 0..<200 { XCTAssertFalse(Tricks.attempt(.sit, in: &f, now: kT0 + Double(i)).refused, "\(pts)") }
+        }
     }
 }

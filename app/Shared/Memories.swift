@@ -175,6 +175,10 @@ enum Memories {
                 if (book["home.\(line)"]?.value ?? 0) < lv {
                     book.put(Memory(id: "home.\(line)", t: e.t, key: line, value: lv))
                 }
+            case "growth.phase":
+                // Волна 34 I: подрос (teen) и вырос (adult) — по одной записи на стадию.
+                guard let k = e.key, k != GrowthPhase.puppy.rawValue else { continue }
+                book.add(Memory(id: "grow.\(k)", t: e.t, key: k))
             default:
                 break
             }
@@ -228,6 +232,12 @@ enum Memories {
         case "taste":
             guard let fact = Tastes.album(fact: key, t: m.t) else { return nil }
             return fact.text
+        case "grow":
+            switch GrowthPhase(rawValue: key) {
+            case .teen: return "Подрос — уже подросток"
+            case .adult: return "Вырос — совсем взрослый"
+            default: return nil
+            }
         default: return nil
         }
     }
@@ -243,6 +253,7 @@ enum Memories {
         case "home": return "🏠"
         case "days": return (m.value ?? 0) % 365 == 0 ? "🎂" : "💛"
         case "taste": return Tastes.album(fact: key, t: m.t)?.emoji ?? "✨"
+        case "grow": return "📏"
         default: return "✨"
         }
     }

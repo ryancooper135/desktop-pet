@@ -51,6 +51,12 @@ final class AppModel {
     var showHabits = false
     /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
     var showKitchen = false
+    /// Лист «Уровень» (волна 34 I, HomeChips.LevelChip → LevelSheet).
+    var showLevel = false
+    /// Вид роста для сцены (PetStage → PetRig); nil — как взрослый (UI-тесты без сида level*). Пишет noteLevel.
+    var growthLook: GrowthLook? = nil
+    /// Что из уровня и роста уже показали (AppModel+Level).
+    @ObservationIgnored var levelSeen = LevelSeen()
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -264,6 +270,7 @@ final class AppModel {
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
             noteOwnerSleep(f, now: now)
+            noteLevel(f, now: now)
         } catch {
             storeError = error.localizedDescription
         }
@@ -1078,7 +1085,8 @@ final class AppModel {
         guard out.ok else {
             reaction = Reaction(id: reaction.id + 1, kind: t.kind, ok: false, reason: nil)
             Feel.nudge(.boop)
-            show(Tricks.failText, ok: false)
+            // Подросток упрямится (волна 34 I): без штрафа, другим текстом.
+            show(out.refused ? Tricks.refuseText : Tricks.failText, ok: false)
             return
         }
         react(t.kind)

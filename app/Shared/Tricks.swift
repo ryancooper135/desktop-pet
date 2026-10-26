@@ -143,6 +143,8 @@ struct TrickOutcome: Hashable, Sendable {
     let coins: Int
     /// Прибавка ласки.
     let love: Double
+    /// Подросток не захотел (Growth.perks.trickRefusePct): попытка была, без штрафа и без зачёта.
+    var refused = false
 
     var tried: Bool { reason == nil }
 }
@@ -153,6 +155,8 @@ struct TrickRow: Hashable, Sendable, Identifiable {
     let progress: Int
     let learned: Bool
     let locked: Bool
+    /// Щенку рано (Growth.perks.trickLimit): «подрастёт — научится». Важнее замка.
+    var young = false
 
     var id: String { trick.rawValue }
 }
@@ -175,6 +179,11 @@ enum Tricks {
     static let learnCoins = 5
 
     static let lockedReason = "locked"
+    /// Щенок мал для этого трюка (Growth.perks.trickLimit).
+    static let growReason = "grow"
+    static let growText = "Подрастёт — научится"
+    /// Подросток упёрся (Growth.perks.trickRefusePct).
+    static let refuseText = "Не хочет. Подросток!"
     /// Стор ещё не прочитан (model.file == nil): не «не получилось сохранить», а подождать.
     static let loadingReason = "loading"
     static let failText = "Не понял…"
@@ -205,16 +214,25 @@ enum Tricks {
 
     static func progress(_ t: Trick, in f: SaveFile) -> Int { min(needed, f.tricks[t].n) }
 
+    /// Щенку рано: трюк дальше первых trickLimit и ещё не выучен (выученное раньше не отнимаем).
+    static func young(_ t: Trick, in f: SaveFile, _ cfg: GrowthConfig = .shared) -> Bool {
+        guard let limit = Growth.perks(f, cfg).trickLimit, !learned(t, in: f),
+              let i = Trick.allCases.firstIndex(of: t) else { return false }
+        return i >= limit
+    }
+
     /// Текст отказа: общий из RefuseText, для замка — какой трюк выучить раньше.
     static func reasonText(_ reason: String?, for t: Trick? = nil) -> String {
         if reason == lockedReason, let p = t?.previous { return "Сначала выучи «\(p.title)»" }
+        if reason == growReason { return growText }
         if reason == loadingReason { return "Секунду…" }
         return RefuseText.text(reason)
     }
 
     static func rows(_ f: SaveFile) -> [TrickRow] {
         Trick.allCases.map { t in
-            TrickRow(trick: t, progress: progress(t, in: f), learned: learned(t, in: f), locked: !unlocked(t, in: f))
+            TrickRow(trick: t, progress: progress(t, in: f), learned: learned(t, in: f), locked: !unlocked(t, in: f),
+                     young: young(t, in: f))
         }
     }
 
@@ -236,6 +254,12 @@ enum Tricks {
         return Double(x >> 11) / Double(UInt64(1) << 53)
     }
 
+    /// Бросок «не хочу» подростка — своё зерно, чтобы не сдвигать бросок удачи.
+    static func refuseRoll(petId: String, _ t: Trick, tries: Int) -> Double {
+        let x = StableRandom.mix(StableHash.fnv1a("\(petId):trick:\(t.rawValue):\(tries):refuse"))
+        return Double(x >> 11) / Double(UInt64(1) << 53)
+    }
+
     /// Хозяин дал команду. roll — для тестов и UI-тестов (PET_TRICK_ROLL); nil — честный бросок.
     @discardableResult
     static func attempt(_ t: Trick, in f: inout SaveFile, now: Double, roll forced: Double? = nil) -> TrickOutcome {
@@ -245,11 +269,20 @@ enum Tricks {
                          learnedNow: false, coins: 0, love: 0)
         }
         if let r = gate(f, at: now) { return refuse(r) }
+        if young(t, in: f) { return refuse(growReason) }
         guard unlocked(t, in: f) else { return refuse(lockedReason) }
 
         var e = f.tricks[t]
         let p = chance(t, in: f)
         e.tries += 1
+        // Подросток иногда упирается: попытка ушла (tries), но ни штрафа, ни зачёта. С forced не бросаем —
+        // тесты и UI-тесты задают исход сами.
+        let pct = Growth.perks(f).trickRefusePct
+        if forced == nil, pct > 0, refuseRoll(petId: f.petId, t, tries: e.tries) * 100 < Double(pct) {
+            f.tricks[t] = e
+            return TrickOutcome(trick: t, ok: false, reason: nil, counted: false, progress: min(needed, e.n),
+                                learnedNow: false, coins: 0, love: 0, refused: true)
+        }
         let ok = (forced ?? roll(petId: f.petId, t, tries: e.tries)) < p
         guard ok else {
             f.tricks[t] = e

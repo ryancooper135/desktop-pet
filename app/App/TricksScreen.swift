@@ -26,7 +26,7 @@ struct TricksScreen: View {
                 // Крупный шрифт (accessibility-размеры): одна колонка, иначе «Отряхнись» не влезает в полкарточки.
                 LazyVGrid(columns: type.isAccessibilitySize ? [GridItem(.flexible())] : Self.columns, spacing: 12) {
                     ForEach(rows) { r in
-                        TrickCard(row: r, enabled: gate == nil && !r.locked) {
+                        TrickCard(row: r, enabled: gate == nil && !r.locked && !r.young) {
                             Feel.tap(.button)
                             model.doTrick(r.trick)
                         }
@@ -102,6 +102,8 @@ struct TrickCard: View {
 
     private var status: String {
         if row.learned { return "Выучен" }
+        // Волна 34 I: щенку рано — не замок, а «подрастёт».
+        if row.young { return Tricks.growText }
         if row.locked, let p = row.trick.previous { return "Сначала «\(p.title)»" }
         return "\(row.progress) из \(Tricks.needed)"
     }
@@ -110,11 +112,11 @@ struct TrickCard: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: row.locked ? "lock.fill" : row.trick.symbol)
+                    Image(systemName: row.young ? "hourglass" : row.locked ? "lock.fill" : row.trick.symbol)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(row.locked ? PetPalette.soft : PetPalette.accent)
+                        .foregroundStyle(row.locked || row.young ? PetPalette.soft : PetPalette.accent)
                         .frame(width: 40, height: 40)
-                        .background(Circle().fill((row.locked ? PetPalette.soft : PetPalette.accent).opacity(0.16)))
+                        .background(Circle().fill((row.locked || row.young ? PetPalette.soft : PetPalette.accent).opacity(0.16)))
                     if row.learned {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 14, weight: .bold))
@@ -150,7 +152,7 @@ struct TrickCard: View {
         .opacity(enabled ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(row.trick.title))
-        .accessibilityValue(Text(row.locked ? Tricks.reasonText(Tricks.lockedReason, for: row.trick) : status))
+        .accessibilityValue(Text(row.locked && !row.young ? Tricks.reasonText(Tricks.lockedReason, for: row.trick) : status))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("trick.\(row.trick.rawValue)")
     }

@@ -26,6 +26,8 @@ import Foundation
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
 /// yard_empty|yard_plates|yard_rich — экран «Двор» (волна 34 G, seedYard).
+/// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
+/// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -285,6 +287,30 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "yard_empty", "yard_plates", "yard_rich":
                 seedYard(&f, seed: seed ?? "", now: now)
+            case "level_up", "level_puppy", "level_adult":
+                // Волна 34 I (LevelUITests, ui-34-level-*): level_up — опыта уже на ур. 3, оплачен ур. 2: первый же
+                // settle при старте платит уровень, и через пару секунд идёт сцена «★3». level_puppy — щенок
+                // (рост 0) на ур. 4; level_adult — взрослый на ур. 12. Сцены и рост в UI-тестах — только с этими сидами.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+                let grow = GrowthConfig.shared
+                switch seed {
+                case "level_up":
+                    f.level.xp = DogLevel.xpTo(3) + 3
+                    f.level.paidLevel = 2
+                    f.growth.points = grow.teen / 2
+                case "level_puppy":
+                    f.level.xp = DogLevel.xpTo(4) + DogLevel.xpStep(4) / 2
+                    f.level.paidLevel = 4
+                    f.growth.points = 0
+                default:
+                    f.level.xp = DogLevel.xpTo(12) + DogLevel.xpStep(12) / 3
+                    f.level.paidLevel = 12
+                    f.growth.points = grow.adult + 5
+                }
+                f.level.lastUp = nil
+                f.seen = f.pet
+                f.lastSeenT = now
             default:
                 break
             }
