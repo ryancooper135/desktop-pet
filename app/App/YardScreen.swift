@@ -163,7 +163,7 @@ struct YardScreen: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(sceneLabel(tier: tier, rates: rates, dog: dogPose, mode: mode)))
         // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции.
-        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold)"))
+        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"))
         .accessibilityIdentifier("yard.screen.scene")
     }
 

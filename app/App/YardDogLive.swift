@@ -26,6 +26,8 @@ struct YardLiveComponent: Component {
     var body: Entity?
     var dirt: Entity?
     var clipKey = ""
+    /// Номер посадки пса (YardDogLive.attached): по нему экран знает, что пса уже видно в этой сцене.
+    var seq = 0
     var yaw: Float = 0
     /// Станция, у которой пёс сейчас что-то делает (её тик слышно первым).
     var dogAt: String?
@@ -50,6 +52,7 @@ struct YardLiveSystem: System {
             guard var c = e.components[YardLiveComponent.self] else { continue }
             YardDogLive.step(&c, now: now, dt: dt)
             YardDogLive.tick(&c, clock: YardArtSystem.clock)
+            if c.dog?.isEnabled == true { YardDogLive.framed(c.seq) }
             e.components.set(c)
         }
     }
@@ -82,6 +85,20 @@ enum YardDogLive {
 
     private static var template: Entity?
     private static var loading: Task<Entity, Never>?
+    /// Сколько раз пса сажали в сцену и до какой посадки дошёл кадр (пёс включён и сцена рисуется).
+    private(set) static var attached = 0
+    private(set) static var shown = 0
+
+    static func framed(_ seq: Int) {
+        if seq > shown { shown = seq }
+    }
+
+    /// Для UI-теста и отладки: off — пса не сажали, load — модель грузится, wait — посадили, кадра ещё не было,
+    /// on — пёс в сцене и сцена живёт.
+    static var state: String {
+        if attached == 0 { return loading != nil ? "load" : "off" }
+        return shown >= attached ? "on" : (loading != nil ? "load" : "wait")
+    }
 
     /// Шаблон пса: shiba.usdz (или заглушка), ростом PetModel.height, низ на полу, смотрит на +z. Грузится один раз.
     static func model() async -> Entity {
@@ -132,6 +149,10 @@ enum YardDogLive {
         c.body = body
         c.dirt = dirt
         c.clipKey = ""
+        attached += 1
+        c.seq = attached
+        // Сразу на место и в позу: пёс виден с первого же кадра, не дожидаясь системы.
+        step(&c, now: Clock.now(), dt: 0)
         world.components.set(c)
     }
 

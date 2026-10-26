@@ -4,7 +4,7 @@
 //   ui-34-yard-plates   «Дворик»: сушилка, карточка «Дорожка» и полоска «ещё 80 🪙»
 //   ui-34-yard-station  «Сад»: сушилка выросла до ур. 4
 //   ui-34-yard-collect  полная копилка собрана: тост со свинкой
-// Волна 35 M (значение сцены ещё «dog=<клип>,gold=<станции>»):
+// Волна 35 M (значение сцены ещё «dog=<клип>,gold=<станции>,dog3d=on|load|wait|off|none» — dog3d: пёс уже в сцене и кадр дошёл):
 //   ui-35-yard-dog      Шиба у каши смотрит на пар (PET_YARD_DOG=porridge)
 //   ui-35-yard-plate    объёмные таблички «+N/ч» над станциями, у косточек золотая
 //   ui-35-yard-gold     сушилке купили золотую табличку за 60 ✂️
@@ -112,7 +112,10 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(wait(scene, valueHas: "dog=act.porridge", timeout: 10),
                       "пёс не у каши (\(String(describing: scene.value)))")
         XCTAssertTrue(scene.label.contains("Шиба"), "VoiceOver не говорит, где Шиба: \(scene.label)")
-        settle(4)
+        // План говорит «у каши» сразу, а модель грузится отдельно: ждём, пока пёс сядет в сцену и она отрисуется.
+        XCTAssertTrue(wait(scene, valueHas: "dog3d=on", timeout: 45),
+                      "пёс не появился в сцене (\(String(describing: scene.value)))")
+        settle(3)
         snap("ui-35-yard-dog")
         app.terminate()
     }
@@ -127,7 +130,8 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
         XCTAssertTrue(wait(scene, valueHas: "gold=bones"), "сид yard_rich: косточки золотые (\(String(describing: scene.value)))")
         XCTAssertTrue(scene.label.contains("/ч"), "VoiceOver не читает доход станций: \(scene.label)")
-        settle(3)
+        _ = wait(scene, valueHas: "dog3d=on", timeout: 45)
+        settle(2)
         snap("ui-35-yard-plate")
 
         let gold = any["yard.screen.station.dryer.gold"]
@@ -143,7 +147,9 @@ final class YardScreenUITests: XCTestCase {
             screen.swipeDown()
             settle(0.4)
         }
-        settle(1.5)
+        // Золото пересобрало сцену: ждём, пока новая отрисуется (пёс в ней — значит, кадры идут).
+        _ = wait(scene, valueHas: "dog3d=on", timeout: 30)
+        settle(3)
         snap("ui-35-yard-gold")
         app.terminate()
     }

@@ -164,9 +164,14 @@ enum YardPlate3D {
 
     static func name(_ id: String) -> String { "yard.plate.\(id)" }
 
-    static func make(_ text: String, at p: SIMD3<Float>, cam: YardLive.Cam, gold: Bool, id: String) -> Entity {
+    /// Доля пути от станции к камере: табличка встаёт на луче взгляда ближе к зрителю — на экране там же и того же
+    /// размера, но фонарь, ограда и соседние станции её больше не закрывают.
+    static let pull: Float = 0.45
+
+    static func make(_ text: String, at anchor: SIMD3<Float>, cam: YardLive.Cam, gold: Bool, id: String) -> Entity {
         let root = Entity()
         root.name = name(id)
+        let p = anchor + (cam.eye - anchor) * pull
         root.position = p
         // Плоскость таблички параллельна кадру: лицом против взгляда камеры.
         let f = YardArtMath.normalize(cam.target - cam.eye)
