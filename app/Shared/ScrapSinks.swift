@@ -228,12 +228,12 @@ enum ScrapSinks {
         goldenOpen(f) ? "Только редкое и выше, без повторов" : "Все редкие вещи уже у тебя"
     }
 
-    /// Надпись на кнопке эксклюзива места.
+    /// Надпись на кнопке эксклюзива места (без эмодзи: значок вещи кнопка рисует сама).
     static func placeButton(_ s: PlaceExclusiveState, _ it: SinkItem) -> String {
         switch s {
-        case .owned: return "\(it.emoji) \(it.name) — уже у тебя"
-        case .locked: return "\(it.emoji) \(it.name) · \(placePrice) ✂️"
-        case .buy(let price, _): return "\(it.emoji) \(it.name) · \(price) ✂️"
+        case .owned: return "\(it.name) — уже у тебя"
+        case .locked: return "\(it.name) · \(placePrice) ✂️"
+        case .buy(let price, _): return "\(it.name) · \(price) ✂️"
         }
     }
 

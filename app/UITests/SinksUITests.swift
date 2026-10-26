@@ -25,8 +25,9 @@ final class SinksUITests: XCTestCase {
 
         XCTAssertTrue(tapWhenReady(golden), "золотой шарик не нажимается")
         XCTAssertFalse(any["capsule.refusal"].waitForExistence(timeout: 1), "отказ при 500 ✂️")
-        for _ in 0..<3 { screen.swipeDown() }
+        // Шарик обычно виден и так; свайп вниз у верхнего края закрывает лист — листаем, только если не видно.
         let ball = any["capsule.ball"]
+        for _ in 0..<2 where screen.exists && !ball.isHittable { screen.swipeDown() }
         // Капсула трясётся («Капсула трясётся»), потом «нажми» и сама открывается: ждём, пока подпись
         // перестанет начинаться с «Капсула», и даём автооткрытию дойти до вещи.
         let got = NSPredicate(format: "NOT (label BEGINSWITH %@)", "Капсула")

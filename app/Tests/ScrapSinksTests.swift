@@ -220,7 +220,7 @@ final class ScrapSinksTests: XCTestCase {
         XCTAssertEqual(ScrapSinks.refusalText(.notEnough(need: 7)), "Не хватает клочков: 7 ✂️")
         XCTAssertEqual(ScrapSinks.refusalText(.fewFinds(left: 2)), "Найди здесь ещё 2 находки")
         let it = ScrapSinks.exclusive("rocket")!
-        XCTAssertEqual(ScrapSinks.placeButton(.buy(price: 120, canAfford: true), it), "🪖 Шапка-дуршлаг · 120 ✂️")
+        XCTAssertEqual(ScrapSinks.placeButton(.buy(price: 120, canAfford: true), it), "Шапка-дуршлаг · 120 ✂️")
         XCTAssertTrue(ScrapSinks.placeNote(.locked(left: 1), have: 0).contains("ещё 1 находку"))
         XCTAssertTrue(ScrapSinks.placeNote(.buy(price: 120, canAfford: false), have: 100).contains("20 ✂️"))
         XCTAssertEqual(ScrapSinks.goldenNote(kFile()), "Только редкое и выше, без повторов")
