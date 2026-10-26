@@ -85,7 +85,8 @@ final class YardScreenUITests: XCTestCase {
             settle(0.5)
         }
         XCTAssertTrue(tapWhenReady(up), "«Улучшить» не нажимается")
-        XCTAssertTrue(wait(scene, valueHas: "dryer=4"), "сушилка не выросла (\(String(describing: scene.value)))")
+        // На CI сцена с 3D-станциями обновляет значение дольше 5 с (прогон 40410665893: dryer=4 пришло после таймаута).
+        XCTAssertTrue(wait(scene, valueHas: "dryer=4", timeout: 20), "сушилка не выросла (\(String(describing: scene.value)))")
         settle(1)
         snap("ui-34-yard-station")
 
