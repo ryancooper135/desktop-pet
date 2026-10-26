@@ -64,6 +64,7 @@ struct BlockDuoScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            ChallengeBadge(game: .blockduo)
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
@@ -445,7 +446,9 @@ struct BlockDuoScreen: View {
         let g = game
         let r: BlockDuoResult
         do {
-            r = try PetStore.shared.mutate { f in BlockDuo.finish(g, in: &f, now: Clock.now(), free: free) }
+            r = try PetStore.shared.mutate { f in
+                Challenges.play(.blockduo, in: &f, now: Clock.now()) { h, t in BlockDuo.finish(g, in: &h, now: t, free: free) }
+            }
         } catch {
             model.refuse(RefuseText.text("store"))
             model.showBlockDuo = false

@@ -57,6 +57,7 @@ struct ZombieRunScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            ChallengeBadge(game: .zombie)
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
@@ -417,7 +418,9 @@ struct ZombieRunScreen: View {
         let r0 = round
         let r: ZombieResult
         do {
-            r = try PetStore.shared.mutate { f in ZombieRun.finish(r0, in: &f, now: Clock.now(), free: free) }
+            r = try PetStore.shared.mutate { f in
+                Challenges.play(.zombie, in: &f, now: Clock.now()) { g, t in ZombieRun.finish(r0, in: &g, now: t, free: free) }
+            }
         } catch {
             model.refuse(RefuseText.text("store"))
             model.showZombie = false

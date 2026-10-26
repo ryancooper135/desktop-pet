@@ -44,6 +44,7 @@ struct CatchGameScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            ChallengeBadge(game: .ball)
             switch phase {
             case .intro:
                 Spacer(minLength: 0)
@@ -239,8 +240,10 @@ struct CatchGameScreen: View {
         let r: CatchResult
         do {
             r = try PetStore.shared.mutate { f in
-                CatchGame.finish(score: round.score, caught: round.caught, missed: round.missed,
-                                 in: &f, now: Clock.now(), free: free)
+                Challenges.play(.ball, in: &f, now: Clock.now()) { g, t in
+                    CatchGame.finish(score: round.score, caught: round.caught, missed: round.missed,
+                                     in: &g, now: t, free: free)
+                }
             }
         } catch {
             model.refuse(RefuseText.text("store"))
