@@ -43,7 +43,8 @@ struct HouseScreen: View {
                                  note: note?.line == r.id ? note : nil,
                                  shake: shakes[r.id, default: 0],
                                  bump: bumps[r.id, default: 0],
-                                 kitchen: r.id == .kitchen ? { openKitchen() } : nil) { buy(r) }
+                                 kitchen: r.id == .kitchen ? { openKitchen() } : nil,
+                                 yard: r.id == .yard ? { openYard() } : nil) { buy(r) }
                 }
                 Text("Дом остаётся, даже если начать заново с новым щенком.")
                     .petFont(12, .medium)
@@ -109,6 +110,11 @@ struct HouseScreen: View {
         model.showKitchen = true
     }
 
+    /// Волна 34 G: двор — на весь экран поверх комнаты; ссылка сама закроет этот лист и откроет его.
+    private func openYard() {
+        if let url = URL(string: "pet://yard") { model.open(url) }
+    }
+
     private func say(_ n: Note) {
         note = n
         noteTask?.cancel()
@@ -128,6 +134,8 @@ struct HomeLineCard: View {
     let bump: Int
     /// Только у кухни: открыть лист «Кухня».
     var kitchen: (() -> Void)? = nil
+    /// Только у участка: открыть экран «Двор» (волна 34 G).
+    var yard: (() -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
@@ -188,6 +196,10 @@ struct HomeLineCard: View {
 
             if let kitchen {
                 KitchenEntry(cooking: row.level >= 3, action: kitchen)
+            }
+
+            if let yard {
+                YardEntryLink(action: yard)
             }
 
             if let note {

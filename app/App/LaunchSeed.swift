@@ -24,7 +24,8 @@ import Foundation
 /// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80);
 /// zombie — бодрый щенок с рекордом «Щенок против зомби» 300 (ui-83/84);
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
-/// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82)).
+/// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
+/// yard_empty|yard_plates|yard_rich — экран «Двор» (волна 34 G, seedYard).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -282,10 +283,47 @@ enum LaunchSeed {
                 }
                 f.seen = f.pet
                 f.lastSeenT = now
+            case "yard_empty", "yard_plates", "yard_rich":
+                seedYard(&f, seed: seed ?? "", now: now)
             default:
                 break
             }
         }
+    }
+
+    /// Волна 34 G, экран «Двор» (YardScreenUITests): уровни и плиты ставим прямо, без покупок.
+    /// yard_empty — пустырь, 20 монет (на «Протереть окно» хватает); yard_plates — «Дворик», пёс ур. 5, сушилка ур. 2,
+    /// дальше «Дорожка» (не хватает 80 🪙), копилка копит 3 ч; yard_rich — «Сад», пёс ур. 10, кухня 1, три станции,
+    /// копилка полная (13 ч), 5000 монет — улучшение проходит с первого нажатия.
+    private static func seedYard(_ f: inout SaveFile, seed: String, now: Double) {
+        PetRunner.catchUp(&f, now: now)
+        for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
+        var y = YardState()
+        switch seed {
+        case "yard_plates":
+            f.pet.home[.yard] = 1
+            f.level.started = true
+            f.level.xp = DogLevel.xpTo(5)
+            y.plates = ["window", "daisy", "trash", "fence"]
+            y.stations = ["dryer": 2]
+            y.t = now - 3 * 3600
+            f.econ.wallet.coins = 120
+        case "yard_rich":
+            f.pet.home[.yard] = 2
+            f.pet.home[.kitchen] = max(f.pet.home[.kitchen] ?? 0, 1)
+            f.level.started = true
+            f.level.xp = DogLevel.xpTo(10)
+            y.plates = ["window", "daisy", "trash", "fence", "path", "lamp", "mailbox"]
+            y.stations = ["dryer": 3, "bones": 2, "porridge": 1]
+            y.t = now - 13 * 3600
+            f.econ.wallet.coins = 5000
+        default:
+            f.pet.home[.yard] = 0
+            f.econ.wallet.coins = 20
+        }
+        f.yard = y
+        f.seen = f.pet
+        f.lastSeenT = now
     }
 
     /// Сид charpack: два пака из шибы бандла (ничего не качаем), старые паки стираем. Возвращает id рабочего.

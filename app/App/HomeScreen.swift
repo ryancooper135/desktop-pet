@@ -200,6 +200,10 @@ struct HomeScreen: View {
                     BrushPanel()
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if snap.alive && !rescue {
+                    // Волна 34 G: круг «Двор» справа над плашкой и рядом.
+                    YardCorner()
+                        .id(model.glassPass)
+                        .transition(.opacity)
                     NeedHintPlate(snap: snap)
                     WalkRow(snap: snap)
                         .id(model.glassPass)
@@ -272,6 +276,12 @@ struct HomeScreen: View {
             HouseScreen()
                 .environment(model)
                 .presentationDetents([.large])
+                .petMusic(.shop)
+        }
+        .fullScreenCover(isPresented: $model.showYard) {
+            // Волна 34 G: двор во весь экран — 3D-сцене и карточкам нужно место.
+            YardScreen()
+                .environment(model)
                 .petMusic(.shop)
         }
         .sheet(isPresented: $model.showTricks) {

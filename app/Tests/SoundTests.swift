@@ -9,6 +9,7 @@ final class SoundTests: XCTestCase {
     static let allCues: [SoundCue] = [
         .button, .boop, .petTick(1), .petTick(4), .petTick(30), .pet, .feed, .yip, .bath, .refuse,
         .ok, .wake, .hearts, .heartLost, .hello, .death, .brush, .brushDone, .growl,
+        .coins, .yardTick(0), .yardTick(7),
     ]
 
     static var choreoTones: [Tone] {

@@ -154,6 +154,10 @@ enum SoundCue: Sendable, Hashable {
     case brush
     /// Дочесали: пёс отряхивается — «фррр» и «динь» вверх.
     case brushDone
+    /// Двор (волна 34 G): сбор копилки — монетное «дзынь» с блеском вверх.
+    case coins
+    /// Двор: восьмибитный тик станции за работой; n — номер станции, у каждой своя нота.
+    case yardTick(Int)
 }
 
 enum SoundRecipe {
@@ -275,6 +279,19 @@ enum SoundRecipe {
             out.append(Tone(at: 0.3, .triangle, n(8), env: Envelope(attack: 0.002, hold: 0.01, release: 0.1), gain: 0.12))
             out.append(Tone(at: 0.38, .triangle, n(10), env: Envelope(attack: 0.002, hold: 0.01, release: 0.16), gain: 0.12))
             return out
+
+        case .coins:
+            return [
+                Tone(.square, n(12), env: Envelope(attack: 0.001, hold: 0.02, release: 0.06), gain: 0.1, cutoff: 3200),
+                Tone(at: 0.05, .triangle, n(17), env: Envelope(attack: 0.002, hold: 0.01, release: 0.12), gain: 0.14),
+                Tone(at: 0.12, .triangle, n(19), env: Envelope(attack: 0.002, hold: 0.01, release: 0.2), gain: 0.12),
+            ]
+
+        case .yardTick(let i):
+            // Тише всего, кроме кнопки: экран двора играет не больше двух станций сразу (YardScreen).
+            let steps = [7, 9, 11, 14, 16]
+            return [Tone(.square, n(steps[abs(i) % steps.count]),
+                         env: Envelope(attack: 0.001, hold: 0.008, release: 0.03), gain: 0.06, cutoff: 2600)]
 
         case .refuse:
             return [

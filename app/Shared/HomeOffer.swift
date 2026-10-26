@@ -13,13 +13,15 @@ struct HomeRow: Equatable, Sendable {
         let perks: [String]
         /// Сколько монет не хватает; 0 — хватает.
         let need: Int
+        /// Что держит кроме монет (уровень пса, плиты двора); nil — только монеты.
+        var gate: HomeShop.Gate? = nil
     }
 
     let id: HomeLine
     let name: String
     /// Текущий уровень: 0 — стартовый бесплатный.
     let level: Int
-    /// Последний уровень линии (сейчас 3).
+    /// Последний уровень линии (3, у двора 4 — «Квартал»).
     let top: Int
     let levelName: String
     /// Что даёт текущий уровень.
@@ -28,7 +30,7 @@ struct HomeRow: Equatable, Sendable {
     let next: Next?
 
     var maxed: Bool { next == nil }
-    var canBuy: Bool { next.map { $0.need == 0 } ?? false }
+    var canBuy: Bool { next.map { $0.need == 0 && $0.gate == nil } ?? false }
 }
 
 enum HomeOffer {
@@ -42,7 +44,8 @@ enum HomeOffer {
             let i = min(HomeShop.level(f, l.id), l.levels.count - 1)
             let next = HomeShop.next(f, l.id, all).map { n in
                 HomeRow.Next(index: n.index, name: n.level.name, price: n.level.price,
-                             perks: perkLines(n.level.buff), need: max(0, n.level.price - coins))
+                             perks: perkLines(n.level.buff), need: max(0, n.level.price - coins),
+                             gate: HomeShop.gate(f, l.id, all))
             }
             return HomeRow(id: l.id, name: l.name, level: i, top: l.levels.count - 1,
                            levelName: l.levels[i].name, perks: HomeShop.perks(l.levels[i].buff), next: next)
@@ -55,10 +58,19 @@ enum HomeOffer {
         return p.isEmpty ? [noPerks] : p
     }
 
-    /// Подпись на кнопке: «Купить», «Не хватает 120», «Лучший уровень».
+    /// Подпись на кнопке: «Купить», «Не хватает 120», «Нужен ур. 5 пса», «Сначала плиты», «Лучший уровень».
     static func buttonTitle(_ r: HomeRow) -> String {
         guard let n = r.next else { return "Лучший уровень" }
+        if let g = n.gate { return gateTitle(g) }
         return n.need > 0 ? "Не хватает \(n.need)" : "Купить"
+    }
+
+    /// Короткая причина на кнопке и в карточке.
+    static func gateTitle(_ g: HomeShop.Gate) -> String {
+        switch g {
+        case .level(let l): return "Нужен ур. \(l) пса"
+        case .plates: return "Сначала плиты двора"
+        }
     }
 
     /// Отказ после нажатия; nil — купили.
@@ -67,6 +79,8 @@ enum HomeOffer {
         case .ok: return nil
         case .noCoins(let need): return EconText.notEnough(need: need, lines: lines)
         case .maxed: return maxedText
+        case .needLevel(let l): return "Пёс ещё мал: нужен ур. \(l)"
+        case .needPlates(let k): return "Сначала купи все плиты яруса — осталось \(k)"
         case .unknown: return "Такого улучшения нет"
         }
     }

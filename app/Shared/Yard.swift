@@ -12,6 +12,10 @@
 //
 // Уровень пса и уровни линий дома — ПАРАМЕТРЫ: DogLevel здесь не читается, связывает сливающий.
 // Цифры — раздел yard в config/economy.json, без ключа — значения ниже.
+//
+// Волна 34 G: взрослый пёс дома стоит у самой доходной станции — +stationBonusPct % к ней (Growth.perks, YardHelper).
+// Помощник — параметр чистых функций; обёртки над SaveFile берут его из сейва (Yard.helper). Упрощение: за весь
+// отрезок с прошлого начисления — по тому, дома ли пёс в момент начисления (сбор, покупка, открытие экрана).
 
 import Foundation
 @preconcurrency import PetCore
@@ -291,6 +295,12 @@ enum YardTierGate: Hashable, Sendable {
     case maxed
 }
 
+/// Пёс-помощник у станции: +pct % к её ставке (взрослый и дома, волна 34 G).
+struct YardHelper: Hashable, Sendable {
+    let station: String
+    let pct: Int
+}
+
 /// Исход чаевых при сборе.
 enum YardTip: String, Hashable, Sendable {
     case none, bonus, ingredient, ticket
@@ -316,28 +326,42 @@ struct YardHarvest: Hashable, Sendable {
 enum Yard {
     // MARK: ставка и копилка
 
-    /// Общая ставка 🪙/ч: сумма по станциям, с прибавкой от уровня пса.
-    static func rate(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double {
-        let base = s.stations.reduce(0) { sum, kv in sum + (cfg.station(kv.key)?.rate(kv.value) ?? 0) }
-        return Double(base) * (1 + Double(cfg.boostPct(dogLevel: dogLevel)) / 100)
+    /// Общая ставка 🪙/ч: сумма по станциям, с прибавкой от уровня пса и от пса-помощника.
+    static func rate(_ s: YardState, dogLevel: Int, helper: YardHelper? = nil, _ cfg: YardConfig = .shared) -> Double {
+        s.stations.keys.sorted().reduce(0) { sum, id in
+            sum + stationRate(id, level: s.stations[id] ?? 0, dogLevel: dogLevel, helper: helper, cfg)
+        }
     }
 
-    /// Ставка одной станции для таблички «+14/ч» (с прибавкой от уровня).
-    static func stationRate(_ id: String, level: Int, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double {
-        Double(cfg.station(id)?.rate(level) ?? 0) * (1 + Double(cfg.boostPct(dogLevel: dogLevel)) / 100)
+    /// Ставка одной станции для таблички «+14/ч» (с прибавкой от уровня; помощник — только своей станции).
+    static func stationRate(_ id: String, level: Int, dogLevel: Int, helper: YardHelper? = nil,
+                            _ cfg: YardConfig = .shared) -> Double {
+        let near = helper?.station == id ? max(0, helper?.pct ?? 0) : 0
+        return Double(cfg.station(id)?.rate(level) ?? 0) * (1 + Double(cfg.boostPct(dogLevel: dogLevel) + near) / 100)
+    }
+
+    /// У какой станции встанет пёс: самая доходная по базовой ставке, при равенстве — раньше в конфиге.
+    static func helperStation(_ s: YardState, _ cfg: YardConfig = .shared) -> String? {
+        var best: (id: String, rate: Int)?
+        for st in cfg.stations {
+            guard let lv = s.stations[st.id] else { continue }
+            if best.map({ st.rate(lv) > $0.rate }) ?? true { best = (st.id, st.rate(lv)) }
+        }
+        return best?.id
     }
 
     /// Потолок копилки при ставке.
     static func cap(rate: Double, _ cfg: YardConfig = .shared) -> Double { rate * cfg.bankHours }
 
     /// Начислить до now по текущей ставке. Часы назад (now ≤ t): ничего, метку не двигаем.
-    static func accrue(_ s: inout YardState, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) {
+    static func accrue(_ s: inout YardState, now: Double, dogLevel: Int, helper: YardHelper? = nil,
+                       _ cfg: YardConfig = .shared) {
         guard !s.stations.isEmpty else { return }   // копить нечему
         guard s.t > 0 else { s.t = now; return }
         let dt = now - s.t
         guard dt > 0 else { return }
         let h = dt / 3600
-        let r = rate(s, dogLevel: dogLevel, cfg)
+        let r = rate(s, dogLevel: dogLevel, helper: helper, cfg)
         // Уже выше потолка (конфиг стал скромнее) — не отнимаем.
         s.bank = max(s.bank, min(cap(rate: r, cfg), s.bank + r * h))
         for id in s.stations.keys.sorted() where cfg.station(id)?.portionHours != nil {
@@ -347,24 +371,27 @@ enum Yard {
     }
 
     /// Копилка на момент now без записи.
-    static func peek(_ s: YardState, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardState {
+    static func peek(_ s: YardState, now: Double, dogLevel: Int, helper: YardHelper? = nil,
+                     _ cfg: YardConfig = .shared) -> YardState {
         var c = s
-        accrue(&c, now: now, dogLevel: dogLevel, cfg)
+        accrue(&c, now: now, dogLevel: dogLevel, helper: helper, cfg)
         return c
     }
 
     /// Заполненность копилки 0…1 на момент now.
-    static func fill(_ s: YardState, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double {
-        let c = peek(s, now: now, dogLevel: dogLevel, cfg)
-        let cp = cap(rate: rate(c, dogLevel: dogLevel, cfg), cfg)
+    static func fill(_ s: YardState, now: Double, dogLevel: Int, helper: YardHelper? = nil,
+                     _ cfg: YardConfig = .shared) -> Double {
+        let c = peek(s, now: now, dogLevel: dogLevel, helper: helper, cfg)
+        let cp = cap(rate: rate(c, dogLevel: dogLevel, helper: helper, cfg), cfg)
         return cp > 0 ? min(1, c.bank / cp) : 0
     }
 
     /// Когда копилка станет полной (для свинки, островка и виджета); nil — станций нет.
     /// Уже полная — now. Часы назад — от сохранённой метки (время до неё не копится).
-    static func fullAt(_ s: YardState, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double? {
-        let c = peek(s, now: now, dogLevel: dogLevel, cfg)
-        let r = rate(c, dogLevel: dogLevel, cfg)
+    static func fullAt(_ s: YardState, now: Double, dogLevel: Int, helper: YardHelper? = nil,
+                       _ cfg: YardConfig = .shared) -> Double? {
+        let c = peek(s, now: now, dogLevel: dogLevel, helper: helper, cfg)
+        let r = rate(c, dogLevel: dogLevel, helper: helper, cfg)
         guard r > 0 else { return nil }
         let left = cap(rate: r, cfg) - c.bank
         guard left > 0 else { return now }
@@ -408,13 +435,14 @@ enum Yard {
     /// Купить плиту: начислить по старой ставке, списать, поставить. Станция встаёт на уровень 1.
     @discardableResult
     static func buyPlate(_ id: String, _ s: inout YardState, coins: inout Int, now: Double, yardLevel: Int,
-                         dogLevel: Int, kitchenLevel: Int, _ cfg: YardConfig = .shared) -> YardBuyResult {
+                         dogLevel: Int, kitchenLevel: Int, helper: YardHelper? = nil,
+                         _ cfg: YardConfig = .shared) -> YardBuyResult {
         guard let p = cfg.plate(id) else { return .unknown }
         guard !s.owns(id) else { return .owned }
         if let l = lock(id, s, yardLevel: yardLevel, dogLevel: dogLevel, kitchenLevel: kitchenLevel, cfg) {
             return .locked(l)
         }
-        accrue(&s, now: now, dogLevel: dogLevel, cfg)
+        accrue(&s, now: now, dogLevel: dogLevel, helper: helper, cfg)
         guard coins >= p.price else { return .noCoins(need: p.price - coins) }
         coins -= p.price
         if p.isStation {
@@ -429,11 +457,11 @@ enum Yard {
     /// Улучшить станцию на уровень: начислить по старой ставке, потом новая (потолок растёт вместе с ней).
     @discardableResult
     static func upgrade(_ id: String, _ s: inout YardState, coins: inout Int, now: Double, dogLevel: Int,
-                        _ cfg: YardConfig = .shared) -> YardBuyResult {
+                        helper: YardHelper? = nil, _ cfg: YardConfig = .shared) -> YardBuyResult {
         guard let st = cfg.station(id) else { return .unknown }
         guard let lv = s.stations[id] else { return .notBuilt }
         guard let price = st.price(toLevel: lv + 1) else { return .maxed }
-        accrue(&s, now: now, dogLevel: dogLevel, cfg)
+        accrue(&s, now: now, dogLevel: dogLevel, helper: helper, cfg)
         guard coins >= price else { return .noCoins(need: price - coins) }
         coins -= price
         s.stations[id] = lv + 1
@@ -444,10 +472,11 @@ enum Yard {
 
     /// Сбор — тап по копилке. В кошелёк floor(bank), дробь остаётся; порции целыми, остаток часов остаётся.
     /// Чаевые: не чаще tipsPerDay бросков в сутки и только при копилке ≥ tipMinFillPct.
-    static func collect(_ s: inout YardState, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardHarvest {
-        accrue(&s, now: now, dogLevel: dogLevel, cfg)
+    static func collect(_ s: inout YardState, now: Double, dogLevel: Int, helper: YardHelper? = nil,
+                        _ cfg: YardConfig = .shared) -> YardHarvest {
+        accrue(&s, now: now, dogLevel: dogLevel, helper: helper, cfg)
         var h = YardHarvest()
-        let r = rate(s, dogLevel: dogLevel, cfg)
+        let r = rate(s, dogLevel: dogLevel, helper: helper, cfg)
         let cp = cap(rate: r, cfg)
         let fullPct = cp > 0 ? s.bank / cp * 100 : 0
         h.coins = Int(s.bank.rounded(.down))
@@ -522,13 +551,34 @@ enum Yard {
 
     // MARK: SaveFile
 
+    /// Пёс-помощник по сейву: взрослый (Growth.perks), жив, дома (не в походе и не сбежал), станции есть.
+    static func helper(_ f: SaveFile, _ cfg: YardConfig = .shared) -> YardHelper? {
+        let pct = Growth.perks(f).stationBonusPct
+        guard pct > 0, f.pet.alive, f.pet.outing == nil, let id = helperStation(f.yard, cfg) else { return nil }
+        return YardHelper(station: id, pct: pct)
+    }
+
+    /// Ставка, заполненность и «полная к» по сейву — для экрана двора и бейджа (с помощником).
+    static func rate(_ f: SaveFile, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double {
+        rate(f.yard, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
+    }
+    static func fill(_ f: SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double {
+        fill(f.yard, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
+    }
+    static func fullAt(_ f: SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> Double? {
+        fullAt(f.yard, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
+    }
+    static func peek(_ f: SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardState {
+        peek(f.yard, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
+    }
+
     /// Купить плиту из кошелька: уровни линий дома — из сейва, уровень пса — параметром.
     @discardableResult
     static func buyPlate(_ id: String, in f: inout SaveFile, now: Double, dogLevel: Int,
                          _ cfg: YardConfig = .shared) -> YardBuyResult {
         var coins = f.econ.wallet.coins
         let r = buyPlate(id, &f.yard, coins: &coins, now: now, yardLevel: HomeShop.level(f, .yard),
-                         dogLevel: dogLevel, kitchenLevel: HomeShop.level(f, .kitchen), cfg)
+                         dogLevel: dogLevel, kitchenLevel: HomeShop.level(f, .kitchen), helper: helper(f, cfg), cfg)
         if case .ok(let price) = r {
             f.econ.wallet.coins = coins
             f.log("yard.buy", t: now, key: id, value: price)
@@ -541,7 +591,7 @@ enum Yard {
     static func upgrade(_ id: String, in f: inout SaveFile, now: Double, dogLevel: Int,
                         _ cfg: YardConfig = .shared) -> YardBuyResult {
         var coins = f.econ.wallet.coins
-        let r = upgrade(id, &f.yard, coins: &coins, now: now, dogLevel: dogLevel, cfg)
+        let r = upgrade(id, &f.yard, coins: &coins, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
         if case .upgraded(let lv, _) = r {
             f.econ.wallet.coins = coins
             f.log("yard.up", t: now, key: id, value: lv)
@@ -553,7 +603,7 @@ enum Yard {
     /// Журнал yard.collect (value — монеты) — по нему уровень пса даёт опыт за сбор.
     @discardableResult
     static func collect(in f: inout SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardHarvest {
-        let h = collect(&f.yard, now: now, dogLevel: dogLevel, cfg)
+        let h = collect(&f.yard, now: now, dogLevel: dogLevel, helper: helper(f, cfg), cfg)
         f.yard.larder += h.pantry
         if f.yard.larder > 0 {
             // Запас кладём в «сейчас»: прошлое ядро досчитает по старому запасу (как покупка дома).
