@@ -143,7 +143,9 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(tapWhenReady(gold), "золотая табличка не нажимается")
         XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer"), "сушилка не стала золотой (\(String(describing: scene.value)))")
         XCTAssertTrue(any["yard.screen.station.dryer.goldOwned"].waitForExistence(timeout: 5), "нет строки «Золотая табличка»")
-        for _ in 0..<6 where !scene.isHittable {
+        // Наверх до шапки: сцена видна целиком (isHittable у неё правда уже при краешке на экране).
+        let close = any["yard.screen.close"]
+        for _ in 0..<8 where !close.isHittable {
             screen.swipeDown()
             settle(0.4)
         }
