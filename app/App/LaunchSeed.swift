@@ -31,6 +31,7 @@ import Foundation
 /// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
 /// challenge — бодрый пёс 12 уровня (челлендж дня открыт), рекорд «Блок Дуо» 1800 → цель 2 000; день, когда
 /// челлендж в «Блок Дуо», UI-тест выбирает сам через PET_NOW (волна 35 K, ui-35-challenge-*).
+/// sinks — 500 ✂️, карта открыта, на остановке половина находок: золотой шарик и эксклюзив места (волна 35 L, ui-35-sinks).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -349,6 +350,26 @@ enum LaunchSeed {
                 f.level.xp = DogLevel.xpTo(12)
                 f.level.paidLevel = 12
                 f.blockduoBest = max(f.blockduoBest, 1800)
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "sinks":
+                // Волна 35 L (ui-35-sinks): 500 ✂️, пёс 12 уровня; на остановке 4 из 6 находок (и Ключ — уже вещь),
+                // эксклюзив остановки можно купить; в прачечной одна находка — эксклюзив ещё закрыт.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.level.started = true
+                f.level.day = DayKey.of(now)
+                f.level.seenSeq = f.seq
+                f.level.xp = DogLevel.xpTo(12)
+                f.level.paidLevel = 12
+                Economy.grant(&f, coins: 300)
+                f.econ.wallet.shards = 500
+                for id in ["bus_stop.ticket", "bus_stop.wrapper", "bus_stop.badge", "bus_stop.key", "laundry.sock"] {
+                    f.trip.album[id] = 1
+                }
+                f.trip.visits = ["bus_stop": 5, "laundry": 1]
+                f.trip.count = 6
+                ScrapSinks.grantFinds(&f, now: now)
                 f.seen = f.pet
                 f.lastSeenT = now
             default:

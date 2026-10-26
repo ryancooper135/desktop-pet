@@ -25,6 +25,8 @@ enum ToyPattern: String, Hashable, Sendable {
     case pumpkin
     /// Звёздочки по кругу.
     case stars
+    /// Квадратики-пиксели (волна 35 L, мячик из аркады).
+    case pixel
 }
 
 struct ToyInfo: Hashable, Sendable {
@@ -35,19 +37,19 @@ struct ToyInfo: Hashable, Sendable {
 
 enum ItemCatalog {
     /// На полку: прежняя «мебель» из капсулы (миниатюрой) и мелочи волны 11.
-    static let decor: Set<String> = [
+    static let decor: Set<String> = Set<String>([
         "bowl_plain", "mat_check", "lamp_mushroom", "sofa_mini", "kennel_castle",
         "pumpkin_small", "acorn_jar", "trophy_cup",
         // волна 32: лоскутные, только за клочки ✂️
         "pillow_patch", "armchair_patch",
-    ]
+    ]).union(ScrapSinks.decor)   // волна 35 L: вещи мест
 
     /// Мячики для «Поиграть».
     static let toys: [String: ToyInfo] = [
         "ball_tennis": ToyInfo(color: 0xD7E84A, accent: 0xF6F2E6, pattern: .seam),
         "ball_pumpkin": ToyInfo(color: 0xF08A2A, accent: 0x5E8C3A, pattern: .pumpkin),
         "ball_star": ToyInfo(color: 0x3D6FD1, accent: 0xF2C14E, pattern: .stars),
-    ]
+    ].merging(ScrapSinks.toys) { a, _ in a }
 
     /// Запасная картинка, если у предмета нет своей иконки. Незнакомый id — коробочка.
     static let emoji: [String: String] = [
@@ -59,7 +61,7 @@ enum ItemCatalog {
         "trophy_cup": "🏆", "ball_star": "⭐",
         "cape_champion": "🦸", "kennel_castle": "🏰", "crown_champion": "👑",
         "scarf_patch": "🧶", "hat_patch": "🧢", "blanket_patch": "🧵", "pillow_patch": "🛏", "armchair_patch": "🪑",
-    ]
+    ].merging(ScrapSinks.emoji) { a, _ in a }
 
     static func emoji(_ id: String) -> String { emoji[id] ?? "📦" }
 

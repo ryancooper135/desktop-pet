@@ -453,6 +453,8 @@ struct PlaceSheet: View {
             if open {
                 goButton(f, lvl: lvl, now: now)
                 if p.id == PlacesConfig.shared.wellPlace { wellButton(f, lvl: lvl, now: now) }
+                // Волна 35 L: эксклюзив места за клочки — SinksViews.swift.
+                PlaceExclusiveButton(file: f, place: p)
             }
         }
     }

@@ -50,6 +50,8 @@ struct CapsuleScreen: View {
                 result
                 if let offer { pity(offer) }
                 if let offer { buttons(offer) }
+                // Волна 35 L: золотой шарик за клочки — карточка в SinksViews.swift.
+                GoldenBallCard(busy: busy) { golden() }
                 shopCard
                 workshopCard
                 inventory
@@ -420,28 +422,46 @@ struct CapsuleScreen: View {
             refusal = Self.text(why)
             Feel.denied()
         case .success(let p):
-            refusal = nil
-            pull = p
-            shattered = false
-            Feel.tap(.button)
-            Feel.prepare(.bump, .success)
-            withAnimation(.snappy) { phase = .shaking }
-            flow?.cancel()
-            flow = Task {
-                if !reduceMotion {
-                    // Три встряски подряд: каждая — проход phaseAnimator по trigger.
-                    for _ in 0..<3 {
-                        wobble += 1
-                        try? await Task.sleep(for: .seconds(Self.shakeFor / 3))
-                        if Task.isCancelled { return }
-                    }
+            play(p)
+        }
+    }
+
+    /// Золотой шарик (волна 35 L): та же анимация, что у обычной крутки.
+    private func golden() {
+        guard !busy else { return }
+        guard let r = model.goldenBall() else { return }
+        switch r {
+        case .failure(let why):
+            refusal = ScrapSinks.refusalText(why)
+            Feel.denied()
+        case .success(let p):
+            play(p)
+        }
+    }
+
+    /// Показать выпавшее: встряска → «Тапни» → раскрытие.
+    private func play(_ p: CapsulePull) {
+        refusal = nil
+        pull = p
+        shattered = false
+        Feel.tap(.button)
+        Feel.prepare(.bump, .success)
+        withAnimation(.snappy) { phase = .shaking }
+        flow?.cancel()
+        flow = Task {
+            if !reduceMotion {
+                // Три встряски подряд: каждая — проход phaseAnimator по trigger.
+                for _ in 0..<3 {
+                    wobble += 1
+                    try? await Task.sleep(for: .seconds(Self.shakeFor / 3))
+                    if Task.isCancelled { return }
                 }
-                withAnimation(.snappy) { phase = .ready }
-                Feel.bump()
-                try? await Task.sleep(for: .seconds(Self.autoOpen))
-                if Task.isCancelled { return }
-                if phase == .ready { reveal() }
             }
+            withAnimation(.snappy) { phase = .ready }
+            Feel.bump()
+            try? await Task.sleep(for: .seconds(Self.autoOpen))
+            if Task.isCancelled { return }
+            if phase == .ready { reveal() }
         }
     }
 

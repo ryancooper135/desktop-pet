@@ -41,10 +41,11 @@ enum WearShape: String, CaseIterable, Hashable, Sendable {
     case beret, wreath, crown            // голова
     case bellCollar, bowtie              // шея
     case backpack                        // спина
+    case colander                        // голова, волна 35 L (SinksArt.swift)
 
     var slot: WearSlot {
         switch self {
-        case .leafHat, .bow, .genericHat, .beret, .wreath, .crown: return .head
+        case .leafHat, .bow, .genericHat, .beret, .wreath, .crown, .colander: return .head
         case .bandana, .collar, .scarf, .genericRing, .bellCollar, .bowtie: return .neck
         case .cape, .genericBlanket, .backpack: return .back
         }
@@ -207,6 +208,7 @@ enum WearMesh {
         case .bellCollar: out = bellCollar()
         case .bowtie: out = bowtie()
         case .backpack: out = backpack()
+        case .colander: out = colander()
         }
         return out.filter { !$0.isEmpty }
     }

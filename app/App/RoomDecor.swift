@@ -749,6 +749,8 @@ extension RoomDecor {
             }
             part(box(0.016, 0.004, 0.012), C.patchRed, [sx, y + 0.018, z + 0.004], in: g)
         default:
+            // Волна 35 L: вещи мест — в RoomDecor+Sinks.
+            if sinksShelf(id, sx: sx, y: y, z: z, in: g) { break }
             part(box(0.03, 0.03, 0.03), C.wicker, [sx, y + 0.015, z], in: g)
         }
         return g
@@ -805,6 +807,8 @@ extension RoomDecor {
                     e.orientation = q * turn(spin, axisY)
                 }
             }
+        case .pixel:
+            sinksPixelSkin(toy, r: r, in: skin)
         }
         toyBall.components.set(RoomToyShown(id: id))
         return true

@@ -57,7 +57,8 @@ struct CapsuleConfig: Hashable, Sendable {
     var pools: [Rarity: [CapsuleItem]] = CapsuleConfig.stubPools
     /// Волна 32: лоскутные вещи только за клочки ✂️ (premium.sinks.exclusives). В капсуле и лавке их нет,
     /// но в коллекции они обычные вещи — поэтому в itemsById.
-    var exclusive: [CapsuleItem] = Shards.exclusiveItems()
+    /// Волна 35 L: вещи мест (находки и эксклюзивы за ✂️, ScrapSinks) — тоже только здесь, не в пулах.
+    var exclusive: [CapsuleItem] = Shards.exclusiveItems() + ScrapSinks.items
 
     /// Заглушки, пока в economy.json нет capsule.pools. Тема — «осень».
     /// Старые id не переименовывать: по ним лежат вещи в сейвах. Новые — только в конец списка редкости.
