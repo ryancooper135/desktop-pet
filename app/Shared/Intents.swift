@@ -45,6 +45,22 @@ enum IntentBridge {
         #endif
     }
 
+    /// Волна 34 J: «Собрать» копилку двора без открытия приложения. Запись — через стор (замки AppGroup),
+    /// опыт пса — по журналу yard.collect. Пустая копилка — ничего не меняется.
+    @MainActor
+    @discardableResult
+    static func collectYard(source: ActionSource) async -> YardHarvest? {
+        let now = Clock.now()
+        let h = try? PetStore.shared.mutate { WidgetLook.collect(in: &$0, now: now) }
+        #if APP_TARGET
+        AppModel.shared.refresh()
+        await AppActions.shared.afterChange()
+        #else
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+        return h
+    }
+
     @MainActor
     static func startIsland(source: ActionSource) async {
         #if APP_TARGET
@@ -158,6 +174,25 @@ struct IslandActIntent: LiveActivityIntent {
         if let a = IslandAct(rawValue: act)?.action {
             _ = await IntentBridge.run(a, source: src)
         }
+        return .result()
+    }
+}
+
+/// Волна 34 J: кнопка «Собрать» в виджете — копилка двора в кошелёк, приложение не открывается.
+/// В «Командах» не показываем: лимит App Shortcuts (10) занят, а без кнопки собирать вслепую незачем.
+struct CollectIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Собрать копилку"
+    static let isDiscoverable: Bool = false
+
+    @Parameter(title: "Откуда", default: "widget")
+    var source: String
+
+    init() {}
+    init(_ src: ActionSource) { source = src.rawValue }
+
+    func perform() async throws -> some IntentResult {
+        let src = ActionSource(rawValue: source) ?? .widget
+        await IntentBridge.collectYard(source: src)
         return .result()
     }
 }

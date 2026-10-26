@@ -1,6 +1,8 @@
 // Виджет «Шиба»: домашний экран (small, medium, large) и экран блокировки (circular, rectangular, inline).
-// Timeline на 24 ч вперёд: картинка в каждой точке посчитана ядром заранее, приложение не нужно.
-// Точки — ForecastTools.timeline: сетка 30 мин / 1 ч / ночью 2 ч, события прогноза и точные минуты смены позы.
+// Волна 34 J: «экранчик» в пластиковой рамке. Timeline — WidgetLook.looks (Shared/IslandLook, сверху IslandEvents):
+// 24 кадра — сейчас и дальше по :00/:30 на 12 ч; каждый кадр посчитан логикой заранее, приложение не нужно.
+// Анимаций по секундам нет: живут только системные таймеры (поход на экране блокировки).
+// Кнопка «Собрать» (CollectIntent) собирает копилку прямо отсюда и перезагружает timeline.
 
 import SwiftUI
 import WidgetKit
@@ -8,14 +10,14 @@ import WidgetKit
 
 struct PetEntry: TimelineEntry {
     let date: Date
-    let snap: PetSnapshot
+    let look: WidgetLook
     let relevance: TimelineEntryRelevance?
 }
 
 struct PetTimelineProvider: TimelineProvider {
     func placeholder(in context: Context) -> PetEntry {
-        let s = PreviewFixtures.snapshot("fed")
-        return PetEntry(date: Date(), snap: s, relevance: nil)
+        let look = PreviewFixtures.widgetLook("fed", bank: 0.6)
+        return PetEntry(date: Date(), look: look, relevance: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PetEntry) -> Void) {
@@ -24,44 +26,31 @@ struct PetTimelineProvider: TimelineProvider {
             return
         }
         let now = Clock.now()
-        let snap = Presenter.make(PetStore.load(), at: now)
-        completion(PetEntry(date: Date(), snap: snap, relevance: Self.relevance(snap)))
+        let look = WidgetLook.looks(PetStore.load(), now: now).first ?? WidgetLook.empty(t: now)
+        completion(PetEntry(date: Date(), look: look, relevance: TimelineEntryRelevance(score: look.relevance)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PetEntry>) -> Void) {
         completion(Self.timeline(now: Clock.now()))
     }
 
-    /// Сам расчёт — ForecastTools.timeline (в Shared, его зовут тесты). Здесь только даты и relevance.
+    /// Сам расчёт — WidgetLook.looks (в Shared, его зовут тесты). Здесь только даты и relevance.
     static func timeline(now: Double, file: SaveFile = PetStore.load()) -> Timeline<PetEntry> {
-        let snaps = ForecastTools.timeline(file, now: now)
+        let looks = WidgetLook.looks(file, now: now)
         var entries: [PetEntry] = []
-        for (i, snap) in snaps.enumerated() {
-            // Relevance держится до следующей точки: ночью точки реже.
-            let next = i + 1 < snaps.count ? snaps[i + 1].t : snap.t + 1800
-            entries.append(PetEntry(date: Date(timeIntervalSince1970: snap.t - Clock.offset), snap: snap,
-                                    relevance: relevance(snap, duration: max(60, next - snap.t))))
+        for (i, look) in looks.enumerated() {
+            // Relevance держится до следующего кадра.
+            let next = i + 1 < looks.count ? looks[i + 1].t : look.t + 1800
+            entries.append(PetEntry(date: Date(timeIntervalSince1970: look.t - Clock.offset), look: look,
+                                    relevance: TimelineEntryRelevance(score: look.relevance, duration: max(60, next - look.t))))
         }
         if entries.isEmpty {
-            let snap = Presenter.make(file, at: now)
-            entries = [PetEntry(date: Date(timeIntervalSince1970: now - Clock.offset), snap: snap, relevance: relevance(snap))]
+            let look = WidgetLook.empty(t: now)
+            entries = [PetEntry(date: Date(timeIntervalSince1970: now - Clock.offset), look: look, relevance: nil)]
         }
-        // Новый timeline — когда точки кончатся, но не позже 12 ч; приложение и интенты перезагружают его раньше.
-        let next = Date(timeIntervalSince1970: ForecastTools.reloadT(snaps, now: now) - Clock.offset)
+        // Новый timeline — когда кадры кончатся; приложение и интенты перезагружают его раньше.
+        let next = Date(timeIntervalSince1970: WidgetLook.reloadT(looks, now: now) - Clock.offset)
         return Timeline(entries: entries, policy: .after(next))
-    }
-
-    /// Smart Stack поднимает виджет, когда питомцу плохо.
-    static func relevance(_ s: PetSnapshot, duration: Double = 1800) -> TimelineEntryRelevance? {
-        guard s.alive else { return TimelineEntryRelevance(score: 0) }
-        let score: Float
-        switch s.level {
-        case 0: score = s.want == nil ? 0.1 : 0.3
-        case 1: score = 0.5
-        case 2: score = 0.8
-        default: score = 1
-        }
-        return TimelineEntryRelevance(score: score, duration: duration)
     }
 }
 
@@ -75,7 +64,7 @@ struct PetWidgetView: View {
                 if isAccessory {
                     Color.clear
                 } else {
-                    PetPalette.card
+                    WidgetPlastic()
                 }
             }
             .widgetURL(URL(string: "pet://home"))
@@ -90,13 +79,13 @@ struct PetWidgetView: View {
 
     @ViewBuilder private var content: some View {
         switch family {
-        case .systemSmall: WidgetSmallView(snap: entry.snap)
-        case .systemMedium: WidgetMediumView(snap: entry.snap)
-        case .systemLarge: WidgetLargeView(snap: entry.snap)
-        case .accessoryCircular: AccessoryCircularView(snap: entry.snap)
-        case .accessoryRectangular: AccessoryRectangularView(snap: entry.snap)
-        case .accessoryInline: AccessoryInlineView(snap: entry.snap)
-        default: WidgetSmallView(snap: entry.snap)
+        case .systemSmall: WidgetScreenSmallView(look: entry.look)
+        case .systemMedium: WidgetScreenMediumView(look: entry.look)
+        case .systemLarge: WidgetScreenLargeView(look: entry.look)
+        case .accessoryCircular: WidgetLockCircularView(look: entry.look)
+        case .accessoryRectangular: WidgetLockRectangularView(look: entry.look)
+        case .accessoryInline: WidgetLockInlineView(look: entry.look)
+        default: WidgetScreenSmallView(look: entry.look)
         }
     }
 }
@@ -109,7 +98,7 @@ struct PetWidget: Widget {
             PetWidgetView(entry: entry)
         }
         .configurationDisplayName("Шиба")
-        .description("Как он там и что хочет. Покормить и погладить — прямо отсюда.")
+        .description("Как он там, что хочет и сколько в копилке. Собрать — прямо отсюда.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge,
                             .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }

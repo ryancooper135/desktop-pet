@@ -37,6 +37,10 @@ struct PetAttributes: ActivityAttributes {
         /// Волна 20: заголовок таймера как в приложении (PetSnapshot.timer.title). По одной шкале не отличить «Проголодается»
         /// (ниже 30) от «Совсем оголодает» (беда, сытость 0). nil у старого JSON — берём по шкале.
         var timerTitle: String? = nil
+        /// Волна 34 J: событие островка (IslandEvents §8) — вид сейчас и после staleDate. nil у старого JSON —
+        /// остров рисует прежний вид по pose/line.
+        var card: IslandCard? = nil
+        var next: IslandCard? = nil
 
         init(pose: Pose, want: String?, wantIcon: String?, line: String, hearts: Double, heartsMax: Double,
              level: Int, main: MainAct, timerStart: Double?, timerEnd: Double?, timerKind: String?, updatedAt: Double,
