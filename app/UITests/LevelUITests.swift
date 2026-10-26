@@ -52,6 +52,8 @@ final class LevelUITests: XCTestCase {
         let toast = any.matching(identifier: "toast")
             .matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "Уровень 3", "Открылось")).firstMatch
         XCTAssertTrue(toast.waitForExistence(timeout: 15), "нет тоста нового уровня")
+        // Тост въезжает снизу с прозрачности (~0,35 с): без паузы снимок ловил пустое место.
+        settle(0.6)
         snap("ui-34-level-up")
 
         let chip = any["level.chip"].firstMatch
