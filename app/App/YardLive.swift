@@ -73,8 +73,14 @@ enum YardLive {
     /// Имя сущности станции в сцене — по нему находим её для «выскока» после покупки.
     static func name(_ id: String) -> String { "yard.live.\(id)" }
 
-    /// Сцена: слои 0…max(ярус, 1) (за подоконником — пустырь), станции, свет и камера.
-    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool) -> Entity {
+    /// Держатель сцены и постоянная камера экрана двора (сцена внутри держателя меняется, они — нет).
+    static let holderName = "yard.live.holder"
+    static let cameraName = "yard.live.camera"
+
+    /// Сцена: слои 0…max(ярус, 1) (за подоконником — пустырь), станции, свет и камера (camera: false — без неё,
+    /// экран держит свою).
+    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool,
+                      camera withCamera: Bool = true) -> Entity {
         let world = Entity()
         world.name = "yardLive"
         // Корень «живёт» (нулевой пульс): часы двора идут, даже если станций ещё нет.
@@ -92,8 +98,10 @@ enum YardLive {
             e.scale = SIMD3<Float>(repeating: spot.scale)
             world.addChild(e)
         }
-        let cam = camera(tier: tier)
-        world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
+        if withCamera {
+            let cam = camera(tier: tier)
+            world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
+        }
         world.addChild(PetRoom.lights())
         return world
     }

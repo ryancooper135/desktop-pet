@@ -304,6 +304,7 @@ enum LaunchSeed {
             f.pet.home[.yard] = 1
             f.level.started = true
             f.level.xp = DogLevel.xpTo(5)
+            f.level.paidLevel = 5   // награды за уровни уже выданы: иначе первая запись докинет монет
             y.plates = ["window", "daisy", "trash", "fence"]
             y.stations = ["dryer": 2]
             y.t = now - 3 * 3600
@@ -313,6 +314,7 @@ enum LaunchSeed {
             f.pet.home[.kitchen] = max(f.pet.home[.kitchen] ?? 0, 1)
             f.level.started = true
             f.level.xp = DogLevel.xpTo(10)
+            f.level.paidLevel = 10   // награды за уровни уже выданы: иначе первая запись докинет монет
             y.plates = ["window", "daisy", "trash", "fence", "path", "lamp", "mailbox"]
             y.stations = ["dryer": 3, "bones": 2, "porridge": 1]
             y.t = now - 13 * 3600

@@ -128,16 +128,32 @@ struct YardScreen: View {
         let spots = YardLive.spots(s, tier: tier)
         let cam = YardLive.camera(tier: tier)
         let helper = Yard.helper(f)
+        // Один RealityView на весь экран: после покупки двор меняется внутри него (держатель и камера живут
+        // всё время). Пересоздание вида через .id на симуляторе оставляло пустой поднос.
         RealityView { content in
             content.camera = .virtual
             YardArtSystem.registerOnce()
-            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false)
-            content.add(scene)
+            let holder = Entity()
+            holder.name = YardLive.holderName
+            content.add(holder)
+            let eye = PerspectiveCamera()
+            eye.name = YardLive.cameraName
+            content.add(eye)
+        } update: { content in
+            guard let holder = content.entities.first(where: { $0.name == YardLive.holderName }) else { return }
+            if let eye = content.entities.first(where: { $0.name == YardLive.cameraName }) as? PerspectiveCamera {
+                eye.camera.fieldOfViewInDegrees = cam.fov
+                eye.look(at: cam.target, from: cam.eye, relativeTo: nil)
+            }
+            guard holder.children.first?.name != key else { return }
+            holder.children.removeAll()
+            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false, camera: false)
+            scene.name = key
+            holder.addChild(scene)
             if let pop, let spot = spots.first(where: { $0.id == pop }) {
                 YardLive.pop(pop, in: scene, scale: spot.scale)
             }
         }
-        .id(key)
         .frame(height: 300)
         .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
         .overlay {
