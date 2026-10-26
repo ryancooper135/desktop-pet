@@ -28,6 +28,7 @@ import Foundation
 /// yard_empty|yard_plates|yard_rich — экран «Двор» (волна 34 G, seedYard).
 /// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
 /// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
+/// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -309,6 +310,30 @@ enum LaunchSeed {
                     f.growth.points = grow.adult + 5
                 }
                 f.level.lastUp = nil
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "map", "map_trip":
+                // Волна 34 H (ui-34-map): пёс 12 уровня — открыты 4 места; на остановке и в прачечной уже кое-что нашёл.
+                // map_trip — он в походе на Кошачий холм: ушёл 20 мин назад, вернётся через 30.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.level.started = true
+                f.level.day = DayKey.of(now)
+                f.level.seenSeq = f.seq
+                f.level.xp = DogLevel.xpTo(12)
+                f.level.paidLevel = 12
+                Economy.grant(&f, coins: 300)
+                for id in ["bus_stop.ticket", "bus_stop.wrapper", "bus_stop.badge", "laundry.sock"] { f.trip.album[id] = 1 }
+                f.trip.visits = ["bus_stop": 3, "laundry": 1]
+                f.trip.count = 4
+                f.trip.last = TripResult(place: "laundry", find: "laundry.sock", tier: .common, isNew: true,
+                                         event: "seed", note: "Носки сушились на верёвке, один упал прямо к лапам.",
+                                         t: now - 3 * 3600)
+                if seed == "map_trip" {
+                    let from = now - 20 * 60, until = now + 30 * 60
+                    f.pet.outing = Outing(from: from, until: until, find: "cone")
+                    f.trip.active = ActiveTrip(place: "cat_hill", from: from, start: from, until: until, star: false)
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             default:

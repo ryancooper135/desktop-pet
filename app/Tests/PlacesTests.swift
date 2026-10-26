@@ -224,7 +224,9 @@ final class PlacesTests: XCTestCase {
         XCTAssertNil(Places.settle(&f, now: a.until - 60), "ещё гуляет")
         PetRunner.catchUp(&f, now: a.until + 600)
         XCTAssertNil(f.pet.outing, "прогулка ядра кончилась в until места")
-        let r = try XCTUnwrap(Places.settle(&f, now: a.until + 600))
+        // Волна 34: поход закрывает сам catchUp — итог в trip.last.
+        XCTAssertNil(f.trip.active, "catchUp закрыл поход")
+        let r = try XCTUnwrap(f.trip.last)
         XCTAssertEqual(f.trip.album.values.reduce(0, +), 1, "ровно одна находка места")
         XCTAssertTrue(r.isNew)
         XCTAssertEqual(r.coins, 0)
@@ -234,8 +236,9 @@ final class PlacesTests: XCTestCase {
         XCTAssertEqual(f.trip.visits["bus_stop"], 1)
         XCTAssertEqual(r.xp, 25, "10 за поход + 15 за первый визит")
         XCTAssertEqual(f.trip.xp, 25)
-        let tail = f.journal.suffix(2).map(\.kind)
-        XCTAssertEqual(tail, ["place.back", "trip.first"], "первый визит — запись trip.first для опыта пса")
+        let kinds = f.journal.map(\.kind)
+        let back = try XCTUnwrap(kinds.firstIndex(of: "place.back"))
+        XCTAssertEqual(kinds[back + 1], "trip.first", "первый визит — запись trip.first для опыта пса")
         XCTAssertEqual(f.journal.last(where: { $0.kind == "place.back" })?.value, 25)
         XCTAssertNil(f.trip.active)
         XCTAssertEqual(f.trip.last, r)
@@ -251,6 +254,113 @@ final class PlacesTests: XCTestCase {
         let r2 = try XCTUnwrap(pBack(&f, "bus_stop", at: t2))
         XCTAssertEqual(r2.xp, 10)
         XCTAssertEqual(f.trip.visits["bus_stop"], 2)
+    }
+
+    // MARK: волна 34
+
+    func testCatchUpSettlesTripOnce() throws {
+        let t = try pMorning()
+        var f = pFile(at: t)
+        let a = try XCTUnwrap(trip(Places.go("bus_stop", in: &f, dogLevel: 2, now: t)))
+        PetRunner.catchUp(&f, now: a.until + 300)
+        let r = try XCTUnwrap(f.trip.last)
+        XCTAssertEqual(f.trip.count, 1)
+        PetRunner.catchUp(&f, now: a.until + 900)
+        XCTAssertEqual(f.trip.count, 1, "повторный догон второй раз не платит")
+        XCTAssertEqual(f.trip.last, r)
+        XCTAssertEqual(f.journal.filter { $0.kind == "place.back" }.count, 1)
+    }
+
+    func testAdultSometimesBringsTwo() {
+        var a = pFile(at: pT0), b = a, none = a
+        var doubles = 0
+        let n = 600
+        for k in 0..<n {
+            let t = pT0 + Double(k) * 3600
+            let act = ActiveTrip(place: "forest_tv", from: t - 3600, start: t - 3600, until: t, star: false)
+            a.pet.outing = nil; b.pet.outing = nil; none.pet.outing = nil
+            a.trip.active = act; b.trip.active = act; none.trip.active = act
+            let ra = Places.settle(&a, now: t, doublePct: 10)!
+            let rb = Places.settle(&b, now: t, doublePct: 10)!
+            let r0 = Places.settle(&none, now: t, doublePct: 0)!
+            XCTAssertEqual(ra, rb, "то же решение по тому же хешу")
+            XCTAssertNil(r0.extra, "без перка — одна находка")
+            XCTAssertEqual(ra.find, r0.find, "первая находка от перка не зависит")
+            if let x = ra.extra {
+                doubles += 1
+                XCTAssertNotNil(ra.extraTier)
+                XCTAssertNotNil(ra.extraNew)
+                XCTAssertTrue(Places.noteLines(ra).contains { $0.hasPrefix("И ещё: ") })
+                XCTAssertNotNil(Places.find(x))
+            }
+        }
+        XCTAssertEqual(a.trip.album.values.reduce(0, +), n + doubles, "вторая находка тоже в альбоме")
+        XCTAssertEqual(none.trip.album.values.reduce(0, +), n)
+        XCTAssertGreaterThan(doubles, n * 5 / 100, "около 10 %: \(doubles)")
+        XCTAssertLessThan(doubles, n * 16 / 100, "около 10 %: \(doubles)")
+    }
+
+    func testDoubleDefaultsToGrowthPerk() {
+        var f = pFile(at: pT0)
+        XCTAssertEqual(Growth.perks(f).findDoublePct, 0, "свежий щенок без перка")
+        for k in 0..<200 {
+            XCTAssertNil(pBack(&f, "forest_tv", at: pT0 + Double(k) * 3600)?.extra)
+        }
+    }
+
+    func testOldTripResultDecodes() throws {
+        let json = #"{"place":"bus_stop","find":"x","tier":"common","isNew":true,"coins":0,"shards":0,"setShards":0,"xp":10,"event":"e","note":"n","star":false,"ticket":false,"photo":false,"t":1}"#
+        let r = try JSONDecoder().decode(TripResult.self, from: Data(json.utf8))
+        XCTAssertNil(r.extra)
+        XCTAssertNil(r.extraNew)
+    }
+
+    func testMapHelpers() throws {
+        let a = ActiveTrip(place: "lighthouse", from: 0, start: 1000, until: 2000, star: false)
+        XCTAssertEqual(Places.trail(a, now: 500), 0)
+        XCTAssertEqual(Places.trail(a, now: 1250), 0.5, accuracy: 1e-9)
+        XCTAssertEqual(Places.trail(a, now: 1500), 1, accuracy: 1e-9)
+        XCTAssertEqual(Places.trail(a, now: 1750), 0.5, accuracy: 1e-9)
+        XCTAssertEqual(Places.trail(a, now: 3000), 0)
+        XCTAssertEqual(Places.backText(a, tzOffsetMin: 0, now: 2500), "вот-вот вернётся")
+        let b = ActiveTrip(place: "lighthouse", from: 0, start: 0, until: 14 * 3600 + 20 * 60, star: false)
+        XCTAssertEqual(Places.backText(b, tzOffsetMin: 0, now: 0), "вернётся в 14:20")
+        XCTAssertTrue(Places.awayNote(b, tzOffsetMin: 0, now: 0).hasSuffix("вернусь в 14:20"))
+        XCTAssertTrue(Places.awayNote(b, tzOffsetMin: 0, now: 0).contains("Маяк"))
+
+        var f = pFile(at: pT0)
+        let r = try XCTUnwrap(pBack(&f, "bus_stop", at: pT0))
+        let lines = Places.awayLines(r)
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertTrue(lines[0].hasPrefix("Сходил: "))
+        XCTAssertEqual(lines[1], r.note)
+        let p = try XCTUnwrap(Places.place("bus_stop"))
+        let row = Places.albumRow(f, p)
+        XCTAssertEqual(row.count, p.finds.count)
+        XCTAssertEqual(row.filter { $0.count > 0 }.count, Places.have(f, p))
+    }
+
+    func testGoBlockReasons() throws {
+        let t = try pMorning()
+        let f = pFile(at: t)
+        XCTAssertNil(Places.goBlock("bus_stop", f, dogLevel: 2, now: t))
+        XCTAssertEqual(Places.goBlock("rocket", f, dogLevel: 2, now: t), "Откроется на 30 уровне")
+        // Голодный: причину говорит ядро прогулки (сытость).
+        var hungry = f
+        hungry.pet.needs[.food] = 10
+        let h = try XCTUnwrap(Places.goBlock("bus_stop", hungry, dogLevel: 2, now: t))
+        XCTAssertFalse(h.isEmpty)
+        XCTAssertEqual(h, WalkPlan.gate(hungry, at: t).toast)
+        // Уже в походе.
+        var busy = f
+        _ = try XCTUnwrap(trip(Places.go("bus_stop", in: &busy, dogLevel: 2, now: t)))
+        XCTAssertEqual(Places.goBlock("bus_stop", busy, dogLevel: 2, now: t + 60), "Уже в походе")
+        XCTAssertNotNil(Places.walking(busy, now: t + 60))
+        // Уже гуляет просто так — поход можно пустить поверх.
+        var plain = f
+        XCTAssertTrue(PetRunner.apply(.walk, source: .app, to: &plain, now: t).ok)
+        XCTAssertNil(Places.goBlock("bus_stop", plain, dogLevel: 2, now: t + 60))
+        XCTAssertNil(Places.walking(plain, now: t + 60))
     }
 
     func testNewWalkIsNotOldTrip() throws {

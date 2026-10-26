@@ -58,6 +58,12 @@ enum AwayBuilder {
                               cta: "Можно начать заново с новым щенком.", died: true)
         }
 
+        // Волна 34 H: вернулся из похода — что принёс с места и что там было.
+        if let t = f.trip.last, t.t > prev.t {
+            for (i, text) in Places.awayLines(t).enumerated() where cards.count < maxMiddle {
+                cards.append(AwayReport.Card(id: "place\(i)", icon: i == 0 ? "map" : "sparkles", text: text))
+            }
+        }
         // Сходил погулять: находка уже в альбоме — первой карточкой, это самое приятное.
         if let b = s.events.last(where: { $0.kind == "back_home" }) {
             add("back_home", "figure.walk", ["item": Finds.name(b.key ?? "")])

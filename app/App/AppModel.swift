@@ -57,6 +57,8 @@ final class AppModel {
     var growthLook: GrowthLook? = nil
     /// Что из уровня и роста уже показали (AppModel+Level).
     @ObservationIgnored var levelSeen = LevelSeen()
+    /// Лист «Карта» (волна 34, PlacesMapScreen): походы в места, pet://map.
+    var showMap = false
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -371,6 +373,7 @@ final class AppModel {
             pop(Finds.broughtText(find), at: anchor)
             heartBurst()
             notePhoto(PostcardPhotos.walkKind, delay: PostcardCamera.walkDelay)
+            notePlaceBack()
             // Остров и виджет узнают о возвращении только через синк, иначе остров висит на «Гуляет 0:00».
             Task { await AppActions.shared.afterChange() }
         }
@@ -946,7 +949,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://blockduo, pet://zombie, pet://brush, pet://habits, pet://kitchen, pet://characters
+    /// pet://blockduo, pet://zombie, pet://brush, pet://habits, pet://kitchen, pet://characters, pet://map
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         // Волна 25: поверх открытого листа второй SwiftUI молча не покажет, а флаг останется true — и кнопка
@@ -977,7 +980,7 @@ final class AppModel {
             (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
             (showBlockDuo, "blockduo"), (showZombie, "zombie"), (showHabits, "habits"), (showKitchen, "kitchen"),
-            (showCharacters, "characters"), (postcard != nil, "postcard"),
+            (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
         ]
         for (on, name) in flags where on { out.insert(name) }
         return out
@@ -1001,6 +1004,7 @@ final class AppModel {
         case "zombie": showZombie = true
         case "brush": startBrush()
         case "habits": showHabits = true
+        case "map": showMap = true
         case "kitchen":
             // Кухня — лист поверх «Дома», как лавка поверх автомата.
             showHouse = true
@@ -1047,6 +1051,8 @@ final class AppModel {
         showHabits = false
         showKitchen = false
         showCharacters = false
+        showMap = false
+        showLevel = false
         postcard = nil
     }
 
@@ -1441,7 +1447,7 @@ final class AppModel {
     var anyCover: Bool {
         brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
-            || showBlockDuo || showZombie || showHabits || showKitchen
+            || showBlockDuo || showZombie || showHabits || showKitchen || showMap || showLevel
     }
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.

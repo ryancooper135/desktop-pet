@@ -88,11 +88,22 @@ struct WalkButton: View {
     @State private var refusals = 0
 
     private var away: Bool { gate.reason == "away" }
+    /// Волна 34 H: с уровня 2 «Гулять» открывает карту мест (там и «Просто погулять»). До того — как раньше.
+    private var map: Bool { model.hasPlaces }
+    /// Пока пёс в походе — где он: «🗼 Маяк · вернётся в 14:20».
+    private var tripHint: String? {
+        guard let a = model.placeTrip, let f = model.file else { return nil }
+        let p = Places.place(a.place)
+        return "\(p?.emoji ?? "🐾") \(p?.name ?? a.place) · \(Places.backText(a, tzOffsetMin: f.owner.tzOffsetMin, now: model.snap.t))"
+    }
+    private var hint: String { tripHint ?? gate.hint }
 
     var body: some View {
         Button {
             taps += 1
-            if gate.ok {
+            if map {
+                model.showMap = true
+            } else if gate.ok {
                 model.act(.walk)
             } else {
                 refusals += 1
@@ -112,8 +123,8 @@ struct WalkButton: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(away ? "Гуляет" : "Гулять")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
-                    if !brief && !gate.hint.isEmpty {
-                        Text(gate.hint)
+                    if !brief && !hint.isEmpty {
+                        Text(hint)
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(gate.ok ? Color.white.opacity(0.85) : PetPalette.soft)
                     }
@@ -130,7 +141,7 @@ struct WalkButton: View {
         .glassEffect(gate.ok ? .regular.tint(ActTint.color("walk").opacity(0.88)).interactive() : .regular.interactive(),
                      in: Capsule())
         .overlay(alignment: .topTrailing) {
-            if !gate.ok && !away {
+            if !gate.ok && !away && !map {
                 // Причина видна всегда, даже без строчки: замок и что нужно сначала (миска, ванна, мячик, рука).
                 HStack(spacing: 2) {
                     Image(systemName: "lock.fill")
@@ -150,7 +161,8 @@ struct WalkButton: View {
         .modifier(RefuseShake(trigger: refusals))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(away ? "Гуляет" : "Гулять"))
-        .accessibilityValue(Text(gate.ok ? gate.hint : (gate.toast.isEmpty ? gate.hint : gate.toast)))
+        .accessibilityValue(Text(tripHint ?? (gate.ok ? gate.hint : (gate.toast.isEmpty ? gate.hint : gate.toast))))
+        .accessibilityHint(Text(map ? "Открывает карту мест" : ""))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("act.walk")
     }
@@ -242,14 +254,21 @@ struct MachineButton: View {
 
 /// Бумажка на месте Шибы, пока он гуляет: «Ушёл гулять, вернусь в 14:20». Чуть набок, с кнопкой-булавкой.
 struct AwayNoteCard: View {
+    @Environment(AppModel.self) private var model
     let text: String
+
+    /// Волна 34 H: в походе — куда ушёл: «Ушёл: 🗼 Маяк, вернусь в 14:20».
+    private var shown: String {
+        guard let a = model.placeTrip, let f = model.file else { return text }
+        return Places.awayNote(a, tzOffsetMin: f.owner.tzOffsetMin, now: model.snap.t)
+    }
 
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: "pawprint.fill")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(PetPalette.accent)
-            Text(text)
+            Text(shown)
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .foregroundStyle(PetPalette.ink)
                 .multilineTextAlignment(.center)
@@ -270,7 +289,7 @@ struct AwayNoteCard: View {
         .environment(\.colorScheme, .light)
         .rotationEffect(.degrees(-3))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Записка: \(text)"))
+        .accessibilityLabel(Text("Записка: \(shown)"))
         .accessibilityIdentifier("pet.awayNote")
     }
 }
@@ -324,6 +343,7 @@ struct AlbumSheet: View {
                                      done: Traits.total(f, at: t))
                     MemoriesSection(rows: Memories.album(f))
                     TastesSection(facts: Tastes.album(f), guesses: TasteGuess.list(f))
+                    PlacesSection(f: f, level: model.placeLevel)
                     PostcardsSection(cards: Postcards.album(f), opened: $opened)
                 }
             }

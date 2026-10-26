@@ -337,6 +337,11 @@ struct TripResult: Codable, Hashable, Sendable {
     var ticket = false
     var photo = false
     var t: Double
+    /// Волна 34: взрослый иногда приносит вторую находку (Growth.perks.findDoublePct). nil — одна.
+    /// Опциональные — старые сейвы без этих ключей читаются.
+    var extra: String? = nil
+    var extraTier: FindTier? = nil
+    var extraNew: Bool? = nil
 }
 
 /// Поле `trip` в SaveFile. Пустое не пишется — старые сейвы читаются без него.
@@ -546,8 +551,10 @@ enum Places {
     /// Вернулся: прогулка, к которой привязан поход, кончилась (звать после PetRunner.catchUp).
     /// Ровно одна находка места, событие, награды. Повторный вызов — nil. Пёс умер в походе — поход
     /// снимается без наград.
+    /// Волна 34: зовётся из PetRunner.catchUp. doublePct — шанс второй находки; nil — по росту пса (Growth.perks).
     @discardableResult
-    static func settle(_ f: inout SaveFile, now: Double, _ cfg: PlacesConfig = .shared) -> TripResult? {
+    static func settle(_ f: inout SaveFile, now: Double, doublePct: Int? = nil,
+                       _ cfg: PlacesConfig = .shared) -> TripResult? {
         guard let a = f.trip.active else { return nil }
         if let out = f.pet.outing, out.from == a.from { return nil }   // ещё гуляет
         f.trip.active = nil
@@ -573,6 +580,22 @@ enum Places {
         if had > 0, cfg.repeatCoins > 0 {
             f.econ.wallet.coins += cfg.repeatCoins
             r.coins = cfg.repeatCoins
+        }
+        // Вторая находка взрослого: свой бросок по тому же ключу, своя редкость. До проверки набора — она тоже в счёт.
+        let dbl = doublePct ?? Growth.perks(f).findDoublePct
+        if dbl > 0, Int(hash(key + ":double") % 100) < dbl {
+            let tier2 = Self.tier(hash(key + ":tier2"), star: a.star, cfg)
+            let pool2 = p.finds(tier2)
+            let x = pool2[Int(hash(key + ":find2") % UInt64(pool2.count))]
+            let had2 = f.trip.album[x.id] ?? 0
+            f.trip.album[x.id] = had2 + 1
+            r.extra = x.id
+            r.extraTier = tier2
+            r.extraNew = had2 == 0
+            if had2 > 0, cfg.repeatCoins > 0 {
+                f.econ.wallet.coins += cfg.repeatCoins
+                r.coins += cfg.repeatCoins
+            }
         }
 
         // Полный набор — один раз на место.
@@ -692,6 +715,61 @@ enum Places {
         }
     }
 
+    // MARK: Экран карты (волна 34)
+
+    /// Поход, который идёт на самом деле: прогулка ядра, досчитанная до now, — та же, к которой он привязан.
+    /// Сейв в сторе догоняется только при записи, поэтому смотрим через peek, а не f.pet.outing.
+    static func walking(_ f: SaveFile, now: Double) -> ActiveTrip? {
+        guard let a = f.trip.active, let out = PetRunner.peek(f, at: now).outing, out.from == a.from else { return nil }
+        return a
+    }
+
+    /// Почему «Пойти» сейчас нельзя — текстом для кнопки; nil — можно. Сначала место (закрыто, уже в походе),
+    /// потом ядро прогулки (WalkPlan.gate: голодный, спит, поздно…). Уже гуляет просто так — поход пойдёт поверх.
+    static func goBlock(_ id: String, _ f: SaveFile, dogLevel: Int, now: Double,
+                        _ cfg: PlacesConfig = .shared) -> String? {
+        var g = f
+        PetRunner.catchUp(&g, now: now)
+        if let r = check(id, g, dogLevel: dogLevel, cfg) { return refusalText(r) }
+        if g.pet.outing != nil { return nil }
+        let gate = WalkPlan.gate(g, at: now)
+        return gate.ok ? nil : gate.toast
+    }
+
+    /// Где точка пса на тропе: 0 — двор, 1 — место. Первую половину похода идёт туда, вторую — обратно.
+    static func trail(_ a: ActiveTrip, now: Double) -> Double {
+        let p = min(1, max(0, (now - a.start) / max(1, a.until - a.start)))
+        return p < 0.5 ? p * 2 : (1 - p) * 2
+    }
+
+    /// «вернётся в 14:20» / «вот-вот вернётся».
+    static func backText(_ a: ActiveTrip, tzOffsetMin: Int, now: Double) -> String {
+        a.until <= now ? "вот-вот вернётся" : "вернётся в \(Finds.clock(a.until, tzOffsetMin: tzOffsetMin))"
+    }
+
+    /// Записка на месте пса во время похода: «Ушёл на 🗼 Маяк, вернусь в 14:20».
+    static func awayNote(_ a: ActiveTrip, tzOffsetMin: Int, now: Double, _ cfg: PlacesConfig = .shared) -> String {
+        let to = cfg.place(a.place).map { "\($0.emoji) \($0.name)" } ?? a.place
+        if a.until <= now { return "Ушёл: \(to), вот-вот вернусь" }
+        return "Ушёл: \(to), вернусь в \(Finds.clock(a.until, tzOffsetMin: tzOffsetMin))"
+    }
+
+    /// Две карточки «Пока тебя не было»: что принёс с места и что там было.
+    static func awayLines(_ r: TripResult, _ cfg: PlacesConfig = .shared) -> [String] {
+        let p = cfg.place(r.place)
+        let to = p.map { "\($0.emoji) \($0.name)" } ?? r.place
+        var got = find(r.find, cfg).map { "\($0.emoji) \($0.name)" } ?? r.find
+        if let id = r.extra, let x = find(id, cfg) { got += " и \(x.emoji) \(x.name)" }
+        let fresh = r.isNew || r.extraNew == true
+        return ["Сходил: \(to). Принёс \(got)" + (fresh ? " — новое в альбоме." : "."), r.note]
+    }
+
+    /// Строка «Мест» в альбоме: находки места по порядку — сколько раз приносил (0 — ещё нет).
+    static func albumRow(_ f: SaveFile, _ p: Place) -> [(find: PlaceFind, count: Int)] {
+        let order: [FindTier] = [.common, .rare, .veryRare]
+        return order.flatMap { p.finds($0) }.map { ($0, f.trip.album[$0.id] ?? 0) }
+    }
+
     // MARK: Тексты
 
     static func lockText(_ p: Place) -> String { "Откроется на \(p.level) уровне" }
@@ -708,13 +786,21 @@ enum Places {
         let p = cfg.place(r.place)
         var out = [(r.star ? "★ " : "") + (p?.name ?? r.place), r.note]
         if let x = find(r.find, cfg) {
-            let rare = r.tier == .common ? "" : " (\(r.tier.title))"
-            out.append(r.isNew ? "Принёс: \(x.emoji) \(x.name)\(rare) — новое в альбоме"
-                               : "Принёс: \(x.emoji) \(x.name) — такое уже есть, +\(r.coins) 🪙")
+            out.append("Принёс: " + findLine(x, r.tier, isNew: r.isNew, cfg))
+        }
+        if let id = r.extra, let x = find(id, cfg) {
+            out.append("И ещё: " + findLine(x, r.extraTier ?? x.tier, isNew: r.extraNew ?? false, cfg))
         }
         if r.setShards > 0 { out.append("Весь набор места собран: +\(r.setShards) ✂️") }
         if r.shards > 0 { out.append("В шерсти застрял клочок: +\(r.shards) ✂️") }
         return out
+    }
+
+    /// «🔦 Фонарик (редкая) — новое в альбоме» / «🔦 Фонарик — такое уже есть, +5 🪙».
+    static func findLine(_ x: PlaceFind, _ tier: FindTier, isNew: Bool, _ cfg: PlacesConfig = .shared) -> String {
+        let rare = tier == .common ? "" : " (\(tier.title))"
+        if isNew { return "\(x.emoji) \(x.name)\(rare) — новое в альбоме" }
+        return "\(x.emoji) \(x.name) — такое уже есть" + (cfg.repeatCoins > 0 ? ", +\(cfg.repeatCoins) 🪙" : "")
     }
 
     static func noteText(_ r: TripResult, _ cfg: PlacesConfig = .shared) -> String {
