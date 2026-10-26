@@ -29,6 +29,8 @@ import Foundation
 /// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
 /// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
 /// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
+/// challenge — бодрый пёс 12 уровня (челлендж дня открыт), рекорд «Блок Дуо» 1800 → цель 2 000; день, когда
+/// челлендж в «Блок Дуо», UI-тест выбирает сам через PET_NOW (волна 35 K, ui-35-challenge-*).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -334,6 +336,19 @@ enum LaunchSeed {
                     f.pet.outing = Outing(from: from, until: until, find: "cone")
                     f.trip.active = ActiveTrip(place: "cat_hill", from: from, start: from, until: until, star: false)
                 }
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "challenge":
+                // Волна 35 K (ChallengeUITests): ур. 12 — плашка челленджа видна; рекорд 1800 — цель база 2 000,
+                // автопилот PET_BLOCKDUO=done (сид 7) её набирает. Уровень уже оплачен — без сцены и монет.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.level.started = true
+                f.level.day = DayKey.of(now)
+                f.level.seenSeq = f.seq
+                f.level.xp = DogLevel.xpTo(12)
+                f.level.paidLevel = 12
+                f.blockduoBest = max(f.blockduoBest, 1800)
                 f.seen = f.pet
                 f.lastSeenT = now
             default:
