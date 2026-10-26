@@ -25,6 +25,8 @@ enum PetRunner {
         f.owner.tzOffsetMin = Clock.tzOffsetMin(at: now)
         // Открытки дня: после местной полуночи разобрать вчерашний журнал, пока он не вытеснен.
         Postcards.refresh(&f, now: now)
+        // Волна 34: вернулся из похода — находка места и событие. До DogLevel: опыт за trip.first в ту же запись.
+        Places.settle(&f, now: now)
         Shards.settle(&f, now: now)
         // Опыт пса — по журналу, один раз на запись (волна 33).
         DogLevel.settle(&f, now: now)
