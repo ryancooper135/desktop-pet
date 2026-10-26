@@ -598,6 +598,7 @@ enum Places {
             }
         }
 
+        ScrapSinks.grantFinds(&f, now: back)   // волна 35 L: очень редкая находка — ещё и вещь в коллекции
         // Полный набор — один раз на место.
         if !f.trip.sets.contains(p.id), p.finds.allSatisfy({ (f.trip.album[$0.id] ?? 0) > 0 }) {
             f.trip.sets.append(p.id)
@@ -799,7 +800,7 @@ enum Places {
     /// «🔦 Фонарик (редкая) — новое в альбоме» / «🔦 Фонарик — такое уже есть, +5 🪙».
     static func findLine(_ x: PlaceFind, _ tier: FindTier, isNew: Bool, _ cfg: PlacesConfig = .shared) -> String {
         let rare = tier == .common ? "" : " (\(tier.title))"
-        if isNew { return "\(x.emoji) \(x.name)\(rare) — новое в альбоме" }
+        if isNew { return "\(x.emoji) \(x.name)\(rare) — новое в альбоме" + (ScrapSinks.item(forFind: x.id) != nil ? " и в коллекции" : "") }
         return "\(x.emoji) \(x.name) — такое уже есть" + (cfg.repeatCoins > 0 ? ", +\(cfg.repeatCoins) 🪙" : "")
     }
 

@@ -78,7 +78,7 @@ struct PremiumConfig: Hashable, Sendable {
     // польза
     var perkPct: [Rarity: Int] = [.common: 3, .rare: 5, .epic: 8, .legendary: 12]
     var perkCapPct = 20
-    var perks: [String: PerkKind] = PremiumConfig.stubPerks
+    var perks: [String: PerkKind] = PremiumConfig.stubPerks.merging(ScrapSinks.perks) { a, _ in a }   // + вещи мест (волна 35 L)
 
     /// Редкость эксклюзивов: польза как у эпической вещи.
     static let exclusiveRarity = Rarity.epic
