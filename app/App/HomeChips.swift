@@ -81,10 +81,12 @@ struct LevelChip: View {
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
+                    // «ур. 12» не режем в «ур....»: ужимается полоска, а не число (снимок ui-34-level-adult).
+                    .fixedSize()
                     .foregroundStyle(PetPalette.ink)
                     .contentTransition(.numericText(value: Double(p.level)))
                 XpBar(fraction: p.fraction, height: 5)
-                    .frame(minWidth: 36)
+                    .frame(minWidth: 18)
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
