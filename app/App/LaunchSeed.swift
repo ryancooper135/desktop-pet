@@ -26,9 +26,6 @@ import Foundation
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
 /// yard_empty|yard_plates|yard_rich — экран «Двор» (волна 34 G, seedYard).
-/// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
-/// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
-/// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
     @MainActor private static var done = false
@@ -288,54 +285,6 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "yard_empty", "yard_plates", "yard_rich":
                 seedYard(&f, seed: seed ?? "", now: now)
-            case "level_up", "level_puppy", "level_adult":
-                // Волна 34 I (LevelUITests, ui-34-level-*): level_up — опыта уже на ур. 3, оплачен ур. 2: первый же
-                // settle при старте платит уровень, и через пару секунд идёт сцена «★3». level_puppy — щенок
-                // (рост 0) на ур. 4; level_adult — взрослый на ур. 12. Сцены и рост в UI-тестах — только с этими сидами.
-                PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
-                let grow = GrowthConfig.shared
-                switch seed {
-                case "level_up":
-                    f.level.xp = DogLevel.xpTo(3) + 3
-                    f.level.paidLevel = 2
-                    f.growth.points = grow.teen / 2
-                case "level_puppy":
-                    f.level.xp = DogLevel.xpTo(4) + DogLevel.xpStep(4) / 2
-                    f.level.paidLevel = 4
-                    f.growth.points = 0
-                default:
-                    f.level.xp = DogLevel.xpTo(12) + DogLevel.xpStep(12) / 3
-                    f.level.paidLevel = 12
-                    f.growth.points = grow.adult + 5
-                }
-                f.level.lastUp = nil
-                f.seen = f.pet
-                f.lastSeenT = now
-            case "map", "map_trip":
-                // Волна 34 H (ui-34-map): пёс 12 уровня — открыты 4 места; на остановке и в прачечной уже кое-что нашёл.
-                // map_trip — он в походе на Кошачий холм: ушёл 20 мин назад, вернётся через 30.
-                PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
-                f.level.started = true
-                f.level.day = DayKey.of(now)
-                f.level.seenSeq = f.seq
-                f.level.xp = DogLevel.xpTo(12)
-                f.level.paidLevel = 12
-                Economy.grant(&f, coins: 300)
-                for id in ["bus_stop.ticket", "bus_stop.wrapper", "bus_stop.badge", "laundry.sock"] { f.trip.album[id] = 1 }
-                f.trip.visits = ["bus_stop": 3, "laundry": 1]
-                f.trip.count = 4
-                f.trip.last = TripResult(place: "laundry", find: "laundry.sock", tier: .common, isNew: true,
-                                         event: "seed", note: "Носки сушились на верёвке, один упал прямо к лапам.",
-                                         t: now - 3 * 3600)
-                if seed == "map_trip" {
-                    let from = now - 20 * 60, until = now + 30 * 60
-                    f.pet.outing = Outing(from: from, until: until, find: "cone")
-                    f.trip.active = ActiveTrip(place: "cat_hill", from: from, start: from, until: until, star: false)
-                }
-                f.seen = f.pet
-                f.lastSeenT = now
             default:
                 break
             }
@@ -355,7 +304,7 @@ enum LaunchSeed {
             f.pet.home[.yard] = 1
             f.level.started = true
             f.level.xp = DogLevel.xpTo(5)
-            f.level.paidLevel = 5  // монеты за уровни уже выплачены — кошелёк сида не растёт при старте
+            f.level.paidLevel = 5   // награды за уровни уже выданы: иначе первая запись докинет монет
             y.plates = ["window", "daisy", "trash", "fence"]
             y.stations = ["dryer": 2]
             y.t = now - 3 * 3600
@@ -365,7 +314,7 @@ enum LaunchSeed {
             f.pet.home[.kitchen] = max(f.pet.home[.kitchen] ?? 0, 1)
             f.level.started = true
             f.level.xp = DogLevel.xpTo(10)
-            f.level.paidLevel = 10  // монеты за уровни уже выплачены — кошелёк сида не растёт при старте
+            f.level.paidLevel = 10   // награды за уровни уже выданы: иначе первая запись докинет монет
             y.plates = ["window", "daisy", "trash", "fence", "path", "lamp", "mailbox"]
             y.stations = ["dryer": 3, "bones": 2, "porridge": 1]
             y.t = now - 13 * 3600
