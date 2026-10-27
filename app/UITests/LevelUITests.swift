@@ -95,7 +95,7 @@ final class LevelUITests: XCTestCase {
         let chip = any["level.chip"].firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 15), "нет значка уровня в шапке")
         let level = any["level.sheet"].firstMatch
-        XCTAssertTrue(tap(chip, expecting: level, timeout: 10, name: "ui-39-achieve-chip"), "лист «Уровень» не открылся")
+        XCTAssertTrue(open(chip, level, name: "ui-39-achieve-chip"), "лист «Уровень» не открылся")
         let entry = any["level.achievements"].firstMatch
         XCTAssertTrue(entry.waitForExistence(timeout: 5), "нет входа в достижения")
         XCTAssertTrue(entry.label.contains("Достижения"), "вход: \(entry.label)")
@@ -103,7 +103,7 @@ final class LevelUITests: XCTestCase {
         snap("ui-39-achieve-entry")
 
         let sheet = any["achieve.sheet"].firstMatch
-        XCTAssertTrue(tap(entry, expecting: sheet, timeout: 10, name: "ui-39-achieve-entry-tap"), "лист «Достижения» не открылся")
+        XCTAssertTrue(open(entry, sheet, name: "ui-39-achieve-entry-tap"), "лист «Достижения» не открылся")
         let summary = any["achieve.summary"].firstMatch
         XCTAssertTrue(summary.waitForExistence(timeout: 5), "нет сводки")
         XCTAssertTrue(summary.label.contains("Получено"), "сводка: \(summary.label)")
@@ -122,6 +122,21 @@ final class LevelUITests: XCTestCase {
         XCTAssertFalse(sheet.exists, "лист «Достижения» не закрылся")
         XCTAssertTrue(level.exists, "лист «Уровень» под ним остался")
         app.terminate()
+    }
+
+    /// Открыть лист кнопкой: до трёх нажатий, пока лист не появился. Под нагрузкой CI (шард 3, 3D двора рядом)
+    /// первый тап мог уйти в кадр, когда приложение ещё раскладывало тост/шапку, а общий tap(_:expecting:) не
+    /// повторяет, если кнопка в этот момент «не нажимаема». Повтор безопасен: кнопка только открывает лист,
+    /// а открывшийся лист её перекрывает — следующего нажатия уже не будет.
+    @MainActor
+    private func open(_ button: XCUIElement, _ target: XCUIElement, name: String) -> Bool {
+        for i in 0..<3 {
+            if target.exists { return true }
+            if i > 0 { snap("\(name)-retry\(i)") }
+            guard tapWhenReady(button, timeout: 10) else { continue }
+            if target.waitForExistence(timeout: 10) { return true }
+        }
+        return target.waitForExistence(timeout: 5)
     }
 
     /// Запуск с сидом в полдень, светлая тема; ждём сцену.
