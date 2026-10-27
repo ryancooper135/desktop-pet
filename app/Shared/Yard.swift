@@ -1,10 +1,10 @@
-// Волна 33 C: двор-тайкун — ярусы, плиты, станции, копилка на 12 ч (RESEARCH/20-tycoon-design.md §1, §2).
+// Волна 33 C: двор-тайкун — ярусы, плиты, станции, копилка на сутки (RESEARCH/20-tycoon-design.md §1, §2).
 //
 // Ярус двора = уровень линии дома `yard` (Подоконник → Дворик → Сад → Парк → Квартал). Сам ярус покупает
 // HomeShop; здесь только правило «кнопка следующего яруса» (Yard.nextTier): куплены плиты прошлых ярусов,
 // доступные к этому уровню, и пёс дорос. На ярусе — плиты по порядку: декор (уют) и станции (доход).
 //
-// Копилка `bank`: bank = min(cap, bank + rate·Δt), cap = 12 ч · rate. Перед любой покупкой — начисление по старой
+// Копилка `bank`: bank = min(cap, bank + rate·Δt), cap = 24 ч · rate (волна 36: было 12 ч — раз в день собирающий окупал вдвое дольше 90 дн.). Перед любой покупкой — начисление по старой
 // ставке (Yard.accrue), потом новая ставка. Часы назад: ничего не начисляем и метку не двигаем.
 // Сбор — тап по копилке (решение владельца): в кошелёк floor(bank), дробь остаётся; чаевые по StableHash
 // (≤ 2 в сутки, копилка ≥ 50 %); пищевые станции кладут порции в запас кухни (pet.pantry), лишнее ждёт в larder.
@@ -66,8 +66,10 @@ struct YardPlate: Hashable, Sendable {
 }
 
 struct YardConfig: Hashable, Sendable {
-    /// Копилка полная за столько часов и дальше не копит.
-    var bankHours: Double = 12
+    /// Копилка полная за столько часов и дальше не копит. Сутки: окупаемость ≤ 90 дн. и при сборе раз в день.
+    var bankHours: Double = 24
+    /// Потолок часов на порции пищевых станций — отдельно от копилки, чтобы сутки копилки не удвоили еду.
+    var foodHours: Double = 12
     var tiers: [YardTier] = YardConfig.stubTiers
     var stations: [YardStation] = YardConfig.stubStations
     var plates: [YardPlate] = YardConfig.stubPlates
@@ -154,6 +156,7 @@ struct YardConfig: Hashable, Sendable {
         func ints(_ v: JSONValue) -> [Int] { v.array.compactMap { $0.double.map { Int($0) } } }
         let y = e["yard"]
         if let h = y["bank_hours"].double, h > 0 { bankHours = h }
+        if let h = y["food_hours"].double, h > 0 { foodHours = h }
 
         let tr = y["tiers"].array.compactMap { (t: JSONValue) -> YardTier? in
             guard let name = t["name"].string else { return nil }
@@ -228,7 +231,7 @@ struct YardState: Codable, Hashable, Sendable {
     var bank: Double = 0
     /// Метка последнего начисления (unix); 0 — копить ещё нечему.
     var t: Double = 0
-    /// Пищевые станции: часы копилки на порции (потолок — bankHours).
+    /// Пищевые станции: часы копилки на порции (потолок — foodHours).
     var food: [String: Double] = [:]
     /// Запас, который не влез в кухню — ждёт следующего сбора (единицы pet.pantry).
     var larder: Double = 0
@@ -412,7 +415,7 @@ enum Yard {
         // Уже выше потолка (конфиг стал скромнее) — не отнимаем.
         s.bank = max(s.bank, min(cap(rate: r, cfg), s.bank + r * h))
         for id in s.stations.keys.sorted() where cfg.station(id)?.portionHours != nil {
-            s.food[id] = min(cfg.bankHours, (s.food[id] ?? 0) + h)
+            s.food[id] = min(cfg.foodHours, (s.food[id] ?? 0) + h)
         }
         s.t = now
     }

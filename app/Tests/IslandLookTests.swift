@@ -192,10 +192,11 @@ final class IslandLookTests: XCTestCase {
         XCTAssertEqual(first.coins, 0)
         XCTAssertFalse(first.canCollect, "пустую не собираем")
         XCTAssertEqual(first.bankLine?.hasPrefix("+0 · полная в "), true)
-        XCTAssertGreaterThan(looks.last?.ring ?? 0, 0.9, "к концу ленты копилка почти полна")
-        // Через 12 ч полна: «собери!».
-        let later = WidgetLook.looks(f, now: noon + 12 * 3600, tzOffsetMin: 0, cfg)
-        XCTAssertTrue(later.first?.bankFull ?? false, "за 12 ч копилка полна")
+        // Лента — 12 ч, копилка — сутки: к концу ленты кольцо заполнено на половину.
+        XCTAssertEqual(looks.last?.ring ?? 0, 0.5, accuracy: 0.05, "к концу ленты копилка наполовину полна")
+        // Через сутки полна: «собери!».
+        let later = WidgetLook.looks(f, now: noon + 24 * 3600, tzOffsetMin: 0, cfg)
+        XCTAssertTrue(later.first?.bankFull ?? false, "за сутки копилка полна")
         XCTAssertEqual(later.first?.bankLine?.hasSuffix("собери!"), true)
         XCTAssertTrue(later.first?.canCollect ?? false)
         XCTAssertGreaterThan(WidgetLook.reloadT(looks, now: noon, cfg), looks.last?.t ?? .infinity)

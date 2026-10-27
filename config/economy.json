@@ -409,7 +409,8 @@
   },
 
   "yard": {
-    "bank_hours": 12,
+    "bank_hours": 24,
+    "food_hours": 12,
     "tiers": [
       {
         "name": "Подоконник",

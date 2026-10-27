@@ -102,7 +102,7 @@ struct YardScreen: View {
             stationCard(st, f: f, dog: dog)
         }
         tierCard(f, tier: tier, dog: dog)
-        Text("Копилка копит до 12 часов. Двор остаётся, даже если начать заново с новым щенком.")
+        Text("Копилка копит до суток. Двор остаётся, даже если начать заново с новым щенком.")
             .petFont(12, .medium)
             .foregroundStyle(PetPalette.soft)
             .multilineTextAlignment(.center)

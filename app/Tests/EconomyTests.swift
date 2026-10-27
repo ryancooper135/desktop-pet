@@ -440,6 +440,8 @@ final class EconomyTests: XCTestCase {
         let limit = 90.0 + 1e-9
         let cfg = YardConfig.shared
         XCTAssertFalse(cfg.stations.isEmpty)
+        // Окупаемость считаем по 24 ч дохода в сутки — значит, копилка обязана держать сутки (сбор раз в день).
+        XCTAssertGreaterThanOrEqual(cfg.bankHours, 24, "копилка короче суток: раз в день собирающий окупает дольше 90 дн.")
         XCTAssertEqual(cfg.stations.map(\.id), YardConfig.stubStations.map(\.id), "конфиг = заглушки")
         var worst = (id: "", level: 0, days: 0.0)
         for st in cfg.stations {

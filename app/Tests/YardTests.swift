@@ -127,17 +127,19 @@ final class YardTests: XCTestCase {
 
     // MARK: копилка
 
-    func testBankCapsAt12Hours() {
+    /// Копилка держит сутки (волна 36): собирающий раз в день не теряет дохода.
+    func testBankCapsAtOneDay() {
         let s = state(["dryer": 1], at: t0)
+        XCTAssertEqual(cfg.bankHours, 24)
         XCTAssertEqual(Yard.peek(s, now: t0 + 6 * hour, dogLevel: 1, cfg).bank, 24, accuracy: 1e-9)
-        let at12 = Yard.peek(s, now: t0 + 12 * hour, dogLevel: 1, cfg).bank
-        let at30 = Yard.peek(s, now: t0 + 30 * hour, dogLevel: 1, cfg).bank
-        XCTAssertEqual(at12, 48, accuracy: 1e-9)
-        XCTAssertEqual(at30, at12, "после 12 ч копилка не растёт")
-        XCTAssertEqual(Yard.fill(s, now: t0 + 30 * hour, dogLevel: 1, cfg), 1)
-        XCTAssertEqual(Yard.fill(s, now: t0 + 3 * hour, dogLevel: 1, cfg), 0.25, accuracy: 1e-9)
-        XCTAssertEqual(Yard.fullAt(s, now: t0 + 3 * hour, dogLevel: 1, cfg)!, t0 + 12 * hour, accuracy: 1e-6)
-        XCTAssertEqual(Yard.fullAt(s, now: t0 + 20 * hour, dogLevel: 1, cfg), t0 + 20 * hour)
+        let at24 = Yard.peek(s, now: t0 + 24 * hour, dogLevel: 1, cfg).bank
+        let at40 = Yard.peek(s, now: t0 + 40 * hour, dogLevel: 1, cfg).bank
+        XCTAssertEqual(at24, 96, accuracy: 1e-9)
+        XCTAssertEqual(at40, at24, "после суток копилка не растёт")
+        XCTAssertEqual(Yard.fill(s, now: t0 + 40 * hour, dogLevel: 1, cfg), 1)
+        XCTAssertEqual(Yard.fill(s, now: t0 + 6 * hour, dogLevel: 1, cfg), 0.25, accuracy: 1e-9)
+        XCTAssertEqual(Yard.fullAt(s, now: t0 + 3 * hour, dogLevel: 1, cfg)!, t0 + 24 * hour, accuracy: 1e-6)
+        XCTAssertEqual(Yard.fullAt(s, now: t0 + 30 * hour, dogLevel: 1, cfg), t0 + 30 * hour)
         XCTAssertNil(Yard.fullAt(YardState(), now: t0, dogLevel: 1, cfg))
         // Пустой двор не копит и метку не ставит.
         var e = YardState()
@@ -155,7 +157,7 @@ final class YardTests: XCTestCase {
         XCTAssertEqual(s.bank, 24, accuracy: 1e-9, "6 ч по старой ставке 4")
         XCTAssertEqual(s.t, t0 + 6 * hour)
         XCTAssertEqual(Yard.peek(s, now: t0 + 12 * hour, dogLevel: 4, cfg).bank, 84, accuracy: 1e-9, "24 + 6 ч × 10")
-        XCTAssertEqual(Yard.peek(s, now: t0 + 40 * hour, dogLevel: 4, cfg).bank, 120, accuracy: 1e-9, "потолок 12 × 10")
+        XCTAssertEqual(Yard.peek(s, now: t0 + 40 * hour, dogLevel: 4, cfg).bank, 240, accuracy: 1e-9, "потолок 24 × 10")
 
         // Улучшение — так же: сперва начисление по старой ставке.
         var u = state(["dryer": 1], at: t0)
@@ -296,7 +298,7 @@ final class YardTests: XCTestCase {
         let h = Yard.collect(&s, now: t0 + 30 * hour, dogLevel: 1, calm)
         XCTAssertEqual(h.portions, ["porridge": 2, "pies": 2, "sausage": 3], "потолок окна 12 ч")
         XCTAssertEqual(h.pantry, 56, "2 × 5 + 2 × 8 + 3 × 10")
-        XCTAssertEqual(h.coins, 756, "(9 + 18 + 32 + 4) × 12")
+        XCTAssertEqual(h.coins, 1512, "(9 + 18 + 32 + 4) × 24: копилка — сутки, порции — 12 ч")
         // Остаток часов переходит на следующий сбор.
         var r = state(["porridge": 1], at: t0)
         let a = Yard.collect(&r, now: t0 + 9 * hour, dogLevel: 1, calm)
@@ -358,7 +360,7 @@ final class YardTests: XCTestCase {
 
     func testCollectsToAfford() {
         XCTAssertEqual(Yard.collectsToAfford(250, coins: 300, rate: 4, cfg), 0)
-        XCTAssertEqual(Yard.collectsToAfford(250, coins: 10, rate: 4, cfg), 5)   // 240 / 48
+        XCTAssertEqual(Yard.collectsToAfford(250, coins: 10, rate: 4, cfg), 3)   // 240 / 96
         XCTAssertNil(Yard.collectsToAfford(250, coins: 0, rate: 0, cfg))
     }
 
@@ -425,9 +427,9 @@ final class YardTests: XCTestCase {
         XCTAssertEqual(Yard.rate(s, dogLevel: 1, helper: h, cfg), 14 + 151 * 1.05, accuracy: 1e-9)
         XCTAssertEqual(Yard.rate(s, dogLevel: 25, helper: h, cfg), 14 * 1.05 + 151 * 1.10, accuracy: 1e-9)
         XCTAssertEqual(Yard.rate(s, dogLevel: 1, helper: YardHelper(station: "mill", pct: 0), cfg), 165, accuracy: 1e-9)
-        // Копилка с помощником полнеет быстрее, потолок — те же 12 ч по его ставке.
-        let full = Yard.peek(s, now: t0 + 20 * hour, dogLevel: 1, helper: h, calm)
-        XCTAssertEqual(full.bank, (14 + 151 * 1.05) * 12, accuracy: 1e-6)
+        // Копилка с помощником полнеет быстрее, потолок — те же сутки по его ставке.
+        let full = Yard.peek(s, now: t0 + 30 * hour, dogLevel: 1, helper: h, calm)
+        XCTAssertEqual(full.bank, (14 + 151 * 1.05) * 24, accuracy: 1e-6)
     }
 
     /// По сейву: помогает только взрослый пёс, который дома; щенок, гуляющий и сбежавший — нет.

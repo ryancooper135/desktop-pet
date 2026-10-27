@@ -24,10 +24,10 @@ final class YardTextTests: XCTestCase {
     }
 
     func testMoreCountsCollects() {
-        // ставка 6/ч → полная копилка 72 🪙
-        XCTAssertEqual(YardText.more(price: 400, coins: 60, rate: 6, cfg), "ещё 340 🪙 · ≈ 5 сборов")
+        // ставка 6/ч → полная копилка (сутки) 144 🪙
+        XCTAssertEqual(YardText.more(price: 700, coins: 60, rate: 6, cfg), "ещё 640 🪙 · ≈ 5 сборов")
         XCTAssertEqual(YardText.more(price: 100, coins: 60, rate: 6, cfg), "ещё 40 🪙 · ≈ 1 сбор")
-        XCTAssertEqual(YardText.more(price: 200, coins: 60, rate: 6, cfg), "ещё 140 🪙 · ≈ 2 сбора")
+        XCTAssertEqual(YardText.more(price: 300, coins: 60, rate: 6, cfg), "ещё 240 🪙 · ≈ 2 сбора")
         XCTAssertEqual(YardText.more(price: 100, coins: 0, rate: 0, cfg), "ещё 100 🪙")
         XCTAssertEqual(YardText.more(price: 100, coins: 100, rate: 0, cfg), "Хватает, бери")
         XCTAssertEqual(YardText.progress(price: 400, coins: 100), 0.25, accuracy: 1e-9)
@@ -104,7 +104,8 @@ final class YardTextTests: XCTestCase {
         f.yard.stations = ["dryer": 1]
         f.yard.t = t0
         XCTAssertFalse(YardText.badge(f, now: t0 + hour, dogLevel: 1, cfg))
-        XCTAssertTrue(YardText.badge(f, now: t0 + 13 * hour, dogLevel: 1, cfg), "копилка полная")
+        XCTAssertFalse(YardText.badge(f, now: t0 + 13 * hour, dogLevel: 1, cfg), "полсуток — ещё не полная")
+        XCTAssertTrue(YardText.badge(f, now: t0 + 25 * hour, dogLevel: 1, cfg), "копилка полная")
 
         // Монет хватает, но плита закрыта уровнем пса — бейджа нет.
         var g = SaveFile.fresh(now: t0)
