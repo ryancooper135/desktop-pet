@@ -87,15 +87,24 @@ enum YardLive {
 
     /// Сцена: слои 0…max(ярус, 1) (за подоконником — пустырь), станции, таблички, свет и камера.
     /// Пса сцена не ждёт: YardDogLive.model() грузит его отдельно, экран сажает через attach.
-    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool, live: Live = Live()) -> Entity {
+    /// district (волна 36 Q) — квартал после переезда: свои земля, плиты, забор и декор; станции те же.
+    /// Небо — фон экрана: `district.skyColor(night:)`. Под UI-тестом район задаёт PET_YARD_DISTRICT.
+    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool,
+                      district: YardDistrict = .street, live: Live = Live()) -> Entity {
+        let district = YardDistrict.forced ?? district
         let world = Entity()
         world.name = "yardLive"
         // Корень «живёт» (нулевой пульс): часы двора идут, даже если станций ещё нет.
         world.components.set(YardArtMotionComponent(motion: .pulse(amount: 0, period: 1, phase: 0), base: .zero))
         let top = min(max(tier, 1), YardArtTier.plates.count - 1)
+        var plates: [Int] = []
         for k in 0...top {
             let b = k <= tier ? bought(s, tier: k) : 0
-            world.addChild(YardArtStage.entity(YardArtTier.layer(k, bought: b)))
+            plates.append(b)
+            world.addChild(YardArtStage.entity(YardArtTier.layer(k, bought: b, district: district)))
+        }
+        if !district.decor.isEmpty {
+            world.addChild(YardArtStage.entity(YardArtTier.decor(district, top: top, bought: plates, night: night)))
         }
         let cam = camera(tier: tier)
         let all = spots(s, tier: tier)
@@ -247,4 +256,15 @@ enum YardPlate3D {
         root.addChild(plaque)
         return root
     }
+}
+
+extension YardDistrict {
+    /// PET_YARD_DISTRICT=<район или номер> — только в UI-тесте: двор в этом квартале (снимки ui-36-district-*).
+    /// Читается там, где строится сцена (YardLive.scene), экран двора о нём не знает.
+    nonisolated static var forced: YardDistrict? {
+        Env.isUITest ? parse(Env.value("PET_YARD_DISTRICT")) : nil
+    }
+
+    /// Небо района — фон под RealityView.
+    func skyColor(night: Bool) -> Color { Color(hex: sky(night: night)) }
 }

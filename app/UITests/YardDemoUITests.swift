@@ -8,6 +8,8 @@
 //   ui-98-yard-tier-1-0   дворик без плит — стартовый пустырь (лужа, мешок, кривой забор)
 //   ui-98-yard-tier-1-3   дворик на середине: мусор убран, забор починен, тропинка
 //   ui-98-yard-fps        текст: кадров в секунду в превью станции
+//   ui-36-district-D      двор до яруса 4 в районе D (street, winter, river, roof) — волна 36 Q
+//   ui-36-move-van        сцена переезда: фургон, коробки, Шиба в кабине (Улица → Зимний квартал)
 //
 // Бюджет §2: у каждой станции и у худшей по всем видам не больше 400 треугольников (подписи yard.tris, yard.maxTris).
 
@@ -75,6 +77,39 @@ final class YardDemoUITests: XCTestCase {
         for _ in 0..<3 { tapWhenReady(plus) }
         settle(1.2)
         snap("ui-98-yard-tier-1-3")
+        app.terminate()
+    }
+
+    /// Волна 36 Q: четыре района двора на ярусе 4 (ui-36-district-*) и сцена переезда (ui-36-move-van).
+    /// Бюджет декора района — 800 треугольников сверх слоёв (подпись yard.districtTris, второе число — худший).
+    @MainActor
+    func testYard3Districts() throws {
+        let app = try openDemo()
+        tapWhenReady(el(app, "yard.lv.3"))
+        tapWhenReady(el(app, "yard.tier.4"))
+        for d in ["street", "winter", "river", "roof"] {
+            tapWhenReady(el(app, "yard.district.\(d)"))
+            settle(1.8)
+            snap("ui-36-district-\(d)")
+        }
+        let label = el(app, "yard.districtTris")
+        if label.waitForExistence(timeout: 3) {
+            let nums = label.label.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+            XCTAssertEqual(nums.count, 2, "подпись декора: \(label.label)")
+            if let worst = nums.last { XCTAssertLessThanOrEqual(worst, 800, "декор района тяжелее бюджета") }
+        } else {
+            XCTFail("нет подписи декора района")
+        }
+        // Переезд с улицы в зимний квартал: фургон, подпись, Шиба в кабине.
+        tapWhenReady(el(app, "yard.district.street"))
+        let caption = el(app, "yard.move.caption")
+        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 8, name: "ui-36-move-open"),
+                      "сцена переезда не открылась")
+        XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
+        XCTAssertTrue(el(app, "yard.move.scene").exists, "нет сцены фургона")
+        settle(3)
+        snap("ui-36-move-van")
+        tapWhenReady(el(app, "yard.move.close"))
         app.terminate()
     }
 

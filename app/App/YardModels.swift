@@ -809,23 +809,25 @@ enum YardArtTier {
 
     /// Подложка слоя n при bought купленных плитах (станции — отдельно, по slots).
     /// Слой 1 нужен и для яруса 0: пустырь за окном.
-    static func layer(_ n: Int, bought b: Int) -> YardArtModel {
+    /// district (волна 36 Q) меняет только цвета земли, плит, забора и дома; декор района — `decor(...)`.
+    static func layer(_ n: Int, bought b: Int, district: YardDistrict = .street) -> YardArtModel {
         var m = YardArtModel(name: "tier\(n)")
+        let c = district.palette
         switch n {
-        case 0: sill(&m, b)
-        case 1: yard(&m, b)
-        case 2: garden(&m, b)
-        case 3: park(&m, b)
-        default: block(&m, b)
+        case 0: sill(&m, b, c)
+        case 1: yard(&m, b, c)
+        case 2: garden(&m, b, c)
+        case 3: park(&m, b, c)
+        default: block(&m, b, c)
         }
         return m
     }
 
     // Слой 0: стена дома, окно, подоконник.
-    private static func sill(_ m: inout YardArtModel, _ b: Int) {
+    private static func sill(_ m: inout YardArtModel, _ b: Int, _ c: YardDistrictPalette) {
         let wz: Float = -1.8
-        m.box(YardArtColors.wall, SIMD3(2.5, 1.4, 0.12), at: SIMD3(0, 0.7, wz))
-        m.box(YardArtColors.roof, SIMD3(2.6, 0.1, 0.3), at: SIMD3(0, 1.43, wz + 0.05))
+        m.box(c.wall, SIMD3(2.5, 1.4, 0.12), at: SIMD3(0, 0.7, wz))
+        m.box(c.houseRoof, SIMD3(2.6, 0.1, 0.3), at: SIMD3(0, 1.43, wz + 0.05))
         let w = SIMD3<Float>(0, 0.82, wz + 0.065)
         m.box(b >= 1 ? YardArtColors.glass : YardArtColors.glassDirty, SIMD3(0.7, 0.56, 0.01), at: w)
         m.box(YardArtColors.windowFrame, SIMD3(0.78, 0.05, 0.04), at: w + SIMD3(0, 0.3, 0.01))
@@ -847,10 +849,10 @@ enum YardArtTier {
     }
 
     // Слой 1: дворик перед домом — пока ничего не куплено, это пустырь.
-    private static func yard(_ m: inout YardArtModel, _ b: Int) {
-        m.box(YardArtColors.dirt, SIMD3(2.4, 0.04, 1.7), at: SIMD3(0, -0.02, -0.85))
+    private static func yard(_ m: inout YardArtModel, _ b: Int, _ c: YardDistrictPalette) {
+        m.box(c.ground, SIMD3(2.4, 0.04, 1.7), at: SIMD3(0, -0.02, -0.85))
         if b < 1 {
-            m.prism(YardArtColors.puddle, sides: 8, r: 0.22, h: 0.01, at: SIMD3(0.5, 0.004, -0.4), scale: SIMD3(1.5, 1, 1))
+            m.prism(c.puddle, sides: 8, r: 0.22, h: 0.01, at: SIMD3(0.5, 0.004, -0.4), scale: SIMD3(1.5, 1, 1))
             m.gem(YardArtColors.trash, sides: 6, r: 0.15, h: 0.24, at: SIMD3(-0.55, 0.11, -0.35))
             m.gem(YardArtColors.trash, sides: 4, r: 0.03, h: 0.06, at: SIMD3(-0.55, 0.24, -0.35))
             m.box(YardArtColors.litter, SIMD3(0.1, 0.03, 0.07), at: SIMD3(-0.25, 0.015, -0.6), rot: SIMD3(0, 30, 0))
@@ -858,7 +860,7 @@ enum YardArtTier {
         }
         // Забор вдоль передней кромки с калиткой посередине: до «Починить забор» — серый и кривой, одной перекладины нет.
         let fixed = b >= 2
-        let color = fixed ? YardArtColors.fence : YardArtColors.fenceOld
+        let color = fixed ? c.fence : c.fenceOld
         for side in [Float(-1), 1] {
             for (i, x) in [Float(0.3), 0.6, 0.9, 1.15].enumerated() {
                 let tilt: Float = fixed ? 0 : (i % 2 == 0 ? 10 : -8) * side
@@ -873,7 +875,7 @@ enum YardArtTier {
         }
         if b >= 3 {
             for (i, z) in [Float(-0.2), -0.5, -0.8, -1.1, -1.4].enumerated() {
-                m.box(YardArtColors.tile, SIMD3(0.26, 0.02, 0.22), at: SIMD3(i % 2 == 0 ? -0.03 : 0.03, 0.01, z))
+                m.box(c.tile, SIMD3(0.26, 0.02, 0.22), at: SIMD3(i % 2 == 0 ? -0.03 : 0.03, 0.01, z))
             }
         }
         if b >= 4 {
@@ -885,8 +887,8 @@ enum YardArtTier {
     }
 
     // Слой 2: сад перед забором.
-    private static func garden(_ m: inout YardArtModel, _ b: Int) {
-        m.box(YardArtColors.grass, SIMD3(2.4, 0.04, 1.0), at: SIMD3(0, -0.02, 0.5))
+    private static func garden(_ m: inout YardArtModel, _ b: Int, _ c: YardDistrictPalette) {
+        m.box(c.garden, SIMD3(2.4, 0.04, 1.0), at: SIMD3(0, -0.02, 0.5))
         if b >= 1 {
             let p = SIMD3<Float>(1.0, 0, 0.15)
             m.box(YardArtColors.trunk, SIMD3(0.03, 0.36, 0.03), at: p + SIMD3(0, 0.18, 0))
@@ -896,7 +898,7 @@ enum YardArtTier {
         if b >= 2 {
             let p = SIMD3<Float>(-1.0, 0, 0.75)
             m.prism(YardArtColors.trunk, sides: 6, r: 0.05, h: 0.5, top: 0.035, at: p + SIMD3(0, 0.25, 0))
-            m.gem(YardArtColors.crown, sides: 7, r: 0.3, h: 0.5, at: p + SIMD3(0, 0.68, 0))
+            m.gem(c.crown, sides: 7, r: 0.3, h: 0.5, at: p + SIMD3(0, 0.68, 0))
             for (i, a) in [Float(20), 140, 260].enumerated() {
                 let q = YardArtMath.rotY(SIMD3(0, 0, 0.26), a)
                 m.gem(YardArtColors.apple, sides: 4, r: 0.035, h: 0.05, at: p + SIMD3(q.x, 0.62 + Float(i) * 0.05, q.z))
@@ -911,7 +913,7 @@ enum YardArtTier {
         }
         if b >= 4 {
             let p = SIMD3<Float>(0.98, 0, 0.75)
-            m.prism(YardArtColors.water, sides: 8, r: 0.18, h: 0.012, at: p + SIMD3(0, 0.006, 0), scale: SIMD3(1.2, 1, 1))
+            m.prism(c.water, sides: 8, r: 0.18, h: 0.012, at: p + SIMD3(0, 0.006, 0), scale: SIMD3(1.2, 1, 1))
             m.node("frog", at: p + SIMD3(-0.05, 0.035, 0.03), motion: .bob(height: 0.03, period: 2.2, phase: 0))
             m.gem(YardArtColors.frog, sides: 5, r: 0.045, h: 0.05, at: .zero)
             m.gem(YardArtColors.frog, sides: 4, r: 0.014, h: 0.02, at: SIMD3(-0.02, 0.028, 0.02))
@@ -921,8 +923,8 @@ enum YardArtTier {
     }
 
     // Слой 3: парк слева от дома.
-    private static func park(_ m: inout YardArtModel, _ b: Int) {
-        m.box(YardArtColors.park, SIMD3(1.0, 0.04, 2.7), at: SIMD3(-1.7, -0.02, -0.35))
+    private static func park(_ m: inout YardArtModel, _ b: Int, _ c: YardDistrictPalette) {
+        m.box(c.park, SIMD3(1.0, 0.04, 2.7), at: SIMD3(-1.7, -0.02, -0.35))
         if b >= 1 {
             let p = SIMD3<Float>(-1.3, 0, 0.85)
             m.box(YardArtColors.trunk, SIMD3(0.03, 0.3, 0.03), at: p + SIMD3(0, 0.15, 0))
@@ -958,8 +960,8 @@ enum YardArtTier {
     }
 
     // Слой 4: квартал справа от дома.
-    private static func block(_ m: inout YardArtModel, _ b: Int) {
-        m.box(YardArtColors.paving, SIMD3(1.0, 0.04, 2.7), at: SIMD3(1.7, -0.02, -0.35))
+    private static func block(_ m: inout YardArtModel, _ b: Int, _ c: YardDistrictPalette) {
+        m.box(c.paving, SIMD3(1.0, 0.04, 2.7), at: SIMD3(1.7, -0.02, -0.35))
         if b >= 1 {
             let p = SIMD3<Float>(1.7, 0, -1.5)
             m.box(YardArtColors.pole, SIMD3(0.04, 0.9, 0.04), at: p + SIMD3(-0.38, 0.45, 0))

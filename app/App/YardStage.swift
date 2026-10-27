@@ -106,7 +106,9 @@ enum YardArtStage {
     }
 
     /// Сцена превью целиком: модели, земля под станцией, свет комнаты и камера под кадр.
-    static func scene(_ shot: YardArtShot, level: Int, fill: Float, night: Bool, progress: Int) -> Entity {
+    /// district (волна 36 Q) — квартал двора: подложки в его цветах и его декор.
+    static func scene(_ shot: YardArtShot, level: Int, fill: Float, night: Bool, progress: Int,
+                      district: YardDistrict = .street) -> Entity {
         let world = Entity()
         world.name = "yardArt"
         // Корень тоже «живёт» (нулевой пульс): часы и счётчик кадров идут, даже если на подложке ни одной станции.
@@ -122,9 +124,13 @@ enum YardArtStage {
             world.addChild(camera(target: SIMD3(0, 0.19, -0.03), eye: SIMD3(0.45, 0.55, 1.1), fov: 36))
         case .tier(let shown):
             // Ярус 0 — подоконник, а за ним пустырь: слой 1 без купленных плит.
+            let plates = (0..<YardArtTier.plates.count).map { YardArtTier.bought($0, shown: shown, progress: progress) }
+            if !district.decor.isEmpty {
+                world.addChild(entity(YardArtTier.decor(district, top: max(shown, 1), bought: plates, night: night)))
+            }
             for k in 0...max(shown, 1) {
-                let b = YardArtTier.bought(k, shown: shown, progress: progress)
-                world.addChild(entity(YardArtTier.layer(k, bought: b)))
+                let b = plates[k]
+                world.addChild(entity(YardArtTier.layer(k, bought: b, district: district)))
                 guard k <= shown else { continue }
                 for slot in YardArtTier.slots[k] where b > slot.plate {
                     let st = entity(YardArt.station(slot.station, level: level, fill: fill, night: night))
@@ -164,22 +170,27 @@ struct YardArtDemoScreen: View {
     @State private var fillStep = 2
     @State private var night = false
     @State private var progress = 0
+    @State private var district: YardDistrict = YardDistrict.forced ?? .street
+    @State private var moving = false
 
     private var fill: Float { Float(fillStep) / 2 }
 
     var body: some View {
         let shot = self.shot, level = self.level, fill = self.fill, night = self.night, progress = self.progress
+        let district = self.district
         let worst = Self.worst
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 RealityView { content in
                     content.camera = .virtual
                     YardArtSystem.registerOnce()
-                    content.add(YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress))
+                    content.add(YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress,
+                                                   district: district))
                 }
-                .id("\(shot)#\(level)#\(fill)#\(night)#\(progress)")
+                .id("\(shot)#\(level)#\(fill)#\(night)#\(progress)#\(district)")
                 .frame(height: 330)
-                .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+                .background(district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+                            : district.skyColor(night: night))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .accessibilityIdentifier("yard.scene")
 
@@ -190,7 +201,19 @@ struct YardArtDemoScreen: View {
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .navigationTitle("Двор 3D")
+        .fullScreenCover(isPresented: $moving) {
+            YardMoveView(from: district, to: district.next)
+                .overlay(alignment: .topTrailing) {
+                    Button("Закрыть") { moving = false }
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .padding(16)
+                        .accessibilityIdentifier("yard.move.close")
+                }
+        }
     }
+
+    /// Худший декор района — один раз на экран.
+    private static let worstDecor = YardArtTier.worstDecorTriangles()
 
     /// Худшая станция по всем видам — одна на экран, считается один раз.
     private static let worst = YardArt.worstTriangles()
@@ -214,6 +237,12 @@ struct YardArtDemoScreen: View {
                 Text(shown < plates.count ? "плит \(shown)/\(plates.count), дальше: \(plates[shown])"
                      : "плит \(shown)/\(plates.count), ярус собран")
                     .font(mono).foregroundStyle(PetPalette.soft)
+                let bought = (0..<YardArtTier.plates.count).map { YardArtTier.bought($0, shown: n, progress: progress) }
+                let decor = YardArtTier.decor(district, top: max(n, 1), bought: bought, night: night).triangles
+                let worstDecor = Self.worstDecor
+                Text("\(district.title) · декор \(decor), худший \(worstDecor.triangles) (\(worstDecor.district.rawValue))")
+                    .font(mono).foregroundStyle(PetPalette.soft)
+                    .accessibilityIdentifier("yard.districtTris")
             }
             Text("худшая станция \(worst.triangles) (\(worst.station.rawValue), ур. \(worst.level))")
                 .font(mono).foregroundStyle(PetPalette.soft)
@@ -248,6 +277,12 @@ struct YardArtDemoScreen: View {
                 }
                 chip("ночь", on: night, id: "yard.night") { night.toggle() }
             }
+            row {
+                ForEach(YardDistrict.allCases, id: \.self) { d in
+                    chip(Self.short(d), on: district == d, id: "yard.district.\(d.rawValue)") { district = d }
+                }
+                chip("Переезд", on: false, id: "yard.move") { moving = true }
+            }
             if case .tier(let n) = shot {
                 row {
                     chip("− плита", on: false, id: "yard.plate.minus") { progress = max(0, progress - 1) }
@@ -256,6 +291,16 @@ struct YardArtDemoScreen: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Короткое имя района для чипа (в ряд помещаются четыре района и «Переезд»).
+    private static func short(_ d: YardDistrict) -> String {
+        switch d {
+        case .street: return "улица"
+        case .winter: return "зима"
+        case .river: return "река"
+        case .roof: return "крыша"
         }
     }
 
