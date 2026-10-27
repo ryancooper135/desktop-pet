@@ -13,6 +13,7 @@
 //   ui-37-district-D-night  тот же двор ночью: зима — окна и гирлянда, река — фонарь и блик, крыша — огни города
 //                           и лампочка у будки; у станций акценты района (снег, весла/круг, антенна) — волна 37 B
 //   ui-37-move-van-night  переезд ночью: фонарь у дороги, лучи фар, свет в кузове, ночное небо
+//   ui-39-weather-rain    станция под дождём сразу после чипа (волна 39 D; 3D не ждём — что успело)
 //
 // Бюджет §2: у каждой станции и у худшей по всем видам не больше 400 треугольников (подписи yard.tris, yard.maxTris).
 
@@ -23,22 +24,23 @@ final class YardDemoUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    /// Восемь станций, три вида по уровню, мельница ночью, бюджет треугольников и fps.
+    /// Станции 1–4 и бюджет треугольников худшей. 27.10: весь круг станций с видами и мельницей с ночным светом
+    /// волны 38 B упирался в 3 мин на тест (1–2 кадра/с на CI) — разбит на три теста.
     @MainActor
     func testYard1Stations() throws {
         let app = try openDemo()
-        let budget = 400
         let worst = number(app, "yard.maxTris")
         XCTAssertNotNil(worst, "нет подписи худшей станции")
-        if let worst { XCTAssertLessThanOrEqual(worst, budget, "худшая станция тяжелее бюджета §2") }
-        for s in 1...8 {
-            tapWhenReady(el(app, "yard.st.\(s)"))
-            settle(1.6)
-            snap("ui-98-yard-st-\(s)")
-            let tris = number(app, "yard.tris")
-            XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
-            if let tris { XCTAssertLessThanOrEqual(tris, budget, "станция \(s): \(tris) треугольников") }
-        }
+        if let worst { XCTAssertLessThanOrEqual(worst, Self.budget, "худшая станция тяжелее бюджета §2") }
+        shootStations(app, 1...4)
+        app.terminate()
+    }
+
+    /// Станции 5–8 и fps.
+    @MainActor
+    func testYard1bStations() throws {
+        let app = try openDemo()
+        shootStations(app, 5...8)
         // Секунда-другая на счётчик кадров (окно — 1 с), потом показание.
         settle(1.5)
         let fps = number(app, "yard.fps") ?? 0
@@ -47,7 +49,13 @@ final class YardDemoUITests: XCTestCase {
         note.lifetime = .keepAlways
         add(note)
         XCTAssertGreaterThan(fps, 0, "превью двора не рисует кадры")
+        app.terminate()
+    }
 
+    /// Котелок на трёх уровнях и мельница ночью.
+    @MainActor
+    func testYard1cLooks() throws {
+        let app = try openDemo()
         tapWhenReady(el(app, "yard.st.3"))
         for l in [1, 3, 5] {
             tapWhenReady(el(app, "yard.lv.\(l)"))
@@ -59,6 +67,20 @@ final class YardDemoUITests: XCTestCase {
         settle(1.6)
         snap("ui-98-yard-mill-night")
         app.terminate()
+    }
+
+    private static let budget = 400
+
+    @MainActor
+    private func shootStations(_ app: XCUIApplication, _ range: ClosedRange<Int>) {
+        for s in range {
+            tapWhenReady(el(app, "yard.st.\(s)"))
+            settle(1.6)
+            snap("ui-98-yard-st-\(s)")
+            let tris = number(app, "yard.tris")
+            XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
+            if let tris { XCTAssertLessThanOrEqual(tris, Self.budget, "станция \(s): \(tris) треугольников") }
+        }
     }
 
     /// Пять ярусов накопительно и стройка дворика по плитам.
@@ -137,6 +159,26 @@ final class YardDemoUITests: XCTestCase {
         settle(4)
         snap("ui-37-move-van-night")
         tapWhenReady(el(app, "yard.move.close"))
+        app.terminate()
+    }
+
+    /// Волна 39 D: чипы погоды в «Двор 3D» и ряд «Погода в комнате» в каталоге. Дешёвый: только чипы,
+    /// сцену не ждём (снимок — что успело нарисоваться, для глаза).
+    @MainActor
+    func testYard5WeatherChips() throws {
+        let app = try openDemo()
+        for w in ["clear", "cloudy", "rain", "snow"] {
+            XCTAssertTrue(el(app, "yard.weather.\(w)").waitForExistence(timeout: 5), "нет чипа погоды \(w)")
+        }
+        XCTAssertTrue(tapWhenReady(el(app, "yard.weather.rain")), "чип «дождь» не нажимается")
+        settle(1)
+        snap("ui-39-weather-rain")
+        XCTAssertTrue(tapWhenReady(el(app, "yard.weather.clear")), "чип «ясно» не нажимается")
+        // Назад в каталог: там ряд «Погода в комнате».
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for w in ["auto", "clear", "cloudy", "rain", "snow"] {
+            XCTAssertTrue(el(app, "weather.pin.\(w)").waitForExistence(timeout: 5), "нет чипа «Погода в комнате» \(w)")
+        }
         app.terminate()
     }
 

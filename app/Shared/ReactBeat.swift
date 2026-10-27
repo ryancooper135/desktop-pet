@@ -102,6 +102,8 @@ enum ReactBeat {
     static let bathSitting = ["ear_flick"]
     /// Вышел из ванны (встал): отряхнулся.
     static let afterBath = ["shake"]
+    /// Вернулся с прогулки, а на улице дождь (волна 39 D): дома отряхнулся. Только клип — нужды не меняются.
+    static let afterRain = ["shake"]
 
     // MARK: правила хореографии
 

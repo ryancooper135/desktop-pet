@@ -188,15 +188,22 @@ extension YardArt {
 @MainActor
 enum YardMoveStage {
     /// Фургон, свет и камера. Пёс садится позже (seat) — модель грузится асинхронно.
-    static func scene(from: YardDistrict, to: YardDistrict, calm: Bool, night: Bool = false) -> Entity {
+    /// weather (волна 39 D) — погода там, куда едем: свет приглушён, капли или хлопья перед камерой.
+    static func scene(from: YardDistrict, to: YardDistrict, calm: Bool, night: Bool = false,
+                      weather: WeatherKind = .clear) -> Entity {
         let world = Entity()
         world.name = "yardMove"
         world.components.set(YardArtMotionComponent(motion: .pulse(amount: 0, period: 1, phase: 0), base: .zero))
         world.addChild(YardArtStage.entity(YardArt.moveScene(from: from, to: to, calm: calm, night: night)))
-        world.addChild(YardArtStage.camera(target: SIMD3(-0.15, 0.42, 0), eye: SIMD3(-1.9, 1.25, 2.9), fov: 42))
+        let target = SIMD3<Float>(-0.15, 0.42, 0), eye = SIMD3<Float>(-1.9, 1.25, 2.9), fov: Float = 42
+        world.addChild(YardArtStage.camera(target: target, eye: eye, fov: fov))
         world.addChild(PetRoom.lights())
         // Ночью — лунный свет, тинт, фонарь у дороги и лампочка в кузове (волна 38 B). Пёс садится позже — без тинта.
-        YardLight.apply(night: night, lamps: YardLight.moveLamps(night: night), to: world)
+        YardLight.apply(night: night, gloom: WeatherConfig.shared.gloom(of: weather),
+                        lamps: YardLight.moveLamps(night: night), to: world)
+        if let fx = WeatherFx.yard(weather, target: target, eye: eye, fov: fov, night: night, calm: calm) {
+            world.addChild(fx)
+        }
         return world
     }
 
@@ -223,11 +230,15 @@ struct YardMoveView: View {
     let from: YardDistrict
     let to: YardDistrict
     var night: Bool = false
+    /// Погода для превью (чипы «Двор 3D»); nil — какая сейчас там, куда едем.
+    var weather: WeatherKind? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var onScreen = false
 
     var body: some View {
         let from = self.from, to = self.to, calm = reduceMotion, night = self.night
+        // Погода там, куда едем (волна 39 D); под тестами — ясно.
+        let weather = self.weather ?? Weather.now(in: to)
         let ink = Color(hex: night ? 0xf1ece2 : 0x3a3330)
         VStack(spacing: 14) {
             Text(YardDistrict.moveCaption(from: from, to: to))
@@ -240,9 +251,9 @@ struct YardMoveView: View {
             Group {
                 if onScreen {
                     // Как превью и экран двора: мир в держателе, update тоже ставит его (на CI вид без update не рисовал).
-                    let key = "\(from)#\(to)#\(calm)#\(night)"
+                    let key = "\(from)#\(to)#\(calm)#\(night)#\(weather)"
                     let build: @MainActor @Sendable () -> Entity = {
-                        let world = YardMoveStage.scene(from: from, to: to, calm: calm, night: night)
+                        let world = YardMoveStage.scene(from: from, to: to, calm: calm, night: night, weather: weather)
                         Task { @MainActor in await YardMoveStage.seat(in: world) }
                         return world
                     }
@@ -272,7 +283,7 @@ struct YardMoveView: View {
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(to.skyColor(night: night).ignoresSafeArea())
+        .background(to.skyColor(night: night).overlay(WeatherVeil(kind: weather)).ignoresSafeArea())
         .task {
             // Экран въезжает ~0,5 с; на медленном симуляторе дольше — ждём с запасом.
             try? await Task.sleep(for: .milliseconds(900))

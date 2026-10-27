@@ -100,7 +100,8 @@ struct PetStage: View {
             RoomDecor.applyToy(toy, to: room)
             // Свет — внутри комнаты: RoomLighting красит его вместе с ней, сразу нужной фазы (без мигания).
             room.addChild(PetRoom.lights())
-            RoomLighting.setup(room, schedule: schedule, dark: dark)
+            // Погода за окном (волна 39 D): окна во двор нет — дождь в простом окошке; Reduce Motion — капли стоят.
+            RoomLighting.setup(room, schedule: schedule, dark: dark, plainWindow: !home.window, still: reduceMotion)
             content.add(room)
             content.add(PetRoom.camera())
             PetRig.setGrowth(growth, on: pet)
@@ -145,7 +146,8 @@ struct PetStage: View {
                 let built = [RoomDecor.apply(home, to: room), RoomDecor.applyShelf(shelf, to: room),
                              RoomDecor.applyToy(toy, to: room)]
                 let rebuilt = built.contains(true)
-                RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt)
+                RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt, plainWindow: !home.window,
+                                    still: reduceMotion)
                 PetChoreo.growBowl(room)
             }
             PetChoreo.setHome(pet, home)
@@ -504,6 +506,11 @@ enum PetModel {
             // Вышел из ванны (волна 32): встал (sit_out уже в steps) и отряхнулся. Раньше отряхивался в начале
             // ванны, ещё стоя, а после неё просто вставал.
             steps += PetStance.pick(ReactBeat.afterBath, available: available)
+        }
+        if poseChanged && !reacted && !initial && st.pose == .away && pose != .away && target == .stand
+            && Weather.now().wet {
+            // Пришёл с прогулки под дождём (волна 39 D): отряхнулся. Косметика — нужды и сейв не трогает.
+            steps += PetStance.pick(ReactBeat.afterRain, available: available)
         }
         if !fresh {
             // Поза отыграна — следующая такая же поза снова со своим intro.
