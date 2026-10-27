@@ -109,6 +109,8 @@ enum HomeShop {
     // MARK: тексты
 
     /// Что даёт уровень — по-русски, только то, что ядро уже умеет. Остальные ключи молчат, чтобы не обещать лишнего.
+    /// Монет дом не обещает (волна 36 R): монетный ключ в баффе пускает только тест окупаемости ≤ 90 дн.
+    /// (EconomyTests.testHomeCoinBuffsPaybackWithin90Days) — строку к нему добавлять вместе с честной формулой.
     static func perks(_ buff: [String: JSONValue]) -> [String] {
         func pct(_ x: Double) -> Int { Int((abs(1 - x) * 100).rounded()) }
         var out: [String] = []
@@ -135,8 +137,6 @@ enum HomeShop {
             case "max_hearts": out.append("Сердечек до \(Int(v))")
             case "fun_decay_x": out.append("Скучает на \(pct(v))% медленнее")
             case "walk_decay_x": out.append("Просится гулять на \(pct(v))% реже")
-            // бафф читает приложение (CatchGame.coinsX), не ядро
-            case CatchGame.buffKey: out.append("Монет за «Лови мячик» на \(pct(v))% больше")
             // скидку применяет приложение при покупке еды на кухне (Cooking.price)
             case Cooking.priceKey: out.append("Еда в «Угостить» на \(pct(v))% дешевле")
             default: break
@@ -145,13 +145,12 @@ enum HomeShop {
         return out
     }
 
-    /// Ключи, которые ядро применяет (core/README), и баффы из приложения («Лови мячик», кухня шефа) — в порядке показа.
+    /// Ключи, которые ядро применяет (core/README), и баффы из приложения (кухня шефа) — в порядке показа.
     static let perkOrder = [
         "bath_min", "clean_decay_x", "fun_after_bath", "look_after_bath",
         "sleep_regen_x", "night_food_decay_x", "love_on_wake",
         "storage", "autofeed_below", Cooking.priceKey, Cooking.buffKey,
         "heart_damage_x", "heart_regen_x", "max_hearts",
         "fun_decay_x", "walk_decay_x",
-        CatchGame.buffKey,
     ]
 }

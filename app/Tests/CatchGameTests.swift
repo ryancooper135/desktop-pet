@@ -1,5 +1,5 @@
 // «Лови мячик» (CatchGame.swift): раскладка от сида, темп раунда, поймал/мимо, три промаха и 30 секунд,
-// монеты ∝ очкам с убыванием, баффом дома (minigame_coins_x) и дневным потолком, рекорд, настроение ядерным play, когда играть нельзя,
+// монеты ∝ очкам с убыванием, множителем вещей (minigame_coins_x; дом монет не даёт) и дневным потолком, рекорд, настроение ядерным play, когда играть нельзя,
 // поля сейва верхним уровнем (старый сейв — нули) и переход к новому щенку.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
@@ -207,19 +207,14 @@ final class CatchGameTests: XCTestCase {
         XCTAssertEqual(f.catchBest, 40)
     }
 
-    // MARK: бафф дома (minigame_coins_x)
+    // MARK: множитель монет (minigame_coins_x): дом с волны 36 R монет не прибавляет, остаются вещи
 
-    func testHomeBuffByPlayLevel() {
+    func testPlayLineGivesNoCoinBuff() {
         var f = cFile()
-        XCTAssertEqual(CatchGame.coinsX(f.pet), 1, "пустой угол")
-        f.pet.home[.play] = 1
-        XCTAssertEqual(CatchGame.coinsX(f.pet), 1, "корзина игрушек — бафф только к скуке")
-        f.pet.home[.play] = 2
-        XCTAssertEqual(CatchGame.coinsX(f.pet), 1.1, accuracy: 1e-12)
-        f.pet.home[.play] = 3
-        XCTAssertEqual(CatchGame.coinsX(f.pet), 1.15, accuracy: 1e-12)
-        f.pet.home[.play] = 9   // битый сейв — как у ядра: уровня нет, баффа нет
-        XCTAssertEqual(CatchGame.coinsX(f.pet), 1)
+        for lvl in [0, 1, 2, 3, 9] {   // 9 — битый сейв: как у ядра, уровня нет
+            f.pet.home[.play] = lvl
+            XCTAssertEqual(CatchGame.coinsX(f.pet), 1, "«Игровой уголок» ур. \(lvl) — бафф только к скуке")
+        }
     }
 
     func testWantWithBuffRoundsOnceAfterDiminishing() {
@@ -233,31 +228,35 @@ final class CatchGameTests: XCTestCase {
         XCTAssertEqual(CatchGame.want(score: 0, game: 1, buff: 1.15, c), 0, "без очков бафф не помогает")
     }
 
-    func testFinishAppliesBuffButCapStays() {
+    func testFinishAppliesItemBuffButCapStays() {
         let c = cCfg()
         var f = cFile()
-        f.pet.home[.play] = 3
+        f.econ.items["trophy_cup"] = 1   // польза вещи: монеты мини-игр +8% (мебель — всегда)
         let r1 = CatchGame.finish(score: 40, in: &f, now: cT0, c)
-        XCTAssertEqual(r1.coins, 35)
+        XCTAssertEqual(r1.coins, 32)   // 30 · 1,08 = 32,4
         XCTAssertFalse(r1.capped)
-        XCTAssertEqual(CatchGame.coinsLeft(f, now: cT0, c), 25)
+        XCTAssertEqual(CatchGame.coinsLeft(f, now: cT0, c), 28)
         let r2 = CatchGame.finish(score: 40, in: &f, now: cT0 + 60, c)
-        XCTAssertEqual(r2.coins, 25, "потолок дня тот же 60 — с баффом до него просто быстрее")
+        XCTAssertEqual(r2.coins, 28, "потолок дня тот же 60 — с баффом до него просто быстрее")
         XCTAssertTrue(r2.capped)
         let r3 = CatchGame.finish(score: 40, in: &f, now: cT0 + 120, c)
         XCTAssertEqual(r3.coins, 0)
         XCTAssertEqual(f.catchCoins, c.dailyCap)
 
-        var plain = cFile()
-        plain.pet.home[.play] = 1
-        XCTAssertEqual(CatchGame.finish(score: 40, in: &plain, now: cT0, c).coins, 30, "без комплекса — как раньше")
+        var top = cFile()
+        top.pet.home[.play] = 3
+        XCTAssertEqual(CatchGame.finish(score: 40, in: &top, now: cT0, c).coins, 30, "«Батут и горка» монет не прибавляет")
     }
 
-    func testPlayLinePerkText() {
+    func testPlayLinePerkTextHasNoCoins() {
         let play = HomeShop.line(.play)!.levels
-        XCTAssertFalse(HomeShop.perks(play[1].buff).contains { $0.contains("Лови мячик") })
-        XCTAssertTrue(HomeShop.perks(play[2].buff).contains("Монет за «Лови мячик» на 10% больше"))
-        XCTAssertTrue(HomeShop.perks(play[3].buff).contains("Монет за «Лови мячик» на 15% больше"))
+        for (i, l) in play.enumerated() {
+            XCTAssertFalse(HomeShop.perks(l.buff).contains { $0.contains("Монет") || $0.contains("Лови мячик") }, "ур. \(i)")
+        }
+        XCTAssertTrue(HomeShop.perks(play[2].buff).contains("Скучает на 20% медленнее"))
+        XCTAssertTrue(HomeShop.perks(play[3].buff).contains("Скучает на 30% медленнее"))
+        // Старый конфиг с монетным ключом — строку о монетах дом всё равно не пишет.
+        XCTAssertEqual(HomeShop.perks(["fun_decay_x": .number(0.8), CatchGame.buffKey: .number(1.1)]), ["Скучает на 20% медленнее"])
     }
 
     func testFinishRaisesFunThroughCorePlay() {
