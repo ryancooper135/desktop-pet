@@ -237,6 +237,7 @@ enum RoomWeather {
         g.name = "room.weather.window"
         let wallZ = RoomPlan.backWallZ
         let cx = (w.minX + w.maxX) / 2, cy = (w.minY + w.maxY) / 2
+        @discardableResult
         func part(_ size: SIMD3<Float>, _ hex: UInt32, _ at: SIMD3<Float>, shade: CGFloat = 1) -> ModelEntity {
             let e = ModelEntity(mesh: .generateBox(size: size), materials: [PetRoom.matteMaterial(hex, shade: shade)])
             e.position = at
