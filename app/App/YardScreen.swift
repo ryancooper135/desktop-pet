@@ -130,24 +130,33 @@ struct YardScreen: View {
         // Ключ сцены — всё видимое: ярус, плиты, уровни, поднос, ночь, доход на табличках, золото, дома ли пёс.
         let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)"
         let dogPose = YardDogLive.pose(mode: mode, spots: spots, tier: tier, night: night, calm: reduceMotion, now: now)
-        RealityView { content in
-            content.camera = .virtual
-            YardArtSystem.registerOnce()
-            YardLiveSystem.registerOnce()
+        // Сцена по ключу: одна и та же RealityView, внутри меняется только мир. Раньше вид пересоздавался .id(key),
+        // и новый, родившийся за краем экрана (улучшили станцию внизу списка), на CI оставался пустым.
+        let build: @MainActor @Sendable () -> Entity = {
             let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false, live: live)
-            content.add(scene)
             if let pop, let spot = spots.first(where: { $0.id == pop }) {
                 YardLive.pop(pop, in: scene, scale: spot.scale)
             }
-            // Пёс догружается отдельно: двор виден сразу. Сцена успела смениться — сядет в старую, её уже нет на экране.
+            // Пёс догружается отдельно: двор виден сразу. Мир успел смениться — сядет в старый, его уже нет в сцене.
             if mode != .absent {
                 Task { @MainActor in
                     let body = await YardDogLive.model()
                     YardDogLive.attach(to: scene, body: body)
                 }
             }
+            return scene
         }
-        .id(key)
+        RealityView { content in
+            content.camera = .virtual
+            YardArtSystem.registerOnce()
+            YardLiveSystem.registerOnce()
+            let holder = Entity()
+            YardLive.swap(in: holder, key: key, build: build)
+            content.add(holder)
+        } update: { content in
+            guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
+            YardLive.swap(in: holder, key: key, build: build)
+        }
         .frame(height: 300)
         .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
         .overlay {

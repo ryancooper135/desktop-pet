@@ -122,6 +122,20 @@ enum YardLive {
         return world
     }
 
+    /// Держатель мира в RealityView экрана: в имени — ключ сцены (всё видимое), мир внутри меняется, когда ключ
+    /// другой. Сам вид не пересоздаётся.
+    private static let holderPrefix = "yard.holder#"
+
+    static func isHolder(_ e: Entity) -> Bool { e.name.hasPrefix(holderPrefix) }
+
+    static func swap(in holder: Entity, key: String, build: @MainActor () -> Entity) {
+        let name = holderPrefix + key
+        guard holder.name != name else { return }
+        holder.name = name
+        for child in Array(holder.children) { child.removeFromParent() }
+        holder.addChild(build())
+    }
+
     /// Новая станция «выскакивает»: из точки до полного размера с перелётом (кривая easeOutBack).
     static func pop(_ id: String, in world: Entity, scale: Float) {
         guard let e = world.findEntity(named: name(id)) else { return }
