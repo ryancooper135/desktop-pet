@@ -375,6 +375,8 @@ enum YardMoveResult: Hashable, Sendable {
     case level(need: Int)
     /// Двор ещё не полный: столько плит и уровней станций осталось.
     case notFull(left: Int)
+    /// Волна 38 A: переезды пройдены (крыша — финал). Четвёртый не окупился бы никогда: слава дальше ×5,5 не растёт.
+    case final
 }
 
 /// Пёс-помощник у станции: +pct % к её ставке (взрослый и дома, волна 34 G).
@@ -669,7 +671,8 @@ enum Yard {
     /// Звёзды славы на вывеске: по числу переездов, не больше числа ступеней славы (3).
     static func gloryStars(moves: Int, _ cfg: YardConfig = .shared) -> Int { min(max(0, moves), cfg.gloryX.count) }
 
-    /// Район двора: 0 улица (до первого переезда), 1 зима, 2 река, 3 крыша, дальше по кругу 1…3.
+    /// Район двора: 0 улица (до первого переезда), 1 зима, 2 река, 3 крыша. Дальше по кругу 1…3 — только для старых
+    /// сейвов: с волны 38 A переездов не больше трёх (movesDone).
     static func district(moves: Int) -> Int { moves <= 0 ? 0 : (moves - 1) % 3 + 1 }
 
     /// Сколько осталось до полного двора: некупленные плиты-декор + недостающие уровни станций. 0 — двор полный.
@@ -685,13 +688,16 @@ enum Yard {
 
     /// Можно переезжать: пёс ур. ≥ moveMinDogLevel и двор полный (с ур. 22 = мельница — одно и то же, волны 37 A, 38 A).
     static func canMove(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> Bool {
-        dogLevel >= cfg.moveMinDogLevel && isFull(s, cfg)
+        !movesDone(s, cfg) && dogLevel >= cfg.moveMinDogLevel && isFull(s, cfg)
     }
+
+    /// Все переезды пройдены (волна 38 A): по одному на ступень славы — улица → зима → река → крыша, и всё.
+    static func movesDone(_ s: YardState, _ cfg: YardConfig = .shared) -> Bool { s.moves >= cfg.gloryX.count }
 
     /// Что держит переезд (волна 37 A): сколько покупок и монет до полного двора, какая плита ждёт уровня пса.
     /// nil — переезд уже можно.
     static func moveWait(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardMoveWait? {
-        guard !canMove(s, dogLevel: dogLevel, cfg) else { return nil }
+        guard !movesDone(s, cfg), !canMove(s, dogLevel: dogLevel, cfg) else { return nil }
         var cost = 0
         for p in cfg.plates where !p.isStation && !s.plates.contains(p.id) { cost += p.price }
         for st in cfg.stations {
@@ -791,6 +797,7 @@ enum Yard {
     /// Журнал yard.move (key — срезано монет, value — номер переезда); опыта пса за него нет.
     @discardableResult
     static func move(in f: inout SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardMoveResult {
+        guard !movesDone(f.yard, cfg) else { return .final }
         guard dogLevel >= cfg.moveMinDogLevel else { return .level(need: cfg.moveMinDogLevel) }
         let left = moveLeft(f.yard, cfg)
         guard left == 0 else { return .notFull(left: left) }

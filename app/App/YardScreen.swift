@@ -145,6 +145,8 @@ struct YardScreen: View {
         tierCard(f, tier: tier, dog: dog)
         if Yard.canMove(f.yard, dogLevel: dog) {
             moveCard(f)
+        } else if Yard.movesDone(f.yard) {
+            moveLockedCard(YardText.moveFinal(moves: f.yard.moves))
         } else if tier >= YardConfig.shared.maxTier || f.yard.moves > 0,
                   let wait = Yard.moveWait(f.yard, dogLevel: dog) {
             moveLockedCard(YardText.moveLocked(wait, coins: f.econ.wallet.coins, rate: rate))

@@ -1,6 +1,6 @@
 // Волна 36 P: переезд двора и слава (Yard.canMove, Yard.move, Yard.glory, Yard.district, YardText переезда).
 // Волна 37 A: гейт = мельница (переезд в день полного двора), Yard.moveWait и тусклая карточка.
-// Волна 38 A: мельница и гейт ур. 22 (было 28), слава ×2,5 → ×4 → ×5,5 (было ×1,5/×2/×2,5).
+// Волна 38 A: мельница и гейт ур. 22 (было 28), слава ×2,5 → ×4 → ×5,5 (было ×1,5/×2/×2,5); переездов не больше трёх.
 
 import Foundation
 import XCTest
@@ -149,6 +149,30 @@ final class YardMoveTests: XCTestCase {
         XCTAssertEqual(Yard.move(in: &f, now: t0, dogLevel: 30, cfg), .ok(moves: 2, cut: 0))
         XCTAssertEqual(f.yard.moves, 2)
         XCTAssertEqual(f.econ.wallet.coins, 900)
+    }
+
+    /// Крыша — финал: четвёртый переезд не окупился бы никогда (слава дальше ×5,5 не растёт, а двор заново).
+    func testNoMoveAfterRoof() {
+        var f = fullSave(coins: 3_000)
+        f.yard.moves = 2
+        XCTAssertFalse(Yard.movesDone(f.yard, cfg))
+        XCTAssertTrue(Yard.canMove(f.yard, dogLevel: 30, cfg))
+        XCTAssertEqual(Yard.move(in: &f, now: t0, dogLevel: 30, cfg), .ok(moves: 3, cut: 2_000))
+        XCTAssertEqual(Yard.district(moves: f.yard.moves), 3, "крыша")
+
+        f.yard = { var s = full(at: t0); s.moves = 3; return s }()
+        XCTAssertTrue(Yard.movesDone(f.yard, cfg))
+        XCTAssertFalse(Yard.canMove(f.yard, dogLevel: 40, cfg), "полный двор, пёс большой — всё равно финал")
+        XCTAssertNil(Yard.moveWait(f.yard, dogLevel: 40, cfg), "и тусклой карточки «ещё N покупок» нет")
+        XCTAssertNil(Yard.moveWait({ var s = YardState(); s.moves = 3; return s }(), dogLevel: 5, cfg))
+        let before = f
+        XCTAssertEqual(Yard.move(in: &f, now: t0 + hour, dogLevel: 40, cfg), .final)
+        XCTAssertEqual(f.yard, before.yard, "двор не тронут")
+        XCTAssertEqual(f.econ.wallet.coins, before.econ.wallet.coins, "монеты не срезаны")
+        // Старый сейв с 5 переездами (до волны 38 A) — тоже финал, слава держится.
+        f.yard.moves = 5
+        XCTAssertEqual(Yard.move(in: &f, now: t0, dogLevel: 40, cfg), .final)
+        XCTAssertEqual(Yard.glory(moves: 5, cfg), 5.5)
     }
 
     // MARK: слава
@@ -380,6 +404,9 @@ final class YardMoveTests: XCTestCase {
         XCTAssertNil(YardText.moveRefuse(.ok(moves: 1, cut: 0)))
         XCTAssertEqual(YardText.moveRefuse(.level(need: 22)), "Переезд — с ур. 22 пса")
         XCTAssertEqual(YardText.moveRefuse(.notFull(left: 3)), "Сначала дострой двор — осталось 3")
+        XCTAssertEqual(YardText.moveRefuse(.final), "Переезды пройдены — это последний район")
+        XCTAssertEqual(YardText.moveFinal(moves: 3, cfg),
+                       ["Переезды пройдены: ★★★ «На крыше»", "Слава двора ×5,5 — навсегда"])
         for line in YardText.moveConfirm(moves: 0, cfg) + [YardText.moveLine(moves: 0, cfg)] {
             XCTAssertLessThanOrEqual(line.count, 80, "коротко: \(line)")
         }

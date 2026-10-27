@@ -186,6 +186,12 @@ enum YardText {
         return [first, k == 0 ? "\(money) — уже хватает" : "\(money) · ≈ \(collects(k))"]
     }
 
+    /// Тусклая карточка после трёх переездов (волна 38 A): финал, кнопки больше нет.
+    static func moveFinal(moves: Int, _ cfg: YardConfig = .shared) -> [String] {
+        ["Переезды пройдены: \(gloryStars(moves: moves, cfg)) «\(districtName(Yard.district(moves: moves)))»",
+         "Слава двора \(times(Yard.glory(moves: moves, cfg))) — навсегда"]
+    }
+
     /// 257100 → «257 100» (неразрывные пробелы: число не рвётся по строкам).
     static func coinsText(_ n: Int) -> String {
         Postcards.grouped(n).replacingOccurrences(of: " ", with: "\u{00A0}")
@@ -197,6 +203,7 @@ enum YardText {
         case .ok: return nil
         case .level(let need): return "Переезд — с ур. \(need) пса"
         case .notFull(let left): return "Сначала дострой двор — осталось \(left)"
+        case .final: return "Переезды пройдены — это последний район"
         }
     }
 
