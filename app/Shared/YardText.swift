@@ -171,6 +171,26 @@ enum YardText {
         "Переехали: «\(districtName(Yard.district(moves: moves)))» · слава \(times(Yard.glory(moves: moves, cfg)))"
     }
 
+    /// Тусклая карточка до полного двора (волна 37 A): почему закрыт и сколько осталось. Одна-две короткие строки.
+    /// «Откроется, когда двор достроен: ещё 5 покупок» + «Лунная мельница — с ур. 28 пса»
+    /// или «На 257 100 🪙 · ≈ 12 сборов» / «На 3 000 🪙 — уже хватает».
+    static func moveLocked(_ w: YardMoveWait, coins: Int, rate: Double, _ cfg: YardConfig = .shared) -> [String] {
+        guard w.left > 0 else { return ["Двор достроен. Переезд — с ур. \(w.needLevel) пса"] }
+        let buys = "\(w.left) \(EconText.plural(w.left, "покупка", "покупки", "покупок"))"
+        let first = "Откроется, когда двор достроен: ещё \(buys)"
+        if let p = w.plate, w.needLevel > 0 {
+            return [first, "\(p.name) — с ур. \(p.level) пса"]
+        }
+        let money = "На \(coinsText(w.cost)) 🪙"
+        guard let k = Yard.collectsToAfford(w.cost, coins: coins, rate: rate, cfg) else { return [first, money] }
+        return [first, k == 0 ? "\(money) — уже хватает" : "\(money) · ≈ \(collects(k))"]
+    }
+
+    /// 257100 → «257 100» (неразрывные пробелы: число не рвётся по строкам).
+    static func coinsText(_ n: Int) -> String {
+        Postcards.grouped(n).replacingOccurrences(of: " ", with: "\u{00A0}")
+    }
+
     /// Отказ (кнопки нет, но на всякий случай — не немой).
     static func moveRefuse(_ r: YardMoveResult) -> String? {
         switch r {

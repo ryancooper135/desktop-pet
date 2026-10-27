@@ -4,8 +4,10 @@
 // Решения (Вадим может поменять): кнопки не тускнеют — без монет нажатие качает карточку и объясняет тостом.
 // Волна 35 M: таблички «+N/ч», пёс у станций и тиканье монет живут в сцене (YardLive, YardDogLive): тик — когда
 // монетка/сухарик падает в корзинку, не больше двух станций. Золотая табличка станции — за клочки ✂️.
-// Волна 36 P: переезд двора — тихая карточка внизу, когда двор полный и пёс ур. 30+; подтверждение своим
+// Волна 36 P: переезд двора — тихая карточка внизу, когда двор полный (пёс ур. 28+); подтверждение своим
 // слоем внутри экрана (не системный alert — ID надёжны в UI-тестах). Звёзды ★ славы — в шапке.
+// Волна 37 A: с последнего яруса (или после переезда) до полного двора — тусклая карточка без кнопки:
+// почему закрыт и сколько осталось (покупок, монет или уровень пса для мельницы).
 
 import RealityKit
 import SwiftUI
@@ -142,6 +144,9 @@ struct YardScreen: View {
         tierCard(f, tier: tier, dog: dog)
         if Yard.canMove(f.yard, dogLevel: dog) {
             moveCard(f)
+        } else if tier >= YardConfig.shared.maxTier || f.yard.moves > 0,
+                  let wait = Yard.moveWait(f.yard, dogLevel: dog) {
+            moveLockedCard(YardText.moveLocked(wait, coins: f.econ.wallet.coins, rate: rate))
         }
         Text("Копилка копит до суток. Новый щенок двор не сбрасывает — заново он начинается только с переездом.")
             .petFont(12, .medium)
@@ -630,6 +635,38 @@ struct YardScreen: View {
         .accessibilityValue(Text(YardText.moveLine(moves: f.yard.moves)))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("yard.screen.move")
+    }
+
+    /// Тусклая карточка до полного двора (волна 37 A): не кнопка, без стрелки — почему закрыт и сколько осталось.
+    @ViewBuilder private func moveLockedCard(_ lines: [String]) -> some View {
+        HStack(spacing: 12) {
+            Text("🚚")
+                .font(.system(size: 22))
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(PetPalette.soft.opacity(0.12)))
+                .opacity(0.5)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(YardText.moveTitle)
+                    .petFont(16, .bold)
+                    .foregroundStyle(PetPalette.soft)
+                ForEach(lines, id: \.self) { line in
+                    Text(line)
+                        .petFont(13, .medium)
+                        .foregroundStyle(PetPalette.soft)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .axLines(3)
+            .minimumScaleFactor(0.85)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 18).strokeBorder(PetPalette.soft.opacity(0.18),
+                                                                     style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(YardText.moveTitle))
+        .accessibilityValue(Text(lines.joined(separator: ". ")))
+        .accessibilityIdentifier("yard.screen.move.locked")
     }
 
     /// Подтверждение переезда: что останется, что начнётся заново, какая слава. «Переехать» / «Остаться».

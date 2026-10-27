@@ -94,7 +94,9 @@ struct YardConfig: Hashable, Sendable {
     var goldPrice = 60
     var goldPct = 3
     /// Переезд двора (волна 36 P): с какого уровня пса, сколько монет остаётся, слава за 1, 2, 3+ переезда.
-    var moveMinDogLevel = 30
+    /// Уровень = самой поздней плите (мельница, ур. 28, волна 37 A): полный двор уже значит «пёс дорос»,
+    /// и переезд открывается в день, когда двор достроен, без пустого ожидания.
+    var moveMinDogLevel = 28
     var moveKeepCoins = 1000
     var gloryX: [Double] = [1.5, 2, 2.5]
 
@@ -350,6 +352,18 @@ enum YardGoldResult: Hashable, Sendable {
 }
 
 /// Переезд двора: чем кончился.
+/// Почему переезд ещё закрыт (волна 37 A): для тусклой карточки «Переезд двора».
+struct YardMoveWait: Hashable, Sendable {
+    /// Сколько покупок до полного двора (как Yard.moveLeft): плиты-декор + уровни станций.
+    let left: Int
+    /// Сколько монет стоят эти покупки.
+    let cost: Int
+    /// Некупленная плита, что ждёт уровня пса (самая поздняя); nil — по уровню всё открыто.
+    let plate: YardPlate?
+    /// Уровень пса, с которого откроется переезд; 0 — уровень уже есть.
+    let needLevel: Int
+}
+
 enum YardMoveResult: Hashable, Sendable {
     /// Переехали: сколько теперь переездов и сколько монет срезано сверх keepCoins.
     case ok(moves: Int, cut: Int)
@@ -665,9 +679,27 @@ enum Yard {
     /// Двор полный (все плиты, все станции на максимуме).
     static func isFull(_ s: YardState, _ cfg: YardConfig = .shared) -> Bool { moveLeft(s, cfg) == 0 }
 
-    /// Можно переезжать: пёс ур. ≥ moveMinDogLevel и двор полный.
+    /// Можно переезжать: пёс ур. ≥ moveMinDogLevel и двор полный (с ур. 28 = мельница — одно и то же, волна 37 A).
     static func canMove(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> Bool {
         dogLevel >= cfg.moveMinDogLevel && isFull(s, cfg)
+    }
+
+    /// Что держит переезд (волна 37 A): сколько покупок и монет до полного двора, какая плита ждёт уровня пса.
+    /// nil — переезд уже можно.
+    static func moveWait(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardMoveWait? {
+        guard !canMove(s, dogLevel: dogLevel, cfg) else { return nil }
+        var cost = 0
+        for p in cfg.plates where !p.isStation && !s.plates.contains(p.id) { cost += p.price }
+        for st in cfg.stations {
+            let lv = s.stations[st.id] ?? 0
+            guard lv < st.maxLevel else { continue }
+            for to in (lv + 1)...st.maxLevel {
+                cost += to == 1 ? (cfg.plate(st.id)?.price ?? st.price(toLevel: 1) ?? 0) : (st.price(toLevel: to) ?? 0)
+            }
+        }
+        let late = cfg.plates.filter { !s.owns($0.id) && $0.level > dogLevel }.max { $0.level < $1.level }
+        let need = max(late?.level ?? 0, cfg.moveMinDogLevel)
+        return YardMoveWait(left: moveLeft(s, cfg), cost: cost, plate: late, needLevel: need > dogLevel ? need : 0)
     }
 
     /// Переезд: плиты, станции, копилка, еда и кладовка — заново; монеты сверх keepCoins срезаются; moves += 1.
