@@ -748,12 +748,12 @@
       {
         "id": "sausage",
         "tier": 4,
-        "level": 23
+        "level": 21
       },
       {
         "id": "mill",
         "tier": 4,
-        "level": 28
+        "level": 22
       }
     ],
     "tips": {
@@ -779,9 +779,9 @@
       "pct": 3
     },
     "move": {
-      "min_dog_level": 28,
+      "min_dog_level": 22,
       "keep_coins": 1000,
-      "glory_x": [1.5, 2, 2.5]
+      "glory_x": [2.5, 4, 5.5]
     }
   },
   "dog_level": {
@@ -1104,24 +1104,23 @@
       ],
       "21": [
         {
-          "kind": "shop",
-          "id": "shop.seasonal",
-          "text": "В лавке вещи по сезону"
+          "kind": "station",
+          "id": "sausage",
+          "text": "Сосисочный конвейер"
         }
       ],
       "22": [
         {
-          "kind": "perk",
-          "id": "chef_dishes",
-          "text": "Кухня шефа: +1 блюдо в день",
-          "value": 1
+          "kind": "station",
+          "id": "mill",
+          "text": "Лунная мельница"
         }
       ],
       "23": [
         {
-          "kind": "station",
-          "id": "sausage",
-          "text": "Сосисочный конвейер"
+          "kind": "shop",
+          "id": "shop.seasonal",
+          "text": "В лавке вещи по сезону"
         }
       ],
       "24": [
@@ -1162,9 +1161,10 @@
       ],
       "28": [
         {
-          "kind": "station",
-          "id": "mill",
-          "text": "Лунная мельница"
+          "kind": "perk",
+          "id": "chef_dishes",
+          "text": "Кухня шефа: +1 блюдо в день",
+          "value": 1
         }
       ],
       "29": [

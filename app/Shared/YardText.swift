@@ -129,7 +129,7 @@ enum YardText {
 
     // MARK: переезд (волна 36 P)
 
-    /// «1,5», «2», «2,5» — множитель славы по-русски.
+    /// «2,5», «4», «5,5» — множитель славы по-русски.
     static func times(_ x: Double) -> String {
         let r = (x * 10).rounded() / 10
         let s = r == r.rounded() ? "\(Int(r))" : String(format: "%.1f", r).replacingOccurrences(of: ".", with: ",")
@@ -144,7 +144,7 @@ enum YardText {
         String(repeating: "★", count: Yard.gloryStars(moves: moves, cfg))
     }
 
-    /// Звёзды для VoiceOver: «Слава двора ×1,5».
+    /// Звёзды для VoiceOver: «Слава двора ×2,5».
     static func gloryLabel(moves: Int, _ cfg: YardConfig = .shared) -> String {
         "Слава двора \(times(Yard.glory(moves: moves, cfg)))"
     }
@@ -172,7 +172,7 @@ enum YardText {
     }
 
     /// Тусклая карточка до полного двора (волна 37 A): почему закрыт и сколько осталось. Одна-две короткие строки.
-    /// «Откроется, когда двор достроен: ещё 5 покупок» + «Лунная мельница — с ур. 28 пса»
+    /// «Откроется, когда двор достроен: ещё 5 покупок» + «Лунная мельница — с ур. 22 пса»
     /// или «На 257 100 🪙 · ≈ 12 сборов» / «На 3 000 🪙 — уже хватает».
     static func moveLocked(_ w: YardMoveWait, coins: Int, rate: Double, _ cfg: YardConfig = .shared) -> [String] {
         guard w.left > 0 else { return ["Двор достроен. Переезд — с ур. \(w.needLevel) пса"] }

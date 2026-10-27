@@ -12,6 +12,9 @@
 // Волна 37 A: три профиля (RESEARCH/20 §2) — активный, средний (2 сбора, 280 🪙, 70 опыта, взрослый с 50-го дня)
 // и ленивый (1 сбор в 20:00, 130 🪙, 40 опыта, взрослый с 70-го). Для каждого: день полного двора, день, когда
 // открылся переезд (ожидание между ними), и за сколько дней переезд окупается против «остаться на полном дворе».
+//
+// Волна 38 A: сосиски ур. 21 и мельница ур. 22 (было 23 и 28) — ленивый больше не ждёт пса ~3 месяца с деньгами
+// на руках; слава ×2,5/×4/×5,5 — каждый из трёх переездов окупается ≤ 90 дней у всех профилей.
 
 import Foundation
 import XCTest
@@ -252,27 +255,29 @@ final class YardPaceTests: XCTestCase {
         let r = try XCTUnwrap(rounds.first)
         for x in rounds { print("YardPace", fmt(x)) }
         XCTAssertEqual(r.moves, 0)
-        XCTAssertGreaterThanOrEqual(r.days, 90, fmt(r))
-        XCTAssertLessThanOrEqual(r.days, 125, fmt(r))
-        XCTAssertGreaterThanOrEqual(r.dogLevel, 28, "мельница с ур. 28 — двор не достроить раньше")
+        // Волна 38 A: ~102 дн. (было ~105 — мельница с ур. 28 держала и активного на 3–4 дня).
+        XCTAssertGreaterThanOrEqual(r.days, 95, fmt(r))
+        XCTAssertLessThanOrEqual(r.days, 115, fmt(r))
+        XCTAssertGreaterThanOrEqual(r.dogLevel, 22, "мельница с ур. 22 — двор не достроить раньше")
     }
 
-    /// Второй круг (слава ×glory_x[0], 1000 🪙, ярусы открыты, золото) — заметно быстрее первого, но не мгновенный.
-    func testSecondRoundWithin45To75Days() throws {
+    /// Второй круг (слава ×glory_x[0] = ×2,5, 1000 🪙, ярусы открыты, золото) — заметно быстрее первого, но не мгновенный.
+    /// Волна 38 A: ~39 дн. (при ×1,5 было ~61) — цена крупной славы, без неё переезд не окупается за 90 дней.
+    func testSecondRoundWithin35To50Days() throws {
         XCTAssertGreaterThanOrEqual(rounds.count, 2)
         let r = try XCTUnwrap(rounds.dropFirst().first)
         XCTAssertEqual(r.moves, 1)
-        XCTAssertGreaterThanOrEqual(r.days, 45, fmt(r))
-        XCTAssertLessThanOrEqual(r.days, 75, fmt(r))
+        XCTAssertGreaterThanOrEqual(r.days, 35, fmt(r))
+        XCTAssertLessThanOrEqual(r.days, 50, fmt(r))
     }
 
-    /// Третий круг (слава ×glory_x[1]) — 35–60 дней.
-    func testThirdRoundWithin35To60Days() throws {
+    /// Третий круг (слава ×glory_x[1] = ×4) — 20–32 дня (волна 38 A: ~25, было ~45).
+    func testThirdRoundWithin20To32Days() throws {
         XCTAssertEqual(rounds.count, 3)
         let r = try XCTUnwrap(rounds.last)
         XCTAssertEqual(r.moves, 2)
-        XCTAssertGreaterThanOrEqual(r.days, 35, fmt(r))
-        XCTAssertLessThanOrEqual(r.days, 60, fmt(r))
+        XCTAssertGreaterThanOrEqual(r.days, 20, fmt(r))
+        XCTAssertLessThanOrEqual(r.days, 32, fmt(r))
     }
 
     /// Каждый круг быстрее прошлого, а монет в час — больше: и на полном дворе, и в среднем за круг.
@@ -305,26 +310,63 @@ final class YardMovePaceTests: XCTestCase {
                p.name, r.moves + 1, r.days, r.fullDay, r.moveDay, r.wait, r.dogLevel)
     }
 
-    /// Ни один профиль не ждёт переезда после полного двора (гейт ур. 28 = мельница), все три круга укладываются.
+    /// Ни один профиль не ждёт переезда после полного двора (гейт ур. 22 = мельница), все три круга укладываются.
     func testEveryProfileMovesOnFullYardDay() {
-        // Первый круг: активный 90–125, средний 110–150, ленивый 190–260 (ленивого держит мельница с ур. 28).
-        let first: [String: ClosedRange<Double>] = ["активный": 90...125, "средний": 110...150, "ленивый": 190...260]
+        // Первый круг (волна 38 A): активный ~102, средний ~110, ленивый ~132 (было 105 / 128 / 225 при мельнице ур. 28).
+        let first: [String: ClosedRange<Double>] = ["активный": 95...115, "средний": 100...125, "ленивый": 120...145]
         for p in YardPacePlayer.all {
             let rs = YardPaceSim.rounds(3, player: p)
             XCTAssertEqual(rs.count, 3, "\(p.name): три круга за 400 дней каждый")
             for r in rs {
                 print("YardMovePace", fmt(p, r))
                 XCTAssertLessThanOrEqual(r.wait, 0.5, "полный двор ждёт переезда: \(fmt(p, r))")
-                XCTAssertGreaterThanOrEqual(r.dogLevel, 28, fmt(p, r))
+                XCTAssertGreaterThanOrEqual(r.dogLevel, 22, fmt(p, r))
             }
             guard rs.count == 3 else { continue }
             XCTAssertTrue(first[p.name]!.contains(rs[0].days), fmt(p, rs[0]))
-            XCTAssertTrue((45...75).contains(rs[1].days), fmt(p, rs[1]))
-            XCTAssertTrue((35...60).contains(rs[2].days), fmt(p, rs[2]))
+            // Слава ×2,5 и ×4: второй круг ~39–44 дн., третий ~25–28 (было ~61–70 и ~45–53).
+            XCTAssertTrue((35...50).contains(rs[1].days), fmt(p, rs[1]))
+            XCTAssertTrue((20...32).contains(rs[2].days), fmt(p, rs[2]))
         }
     }
 
-    /// Почему не ур. 30: со старым гейтом средний ждал бы ~25 дней, ленивый ~43 на полном дворе впустую.
+    /// Конфиг с другими уровнями сосисок и мельницы (гейт переезда = мельница).
+    private func levels(sausage: Int, mill: Int) -> YardConfig {
+        var c = YardConfig.shared
+        c.plates = c.plates.map { p in
+            let l = p.id == "sausage" ? sausage : p.id == "mill" ? mill : p.level
+            return YardPlate(id: p.id, name: p.name, tier: p.tier, price: p.price, level: l, kitchen: p.kitchen,
+                             cozy: p.cozy, isStation: p.isStation)
+        }
+        c.moveMinDogLevel = mill
+        return c
+    }
+
+    /// Волна 38 A: последняя покупка не ждёт уровня пса неделями. Против двора, где сосиски и мельница открыты
+    /// вместе с ярусом «Квартал» (ур. 20, держат только деньги), первый круг дольше не больше чем на неделю.
+    /// Сейчас: активный +0,5 дн., средний +1, ленивый +5.
+    func testLevelDelayAtMostAWeek() throws {
+        let money = levels(sausage: 20, mill: 20)
+        for p in YardPacePlayer.all {
+            let real = try XCTUnwrap(YardPaceSim.rounds(1, player: p).first, p.name)
+            let free = try XCTUnwrap(YardPaceSim.rounds(1, cfg: money, player: p).first, p.name)
+            let delay = real.days - free.days
+            print(String(format: "YardMovePace %@: ожидание уровня %.1f дн. (круг %.1f, без замков %.1f)",
+                          p.name, delay, real.days, free.days))
+            XCTAssertLessThanOrEqual(delay, 7, "\(p.name): двор ждёт пса, а не денег")
+        }
+    }
+
+    /// Почему не мельница с ур. 28 (волна 37 A): ленивый копил деньги на неё ещё ~3 месяца, ждал только пса.
+    func testOldMill28MadeLazyWaitMonths() throws {
+        let money = levels(sausage: 20, mill: 20)
+        let old = try XCTUnwrap(YardPaceSim.rounds(1, cfg: levels(sausage: 23, mill: 28), player: .lazy).first)
+        let free = try XCTUnwrap(YardPaceSim.rounds(1, cfg: money, player: .lazy).first)
+        print("YardMovePace мельница 28:", fmt(.lazy, old))
+        XCTAssertGreaterThan(old.days - free.days, 60, fmt(.lazy, old))
+    }
+
+    /// Почему не ур. 30: с таким гейтом средний ждал бы ~43 дня, ленивый ~136 на полном дворе впустую (волна 38 A).
     func testOldGate30MadeSlowPlayersWait() throws {
         var cfg = YardConfig.shared
         cfg.moveMinDogLevel = 30
@@ -336,15 +378,21 @@ final class YardMovePaceTests: XCTestCase {
     }
 
     /// Переезд против «остаться на полном дворе» (те же пёс и помощник): когда переехавший догоняет по монетам.
-    /// Это не покупка из правила ≤ 90 дней (каждая покупка на новом круге со славой окупается быстрее) —
-    /// сторож, чтобы переезд не стал заметно невыгоднее, чем сейчас (~180–200 дн.).
+    /// Волна 38 A: правило владельца ≤ 90 дней — для первого, второго и третьего переезда, у каждого профиля.
+    /// Было ~182–206 дн. (слава ×1,5/×2/×2,5), стало ~65–77 (×2,5/×4/×5,5).
     func testMoveBreakEvenPerProfile() throws {
         for p in YardPacePlayer.all {
-            var sim = YardPaceSim(player: p)
-            _ = try XCTUnwrap(sim.round(), p.name)
-            let days = try XCTUnwrap(sim.moveBreakEven(), "\(p.name): переезд не окупился за 400 дней")
-            print(String(format: "YardMovePace %@: первый переезд окупается за %.0f дн.", p.name, days))
-            XCTAssertLessThanOrEqual(days, 230, p.name)
+            for k in 0..<3 {
+                var sim = YardPaceSim(player: p)
+                for _ in 0..<k {
+                    _ = try XCTUnwrap(sim.round(), p.name)
+                    sim.gildAllAndMove()
+                }
+                _ = try XCTUnwrap(sim.round(), p.name)
+                let days = try XCTUnwrap(sim.moveBreakEven(), "\(p.name): переезд \(k + 1) не окупился за 400 дней")
+                print(String(format: "YardMovePace %@: переезд %d окупается за %.1f дн.", p.name, k + 1, days))
+                XCTAssertLessThanOrEqual(days, 90, "\(p.name), переезд \(k + 1)")
+            }
         }
     }
 }
