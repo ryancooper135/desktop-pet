@@ -325,6 +325,8 @@ enum Cooking {
         f.log(reactKind, t: now, source: .app, ok: true, key: id, value: coins > 0 ? coins : nil)
         f.lastAction = SaveFile.LastAction(kind: reactKind, source: .app, t: now, ok: true, reason: nil)
         if OwnerSleep.counts(.app) { OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin) }
+        // «Первое блюдо» и «Все рецепты» — в эту же запись, а не при следующем деле (волна 40 E).
+        PetRunner.settleRewards(&f, now: now)
         return CookOutcome(recipe: id, ok: true, reason: nil, gains: gains, coins: coins, openedTaste: opened,
                            text: PetNames.adapt(dishLine(id, n: total), name: f.petName))
     }

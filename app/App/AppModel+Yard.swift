@@ -105,14 +105,15 @@ extension AppModel {
 
     // MARK: общее
 
-    /// Одна запись в стор: действие, опыт пса по журналу, снимок, виджеты. nil — стор не записался.
+    /// Одна запись в стор: действие, опыт пса и клочки по журналу, снимок, виджеты. nil — стор не записался.
     private func yardWrite<R>(_ body: (inout SaveFile, Double) -> R) -> R? {
         let now = Clock.now()
         let r: R
         do {
             r = try PetStore.shared.mutate { f -> R in
                 let out = body(&f, now)
-                DogLevel.settle(&f, now: now)
+                // Опыт пса и достижения двора («Первая станция», «Переезд»…) — в эту же запись (волна 40 E).
+                PetRunner.settleRewards(&f, now: now)
                 return out
             }
         } catch {

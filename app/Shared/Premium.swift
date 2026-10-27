@@ -355,12 +355,13 @@ enum Shards {
     /// Неделя с понедельника: DayKey 0 — четверг.
     static func week(_ day: Int) -> Int { DayKey.floorDiv(day + 3, 7) }
 
-    /// Мини-игры с рекордами — ключи records.
-    static let recordGames = ["catch", "blockduo", "zombie"]
+    /// Мини-игры с рекордами — ключи records. Один источник правды — ChallengeGame (волна 40 E): новая игра там —
+    /// и она в рекордах, и в цели «Все игры»; раньше два списка здесь легко расходились.
+    static var recordGames: [String] { ChallengeGame.allCases.map(\.rawValue) }
 
-    /// Рекорды мини-игр: имя → поле сейва.
+    /// Рекорды мини-игр: имя → поле сейва (ChallengeGame.record).
     static func records(_ f: SaveFile) -> [String: Int] {
-        ["catch": f.catchBest, "blockduo": f.blockduoBest, "zombie": f.zombieBest]
+        Dictionary(uniqueKeysWithValues: ChallengeGame.allCases.map { ($0.rawValue, $0.record(f)) })
     }
 
     /// Оплатить всё новое. Повторный вызов ничего не добавляет. now — для рекордов и находок (их нет в журнале).
@@ -374,6 +375,12 @@ enum Shards {
             f.econ.wallet.shards += n
             s.earned += n
             let g = ShardGain(reason: reason, shards: n, t: t)
+            // Волна 40 E: достижение не затирает свежую обычную выплату (день заботы и «7 дней заботы» — в одной
+            // записи): у достижений своя дата в achT и свой тост, а «+3 ✂️ за день заботы» иначе терялся.
+            if reason.hasPrefix("ach."), let l = s.last, !l.reason.hasPrefix("ach."), t - l.t < 10, l.t <= t {
+                out.append(g)
+                return
+            }
             s.last = g
             out.append(g)
         }
