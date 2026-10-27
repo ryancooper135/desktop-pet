@@ -8,7 +8,8 @@
 // ставке (Yard.accrue), потом новая ставка. Часы назад: ничего не начисляем и метку не двигаем.
 // Сбор — тап по копилке (решение владельца): в кошелёк floor(bank), дробь остаётся; чаевые по StableHash
 // (≤ 2 в сутки, копилка ≥ 50 %); пищевые станции кладут порции в запас кухни (pet.pantry), лишнее ждёт в larder.
-// Перерождения нет (волна 33).
+// Волна 36 P: переезд двора (§7) — добровольный сброс плит, станций и копилки ради славы двора: ×1,5/×2/×2,5 к доходу
+// станций навсегда (Yard.glory, в stationRate — значит и в копилке, островке и виджете). Пёс, дом, ✂️, альбом не трогаются.
 //
 // Уровень пса и уровни линий дома — ПАРАМЕТРЫ: DogLevel здесь не читается, связывает сливающий.
 // Цифры — раздел yard в config/economy.json, без ключа — значения ниже.
@@ -92,6 +93,10 @@ struct YardConfig: Hashable, Sendable {
     /// Золотая табличка станции (волна 35 M): сток клочков, +goldPct % к ставке этой станции.
     var goldPrice = 60
     var goldPct = 3
+    /// Переезд двора (волна 36 P): с какого уровня пса, сколько монет остаётся, слава за 1, 2, 3+ переезда.
+    var moveMinDogLevel = 30
+    var moveKeepCoins = 1000
+    var gloryX: [Double] = [1.5, 2, 2.5]
 
     static let stubTiers: [YardTier] = [
         YardTier(name: "Подоконник", level: 1, price: 0),
@@ -208,6 +213,12 @@ struct YardConfig: Hashable, Sendable {
         let g = y["gold"]
         goldPrice = max(0, int(g["price_shards"], goldPrice))
         goldPct = max(0, int(g["pct"], goldPct))
+
+        let mv = y["move"]
+        moveMinDogLevel = max(1, int(mv["min_dog_level"], moveMinDogLevel))
+        moveKeepCoins = max(0, int(mv["keep_coins"], moveKeepCoins))
+        let gx = mv["glory_x"].array.compactMap(\.double).map { max(1, $0) }
+        if !gx.isEmpty { gloryX = gx }
     }
 
     func station(_ id: String) -> YardStation? { stations.first { $0.id == id } }
@@ -244,6 +255,8 @@ struct YardState: Codable, Hashable, Sendable {
     var collected = 0
     /// Станции с золотой табличкой (id; волна 35 M). Старые сейвы — без поля, пусто.
     var gold: [String] = []
+    /// Сколько раз двор переезжал (волна 36 P): слава ×gloryX и район. Старые сейвы — без поля, 0.
+    var moves = 0
 
     init() {}
 
@@ -252,7 +265,7 @@ struct YardState: Codable, Hashable, Sendable {
     func owns(_ plate: String) -> Bool { plates.contains(plate) || stations[plate] != nil }
 
     enum CodingKeys: String, CodingKey {
-        case plates, stations, bank, t, food, larder, tipDay, tipsToday, collects, collected, gold
+        case plates, stations, bank, t, food, larder, tipDay, tipsToday, collects, collected, gold, moves
     }
 
     init(from decoder: Decoder) throws {
@@ -268,6 +281,7 @@ struct YardState: Codable, Hashable, Sendable {
         collects = (try? c.decodeIfPresent(Int.self, forKey: .collects)) ?? 0
         collected = (try? c.decodeIfPresent(Int.self, forKey: .collected)) ?? 0
         gold = (try? c.decodeIfPresent([String].self, forKey: .gold)) ?? []
+        moves = max(0, (try? c.decodeIfPresent(Int.self, forKey: .moves)) ?? 0)
     }
 
     /// Пустой список табличек не пишем — сейв без золота байт в байт как до волны 35.
@@ -284,6 +298,7 @@ struct YardState: Codable, Hashable, Sendable {
         try c.encode(collects, forKey: .collects)
         try c.encode(collected, forKey: .collected)
         if !gold.isEmpty { try c.encode(gold, forKey: .gold) }
+        if moves > 0 { try c.encode(moves, forKey: .moves) }
     }
 }
 
@@ -334,6 +349,16 @@ enum YardGoldResult: Hashable, Sendable {
     case unknown
 }
 
+/// Переезд двора: чем кончился.
+enum YardMoveResult: Hashable, Sendable {
+    /// Переехали: сколько теперь переездов и сколько монет срезано сверх keepCoins.
+    case ok(moves: Int, cut: Int)
+    /// Пёс не дорос.
+    case level(need: Int)
+    /// Двор ещё не полный: столько плит и уровней станций осталось.
+    case notFull(left: Int)
+}
+
 /// Пёс-помощник у станции: +pct % к её ставке (взрослый и дома, волна 34 G).
 struct YardHelper: Hashable, Sendable {
     let station: String
@@ -369,25 +394,27 @@ enum Yard {
     static func rate(_ s: YardState, dogLevel: Int, helper: YardHelper? = nil, _ cfg: YardConfig = .shared) -> Double {
         s.stations.keys.sorted().reduce(0) { sum, id in
             sum + stationRate(id, level: s.stations[id] ?? 0, dogLevel: dogLevel, helper: helper,
-                              gold: s.gold.contains(id), cfg)
+                              gold: s.gold.contains(id), moves: s.moves, cfg)
         }
     }
 
     /// Ставка одной станции для таблички «+14/ч» (с прибавкой от уровня; помощник — только своей станции;
-    /// золотая табличка — +goldPct % этой станции, проценты складываются).
+    /// золотая табличка — +goldPct % этой станции, проценты складываются). Слава двора — множитель поверх всего.
     static func stationRate(_ id: String, level: Int, dogLevel: Int, helper: YardHelper? = nil, gold: Bool = false,
-                            _ cfg: YardConfig = .shared) -> Double {
+                            moves: Int = 0, _ cfg: YardConfig = .shared) -> Double {
         let near = helper?.station == id ? max(0, helper?.pct ?? 0) : 0
         let shine = gold ? cfg.goldPct : 0
         return Double(cfg.station(id)?.rate(level) ?? 0)
             * (1 + Double(cfg.boostPct(dogLevel: dogLevel) + near + shine) / 100)
+            * glory(moves: moves, cfg)
     }
 
     /// Ставка поставленной станции по состоянию (с её золотом). 0 — станции нет.
     static func stationRate(_ id: String, in s: YardState, dogLevel: Int, helper: YardHelper? = nil,
                             _ cfg: YardConfig = .shared) -> Double {
         guard let lv = s.stations[id] else { return 0 }
-        return stationRate(id, level: lv, dogLevel: dogLevel, helper: helper, gold: s.gold.contains(id), cfg)
+        return stationRate(id, level: lv, dogLevel: dogLevel, helper: helper, gold: s.gold.contains(id),
+                           moves: s.moves, cfg)
     }
 
     /// У какой станции встанет пёс: самая доходная по базовой ставке, при равенстве — раньше в конфиге.
@@ -602,16 +629,64 @@ enum Yard {
         return Int((Double(need) / full).rounded(.up))
     }
 
-    /// Окупаемость улучшения в днях: цена / прибавка ставки / 24. nil — максимум или станции нет.
-    static func paybackDays(_ id: String, level: Int, _ cfg: YardConfig = .shared) -> Double? {
+    /// Окупаемость улучшения в днях: цена / прибавка ставки (со славой двора) / 24. nil — максимум или станции нет.
+    static func paybackDays(_ id: String, level: Int, moves: Int = 0, _ cfg: YardConfig = .shared) -> Double? {
         guard let st = cfg.station(id), let price = st.price(toLevel: level + 1) else { return nil }
-        let gain = st.rate(level + 1) - st.rate(level)
-        return gain > 0 ? Double(price) / Double(gain) / 24 : nil
+        let gain = Double(st.rate(level + 1) - st.rate(level)) * glory(moves: moves, cfg)
+        return gain > 0 ? Double(price) / gain / 24 : nil
     }
 
     /// Все станции на максимуме: стоимость (постройка + улучшения) и ставка.
     static func totalStationCost(_ cfg: YardConfig = .shared) -> Int { cfg.stations.reduce(0) { $0 + $1.prices.reduce(0, +) } }
     static func maxRate(_ cfg: YardConfig = .shared) -> Int { cfg.stations.reduce(0) { $0 + ($1.rates.last ?? 0) } }
+
+    // MARK: переезд (волна 36 P, §7)
+
+    /// Слава двора: множитель дохода станций. 0 переездов — 1, дальше gloryX по порядку, после последнего — последний.
+    static func glory(moves: Int, _ cfg: YardConfig = .shared) -> Double {
+        guard moves > 0, let last = cfg.gloryX.last else { return 1 }
+        return moves <= cfg.gloryX.count ? cfg.gloryX[moves - 1] : last
+    }
+
+    /// Звёзды славы на вывеске: по числу переездов, не больше числа ступеней славы (3).
+    static func gloryStars(moves: Int, _ cfg: YardConfig = .shared) -> Int { min(max(0, moves), cfg.gloryX.count) }
+
+    /// Район двора: 0 улица (до первого переезда), 1 зима, 2 река, 3 крыша, дальше по кругу 1…3.
+    static func district(moves: Int) -> Int { moves <= 0 ? 0 : (moves - 1) % 3 + 1 }
+
+    /// Сколько осталось до полного двора: некупленные плиты-декор + недостающие уровни станций. 0 — двор полный.
+    /// Полный = «двор достроен» из таблицы темпа (§3, день 120): все плиты и все станции на максимуме.
+    static func moveLeft(_ s: YardState, _ cfg: YardConfig = .shared) -> Int {
+        let decor = cfg.plates.filter { !$0.isStation && !s.plates.contains($0.id) }.count
+        let levels = cfg.stations.reduce(0) { $0 + max(0, $1.maxLevel - (s.stations[$1.id] ?? 0)) }
+        return decor + levels
+    }
+
+    /// Двор полный (все плиты, все станции на максимуме).
+    static func isFull(_ s: YardState, _ cfg: YardConfig = .shared) -> Bool { moveLeft(s, cfg) == 0 }
+
+    /// Можно переезжать: пёс ур. ≥ moveMinDogLevel и двор полный.
+    static func canMove(_ s: YardState, dogLevel: Int, _ cfg: YardConfig = .shared) -> Bool {
+        dogLevel >= cfg.moveMinDogLevel && isFull(s, cfg)
+    }
+
+    /// Переезд: плиты, станции, копилка, еда и кладовка — заново; монеты сверх keepCoins срезаются; moves += 1.
+    /// Остаются золотые таблички (куплены за ✂️ — снова светят, когда станцию поставят), чаевые и статистика сборов.
+    /// Проверку canMove делает обёртка над сейвом. Возвращает, сколько монет срезано.
+    @discardableResult
+    static func move(_ s: inout YardState, coins: inout Int, now: Double, _ cfg: YardConfig = .shared) -> Int {
+        _ = now   // копилка обнуляется целиком: начислять перед сбросом нечего
+        let cut = max(0, coins - cfg.moveKeepCoins)
+        coins -= cut
+        s.plates = []
+        s.stations = [:]
+        s.bank = 0
+        s.t = 0
+        s.food = [:]
+        s.larder = 0
+        s.moves += 1
+        return cut
+    }
 
     // MARK: SaveFile
 
@@ -674,6 +749,20 @@ enum Yard {
             f.log("yard.gold", t: now, key: id, value: price)
         }
         return r
+    }
+
+    /// Переезд по сейву: гейт canMove, сброс двора, срез кошелька. Дом, пёс, ✂️ и альбом не трогаются.
+    /// Журнал yard.move (key — срезано монет, value — номер переезда); опыта пса за него нет.
+    @discardableResult
+    static func move(in f: inout SaveFile, now: Double, dogLevel: Int, _ cfg: YardConfig = .shared) -> YardMoveResult {
+        guard dogLevel >= cfg.moveMinDogLevel else { return .level(need: cfg.moveMinDogLevel) }
+        let left = moveLeft(f.yard, cfg)
+        guard left == 0 else { return .notFull(left: left) }
+        var coins = f.econ.wallet.coins
+        let cut = move(&f.yard, coins: &coins, now: now, cfg)
+        f.econ.wallet.coins = coins
+        f.log("yard.move", t: now, key: "\(cut)", value: f.yard.moves)
+        return .ok(moves: f.yard.moves, cut: cut)
     }
 
     /// Собрать копилку в кошелёк; порции — в запас кухни до её вместимости, лишнее ждёт в larder.

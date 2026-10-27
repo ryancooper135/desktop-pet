@@ -8,6 +8,10 @@
 //   ui-35-yard-dog      Шиба у каши смотрит на пар (PET_YARD_DOG=porridge)
 //   ui-35-yard-plate    объёмные таблички «+N/ч» над станциями, у косточек золотая
 //   ui-35-yard-gold     сушилке купили золотую табличку за 60 ✂️
+// Волна 36 P (в значении сцены ещё «moves=N»; сид yard_full — пёс ур. 30, двор полный, 5000 🪙):
+//   ui-36-yard-move          внизу тихая карточка «Переезд двора»
+//   ui-36-yard-move-confirm  подтверждение: что останется, что заново, слава ×1,5
+//   ui-36-yard-moved         переехали: двор пустой, в шапке ★ славы
 
 import XCTest
 
@@ -145,6 +149,58 @@ final class YardScreenUITests: XCTestCase {
         _ = wait(scene, valueHas: "dog3d=on", timeout: 30)
         settle(3)
         snap("ui-35-yard-gold")
+        app.terminate()
+    }
+
+    /// Переезд: карточка внизу, подтверждение («Остаться» закрывает, «Переехать» — двор заново), звёзды славы.
+    @MainActor
+    func testMoveYard() throws {
+        // Полный двор — восемь станций в 3D и длинный список: на CI листать долго.
+        executionTimeAllowance = 300
+        let app = launch("yard_full")
+        let any = app.descendants(matching: .any)
+        let screen = any["yard.screen"]
+        let scene = any["yard.screen.scene"]
+        XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
+        XCTAssertTrue(wait(scene, valueHas: "moves=0", timeout: 10),
+                      "сид yard_full: переездов не было (\(String(describing: scene.value)))")
+        XCTAssertFalse(any["yard.screen.glory"].exists, "до переезда звёзд славы нет")
+
+        let move = any["yard.screen.move"]
+        XCTAssertTrue(move.waitForExistence(timeout: 10), "нет карточки «Переезд двора»")
+        // Карточка в самом низу, под восемью станциями: одного захода reveal (8 рывков) может не хватить.
+        for _ in 0..<3 { reveal(move, in: screen, app: app) }
+        settle(1.5)
+        snap("ui-36-yard-move")
+
+        let confirm = any["yard.screen.move.confirm"]
+        let cancel = any["yard.screen.move.cancel"]
+        XCTAssertTrue(tap(move, expecting: confirm, timeout: 8, name: "ui-36-yard-move-miss"), "подтверждение не открылось")
+        XCTAssertTrue(cancel.exists, "нет кнопки «Остаться»")
+        settle(1)
+        snap("ui-36-yard-move-confirm")
+
+        // «Остаться» — ничего не меняется.
+        XCTAssertTrue(tapWhenReady(cancel), "«Остаться» не нажимается")
+        XCTAssertTrue(confirm.waitForNonExistence(timeout: 8), "подтверждение не закрылось")
+        XCTAssertTrue(wait(scene, valueHas: "moves=0"), "«Остаться» переселило двор (\(String(describing: scene.value)))")
+
+        // Теперь всерьёз.
+        XCTAssertTrue(tap(move, expecting: confirm, timeout: 8, name: "ui-36-yard-move-miss2"),
+                      "подтверждение не открылось второй раз")
+        XCTAssertTrue(tapWhenReady(confirm), "«Переехать» не нажимается")
+        XCTAssertTrue(wait(scene, valueHas: "moves=1", timeout: 20), "переезд не случился (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "plates=0"), "после переезда плиты остались (\(String(describing: scene.value)))")
+        XCTAssertTrue(move.waitForNonExistence(timeout: 8), "карточка переезда не ушла с пустого двора")
+
+        toTop(screen, app: app)
+        reveal(any["yard.screen.close"], in: screen, app: app)
+        let glory = any["yard.screen.glory"]
+        XCTAssertTrue(glory.waitForExistence(timeout: 10), "в шапке нет звёзд славы")
+        XCTAssertTrue(glory.label.contains("Слава"), "VoiceOver не читает славу: \(glory.label)")
+        reveal(scene, in: screen, app: app)
+        settle(2)
+        snap("ui-36-yard-moved")
         app.terminate()
     }
 
