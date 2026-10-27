@@ -225,7 +225,8 @@ struct YardMoveView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(to.skyColor(night: false).ignoresSafeArea())
         .task {
-            try? await Task.sleep(for: .milliseconds(450))
+            // Экран въезжает снизу ~0,5 с; на медленном симуляторе дольше — ждём с запасом.
+            try? await Task.sleep(for: .milliseconds(900))
             onScreen = true
         }
     }

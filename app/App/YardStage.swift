@@ -190,7 +190,8 @@ struct YardArtDemoScreen: View {
                     YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress, district: district)
                 }
                 Group {
-                    if onScreen {
+                    // Под экраном переезда двор не рисуем: на CI два RealityView сразу — 2 кадра/с, фургон не появлялся.
+                    if onScreen && !moving {
                         RealityView { content in
                             content.camera = .virtual
                             YardArtSystem.registerOnce()

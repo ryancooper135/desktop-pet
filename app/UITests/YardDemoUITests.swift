@@ -92,8 +92,9 @@ final class YardDemoUITests: XCTestCase {
             settle(1.8)
             snap("ui-36-district-\(d)")
         }
+        // Ярус 4 с декором на симуляторе CI — 2–3 кадра/с, снимок дерева элементов медленный: ждём с запасом.
         let label = el(app, "yard.districtTris")
-        if label.waitForExistence(timeout: 3) {
+        if label.waitForExistence(timeout: 15) {
             let nums = label.label.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
             XCTAssertEqual(nums.count, 2, "подпись декора: \(label.label)")
             if let worst = nums.last { XCTAssertLessThanOrEqual(worst, 800, "декор района тяжелее бюджета") }
@@ -103,11 +104,11 @@ final class YardDemoUITests: XCTestCase {
         // Переезд с улицы в зимний квартал: фургон, подпись, Шиба в кабине.
         tapWhenReady(el(app, "yard.district.street"))
         let caption = el(app, "yard.move.caption")
-        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 8, name: "ui-36-move-open"),
+        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 15, name: "ui-36-move-open"),
                       "сцена переезда не открылась")
         XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
-        XCTAssertTrue(el(app, "yard.move.scene").exists, "нет сцены фургона")
-        settle(3)
+        XCTAssertTrue(el(app, "yard.move.scene").waitForExistence(timeout: 10), "нет сцены фургона")
+        settle(4)
         snap("ui-36-move-van")
         tapWhenReady(el(app, "yard.move.close"))
         app.terminate()
