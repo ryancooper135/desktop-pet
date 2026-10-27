@@ -70,7 +70,9 @@ jobs:
           long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests",
                      # волна 31: аудит доступности — по тестам, игры остаются в шарде 2
                      "AccessibilityUITests/testAccessibilityAudit1Main", "AccessibilityUITests/testAccessibilityAudit2Sheets",
-                     "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText"]
+                     "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText",
+                     # волна 36 Q: шард 2 упёрся в 45 мин (40–43 мин без него), районы и переезд — в шард 1
+                     "YardDemoUITests/testYard3Districts"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
