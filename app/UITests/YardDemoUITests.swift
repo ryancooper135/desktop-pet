@@ -70,6 +70,7 @@ final class YardDemoUITests: XCTestCase {
 
     private static let budget = 400
 
+    @MainActor
     private func shootStations(_ app: XCUIApplication, _ range: ClosedRange<Int>) {
         for s in range {
             tapWhenReady(el(app, "yard.st.\(s)"))
