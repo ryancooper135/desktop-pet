@@ -196,16 +196,26 @@ struct YardMoveView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Color(hex: 0x3a3330))
                 .accessibilityIdentifier("yard.move.caption")
-            // Сцена рождается после въезда экрана снизу: RealityView, созданный за краем, на CI оставался пустым.
+            // Сцена рождается после въезда экрана: RealityView, созданный за краем, на CI оставался пустым.
             // Пёс садится отдельной задачей — фургон виден сразу, не ждёт загрузки модели.
             Group {
                 if onScreen {
+                    // Как превью и экран двора: мир в держателе, update тоже ставит его (на CI вид без update не рисовал).
+                    let key = "\(from)#\(to)#\(calm)"
+                    let build: @MainActor @Sendable () -> Entity = {
+                        let world = YardMoveStage.scene(from: from, to: to, calm: calm)
+                        Task { @MainActor in await YardMoveStage.seat(in: world) }
+                        return world
+                    }
                     RealityView { content in
                         content.camera = .virtual
                         YardArtSystem.registerOnce()
-                        let world = YardMoveStage.scene(from: from, to: to, calm: calm)
-                        content.add(world)
-                        Task { @MainActor in await YardMoveStage.seat(in: world) }
+                        let holder = Entity()
+                        YardLive.swap(in: holder, key: key, build: build)
+                        content.add(holder)
+                    } update: { content in
+                        guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
+                        YardLive.swap(in: holder, key: key, build: build)
                     }
                 } else {
                     Color.clear
@@ -225,7 +235,7 @@ struct YardMoveView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(to.skyColor(night: false).ignoresSafeArea())
         .task {
-            // Экран въезжает снизу ~0,5 с; на медленном симуляторе дольше — ждём с запасом.
+            // Экран въезжает ~0,5 с; на медленном симуляторе дольше — ждём с запасом.
             try? await Task.sleep(for: .milliseconds(900))
             onScreen = true
         }

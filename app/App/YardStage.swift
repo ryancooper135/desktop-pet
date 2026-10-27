@@ -223,8 +223,11 @@ struct YardArtDemoScreen: View {
             try? await Task.sleep(for: .milliseconds(450))
             onScreen = true
         }
-        .fullScreenCover(isPresented: $moving) {
+        // Переезд — переходом, как само превью: на CI RealityView под fullScreenCover так и не нарисовал ни кадра
+        // (три прогона), а в экране, въехавшем переходом, с задержкой рисует.
+        .navigationDestination(isPresented: $moving) {
             YardMoveView(from: district, to: district.next)
+                .toolbar(.hidden, for: .navigationBar)
                 .overlay(alignment: .topTrailing) {
                     Button("Закрыть") { moving = false }
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
