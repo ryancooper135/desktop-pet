@@ -71,6 +71,8 @@ struct PetStage: View {
         let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
                                          zombie: model?.showZombie ?? false, away: model?.away != nil)
         let off = self.stageOff
+        // Сезонный акцент у окна (волна 40 F): бесплатный, по дате; под тестами — осень.
+        let season = Seasons.now()
         return RealityView { content in
             content.camera = .virtual
             PetModel.registerOnce()
@@ -98,6 +100,7 @@ struct PetStage: View {
             RoomDecor.apply(home, to: room)
             RoomDecor.applyShelf(shelf, to: room)
             RoomDecor.applyToy(toy, to: room)
+            RoomDecor.applySeason(season, window: home.window, to: room)
             // Свет — внутри комнаты: RoomLighting красит его вместе с ней, сразу нужной фазы (без мигания).
             room.addChild(PetRoom.lights())
             // Погода за окном (волна 39 D): окна во двор нет — дождь в простом окошке; Reduce Motion — капли стоят.
@@ -142,9 +145,10 @@ struct PetStage: View {
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
-                // Не через ||: все три должны отработать.
+                // Не через ||: все четыре должны отработать.
                 let built = [RoomDecor.apply(home, to: room), RoomDecor.applyShelf(shelf, to: room),
-                             RoomDecor.applyToy(toy, to: room)]
+                             RoomDecor.applyToy(toy, to: room),
+                             RoomDecor.applySeason(season, window: home.window, to: room)]
                 let rebuilt = built.contains(true)
                 RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt, plainWindow: !home.window,
                                     still: reduceMotion)
