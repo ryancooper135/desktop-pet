@@ -195,6 +195,8 @@ enum YardMoveStage {
         world.addChild(YardArtStage.entity(YardArt.moveScene(from: from, to: to, calm: calm, night: night)))
         world.addChild(YardArtStage.camera(target: SIMD3(-0.15, 0.42, 0), eye: SIMD3(-1.9, 1.25, 2.9), fov: 42))
         world.addChild(PetRoom.lights())
+        // Ночью — лунный свет, тинт, фонарь у дороги и лампочка в кузове (волна 38 B). Пёс садится позже — без тинта.
+        YardLight.apply(night: night, lamps: YardLight.moveLamps(night: night), to: world)
         return world
     }
 

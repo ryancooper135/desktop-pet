@@ -141,6 +141,8 @@ enum YardDogLive {
             PetRoom.noShadow(bit)
             dirt.addChild(bit)
         }
+        // Комочки земли — часть двора, а не пса: ночью темнеют вместе с ним (волна 38 B).
+        if c.night { RoomLighting.apply(YardLight.night, to: dirt) }
         dirt.isEnabled = false
         dog.addChild(dirt)
         dog.isEnabled = false
