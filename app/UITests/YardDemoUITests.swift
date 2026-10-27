@@ -23,22 +23,23 @@ final class YardDemoUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    /// Восемь станций, три вида по уровню, мельница ночью, бюджет треугольников и fps.
+    /// Станции 1–4 и бюджет треугольников худшей. 27.10: весь круг станций с видами и мельницей с ночным светом
+    /// волны 38 B упирался в 3 мин на тест (1–2 кадра/с на CI) — разбит на три теста.
     @MainActor
     func testYard1Stations() throws {
         let app = try openDemo()
-        let budget = 400
         let worst = number(app, "yard.maxTris")
         XCTAssertNotNil(worst, "нет подписи худшей станции")
-        if let worst { XCTAssertLessThanOrEqual(worst, budget, "худшая станция тяжелее бюджета §2") }
-        for s in 1...8 {
-            tapWhenReady(el(app, "yard.st.\(s)"))
-            settle(1.6)
-            snap("ui-98-yard-st-\(s)")
-            let tris = number(app, "yard.tris")
-            XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
-            if let tris { XCTAssertLessThanOrEqual(tris, budget, "станция \(s): \(tris) треугольников") }
-        }
+        if let worst { XCTAssertLessThanOrEqual(worst, Self.budget, "худшая станция тяжелее бюджета §2") }
+        shootStations(app, 1...4)
+        app.terminate()
+    }
+
+    /// Станции 5–8 и fps.
+    @MainActor
+    func testYard1bStations() throws {
+        let app = try openDemo()
+        shootStations(app, 5...8)
         // Секунда-другая на счётчик кадров (окно — 1 с), потом показание.
         settle(1.5)
         let fps = number(app, "yard.fps") ?? 0
@@ -47,7 +48,13 @@ final class YardDemoUITests: XCTestCase {
         note.lifetime = .keepAlways
         add(note)
         XCTAssertGreaterThan(fps, 0, "превью двора не рисует кадры")
+        app.terminate()
+    }
 
+    /// Котелок на трёх уровнях и мельница ночью.
+    @MainActor
+    func testYard1cLooks() throws {
+        let app = try openDemo()
         tapWhenReady(el(app, "yard.st.3"))
         for l in [1, 3, 5] {
             tapWhenReady(el(app, "yard.lv.\(l)"))
@@ -59,6 +66,19 @@ final class YardDemoUITests: XCTestCase {
         settle(1.6)
         snap("ui-98-yard-mill-night")
         app.terminate()
+    }
+
+    private static let budget = 400
+
+    private func shootStations(_ app: XCUIApplication, _ range: ClosedRange<Int>) {
+        for s in range {
+            tapWhenReady(el(app, "yard.st.\(s)"))
+            settle(1.6)
+            snap("ui-98-yard-st-\(s)")
+            let tris = number(app, "yard.tris")
+            XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
+            if let tris { XCTAssertLessThanOrEqual(tris, Self.budget, "станция \(s): \(tris) треугольников") }
+        }
     }
 
     /// Пять ярусов накопительно и стройка дворика по плитам.
