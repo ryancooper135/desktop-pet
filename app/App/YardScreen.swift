@@ -71,6 +71,7 @@ struct YardScreen: View {
                     .overlay(alignment: .topTrailing) {
                         Button("Готово") { closeTrip() }
                             .font(.system(.body, design: .rounded).weight(.semibold))
+                            .foregroundStyle(PetPalette.accent)
                             .padding(16)
                             .accessibilityIdentifier("yard.move.close")
                     }
