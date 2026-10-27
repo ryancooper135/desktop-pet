@@ -98,7 +98,7 @@ enum YardLight {
     }
 
     /// Свет двора: ночь или день, приглушённые погодой. Лампы комнаты и луны в окне во дворе нет.
-    nonisolated static func light(night: Bool, gloom: Double) -> RoomLight {
+    static func light(night: Bool, gloom: Double) -> RoomLight {
         var l = (night ? Self.night : RoomLight.day).weathered(gloom)
         l.lamp = 0
         l.moon = 0
