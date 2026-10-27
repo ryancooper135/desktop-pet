@@ -125,6 +125,8 @@ enum YardLive {
         }
         world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         world.addChild(PetRoom.lights())
+        // Ночью — лунный свет, тинт и тёплые огни (волна 38 B); пёс садится позже и тинта не получает.
+        YardLight.apply(night: night, lamps: YardLight.lamps(district, top: top, bought: plates, night: night), to: world)
         let rest = YardDogLive.rest(tier: tier)
         world.components.set(YardLiveComponent(mode: live.mode, spots: YardDogLive.spots(all), rest: rest.at,
                                                dogScale: rest.scale, night: night, brushed: brushed, calm: live.calm,
@@ -216,6 +218,10 @@ enum YardPlate3D {
                                 materials: [UnlitMaterial(color: PetRoom.color(gold ? YardArtColors.coin : cream))])
         PetRoom.noShadow(board)
         PetRoom.noShadow(glyphs)
+        // Ночью табличка не темнеет вместе с двором (YardLight → RoomLighting: RoomGlow без тинта).
+        RoomLighting.registerOnce()
+        board.components.set(RoomGlow())
+        glyphs.components.set(RoomGlow())
         root.addChild(board)
         root.addChild(glyphs)
         return root

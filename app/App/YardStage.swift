@@ -75,7 +75,9 @@ enum YardArtShot: Hashable, Sendable {
 enum YardArtStage {
     /// Модель → дерево сущностей: узел — Entity (движение двигает его), цвет — ModelEntity со своим мешем.
     /// Светящееся — UnlitMaterial без тени, остальное — матовый материал комнаты (PetRoom.matteMaterial).
+    /// Светящееся помечено RoomGlow: ночной тинт двора (YardLight, волна 38 B) его не трогает.
     static func entity(_ model: YardArtModel) -> Entity {
+        RoomLighting.registerOnce()
         let root = Entity()
         root.name = model.name
         for node in model.nodes where !node.meshes.isEmpty {
@@ -95,6 +97,7 @@ enum YardArtStage {
                 if paint.glow {
                     e = ModelEntity(mesh: res, materials: [UnlitMaterial(color: PetRoom.color(paint.hex))])
                     PetRoom.noShadow(e)
+                    e.components.set(RoomGlow())
                 } else {
                     e = ModelEntity(mesh: res, materials: [PetRoom.matteMaterial(paint.hex)])
                 }
@@ -111,6 +114,8 @@ enum YardArtStage {
                       district: YardDistrict = .street) -> Entity {
         let world = Entity()
         world.name = "yardArt"
+        // Купленные плиты по слоям — для ночных огней (у .station их нет: фонаря двора в кадре нет).
+        var lit: [Int] = []
         // Корень тоже «живёт» (нулевой пульс): часы и счётчик кадров идут, даже если на подложке ни одной станции.
         world.components.set(YardArtMotionComponent(motion: .pulse(amount: 0, period: 1, phase: 0), base: .zero))
         switch shot {
@@ -126,6 +131,7 @@ enum YardArtStage {
         case .tier(let shown):
             // Ярус 0 — подоконник, а за ним пустырь: слой 1 без купленных плит.
             let plates = (0..<YardArtTier.plates.count).map { YardArtTier.bought($0, shown: shown, progress: progress) }
+            lit = plates
             if !district.decor.isEmpty {
                 world.addChild(entity(YardArtTier.decor(district, top: max(shown, 1), bought: plates, night: night)))
             }
@@ -151,6 +157,14 @@ enum YardArtStage {
             world.addChild(camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         }
         world.addChild(PetRoom.lights())
+        // Ночью — лунный свет, тинт и тёплые огни (волна 38 B). Станция крупно — без огней: фонаря и района рядом нет.
+        let lamps: [YardNightLamp]
+        if case .tier(let shown) = shot {
+            lamps = YardLight.lamps(district, top: max(shown, 1), bought: lit, night: night)
+        } else {
+            lamps = []
+        }
+        YardLight.apply(night: night, lamps: lamps, to: world)
         return world
     }
 
