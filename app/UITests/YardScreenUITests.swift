@@ -77,7 +77,7 @@ final class YardScreenUITests: XCTestCase {
 
         // Сначала копилка — она наверху, под сценой.
         let collect = any["yard.screen.collect"]
-        XCTAssertTrue(tap(collect, expecting: any["toast"], timeout: 5, name: "ui-34-yard-collect-miss"), "сбор без тоста")
+        XCTAssertTrue(tap(collect, expecting: any["toast"], timeout: 8, name: "ui-34-yard-collect-miss"), "сбор без тоста")
         settle(0.6)
         snap("ui-34-yard-collect")
 
@@ -85,7 +85,7 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(up.waitForExistence(timeout: 5), "нет кнопки «Улучшить» у сушилки")
         reveal(up, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(up), "«Улучшить» не нажимается")
-        XCTAssertTrue(wait(scene, valueHas: "dryer=4"), "сушилка не выросла (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "dryer=4", timeout: 10), "сушилка не выросла (\(String(describing: scene.value)))")
         settle(1)
         snap("ui-34-yard-station")
 
@@ -146,7 +146,8 @@ final class YardScreenUITests: XCTestCase {
 
     /// Прокрутить экран двора, пока рамка e целиком не окажется в окне. Не swipeUp/swipeDown: их середина экрана
     /// попадает в 3D-сцену, и на CI свайп то листал, то нет; и не isHittable: у кнопки за краем экрана в ScrollView
-    /// он бывает true. Тянем пальцем ниже сцены (или выше — вниз) по рамкам, до 8 рывков.
+    /// он бывает true. Тянем пальцем ниже сцены (или выше — вниз) по рамкам, до 8 рывков. Сцена, ушедшая за край,
+    /// снимается с экрана (YardScreen.sceneOnScreen) — дальше листается легко.
     @MainActor
     private func reveal(_ e: XCUIElement, in screen: XCUIElement, app: XCUIApplication) {
         guard e.waitForExistence(timeout: 5) else { return }
@@ -163,7 +164,9 @@ final class YardScreenUITests: XCTestCase {
             } else {
                 high.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.1)
             }
-            settle(0.5)
+            settle(0.8)
+            // На медленном CI-симуляторе рывок иногда не доходит: рамка не сдвинулась — даём приложению отдышаться.
+            if abs(e.frame.minY - f.minY) < 1 { settle(2) }
         }
     }
 

@@ -24,6 +24,9 @@ struct YardScreen: View {
     @State private var tierShake = 0
     @State private var shakes: [String: Int] = [:]
     @State private var popTask: Task<Void, Never>?
+    /// Сцена в окне прокрутки. Ушла за край — RealityView убираем: 3D не рисует впустую (батарея), а на CI
+    /// главный поток не стоит в ожидании кадра и UI-тест успевает листать. Вернулась — мир собирается заново, уже на виду.
+    @State private var sceneOnScreen = true
 
     var body: some View {
         ScrollView {
@@ -146,16 +149,22 @@ struct YardScreen: View {
             }
             return scene
         }
-        RealityView { content in
-            content.camera = .virtual
-            YardArtSystem.registerOnce()
-            YardLiveSystem.registerOnce()
-            let holder = Entity()
-            YardLive.swap(in: holder, key: key, build: build)
-            content.add(holder)
-        } update: { content in
-            guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
-            YardLive.swap(in: holder, key: key, build: build)
+        Group {
+            if sceneOnScreen {
+                RealityView { content in
+                    content.camera = .virtual
+                    YardArtSystem.registerOnce()
+                    YardLiveSystem.registerOnce()
+                    let holder = Entity()
+                    YardLive.swap(in: holder, key: key, build: build)
+                    content.add(holder)
+                } update: { content in
+                    guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
+                    YardLive.swap(in: holder, key: key, build: build)
+                }
+            } else {
+                Color.clear
+            }
         }
         .frame(height: 300)
         .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
@@ -169,6 +178,7 @@ struct YardScreen: View {
             .accessibilityHidden(true)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .onScrollVisibilityChange(threshold: 0.02) { sceneOnScreen = $0 }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(sceneLabel(tier: tier, rates: rates, dog: dogPose, mode: mode)))
         // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции.
