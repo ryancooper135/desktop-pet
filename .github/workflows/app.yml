@@ -70,7 +70,10 @@ jobs:
           long_ui = ["AnimationUITests", "FirstMinutesUITests", "GuideUITests",
                      # волна 31: аудит доступности — по тестам, игры остаются в шарде 2
                      "AccessibilityUITests/testAccessibilityAudit1Main", "AccessibilityUITests/testAccessibilityAudit2Sheets",
-                     "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText"]
+                     "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText",
+                     # волна 36 Q: превью двора теперь рисует 3D (раньше было пустым) — 1–2 кадра/с на CI, весь класс
+                     # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
+                     "YardDemoUITests"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
