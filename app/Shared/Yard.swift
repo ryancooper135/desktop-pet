@@ -351,7 +351,6 @@ enum YardGoldResult: Hashable, Sendable {
     case unknown
 }
 
-/// Переезд двора: чем кончился.
 /// Почему переезд ещё закрыт (волна 37 A): для тусклой карточки «Переезд двора».
 struct YardMoveWait: Hashable, Sendable {
     /// Сколько покупок до полного двора (как Yard.moveLeft): плиты-декор + уровни станций.
@@ -364,6 +363,7 @@ struct YardMoveWait: Hashable, Sendable {
     let needLevel: Int
 }
 
+/// Переезд двора: чем кончился.
 enum YardMoveResult: Hashable, Sendable {
     /// Переехали: сколько теперь переездов и сколько монет срезано сверх keepCoins.
     case ok(moves: Int, cut: Int)
