@@ -27,7 +27,8 @@ import Foundation
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
 /// yard_empty|yard_plates|yard_rich|yard_full — экран «Двор» (волна 34 G, seedYard; yard_full — переезд, волна 36 P).
 /// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
-/// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
+/// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*); level_achieve — он же, достижения за уровень и рост
+/// оплачены при старте, 4 челленджа из 10 (волна 39 C, ui-39-achieve).
 /// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
 /// challenge — бодрый пёс 12 уровня (челлендж дня открыт), рекорд «Блок Дуо» 1800 → цель 2 000; день, когда
 /// челлендж в «Блок Дуо», UI-тест выбирает сам через PET_NOW (волна 35 K, ui-35-challenge-*).
@@ -291,7 +292,7 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "yard_empty", "yard_plates", "yard_rich", "yard_full":
                 seedYard(&f, seed: seed ?? "", now: now)
-            case "level_up", "level_puppy", "level_adult":
+            case "level_up", "level_puppy", "level_adult", "level_achieve":
                 // Волна 34 I (LevelUITests, ui-34-level-*): level_up — опыта уже на ур. 3, оплачен ур. 2: первый же
                 // settle при старте платит уровень, и через пару секунд идёт сцена «★3». level_puppy — щенок
                 // (рост 0) на ур. 4; level_adult — взрослый на ур. 12. Сцены и рост в UI-тестах — только с этими сидами.
@@ -313,6 +314,11 @@ enum LaunchSeed {
                     f.growth.points = grow.adult + 5
                 }
                 f.level.lastUp = nil
+                if seed == "level_achieve" {
+                    // Волна 39 C: ур. 5 и 10, подросток и взрослый — получены сейчас (дата и тост), челленджей 4 из 10.
+                    f.challenge.count = 4
+                    Shards.settle(&f, now: now)
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             case "map", "map_trip":
