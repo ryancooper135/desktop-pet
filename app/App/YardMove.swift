@@ -186,6 +186,7 @@ struct YardMoveView: View {
     let from: YardDistrict
     let to: YardDistrict
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var onScreen = false
 
     var body: some View {
         let from = self.from, to = self.to, calm = reduceMotion
@@ -195,14 +196,21 @@ struct YardMoveView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Color(hex: 0x3a3330))
                 .accessibilityIdentifier("yard.move.caption")
-            RealityView { content in
-                content.camera = .virtual
-                YardArtSystem.registerOnce()
-                let world = YardMoveStage.scene(from: from, to: to, calm: calm)
-                content.add(world)
-                await YardMoveStage.seat(in: world)
+            // Сцена рождается после въезда экрана снизу: RealityView, созданный за краем, на CI оставался пустым.
+            // Пёс садится отдельной задачей — фургон виден сразу, не ждёт загрузки модели.
+            Group {
+                if onScreen {
+                    RealityView { content in
+                        content.camera = .virtual
+                        YardArtSystem.registerOnce()
+                        let world = YardMoveStage.scene(from: from, to: to, calm: calm)
+                        content.add(world)
+                        Task { @MainActor in await YardMoveStage.seat(in: world) }
+                    }
+                } else {
+                    Color.clear
+                }
             }
-            .id("\(from)#\(to)#\(calm)")
             .frame(maxWidth: .infinity)
             .frame(height: 380)
             .accessibilityElement()
@@ -216,5 +224,9 @@ struct YardMoveView: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(to.skyColor(night: false).ignoresSafeArea())
+        .task {
+            try? await Task.sleep(for: .milliseconds(450))
+            onScreen = true
+        }
     }
 }

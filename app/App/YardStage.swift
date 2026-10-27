@@ -172,6 +172,8 @@ struct YardArtDemoScreen: View {
     @State private var progress = 0
     @State private var district: YardDistrict = YardDistrict.forced ?? .street
     @State private var moving = false
+    /// Экран въехал (навигация закончила анимацию) — только тогда создаём RealityView.
+    @State private var onScreen = false
 
     private var fill: Float { Float(fillStep) / 2 }
 
@@ -181,13 +183,28 @@ struct YardArtDemoScreen: View {
         let worst = Self.worst
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                RealityView { content in
-                    content.camera = .virtual
-                    YardArtSystem.registerOnce()
-                    content.add(YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress,
-                                                   district: district))
+                // Как на экране двора (волна 35 N): один RealityView, мир меняется в держателе по ключу, без .id.
+                // И рождается он уже на виду — после въезда экрана: вид, созданный за краем, на CI оставался пустым.
+                let key = "\(shot)#\(level)#\(fill)#\(night)#\(progress)#\(district)"
+                let build: @MainActor @Sendable () -> Entity = {
+                    YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress, district: district)
                 }
-                .id("\(shot)#\(level)#\(fill)#\(night)#\(progress)#\(district)")
+                Group {
+                    if onScreen {
+                        RealityView { content in
+                            content.camera = .virtual
+                            YardArtSystem.registerOnce()
+                            let holder = Entity()
+                            YardLive.swap(in: holder, key: key, build: build)
+                            content.add(holder)
+                        } update: { content in
+                            guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
+                            YardLive.swap(in: holder, key: key, build: build)
+                        }
+                    } else {
+                        Color.clear
+                    }
+                }
                 .frame(height: 330)
                 .background(district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
                             : district.skyColor(night: night))
@@ -201,6 +218,10 @@ struct YardArtDemoScreen: View {
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .navigationTitle("Двор 3D")
+        .task {
+            try? await Task.sleep(for: .milliseconds(450))
+            onScreen = true
+        }
         .fullScreenCover(isPresented: $moving) {
             YardMoveView(from: district, to: district.next)
                 .overlay(alignment: .topTrailing) {
