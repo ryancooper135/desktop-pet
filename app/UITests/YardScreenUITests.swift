@@ -90,9 +90,10 @@ final class YardScreenUITests: XCTestCase {
         snap("ui-34-yard-station")
 
         let close = any["yard.screen.close"]
+        toTop(screen, app: app)
         reveal(close, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(close), "нет крестика")
-        XCTAssertTrue(screen.waitForNonExistence(timeout: 5), "двор не закрылся")
+        XCTAssertTrue(screen.waitForNonExistence(timeout: 10), "двор не закрылся")
         XCTAssertTrue(any["open.yard"].waitForExistence(timeout: 10), "на главной нет кнопки «Двор»")
         app.terminate()
     }
@@ -135,6 +136,7 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer"), "сушилка не стала золотой (\(String(describing: scene.value)))")
         XCTAssertTrue(any["yard.screen.station.dryer.goldOwned"].waitForExistence(timeout: 5), "нет строки «Золотая табличка»")
         // Наверх до шапки: сцена видна целиком.
+        toTop(screen, app: app)
         reveal(any["yard.screen.close"], in: screen, app: app)
         reveal(scene, in: screen, app: app)
         // Золото пересобрало сцену: ждём, пока новая отрисуется (пёс в ней — значит, кадры идут).
@@ -168,6 +170,14 @@ final class YardScreenUITests: XCTestCase {
             // На медленном CI-симуляторе рывок иногда не доходит: рамка не сдвинулась — даём приложению отдышаться.
             if abs(e.frame.minY - f.minY) < 1 { settle(2) }
         }
+    }
+
+    /// Наверх одним касанием строки состояния (scrollsToTop): на медленном CI это надёжнее рывков вниз —
+    /// по пути вверх сцена снова встаёт на экран и тяжелеет, и второй-третий рывок не успевал дойти.
+    @MainActor
+    private func toTop(_ screen: XCUIElement, app: XCUIApplication) {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
+        settle(1.5)
     }
 
     /// Значение элемента содержит text (ждём до timeout секунд).
