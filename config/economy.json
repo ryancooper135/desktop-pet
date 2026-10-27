@@ -379,7 +379,17 @@
       "record": { "shards": 2, "_note": "побил свой рекорд в мини-игре (не первый раунд) — +2, не чаще раза в сутки" },
       "walk_find": { "chance_pct": 10, "min": 1, "max": 2, "_note": "в находке с прогулки иногда клочок; бросок детерминирован по номеру находки" },
       "new_find_kind": 2,
-      "achievements": { "good_days_7": 5, "good_days_30": 10, "good_days_100": 25, "first_dish": 3, "first_trick": 3 }
+      "achievements": {
+        "_note": "Волна 39 C: разовые награды, список и прогресс — app/Shared/Achievements.swift. Новые (кроме первых пяти) в сумме ≤ 150; за первую неделю даже очень активный берёт из новых не больше 20",
+        "good_days_7": 5, "good_days_30": 10, "good_days_100": 25, "first_dish": 3, "first_trick": 3,
+        "level_5": 2, "level_10": 3, "level_20": 6, "level_30": 8,
+        "grow_teen": 3, "grow_adult": 6,
+        "yard_station": 2, "yard_gold": 5, "yard_move": 5, "yard_roof": 10,
+        "trip_first": 1, "trip_set": 3, "trip_all": 8, "finds_all": 3,
+        "recipes_all": 5, "tricks_all": 6,
+        "games_all": 2, "challenge_first": 2, "challenge_10": 6,
+        "postcard_first": 1, "postcards_10": 4
+      }
     },
     "sinks": {
       "_atelier": "Ателье — вещь выбранной редкости, которой ещё нет: цены в capsule.atelier_price_shards (rare/epic/legendary)",

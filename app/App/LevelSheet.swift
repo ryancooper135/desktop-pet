@@ -2,12 +2,14 @@
 // Сверху уровень и опыт «320 / 430» с полоской, сколько набрано сегодня из потолка 150, рост пса
 // («Щенок · примерно 6 дней до подростка») и что даёт стадия. Ниже — что даст следующий уровень, лента ближайших
 // открытий и за что дают опыт. Логика и тексты — LevelInfo (Shared), тут только вид. Только чтение: ничего не пишет.
+// Волна 39 C: под шапкой — карточка «Достижения · 4 из 25», открывает AchievementsSheet поверх.
 
 import SwiftUI
 @preconcurrency import PetCore
 
 struct LevelSheet: View {
     @Environment(AppModel.self) private var model
+    @State private var showAchieve = false
 
     var body: some View {
         let now = model.snap.t
@@ -16,6 +18,7 @@ struct LevelSheet: View {
                 if let f = model.file {
                     let p = DogLevel.progress(f)
                     header(p, f, now: now)
+                    achieveCard(f)
                     growthCard(f)
                     nextCard(p)
                     sourcesCard()
@@ -27,6 +30,48 @@ struct LevelSheet: View {
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("level.sheet")
+        .sheet(isPresented: $showAchieve) {
+            AchievementsSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
+    }
+
+    // MARK: достижения (волна 39 C)
+
+    private func achieveCard(_ f: SaveFile) -> some View {
+        let got = Achievements.gotCount(f), all = Achievements.all.count
+        return Button {
+            showAchieve = true
+        } label: {
+            card {
+                HStack(spacing: 10) {
+                    Image(systemName: "trophy.fill")
+                        .foregroundStyle(PetPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Достижения")
+                            .petFont(15, .semibold)
+                            .foregroundStyle(PetPalette.ink)
+                        Text("\(got) из \(all)")
+                            .petFont(13, .medium)
+                            .monospacedDigit()
+                            .foregroundStyle(PetPalette.soft)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(PetPalette.soft)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Достижения: получено \(got) из \(all)")
+        .accessibilityHint("Открыть список достижений")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("level.achievements")
     }
 
     // MARK: уровень и опыт

@@ -68,6 +68,14 @@ struct PremiumConfig: Hashable, Sendable {
     var newFindKind = 2
     var achievements: [String: Int] = [
         "good_days_7": 5, "good_days_30": 10, "good_days_100": 25, "first_dish": 3, "first_trick": 3,
+        // Волна 39 C: новые достижения (Achievements.swift) — в сумме 91.
+        "level_5": 2, "level_10": 3, "level_20": 6, "level_30": 8,
+        "grow_teen": 3, "grow_adult": 6,
+        "yard_station": 2, "yard_gold": 5, "yard_move": 5, "yard_roof": 10,
+        "trip_first": 1, "trip_set": 3, "trip_all": 8, "finds_all": 3,
+        "recipes_all": 5, "tricks_all": 6,
+        "games_all": 2, "challenge_first": 2, "challenge_10": 6,
+        "postcard_first": 1, "postcards_10": 4,
     ]
     // стоки
     var atelier: [Rarity: Int] = [.rare: 70, .epic: 180, .legendary: 450]
@@ -287,6 +295,8 @@ struct ShardLog: Codable, Hashable, Sendable {
     var finds = -1
     /// Разовые награды: ach.<id>, find:<id>.
     var once: [String] = []
+    /// Волна 39 C: когда получено достижение (id без «ach.»). Старые сейвы — пусто: на экране «получено» без даты.
+    var achT: [String: Double] = [:]
     /// Сколько раз было «Ателье» — номер броска.
     var atelier = 0
     /// Всего заработано клочков этими источниками (без повторок) — для статистики.
@@ -308,7 +318,7 @@ struct ShardLog: Codable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case seenSeq, day, dayActs, dayPaid, week, weekDays, chestPaid, goodDays, best, recordDay, finds, once
-        case atelier, earned, last
+        case atelier, earned, last, achT
     }
 
     init(from decoder: Decoder) throws {
@@ -328,6 +338,7 @@ struct ShardLog: Codable, Hashable, Sendable {
         atelier = (try? c.decodeIfPresent(Int.self, forKey: .atelier)) ?? 0
         earned = (try? c.decodeIfPresent(Int.self, forKey: .earned)) ?? 0
         last = try? c.decodeIfPresent(ShardGain.self, forKey: .last)
+        achT = (try? c.decodeIfPresent([String: Double].self, forKey: .achT)) ?? [:]
     }
 }
 
@@ -343,6 +354,9 @@ enum ShardRefusal: Error, Hashable, Sendable {
 enum Shards {
     /// Неделя с понедельника: DayKey 0 — четверг.
     static func week(_ day: Int) -> Int { DayKey.floorDiv(day + 3, 7) }
+
+    /// Мини-игры с рекордами — ключи records.
+    static let recordGames = ["catch", "blockduo", "zombie"]
 
     /// Рекорды мини-игр: имя → поле сейва.
     static func records(_ f: SaveFile) -> [String: Int] {
@@ -416,16 +430,13 @@ enum Shards {
             pay("new_find", cfg.newFindKind, now)
         }
 
-        // 4. Достижения по разу.
-        var got: [String] = []
-        for (n, id) in [(7, "good_days_7"), (30, "good_days_30"), (100, "good_days_100")] where s.goodDays >= n {
-            got.append(id)
-        }
-        if f.cooking.total.values.contains(where: { $0 > 0 }) { got.append("first_dish") }
-        if f.tricks.items.values.contains(where: { $0.learned != nil }) { got.append("first_trick") }
-        for id in got where !s.once.contains("ach.\(id)") {
-            s.once.append("ach.\(id)")
-            pay("ach.\(id)", cfg.achievements[id] ?? 0, now)
+        // 4. Достижения по разу (волна 39 C: список и прогресс — Achievements). Дни заботы — из s: только что посчитаны.
+        var view = f
+        view.shardLog = s
+        for id in Achievements.reached(view) where !s.once.contains(Achievements.key(id)) {
+            s.once.append(Achievements.key(id))
+            s.achT[id] = now
+            pay(Achievements.key(id), cfg.achievements[id] ?? 0, now)
         }
 
         if s != f.shardLog { f.shardLog = s }
@@ -517,7 +528,7 @@ enum Shards {
         case "ach.good_days_100": return "100 дней заботы"
         case "ach.first_dish": return "первое блюдо"
         case "ach.first_trick": return "первый трюк"
-        default: return "награда"
+        default: return Achievements.reasonText(reason) ?? "награда"
         }
     }
 

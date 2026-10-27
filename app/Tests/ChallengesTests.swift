@@ -31,6 +31,8 @@ private func cFile(level lvl: Int = 11, at t: Double = cT0) -> SaveFile {
     DogLevel.settle(&f, now: t)
     f.level.xp = DogLevel.xpTo(lvl)
     f.level.paidLevel = lvl
+    // Волна 39 C: достижения (ур. 5/10, первый челлендж) уже получены — здесь считаем только ✂️ челленджа.
+    f.shardLog.once += Achievements.all.map { Achievements.key($0.id) }
     return f
 }
 

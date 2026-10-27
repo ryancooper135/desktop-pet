@@ -162,6 +162,8 @@ final class AppModel {
     @ObservationIgnored private var capNoticeDay: Int? = nil
     /// Время последней показанной награды клочками ✂️ — один тост на награду (волна 32).
     @ObservationIgnored private var shardToastT: Double? = nil
+    /// Время последнего показанного достижения — тост «Достижение: …» один раз (волна 39 C).
+    @ObservationIgnored private var achToastT: Double? = nil
     /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
     @ObservationIgnored private var pendingLine: String? = nil
 
@@ -283,6 +285,7 @@ final class AppModel {
             noteOwnerSleep(f, now: now)
             noteLevel(f, now: now)
             notePlaceNews(f, now: now)
+            noteAchievement(f, now: now)
         } catch {
             storeError = error.localizedDescription
         }
@@ -587,7 +590,20 @@ final class AppModel {
         let now = Clock.now()
         guard let f = file, let g = Shards.freshGain(f, now: now, shownT: shardToastT) else { return }
         shardToastT = g.t
+        // Достижение — свой тост «Достижение: …» с суммой (несколько разом — одной строкой).
+        if g.reason.hasPrefix("ach.") {
+            noteAchievement(f, now: now)
+            return
+        }
         show(Shards.toastText(g), emoji: "✂️")
+    }
+
+    /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh
+    /// (догон, двор, походы) и после действия. В UI-тестах — как сцены уровня: только с сидом level*.
+    private func noteAchievement(_ f: SaveFile, now: Double) {
+        guard LevelSeen.on, let fr = Achievements.fresh(f, now: now, shownT: achToastT) else { return }
+        achToastT = fr.t
+        if let text = Achievements.toast(fr.ids) { show(text, emoji: "🏆") }
     }
 
     /// Вкус еды или игрушки: любимое — сердечки и «Моё любимое!», нелюбимое — сдержанное «😑» и реплика.
