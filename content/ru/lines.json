@@ -700,6 +700,26 @@
       {"id": "w.weather_snow.03", "text": "Снежинка на окне. Моя!"},
       {"id": "w.weather_snow.04", "text": "Лапы мёрзнут, но как красиво."}
     ],
+    "season_winter": [
+      {"id": "w.season_winter.01", "text": "Зима. Хочу слепить снежного пса."},
+      {"id": "w.season_winter.02", "text": "Тёплый плед и ты — вот зима."},
+      {"id": "w.season_winter.03", "text": "Нос мёрзнет, хвост греет."}
+    ],
+    "season_spring": [
+      {"id": "w.season_spring.01", "text": "Весна! Пахнет землёй и цветами."},
+      {"id": "w.season_spring.02", "text": "Почки лезут. И я лезу гулять!"},
+      {"id": "w.season_spring.03", "text": "Птицы поют. Я подпеваю: гав!"}
+    ],
+    "season_summer": [
+      {"id": "w.season_summer.01", "text": "Лето! Солнце греет пузико."},
+      {"id": "w.season_summer.02", "text": "Жарко. Где моя миска воды?"},
+      {"id": "w.season_summer.03", "text": "Лето пахнет травой и мячиком."}
+    ],
+    "season_autumn": [
+      {"id": "w.season_autumn.01", "text": "Листья шуршат. Можно в них прыгнуть?"},
+      {"id": "w.season_autumn.02", "text": "Осень. Тыква больше меня!"},
+      {"id": "w.season_autumn.03", "text": "Шуршу листьями. Это музыка."}
+    ],
     "rare": [
       {"id": "w.rare.01", "text": "Поймал бабочку. Отпустил. Я добрый.", "frame": "butterfly"},
       {"id": "w.rare.02", "text": "Обнял тапок. Тапок не против.", "frame": "slipper"},
@@ -1037,6 +1057,22 @@
     "weather_snow": [
       {"id": "i.weather_snow.01", "text": "Снег!"},
       {"id": "i.weather_snow.02", "text": "Ловлю снежинки"}
+    ],
+    "season_winter": [
+      {"id": "i.season_winter.01", "text": "Слеплю снеговика"},
+      {"id": "i.season_winter.02", "text": "Зима! Нос мёрзнет"}
+    ],
+    "season_spring": [
+      {"id": "i.season_spring.01", "text": "Весна пахнет!"},
+      {"id": "i.season_spring.02", "text": "Птицы поют"}
+    ],
+    "season_summer": [
+      {"id": "i.season_summer.01", "text": "Солнце греет"},
+      {"id": "i.season_summer.02", "text": "Лето! Пить хочу"}
+    ],
+    "season_autumn": [
+      {"id": "i.season_autumn.01", "text": "Листья шуршат"},
+      {"id": "i.season_autumn.02", "text": "Прыгну в листья"}
     ],
     "rare": [
       {"id": "i.rare.01", "text": "Поймал бабочку!", "frame": "butterfly"},

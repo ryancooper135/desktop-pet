@@ -1249,6 +1249,14 @@ final class AppModel {
             switch o.kind {
             case .atelier(let rarity): r = try Shards.performAtelier(rarity)
             case .exclusive(let id): r = try Shards.performBuy(id)
+            case .season(let id):
+                // Волна 40 F: сезонная вещь — свои отказы («Это продают только зимой»).
+                switch try Seasons.perform(id) {
+                case .failure(let why):
+                    Feel.denied()
+                    return Seasons.refusalText(why)
+                case .success(let it): r = .success(it)
+                }
             }
             switch r {
             case .failure(let why):

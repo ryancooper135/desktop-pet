@@ -197,9 +197,16 @@ enum Presenter {
         let weather = musing && mind == nil ? WeatherTalk.line(f, at: t, tzOffsetMin: tz, lines: lines) : nil
         let weatherIsland = musing && mindIsland == nil
             ? WeatherTalk.line(f, at: t, tzOffsetMin: tz, island: true, lines: lines) : nil
-        let line = rare?.text ?? mind ?? weather ?? lines.widget(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
+        // Сезон (волна 40 F): свой ход PetMind после погоды и то через раз — «листья шуршат». Только слова.
+        let season = musing && mind == nil && weather == nil
+            ? SeasonTalk.line(f, at: t, tzOffsetMin: tz, lines: lines) : nil
+        let seasonIsland = musing && mindIsland == nil && weatherIsland == nil
+            ? SeasonTalk.line(f, at: t, tzOffsetMin: tz, island: true, lines: lines) : nil
+        let line = rare?.text ?? mind ?? weather ?? season
+            ?? lines.widget(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
         let islandLine = rare.flatMap { lines.rareIsland($0, sleeping: sleeping, seed: f.petId, at: t, tzOffsetMin: tz) }
-            ?? mindIsland ?? weatherIsland ?? lines.island(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
+            ?? mindIsland ?? weatherIsland ?? seasonIsland
+            ?? lines.island(keys, seed: f.petId, at: t, tzOffsetMin: tz, tier: tier)
 
         // Главное действие.
         let main: MainAct
