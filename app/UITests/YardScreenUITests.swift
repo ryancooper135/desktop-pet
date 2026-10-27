@@ -8,7 +8,7 @@
 //   ui-35-yard-dog      Шиба у каши смотрит на пар (PET_YARD_DOG=porridge)
 //   ui-35-yard-plate    объёмные таблички «+N/ч» над станциями, у косточек золотая
 //   ui-35-yard-gold     сушилке купили золотую табличку за 60 ✂️
-// Волна 36 P (в значении сцены ещё «moves=N»; сид yard_full — пёс ур. 30, двор полный, 5000 🪙):
+// Волна 36 P (в значении сцены ещё «moves=N»; сид yard_full — пёс ур. переезда (28), двор полный, 5000 🪙):
 //   ui-36-yard-move          внизу тихая карточка «Переезд двора»
 //   ui-36-yard-move-confirm  подтверждение: что останется, что заново, слава ×1,5
 //   ui-36-yard-trip          сразу после «Переехать»: экран фургона «Улица → Зимний квартал»
@@ -201,6 +201,11 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(wait(scene, valueHas: "moves=1", timeout: 20), "переезд не случился (\(String(describing: scene.value)))")
         XCTAssertTrue(wait(scene, valueHas: "plates=0"), "после переезда плиты остались (\(String(describing: scene.value)))")
         XCTAssertTrue(move.waitForNonExistence(timeout: 8), "карточка переезда не ушла с пустого двора")
+        // Волна 37 A: вместо кнопки — тусклая карточка «почему закрыт и сколько осталось».
+        let locked = any["yard.screen.move.locked"]
+        XCTAssertTrue(locked.waitForExistence(timeout: 8), "после переезда нет тусклой карточки переезда")
+        let lockedValue = (locked.value as? String) ?? ""
+        XCTAssertTrue(lockedValue.contains("Откроется, когда двор достроен"), "тусклая карточка: \(lockedValue)")
 
         toTop(screen, app: app)
         reveal(any["yard.screen.close"], in: screen, app: app)
