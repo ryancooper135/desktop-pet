@@ -588,6 +588,7 @@ struct PreviewCatalogScreen: View {
                         .foregroundStyle(PetPalette.accent)
                 }
                 .accessibilityIdentifier("yard.demo")
+                WeatherPinRow()
                 ForEach(items.indices, id: \.self) { i in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(items[i].name)
@@ -601,6 +602,44 @@ struct PreviewCatalogScreen: View {
         }
         .background(PetPalette.bg.ignoresSafeArea())
         .navigationTitle("Превью")
+    }
+}
+
+/// «Погода в комнате» (волна 39 D): закрепить погоду для проверки — капли за окном, приглушённый свет,
+/// реплики. Только до перезапуска (Weather.pinned в памяти); «авто» — снова по календарю. Двор берёт её же.
+private struct WeatherPinRow: View {
+    @State private var pinned: WeatherKind? = Weather.pinned
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Погода в комнате")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(PetPalette.soft)
+            HStack(spacing: 6) {
+                chip("авто", on: pinned == nil, id: "weather.pin.auto") { set(nil) }
+                ForEach([WeatherKind.clear, .cloudy, .rain, .snow], id: \.self) { w in
+                    chip(w.title.lowercased(), on: pinned == w, id: "weather.pin.\(w.rawValue)") { set(w) }
+                }
+            }
+        }
+    }
+
+    private func set(_ w: WeatherKind?) {
+        Weather.pinned = w
+        pinned = w
+    }
+
+    private func chip(_ title: String, on: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .padding(.horizontal, 8)
+                .frame(minHeight: 32)
+                .background(on ? PetPalette.accent : PetPalette.card, in: Capsule())
+                .foregroundStyle(on ? Color.white : PetPalette.ink)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 }
 

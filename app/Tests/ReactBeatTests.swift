@@ -38,7 +38,7 @@ final class ReactBeatTests: XCTestCase {
     func testPlansUseOnlyBundledClips() throws {
         let d = try durations()
         let plans = [ReactBeat.pet, ReactBeat.refuse, ReactBeat.wakeFromSleep, ReactBeat.afterMeal,
-                     ReactBeat.bathSitting, ReactBeat.afterBath] + Trait.allCases.map(Traits.tapClips)
+                     ReactBeat.bathSitting, ReactBeat.afterBath, ReactBeat.afterRain] + Trait.allCases.map(Traits.tapClips)
         for plan in plans {
             for clip in plan { XCTAssertNotNil(d[clip], "нет клипа \(clip)") }
         }

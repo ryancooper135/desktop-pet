@@ -4,6 +4,8 @@
 // Что красим: свет key/fill/rim и лампа (дочерние "lights" комнаты), матовые вещи — множителем тинта
 // от исходных материалов (RoomTintBase), небо в окне (RoomSky) — своим цветом, луна и звёзды (RoomNightSky)
 // проявляются ночью. Светящиеся детали (RoomGlow: огонёк, камин, лампа-торшер) и питомец — без тинта.
+// Погода (волна 39 D): при той же сверке с часами берётся Weather.now(); за окном капли или хлопья
+// (RoomWeather), а свет фазы приглушается RoomLight.weathered(gloom) — gloom тоже идёт плавно.
 
 import UIKit
 @preconcurrency import RealityKit
@@ -33,6 +35,14 @@ struct RoomLightState: Component {
     var sinceCheck: Double = 0
     /// Перекрасить при следующем кадре (вещи дома перестроены).
     var force = false
+    /// Погода за окном и насколько она приглушает свет: текущая, целевая и та, с которой покрашено.
+    var weather: WeatherKind = .clear
+    var gloom: Double = 0
+    var gloomTarget: Double = 0
+    var gloomApplied: Double = .nan
+    /// Окна во двор нет — дождь показываем в простом окошке (RoomWeather.plainWindow). still — Reduce Motion.
+    var plainWindow = false
+    var still = false
 
     /// Скорость перехода, фаз в секунду: смена темы день ↔ ночь — около полутора секунд.
     static let speed: Double = 1.3
@@ -40,6 +50,8 @@ struct RoomLightState: Component {
     static let checkEvery: Double = 5
     /// Шаг фазы, мельче которого не перекрашиваем (кроме прихода в цель).
     static let minStep: Double = 0.02
+    /// Скорость смены погодного света, долей в секунду: тучи набегают секунды за три.
+    static let gloomSpeed: Double = 0.3
 }
 
 struct RoomLightSystem: System {
@@ -55,11 +67,15 @@ struct RoomLightSystem: System {
             if s.sinceCheck >= RoomLightState.checkEvery {
                 s.sinceCheck = 0
                 s.target = s.schedule.phaseNow(dark: s.dark)
+                RoomLighting.syncWeather(&s, room: e)
             }
             s.current = RoomLighting.step(s.current, to: s.target, by: RoomLightState.speed * dt)
-            if s.force || RoomLighting.needsPaint(current: s.current, target: s.target, applied: s.applied) {
-                RoomLighting.apply(RoomLight.at(phase: s.current), to: e)
+            s.gloom = RoomLighting.step(s.gloom, to: s.gloomTarget, by: RoomLightState.gloomSpeed * dt)
+            if s.force || RoomLighting.needsPaint(current: s.current, target: s.target, applied: s.applied)
+                || RoomLighting.needsPaint(current: s.gloom, target: s.gloomTarget, applied: s.gloomApplied) {
+                RoomLighting.apply(RoomLight.at(phase: s.current).weathered(s.gloom), to: e)
                 s.applied = s.current
+                s.gloomApplied = s.gloom
                 s.force = false
             }
             e.components.set(s)
@@ -80,22 +96,52 @@ enum RoomLighting {
         RoomTintBase.registerComponent()
         RoomLightState.registerComponent()
         RoomLightSystem.registerSystem()
+        WeatherFx.registerOnce()
     }
 
-    /// Сразу при открытии: свет уже нужной фазы, без перехода от дня.
-    static func setup(_ room: Entity, schedule: RoomSchedule, dark: Bool) {
+    /// Сразу при открытии: свет уже нужной фазы и погоды, без перехода от дня.
+    /// plainWindow — окна во двор нет (RoomPlan.Levels.window false), still — Reduce Motion.
+    static func setup(_ room: Entity, schedule: RoomSchedule, dark: Bool, plainWindow: Bool = false,
+                      still: Bool = false) {
         let phase = schedule.phaseNow(dark: dark)
         var s = RoomLightState(schedule: schedule, dark: dark, current: phase, target: phase)
-        apply(RoomLight.at(phase: phase), to: room)
+        s.plainWindow = plainWindow
+        s.still = still
+        s.weather = Weather.now()
+        RoomWeather.apply(s.weather, plainWindow: plainWindow, still: still, to: room)
+        s.gloom = WeatherConfig.shared.gloom(of: s.weather)
+        s.gloomTarget = s.gloom
+        apply(RoomLight.at(phase: phase).weathered(s.gloom), to: room)
         s.applied = phase
+        s.gloomApplied = s.gloom
         room.components.set(s)
     }
 
-    /// Из update RealityView: настройка, тема, перестройка вещей. Новая цель — сразу, переход — плавно.
-    static func update(_ room: Entity, schedule: RoomSchedule, dark: Bool, force: Bool) {
+    /// Погода по часам (или закреплённая в каталоге превью): сменилась — новые капли и цель для света.
+    static func syncWeather(_ s: inout RoomLightState, room: Entity) {
+        let w = Weather.now()
+        if RoomWeather.apply(w, plainWindow: s.plainWindow, still: s.still, to: room) { s.force = true }
+        guard w != s.weather else { return }
+        s.weather = w
+        s.gloomTarget = WeatherConfig.shared.gloom(of: w)
+    }
+
+    /// Из update RealityView: настройка, тема, перестройка вещей, окно, Reduce Motion. Новая цель — сразу,
+    /// переход — плавно.
+    static func update(_ room: Entity, schedule: RoomSchedule, dark: Bool, force: Bool, plainWindow: Bool = false,
+                       still: Bool = false) {
         guard var s = room.components[RoomLightState.self] else {
-            setup(room, schedule: schedule, dark: dark)
+            setup(room, schedule: schedule, dark: dark, plainWindow: plainWindow, still: still)
             return
+        }
+        // Погода — на каждый пересчёт вью: закрепили чип в каталоге — комната отвечает сразу (сама проверка дешёвая).
+        let weatherNow = Weather.now()
+        let weatherChanged = weatherNow != s.weather || s.plainWindow != plainWindow || s.still != still
+        if weatherChanged {
+            s.plainWindow = plainWindow
+            s.still = still
+            syncWeather(&s, room: room)
+            room.components.set(s)
         }
         guard s.schedule != schedule || s.dark != dark || force else { return }
         if s.schedule != schedule || s.dark != dark {

@@ -89,8 +89,9 @@ enum YardLive {
     /// Пса сцена не ждёт: YardDogLive.model() грузит его отдельно, экран сажает через attach.
     /// district (волна 36 Q) — квартал после переезда: свои земля, плиты, забор и декор; станции те же.
     /// Небо — фон экрана: `district.skyColor(night:)`. Под UI-тестом район задаёт PET_YARD_DISTRICT.
+    /// weather (волна 39 D) — погода в квартале (Weather.now(in:)): приглушённый свет и капли или хлопья.
     static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool,
-                      district: YardDistrict = .street, live: Live = Live()) -> Entity {
+                      district: YardDistrict = .street, weather: WeatherKind = .clear, live: Live = Live()) -> Entity {
         let district = YardDistrict.forced ?? district
         let world = Entity()
         world.name = "yardLive"
@@ -126,7 +127,13 @@ enum YardLive {
         world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         world.addChild(PetRoom.lights())
         // Ночью — лунный свет, тинт и тёплые огни (волна 38 B); пёс садится позже и тинта не получает.
-        YardLight.apply(night: night, lamps: YardLight.lamps(district, top: top, bought: plates, night: night), to: world)
+        // Погода (волна 39 D): пасмурно — свет приглушён, дождь или снег — коробка капель перед камерой.
+        YardLight.apply(night: night, gloom: WeatherConfig.shared.gloom(of: weather),
+                        lamps: YardLight.lamps(district, top: top, bought: plates, night: night), to: world)
+        if let fx = WeatherFx.yard(weather, target: cam.target, eye: cam.eye, fov: cam.fov, night: night,
+                                   calm: live.calm) {
+            world.addChild(fx)
+        }
         let rest = YardDogLive.rest(tier: tier)
         world.components.set(YardLiveComponent(mode: live.mode, spots: YardDogLive.spots(all), rest: rest.at,
                                                dogScale: rest.scale, night: night, brushed: brushed, calm: live.calm,

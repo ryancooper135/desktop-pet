@@ -305,10 +305,16 @@ enum PetMind {
         LineRotation.slot(t, tzOffsetMin: tzOffsetMin, periodHours: periodHours)
     }
 
+    /// Номер хода 0..<turns в слоте s: первые memoryTurns — воспоминания, следом traitTurns — характер,
+    /// следующий — погода (WeatherTalk), остальные — обычные реплики.
+    static func roll(_ f: SaveFile, slot s: Int) -> UInt64 {
+        StableRandom.mix(StableHash.fnv1a("\(f.petId):mind:\(s)")) % turns
+    }
+
     /// Чей ход на момент t. nil — обычная реплика (или вспомнить и сказать нечего).
     static func pick(_ f: SaveFile, at t: Double, tzOffsetMin: Int) -> Pick? {
         let s = slot(t, tzOffsetMin: tzOffsetMin)
-        let roll = StableRandom.mix(StableHash.fnv1a("\(f.petId):mind:\(s)")) % turns
+        let roll = roll(f, slot: s)
         if roll < memoryTurns {
             let all = Memories.recallable(f, at: t)
             guard !all.isEmpty else { return nil }

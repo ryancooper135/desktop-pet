@@ -80,18 +80,29 @@ enum YardLight {
 
     /// Ночь — на собранный мир: лунный свет и тинт, затем огни. Днём ничего не делает.
     /// Зовётся после addChild(PetRoom.lights()) и до того, как в мир сядет пёс: питомец без тинта, как в комнате.
-    static func apply(night: Bool, lamps: [(node: String?, lamp: YardNightLamp)], to world: Entity) {
-        guard night else { return }
+    /// gloom (волна 39 D) — пасмурно, дождь или снег: тот же свет, приглушённый RoomLight.weathered. Днём без
+    /// погоды (gloom 0) по-прежнему ничего не делает — дневные снимки не меняются.
+    static func apply(night: Bool, gloom: Double = 0, lamps: [(node: String?, lamp: YardNightLamp)], to world: Entity) {
+        guard night || gloom > 0 else { return }
         RoomLighting.registerOnce()
-        RoomLighting.apply(Self.night, to: world)
+        RoomLighting.apply(light(night: night, gloom: gloom), to: world)
+        guard night else { return }
         for (node, spec) in lamps.prefix(maxLamps) {
             let parent = node.flatMap { world.findEntity(named: $0) } ?? world
             parent.addChild(light(spec))
         }
     }
 
-    static func apply(night: Bool, lamps: [YardNightLamp], to world: Entity) {
-        apply(night: night, lamps: lamps.map { (node: String?.none, lamp: $0) }, to: world)
+    static func apply(night: Bool, gloom: Double = 0, lamps: [YardNightLamp], to world: Entity) {
+        apply(night: night, gloom: gloom, lamps: lamps.map { (node: String?.none, lamp: $0) }, to: world)
+    }
+
+    /// Свет двора: ночь или день, приглушённые погодой. Лампы комнаты и луны в окне во дворе нет.
+    static func light(night: Bool, gloom: Double) -> RoomLight {
+        var l = (night ? Self.night : RoomLight.day).weathered(gloom)
+        l.lamp = 0
+        l.moon = 0
+        return l
     }
 
     private static func light(_ spec: YardNightLamp) -> PointLight {

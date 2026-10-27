@@ -110,12 +110,15 @@ enum YardArtStage {
 
     /// Сцена превью целиком: модели, земля под станцией, свет комнаты и камера под кадр.
     /// district (волна 36 Q) — квартал двора: подложки в его цветах и его декор.
+    /// weather (волна 39 D) — погода превью: свет приглушён, капли или хлопья перед камерой; calm — Reduce Motion.
     static func scene(_ shot: YardArtShot, level: Int, fill: Float, night: Bool, progress: Int,
-                      district: YardDistrict = .street) -> Entity {
+                      district: YardDistrict = .street, weather: WeatherKind = .clear, calm: Bool = false) -> Entity {
         let world = Entity()
         world.name = "yardArt"
         // Купленные плиты по слоям — для ночных огней (у .station их нет: фонаря двора в кадре нет).
         var lit: [Int] = []
+        // Камера кадра: в неё смотрит и коробка с дождём (WeatherFx.yard).
+        let cam: (target: SIMD3<Float>, eye: SIMD3<Float>, fov: Float)
         // Корень тоже «живёт» (нулевой пульс): часы и счётчик кадров идут, даже если на подложке ни одной станции.
         world.components.set(YardArtMotionComponent(motion: .pulse(amount: 0, period: 1, phase: 0), base: .zero))
         switch shot {
@@ -127,7 +130,8 @@ enum YardArtStage {
             world.addChild(ground)
             world.addChild(entity(YardArt.station(s, level: level, fill: fill, night: night, brushed: night,
                                                             district: district)))
-            world.addChild(camera(target: SIMD3(0, 0.19, -0.03), eye: SIMD3(0.45, 0.55, 1.1), fov: 36))
+            cam = (SIMD3(0, 0.19, -0.03), SIMD3(0.45, 0.55, 1.1), 36)
+            world.addChild(camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         case .tier(let shown):
             // Ярус 0 — подоконник, а за ним пустырь: слой 1 без купленных плит.
             let plates = (0..<YardArtTier.plates.count).map { YardArtTier.bought($0, shown: shown, progress: progress) }
@@ -147,7 +151,6 @@ enum YardArtStage {
                     world.addChild(st)
                 }
             }
-            let cam: (target: SIMD3<Float>, eye: SIMD3<Float>, fov: Float)
             switch shown {
             case 0: cam = (SIMD3(0, 0.55, -1.5), SIMD3(0, 1.05, 0.15), 40)
             case 1: cam = (SIMD3(0, 0.15, -0.8), SIMD3(0, 1.7, 1.6), 44)
@@ -164,7 +167,10 @@ enum YardArtStage {
         } else {
             lamps = []
         }
-        YardLight.apply(night: night, lamps: lamps, to: world)
+        YardLight.apply(night: night, gloom: WeatherConfig.shared.gloom(of: weather), lamps: lamps, to: world)
+        if let fx = WeatherFx.yard(weather, target: cam.target, eye: cam.eye, fov: cam.fov, night: night, calm: calm) {
+            world.addChild(fx)
+        }
         return world
     }
 
@@ -180,6 +186,7 @@ enum YardArtStage {
 
 /// «Двор 3D»: восемь станций и пять ярусов, вид по уровню, копилка, ночь, плиты яруса.
 /// Подписи — для UI-теста: yard.tris (треугольники станции), yard.maxTris (худшая станция), yard.fps.
+/// Чипы погоды yard.weather.<kind> (волна 39 D): ясно, пасмурно, дождь, снег — и в превью, и в переезде.
 struct YardArtDemoScreen: View {
     @State private var shot: YardArtShot = .station(.dryer)
     @State private var level = 1
@@ -188,6 +195,8 @@ struct YardArtDemoScreen: View {
     @State private var progress = 0
     @State private var district: YardDistrict = YardDistrict.forced ?? .street
     @State private var moving = false
+    @State private var weather: WeatherKind = .clear
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Экран въехал (навигация закончила анимацию) — только тогда создаём RealityView.
     @State private var onScreen = false
 
@@ -195,15 +204,16 @@ struct YardArtDemoScreen: View {
 
     var body: some View {
         let shot = self.shot, level = self.level, fill = self.fill, night = self.night, progress = self.progress
-        let district = self.district
+        let district = self.district, weather = self.weather, calm = reduceMotion
         let worst = Self.worst
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 // Как на экране двора (волна 35 N): один RealityView, мир меняется в держателе по ключу, без .id.
                 // И рождается он уже на виду — после въезда экрана: вид, созданный за краем, на CI оставался пустым.
-                let key = "\(shot)#\(level)#\(fill)#\(night)#\(progress)#\(district)"
+                let key = "\(shot)#\(level)#\(fill)#\(night)#\(progress)#\(district)#\(weather)#\(calm)"
                 let build: @MainActor @Sendable () -> Entity = {
-                    YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress, district: district)
+                    YardArtStage.scene(shot, level: level, fill: fill, night: night, progress: progress, district: district,
+                                       weather: weather, calm: calm)
                 }
                 Group {
                     // Под экраном переезда двор не рисуем: на CI два RealityView сразу — 2 кадра/с, фургон не появлялся.
@@ -223,8 +233,8 @@ struct YardArtDemoScreen: View {
                     }
                 }
                 .frame(height: 330)
-                .background(district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
-                            : district.skyColor(night: night))
+                .background((district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+                             : district.skyColor(night: night)).overlay(WeatherVeil(kind: weather)))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .accessibilityIdentifier("yard.scene")
 
@@ -242,7 +252,7 @@ struct YardArtDemoScreen: View {
         // Переезд — переходом, как само превью: на CI RealityView под fullScreenCover так и не нарисовал ни кадра
         // (три прогона), а в экране, въехавшем переходом, с задержкой рисует.
         .navigationDestination(isPresented: $moving) {
-            YardMoveView(from: district, to: district.next, night: night)
+            YardMoveView(from: district, to: district.next, night: night, weather: weather)
                 .toolbar(.hidden, for: .navigationBar)
                 .overlay(alignment: .topTrailing) {
                     Button("Закрыть") { moving = false }
@@ -325,6 +335,11 @@ struct YardArtDemoScreen: View {
                 }
                 chip("Переезд", on: false, id: "yard.move") { moving = true }
             }
+            row {
+                ForEach(Self.weathers, id: \.self) { w in
+                    chip(Self.short(w), on: weather == w, id: "yard.weather.\(w.rawValue)") { weather = w }
+                }
+            }
             if case .tier(let n) = shot {
                 row {
                     chip("− плита", on: false, id: "yard.plate.minus") { progress = max(0, progress - 1) }
@@ -343,6 +358,18 @@ struct YardArtDemoScreen: View {
         case .winter: return "зима"
         case .river: return "река"
         case .roof: return "крыша"
+        }
+    }
+
+    /// Погода превью: гроза — тот же дождь, только гуще и косее, отдельного чипа не нужно.
+    static let weathers: [WeatherKind] = [.clear, .cloudy, .rain, .snow]
+
+    private static func short(_ w: WeatherKind) -> String {
+        switch w {
+        case .clear: return "ясно"
+        case .cloudy: return "пасмурно"
+        case .rain, .storm: return "дождь"
+        case .snow: return "снег"
         }
     }
 

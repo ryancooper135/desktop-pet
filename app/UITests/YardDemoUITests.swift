@@ -13,6 +13,7 @@
 //   ui-37-district-D-night  тот же двор ночью: зима — окна и гирлянда, река — фонарь и блик, крыша — огни города
 //                           и лампочка у будки; у станций акценты района (снег, весла/круг, антенна) — волна 37 B
 //   ui-37-move-van-night  переезд ночью: фонарь у дороги, лучи фар, свет в кузове, ночное небо
+//   ui-39-weather-rain    станция под дождём сразу после чипа (волна 39 D; 3D не ждём — что успело)
 //
 // Бюджет §2: у каждой станции и у худшей по всем видам не больше 400 треугольников (подписи yard.tris, yard.maxTris).
 
@@ -158,6 +159,26 @@ final class YardDemoUITests: XCTestCase {
         settle(4)
         snap("ui-37-move-van-night")
         tapWhenReady(el(app, "yard.move.close"))
+        app.terminate()
+    }
+
+    /// Волна 39 D: чипы погоды в «Двор 3D» и ряд «Погода в комнате» в каталоге. Дешёвый: только чипы,
+    /// сцену не ждём (снимок — что успело нарисоваться, для глаза).
+    @MainActor
+    func testYard5WeatherChips() throws {
+        let app = try openDemo()
+        for w in ["clear", "cloudy", "rain", "snow"] {
+            XCTAssertTrue(el(app, "yard.weather.\(w)").waitForExistence(timeout: 5), "нет чипа погоды \(w)")
+        }
+        XCTAssertTrue(tapWhenReady(el(app, "yard.weather.rain")), "чип «дождь» не нажимается")
+        settle(1)
+        snap("ui-39-weather-rain")
+        XCTAssertTrue(tapWhenReady(el(app, "yard.weather.clear")), "чип «ясно» не нажимается")
+        // Назад в каталог: там ряд «Погода в комнате».
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for w in ["auto", "clear", "cloudy", "rain", "snow"] {
+            XCTAssertTrue(el(app, "weather.pin.\(w)").waitForExistence(timeout: 5), "нет чипа «Погода в комнате» \(w)")
+        }
         app.terminate()
     }
 

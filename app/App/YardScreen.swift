@@ -171,6 +171,8 @@ struct YardScreen: View {
         let fill = Float((Yard.fill(f, now: now, dogLevel: dog) * 4).rounded() / 4)
         let s = f.yard
         let district = YardDistrict(index: Yard.district(moves: s.moves))
+        // Погода в квартале (волна 39 D): в «Зимнем квартале» зимой вместо дождя снег; под тестами — ясно.
+        let weather = Weather.now(in: district)
         let levels = s.stations.keys.sorted().map { "\($0)=\(s.stations[$0] ?? 0)" }.joined(separator: ",")
         let pop = popId
         let spots = YardLive.spots(s, tier: tier)
@@ -181,13 +183,13 @@ struct YardScreen: View {
         let gold = s.gold.sorted().joined(separator: ",")
         let perHour = rates.map { "\($0.id)=\(YardText.perHour($0.rate))" }.joined(separator: ",")
         // Ключ сцены — всё видимое: ярус, плиты, уровни, поднос, ночь, доход на табличках, золото, дома ли пёс.
-        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)#\(district)"
+        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)#\(district)#\(weather)"
         let dogPose = YardDogLive.pose(mode: mode, spots: spots, tier: tier, night: night, calm: reduceMotion, now: now)
         // Сцена по ключу: одна и та же RealityView, внутри меняется только мир. Раньше вид пересоздавался .id(key),
         // и новый, родившийся за краем экрана (улучшили станцию внизу списка), на CI оставался пустым.
         let build: @MainActor @Sendable () -> Entity = {
             let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false,
-                                       district: district, live: live)
+                                       district: district, weather: weather, live: live)
             if let pop, let spot = spots.first(where: { $0.id == pop }) {
                 YardLive.pop(pop, in: scene, scale: spot.scale)
             }
@@ -218,8 +220,8 @@ struct YardScreen: View {
             }
         }
         .frame(height: 300)
-        .background(district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
-                                        : district.skyColor(night: night))
+        .background((district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+                                         : district.skyColor(night: night)).overlay(WeatherVeil(kind: weather)))
         .overlay {
             ZStack {
                 YardBurst(emoji: "🪙", trigger: flyCoins, inward: true)
