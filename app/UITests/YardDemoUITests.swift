@@ -10,6 +10,9 @@
 //   ui-98-yard-fps        текст: кадров в секунду в превью станции
 //   ui-36-district-D      двор до яруса 4 в районе D (street, winter, river, roof) — волна 36 Q
 //   ui-36-move-van        сцена переезда: фургон, коробки, Шиба в кабине (Улица → Зимний квартал)
+//   ui-37-district-D-night  тот же двор ночью: зима — окна и гирлянда, река — фонарь и блик, крыша — огни города
+//                           и лампочка у будки; у станций акценты района (снег, весла/круг, антенна) — волна 37 B
+//   ui-37-move-van-night  переезд ночью: фонарь у дороги, лучи фар, свет в кузове, ночное небо
 //
 // Бюджет §2: у каждой станции и у худшей по всем видам не больше 400 треугольников (подписи yard.tris, yard.maxTris).
 
@@ -110,6 +113,29 @@ final class YardDemoUITests: XCTestCase {
         XCTAssertTrue(el(app, "yard.move.scene").waitForExistence(timeout: 10), "нет сцены фургона")
         settle(4)
         snap("ui-36-move-van")
+        tapWhenReady(el(app, "yard.move.close"))
+        app.terminate()
+    }
+
+    /// Волна 37 B: те же районы ночью (ui-37-district-*-night) и переезд ночью (ui-37-move-van-night).
+    @MainActor
+    func testYard4DistrictsNight() throws {
+        let app = try openDemo()
+        tapWhenReady(el(app, "yard.lv.3"))
+        tapWhenReady(el(app, "yard.tier.4"))
+        tapWhenReady(el(app, "yard.night"))
+        for d in ["winter", "river", "roof", "street"] {
+            tapWhenReady(el(app, "yard.district.\(d)"))
+            settle(1.8)
+            snap("ui-37-district-\(d)-night")
+        }
+        // С улицы ночью — в зимний квартал.
+        let caption = el(app, "yard.move.caption")
+        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 15, name: "ui-37-move-open"),
+                      "сцена переезда ночью не открылась")
+        XCTAssertTrue(el(app, "yard.move.scene").waitForExistence(timeout: 10), "нет сцены фургона")
+        settle(4)
+        snap("ui-37-move-van-night")
         tapWhenReady(el(app, "yard.move.close"))
         app.terminate()
     }

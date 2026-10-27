@@ -271,6 +271,17 @@ struct YardArtModel: Sendable {
         }
         add(hex, glow: glow, faces, YardArtXform(at: at, rot: rot, scale: scale))
     }
+
+    /// Плоская табличка w × h: 2 треугольника, видна с одной стороны — с +z (up: true — сверху, с +y).
+    /// Для огней окон и бликов на воде (волна 37 B): у бруска на такой огонёк уходило 12 треугольников.
+    mutating func panel(_ hex: UInt32, _ size: SIMD2<Float>, at: SIMD3<Float>, rot: SIMD3<Float> = .zero,
+                        up: Bool = false, glow: Bool = false) {
+        let w = size.x / 2, h = size.y / 2
+        let face: [SIMD3<Float>] = up
+            ? [SIMD3(-w, 0, h), SIMD3(w, 0, h), SIMD3(w, 0, -h), SIMD3(-w, 0, -h)]
+            : [SIMD3(-w, -h, 0), SIMD3(w, -h, 0), SIMD3(w, h, 0), SIMD3(-w, h, 0)]
+        add(hex, glow: glow, [face], YardArtXform(at: at, rot: rot))
+    }
 }
 
 // MARK: - Вид по уровню
@@ -424,8 +435,9 @@ enum YardArt {
 
     /// Станция целиком: корпус, циклы, вид по уровню, поднос с 0–5 стопками по заполнению копилки (fill 0…1).
     /// night — мельница крутится быстрее и мука светится; brushed — Шибу расчесали, прялка вдвое быстрее.
+    /// district (волна 37 B) — мелочь в духе района поверх станции (YardArt.accent): силуэт и вывески те же.
     static func station(_ s: YardArtStation, level: Int, fill: Float, night: Bool = false,
-                        brushed: Bool = false) -> YardArtModel {
+                        brushed: Bool = false, district: YardDistrict = .street) -> YardArtModel {
         let look = YardArtLook.of(level: level)
         var m = YardArtModel(name: "station\(s.rawValue)")
         // Плита-основание: в цвет вида — сразу видно, доска это, металл или медь.
@@ -446,6 +458,7 @@ enum YardArt {
         if look == .copper {
             for b in bulbs { m.gem(YardArtColors.lamp, sides: 4, r: 0.014, h: 0.022, at: b, glow: true) }
         }
+        accent(&m, s, district: district)
         return m
     }
 
@@ -753,14 +766,16 @@ enum YardArt {
                 SIMD3(sack.x - 0.03, 0.13, sack.z + 0.03), SIMD3(c.x, 0.44, c.z)]
     }
 
-    /// Самая тяжёлая станция по всем видам, заполнениям и флагам — для проверки бюджета.
+    /// Самая тяжёлая станция по всем видам, заполнениям, флагам и районам — для проверки бюджета.
     static func worstTriangles() -> (station: YardArtStation, level: Int, triangles: Int) {
         var worst = (station: YardArtStation.dryer, level: 1, triangles: 0)
         for s in YardArtStation.allCases {
             for level in 1...5 {
                 for night in [false, true] {
-                    let t = station(s, level: level, fill: 1, night: night, brushed: night).triangles
-                    if t > worst.triangles { worst = (s, level, t) }
+                    for d in YardDistrict.allCases {
+                        let t = station(s, level: level, fill: 1, night: night, brushed: night, district: d).triangles
+                        if t > worst.triangles { worst = (s, level, t) }
+                    }
                 }
             }
         }

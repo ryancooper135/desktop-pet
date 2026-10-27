@@ -120,7 +120,8 @@ enum YardArtStage {
             ground.position = SIMD3<Float>(0, -0.001, -0.05)
             PetRoom.noShadow(ground)
             world.addChild(ground)
-            world.addChild(entity(YardArt.station(s, level: level, fill: fill, night: night, brushed: night)))
+            world.addChild(entity(YardArt.station(s, level: level, fill: fill, night: night, brushed: night,
+                                                            district: district)))
             world.addChild(camera(target: SIMD3(0, 0.19, -0.03), eye: SIMD3(0.45, 0.55, 1.1), fov: 36))
         case .tier(let shown):
             // Ярус 0 — подоконник, а за ним пустырь: слой 1 без купленных плит.
@@ -133,7 +134,8 @@ enum YardArtStage {
                 world.addChild(entity(YardArtTier.layer(k, bought: b, district: district)))
                 guard k <= shown else { continue }
                 for slot in YardArtTier.slots[k] where b > slot.plate {
-                    let st = entity(YardArt.station(slot.station, level: level, fill: fill, night: night))
+                    let st = entity(YardArt.station(slot.station, level: level, fill: fill, night: night,
+                                                         district: district))
                     st.position = slot.at
                     st.scale = SIMD3<Float>(repeating: slot.scale)
                     world.addChild(st)
@@ -226,7 +228,7 @@ struct YardArtDemoScreen: View {
         // Переезд — переходом, как само превью: на CI RealityView под fullScreenCover так и не нарисовал ни кадра
         // (три прогона), а в экране, въехавшем переходом, с задержкой рисует.
         .navigationDestination(isPresented: $moving) {
-            YardMoveView(from: district, to: district.next)
+            YardMoveView(from: district, to: district.next, night: night)
                 .toolbar(.hidden, for: .navigationBar)
                 .overlay(alignment: .topTrailing) {
                     Button("Закрыть") { moving = false }
@@ -248,7 +250,8 @@ struct YardArtDemoScreen: View {
         VStack(alignment: .leading, spacing: 4) {
             switch shot {
             case .station(let s):
-                let tris = YardArt.station(s, level: level, fill: fill, night: night, brushed: night).triangles
+                let tris = YardArt.station(s, level: level, fill: fill, night: night, brushed: night,
+                                           district: district).triangles
                 Text("\(s.rawValue). \(s.title)").font(.headline).foregroundStyle(PetPalette.ink)
                 Text("ур. \(level) · \(YardArtLook.of(level: level).title) · +\(s.rate(level: level))/ч")
                     .font(mono).foregroundStyle(PetPalette.soft)
