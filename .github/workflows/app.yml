@@ -11,7 +11,8 @@
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
 #            + AccessibilityUITests без testAccessibilityAudit4Games (волна 31: шард 2 уже ≈ 30 мин)
-#   шард 2 — остальные PetUITests (-skip-testing этих: новый класс UI-тестов попадает сюда сам)
+#   шард 2 — остальные PetUITests (-skip-testing шардов 1 и 3: новый класс UI-тестов попадает сюда сам)
+#   шард 3 — двор 3D и замеры: YardScreenUITests + PerfUITests + SinksUITests + LevelUITests (27.10)
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
 name: app
@@ -74,14 +75,19 @@ jobs:
                      # волна 36 Q: превью двора теперь рисует 3D (раньше было пустым) — 1–2 кадра/с на CI, весь класс
                      # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
                      "YardDemoUITests"]
+          # Шард 3 (27.10, волна 38): шард 2 дошёл до 44 м 42 с из 45 — двор 3D (YardScreenUITests 11,9 мин),
+          # замеры (3,2) и мелкие экраны двора уехали на свой раннер. Замер 27.10: шард 1 ≈ 35, 2 ≈ 25, 3 ≈ 17 мин.
+          yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
-          rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
+          only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in yard_ui)
+          rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui + yard_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
           shards = []
           if unit or ui:
               shards.append({"shard": "1", "unit": "1" if unit else "0", "ui": only_long if ui else "", "anim": "1" if ui else "0"})
           if ui:
               shards.append({"shard": "2", "unit": "0", "ui": rest, "anim": "0"})
+              shards.append({"shard": "3", "unit": "0", "ui": only_yard, "anim": "0"})
           # Пустой matrix — ошибка разбора даже у пропущенного job: держим заглушку, job всё равно не запустится.
           print(f"ipa={int(mode in ('all', 'ipa'))}")
           print(f"tests={int(bool(shards))}")
