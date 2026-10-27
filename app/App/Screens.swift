@@ -174,6 +174,9 @@ struct SettingsScreen: View {
     // Волна 32: остальные переключатели «Звук и отклик» и «Уведомления» (PetPref), тоже по умолчанию включены.
     @AppStorage(PetPref.voice.key) private var voice = true
     @AppStorage(PetPref.music.key) private var music = true
+    /// «Для разработки» в Release-сборке на iPhone: открывается семью касаниями по строке версии внизу настроек.
+    @AppStorage(Self.devUnlockKey) private var devUnlocked = false
+    @State private var versionTaps = 0
     @AppStorage(PetPref.haptics.key) private var haptics = true
     @AppStorage(PetPref.notifications.key) private var notifications = true
     /// Что разрешил iPhone; nil — ещё не спросили систему.
@@ -186,6 +189,8 @@ struct SettingsScreen: View {
 
     /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
     /// PET_DEVTOOLS=1 — показать и под UI-тестом: так YardDemoUITests доходит до «Двор 3D».
+    /// На iPhone (ipa собирается как Release) раздел открывают семь касаний по версии — devUnlockKey.
+    static let devUnlockKey = "pet.devtools.unlocked"
     static var showDevTools: Bool {
         #if DEBUG
         return !Env.isUITest || Env.value("PET_DEVTOOLS") == "1"
@@ -338,7 +343,7 @@ struct SettingsScreen: View {
                 .foregroundStyle(PetPalette.ink)
                 .listRowBackground(PetPalette.card)
 
-                if Self.showDevTools {
+                if Self.showDevTools || devUnlocked {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }
                             .listRowBackground(PetPalette.card)
@@ -348,6 +353,15 @@ struct SettingsScreen: View {
                 Section {
                     Button("Начать заново", role: .destructive) { confirmStartOver = true }
                         .listRowBackground(PetPalette.card)
+                } footer: {
+                    Text("Версия \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            versionTaps += 1
+                            if versionTaps >= 7 { devUnlocked = true }
+                        }
+                        .accessibilityIdentifier("settings.version")
                 }
             }
             // Тёплая «бумага» приложения вместо системного серого фона списка.
