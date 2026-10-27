@@ -11,6 +11,7 @@
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
 #            + AccessibilityUITests без testAccessibilityAudit4Games (волна 31: шард 2 уже ≈ 30 мин)
+#            + YardDemoUITests (волна 36 Q) + LevelUITests (волна 39 C)
 #   шард 2 — остальные PetUITests (-skip-testing этих: новый класс UI-тестов попадает сюда сам)
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
@@ -73,7 +74,9 @@ jobs:
                      "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText",
                      # волна 36 Q: превью двора теперь рисует 3D (раньше было пустым) — 1–2 кадра/с на CI, весь класс
                      # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
-                     "YardDemoUITests"]
+                     "YardDemoUITests",
+                     # волна 39 C: + лист «Достижения» — шард 2 снова упёрся в 45 мин (шард 1 кончил за 29 мин)
+                     "LevelUITests"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
