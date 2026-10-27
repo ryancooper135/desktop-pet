@@ -777,6 +777,11 @@
     "gold": {
       "price_shards": 60,
       "pct": 3
+    },
+    "move": {
+      "min_dog_level": 30,
+      "keep_coins": 1000,
+      "glory_x": [1.5, 2, 2.5]
     }
   },
   "dog_level": {

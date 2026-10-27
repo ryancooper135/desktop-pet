@@ -4,6 +4,8 @@
 // Решения (Вадим может поменять): кнопки не тускнеют — без монет нажатие качает карточку и объясняет тостом.
 // Волна 35 M: таблички «+N/ч», пёс у станций и тиканье монет живут в сцене (YardLive, YardDogLive): тик — когда
 // монетка/сухарик падает в корзинку, не больше двух станций. Золотая табличка станции — за клочки ✂️.
+// Волна 36 P: переезд двора — тихая карточка внизу, когда двор полный и пёс ур. 30+; подтверждение своим
+// слоем внутри экрана (не системный alert — ID надёжны в UI-тестах). Звёзды ★ славы — в шапке.
 
 import RealityKit
 import SwiftUI
@@ -27,6 +29,8 @@ struct YardScreen: View {
     /// Сцена в окне прокрутки. Ушла за край — RealityView убираем: 3D не рисует впустую (батарея), а на CI
     /// главный поток не стоит в ожидании кадра и UI-тест успевает листать. Вернулась — мир собирается заново, уже на виду.
     @State private var sceneOnScreen = true
+    /// Открыто подтверждение переезда.
+    @State private var confirmMove = false
 
     var body: some View {
         ScrollView {
@@ -52,6 +56,13 @@ struct YardScreen: View {
             }
         }
         .animation(.snappy, value: model.toast)
+        .overlay {
+            if confirmMove, let f = model.file {
+                moveConfirm(f)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.snappy, value: confirmMove)
         .onDisappear { popTask?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("yard.screen")
@@ -76,6 +87,14 @@ struct YardScreen: View {
                     .petFont(14, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .accessibilityIdentifier("yard.screen.tierName")
+                if f.yard.moves > 0 {
+                    Text("\(YardText.gloryStars(moves: f.yard.moves)) \(YardText.districtName(Yard.district(moves: f.yard.moves)))")
+                        .petFont(14, .bold)
+                        .foregroundStyle(PetPalette.yellow)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text(YardText.gloryLabel(moves: f.yard.moves)))
+                        .accessibilityIdentifier("yard.screen.glory")
+                }
                 let coins = f.econ.wallet.coins
                 Text("🪙 \(coins)")
                     .petFont(15, .semibold)
@@ -102,6 +121,9 @@ struct YardScreen: View {
             stationCard(st, f: f, dog: dog)
         }
         tierCard(f, tier: tier, dog: dog)
+        if Yard.canMove(f.yard, dogLevel: dog) {
+            moveCard(f)
+        }
         Text("Копилка копит до суток. Двор остаётся, даже если начать заново с новым щенком.")
             .petFont(12, .medium)
             .foregroundStyle(PetPalette.soft)
@@ -182,7 +204,7 @@ struct YardScreen: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(sceneLabel(tier: tier, rates: rates, dog: dogPose, mode: mode)))
         // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции.
-        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"))
+        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),moves=\(s.moves),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"))
         .accessibilityIdentifier("yard.screen.scene")
     }
 
@@ -296,7 +318,7 @@ struct YardScreen: View {
                             .petFont(17, .bold)
                             .foregroundStyle(PetPalette.ink)
                         Text(p.isStation
-                             ? "станция · \(YardText.perHour(Yard.stationRate(p.id, level: 1, dogLevel: dog)))"
+                             ? "станция · \(YardText.perHour(Yard.stationRate(p.id, level: 1, dogLevel: dog, moves: f.yard.moves)))"
                              : p.cozy > 0 ? "украшение · уют +\(p.cozy)" : "украшение")
                             .petFont(14, .medium)
                             .foregroundStyle(PetPalette.soft)
@@ -358,7 +380,7 @@ struct YardScreen: View {
         let level = f.yard.stations[st.id] ?? 1
         let helper = Yard.helper(f)
         let gold = f.yard.gold.contains(st.id)
-        let now = Yard.stationRate(st.id, level: level, dogLevel: dog, helper: helper, gold: gold)
+        let now = Yard.stationRate(st.id, level: level, dogLevel: dog, helper: helper, gold: gold, moves: f.yard.moves)
         let top = st.maxLevel
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
@@ -396,7 +418,7 @@ struct YardScreen: View {
             }
 
             if level < top {
-                let next = Yard.stationRate(st.id, level: level + 1, dogLevel: dog, helper: helper, gold: gold)
+                let next = Yard.stationRate(st.id, level: level + 1, dogLevel: dog, helper: helper, gold: gold, moves: f.yard.moves)
                 Rectangle()
                     .fill(PetPalette.soft.opacity(0.2))
                     .frame(height: 1)
@@ -405,7 +427,7 @@ struct YardScreen: View {
                     Text("Ур. \(level + 1): \(YardText.perHour(next)) вместо \(YardText.perHour(now))")
                         .petFont(14, .bold)
                         .foregroundStyle(PetPalette.ink)
-                    if let pb = YardText.payback(Yard.paybackDays(st.id, level: level)) {
+                    if let pb = YardText.payback(Yard.paybackDays(st.id, level: level, moves: f.yard.moves)) {
                         Text(pb)
                             .petFont(13, .medium)
                             .foregroundStyle(PetPalette.soft)
@@ -548,6 +570,111 @@ struct YardScreen: View {
         } else {
             tierShake += 1
         }
+    }
+
+    // MARK: - Переезд
+
+    /// Тихая карточка: двор достроен — можно переехать в новый район со славой.
+    @ViewBuilder private func moveCard(_ f: SaveFile) -> some View {
+        Button { confirmMove = true } label: {
+            HStack(spacing: 12) {
+                Text("🚚")
+                    .font(.system(size: 22))
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(PetPalette.yellow.opacity(0.16)))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(YardText.moveTitle)
+                        .petFont(16, .bold)
+                        .foregroundStyle(PetPalette.ink)
+                    Text(YardText.moveLine(moves: f.yard.moves))
+                        .petFont(13, .medium)
+                        .foregroundStyle(PetPalette.soft)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .axLines(3)
+                .minimumScaleFactor(0.85)
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(PetPalette.soft)
+                    .accessibilityHidden(true)
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 18).strokeBorder(PetPalette.soft.opacity(0.3), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(YardText.moveTitle))
+        .accessibilityValue(Text(YardText.moveLine(moves: f.yard.moves)))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("yard.screen.move")
+    }
+
+    /// Подтверждение переезда: что останется, что начнётся заново, какая слава. «Переехать» / «Остаться».
+    @ViewBuilder private func moveConfirm(_ f: SaveFile) -> some View {
+        let lines = YardText.moveConfirm(moves: f.yard.moves)
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { confirmMove = false }
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(YardText.moveTitle)
+                    .petFont(20, .bold)
+                    .foregroundStyle(PetPalette.ink)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(i == 0 ? "✓" : i == 1 ? "↺" : "★")
+                            .foregroundStyle(i == 2 ? PetPalette.yellow : PetPalette.soft)
+                            .accessibilityHidden(true)
+                        Text(line)
+                            .petFont(15, i == 2 ? .bold : .medium)
+                            .foregroundStyle(PetPalette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                HStack(spacing: 10) {
+                    Button { confirmMove = false } label: {
+                        Text("Остаться")
+                            .petFont(15, .bold)
+                            .foregroundStyle(PetPalette.accent)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(RoundedRectangle(cornerRadius: 14).strokeBorder(PetPalette.accent, lineWidth: 1.5))
+                            .contentShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(SquishStyle())
+                    .accessibilityIdentifier("yard.screen.move.cancel")
+                    Button { move() } label: {
+                        Text("Переехать")
+                            .petFont(15, .bold)
+                            .foregroundStyle(Color.white)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.accent))
+                            .contentShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(SquishStyle())
+                    .accessibilityIdentifier("yard.screen.move.confirm")
+                }
+                .axLines(1)
+                .minimumScaleFactor(0.8)
+                .padding(.top, 4)
+            }
+            .padding(18)
+            .background(RoundedRectangle(cornerRadius: 22).fill(PetPalette.card))
+            .padding(.horizontal, 20)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
+            .accessibilityIdentifier("yard.screen.move.sheet")
+        }
+    }
+
+    private func move() {
+        confirmMove = false
+        guard let r = model.moveYard(), case .ok = r else { return }
+        sparkle += 1
     }
 
     // MARK: - Общее

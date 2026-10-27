@@ -88,6 +88,21 @@ extension AppModel {
         return h
     }
 
+    /// Переезд двора (волна 36 P): двор заново, монеты сверх moveKeepCoins срезаются, слава навсегда.
+    /// Гейт (ур. пса и полный двор) — в Yard.move; кнопки без гейта нет, но отказ всё равно не немой.
+    @discardableResult
+    func moveYard() -> YardMoveResult? {
+        let r = yardWrite { f, now in Yard.move(in: &f, now: now, dogLevel: DogLevel.level(f)) }
+        guard let r else { return nil }
+        if case .ok(let m, _) = r {
+            Feel.success(.hearts)
+            show(YardText.moved(moves: m), emoji: "🚚")
+        } else if let t = YardText.moveRefuse(r) {
+            refuse(t)
+        }
+        return r
+    }
+
     // MARK: общее
 
     /// Одна запись в стор: действие, опыт пса по журналу, снимок, виджеты. nil — стор не записался.

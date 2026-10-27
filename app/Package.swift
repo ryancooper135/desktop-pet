@@ -176,6 +176,7 @@ let package = Package(
                 "YardTests.swift",
                 "YardTextTests.swift",
                 "YardDogTests.swift",
+                "YardMoveTests.swift",
                 "PlacesTests.swift",
                 "ChallengesTests.swift",
                 "IslandEventsTests.swift",

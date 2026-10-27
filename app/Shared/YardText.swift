@@ -127,6 +127,61 @@ enum YardText {
             && f.econ.wallet.coins >= p.price
     }
 
+    // MARK: переезд (волна 36 P)
+
+    /// «1,5», «2», «2,5» — множитель славы по-русски.
+    static func times(_ x: Double) -> String {
+        let r = (x * 10).rounded() / 10
+        let s = r == r.rounded() ? "\(Int(r))" : String(format: "%.1f", r).replacingOccurrences(of: ".", with: ",")
+        return "×" + s
+    }
+
+    /// Район двора по номеру (Yard.district): улица, зимний двор, у реки, на крыше.
+    static func districtName(_ d: Int) -> String {
+        ["Улица", "Зимний двор", "У реки", "На крыше"][min(max(0, d), 3)]
+    }
+
+    /// Звёзды славы на вывеске: «★★»; без переездов — пусто.
+    static func gloryStars(moves: Int, _ cfg: YardConfig = .shared) -> String {
+        String(repeating: "★", count: Yard.gloryStars(moves: moves, cfg))
+    }
+
+    /// Звёзды для VoiceOver: «Слава двора ×1,5».
+    static func gloryLabel(moves: Int, _ cfg: YardConfig = .shared) -> String {
+        "Слава двора \(times(Yard.glory(moves: moves, cfg)))"
+    }
+
+    /// Тихая карточка внизу экрана: заголовок и одна строка.
+    static let moveTitle = "Переезд двора"
+    static func moveLine(moves: Int, _ cfg: YardConfig = .shared) -> String {
+        "Двор достроен. Новый район — «\(districtName(Yard.district(moves: moves + 1)))», "
+            + "слава \(times(Yard.glory(moves: moves + 1, cfg)))"
+    }
+
+    /// Подтверждение: что останется, что начнётся заново, какая слава будет.
+    static func moveConfirm(moves: Int, _ cfg: YardConfig = .shared) -> [String] {
+        let keep = cfg.moveKeepCoins
+        return [
+            "Останется: Шиба, его уровень и рост, вещи, дом, ✂️, альбом, \(keep) 🪙",
+            "Начнётся заново: плиты, станции, копилка, монеты сверх \(keep)",
+            "Слава двора \(times(Yard.glory(moves: moves + 1, cfg))) к доходу станций навсегда",
+        ]
+    }
+
+    /// Тост после переезда.
+    static func moved(moves: Int, _ cfg: YardConfig = .shared) -> String {
+        "Переехали: «\(districtName(Yard.district(moves: moves)))» · слава \(times(Yard.glory(moves: moves, cfg)))"
+    }
+
+    /// Отказ (кнопки нет, но на всякий случай — не немой).
+    static func moveRefuse(_ r: YardMoveResult) -> String? {
+        switch r {
+        case .ok: return nil
+        case .level(let need): return "Переезд — с ур. \(need) пса"
+        case .notFull(let left): return "Сначала дострой двор — осталось \(left)"
+        }
+    }
+
     // MARK: имена
 
     static func tierName(_ n: Int, _ cfg: YardConfig = .shared) -> String {

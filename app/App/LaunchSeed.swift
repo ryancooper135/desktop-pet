@@ -25,7 +25,7 @@ import Foundation
 /// zombie — бодрый щенок с рекордом «Щенок против зомби» 300 (ui-83/84);
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
-/// yard_empty|yard_plates|yard_rich — экран «Двор» (волна 34 G, seedYard).
+/// yard_empty|yard_plates|yard_rich|yard_full — экран «Двор» (волна 34 G, seedYard; yard_full — переезд, волна 36 P).
 /// level_up — при старте платится ур. 3 и играет сцена нового уровня; level_puppy — щенок на ур. 4,
 /// level_adult — взрослый на ур. 12 (волна 34 I, ui-34-level-*).
 /// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
@@ -289,7 +289,7 @@ enum LaunchSeed {
                 }
                 f.seen = f.pet
                 f.lastSeenT = now
-            case "yard_empty", "yard_plates", "yard_rich":
+            case "yard_empty", "yard_plates", "yard_rich", "yard_full":
                 seedYard(&f, seed: seed ?? "", now: now)
             case "level_up", "level_puppy", "level_adult":
                 // Волна 34 I (LevelUITests, ui-34-level-*): level_up — опыта уже на ур. 3, оплачен ур. 2: первый же
@@ -383,6 +383,8 @@ enum LaunchSeed {
     /// дальше «Дорожка» (не хватает 80 🪙), копилка копит 3 ч; yard_rich — «Сад», пёс ур. 10, кухня 1, три станции,
     /// копилка полная (25 ч — она держит сутки), 5000 монет — улучшение проходит с первого нажатия; косточки с золотой табличкой,
     /// 200 ✂️ — золотая табличка сушилки покупается сразу (волна 35 M).
+    /// yard_full — волна 36 P (ui-36-yard-move*): пёс ур. 30, все ярусы, все плиты и станции на максимуме (двор полный),
+    /// копилка копит час, 5000 монет — переезд срежет до 1000; у сушилки золотая табличка (останется после переезда).
     private static func seedYard(_ f: inout SaveFile, seed: String, now: Double) {
         PetRunner.catchUp(&f, now: now)
         for n in [Need.food, .clean, .energy, .fun, .love, .walk, .look] { f.pet.needs[n] = 80 }
@@ -410,6 +412,18 @@ enum LaunchSeed {
             y.t = now - 25 * 3600
             f.econ.wallet.coins = 5000
             f.econ.wallet.shards = max(f.econ.wallet.shards, 200)
+        case "yard_full":
+            let cfg = YardConfig.shared
+            f.pet.home[.yard] = cfg.maxTier
+            f.pet.home[.kitchen] = max(f.pet.home[.kitchen] ?? 0, cfg.plates.map(\.kitchen).max() ?? 0)
+            f.level.started = true
+            f.level.xp = DogLevel.xpTo(cfg.moveMinDogLevel)
+            f.level.paidLevel = cfg.moveMinDogLevel   // награды за уровни уже выданы
+            y.plates = cfg.plates.filter { !$0.isStation }.map(\.id)
+            y.stations = Dictionary(uniqueKeysWithValues: cfg.stations.map { ($0.id, $0.maxLevel) })
+            y.gold = ["dryer"]
+            y.t = now - 3600
+            f.econ.wallet.coins = 5000
         default:
             f.pet.home[.yard] = 0
             f.econ.wallet.coins = 20
