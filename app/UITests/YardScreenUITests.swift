@@ -4,6 +4,10 @@
 //   ui-34-yard-plates   «Дворик»: сушилка, карточка «Дорожка» и полоска «ещё 80 🪙»
 //   ui-34-yard-station  «Сад»: сушилка выросла до ур. 4
 //   ui-34-yard-collect  полная копилка собрана: тост со свинкой
+// Волна 35 M (значение сцены ещё «dog=<клип>,gold=<станции>,dog3d=on|load|wait|off|none» — dog3d: пёс уже в сцене и кадр дошёл):
+//   ui-35-yard-dog      Шиба у каши смотрит на пар (PET_YARD_DOG=porridge)
+//   ui-35-yard-plate    объёмные таблички «+N/ч» над станциями, у косточек золотая
+//   ui-35-yard-gold     сушилке купили золотую табличку за 60 ✂️
 
 import XCTest
 
@@ -13,9 +17,10 @@ final class YardScreenUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch(_ seed: String) -> XCUIApplication {
+    private func launch(_ seed: String, dog: String? = nil) -> XCUIApplication {
         let app = ScreenshotUITests.makeApp()
         app.launchEnvironment["PET_SEED"] = seed
+        if let dog { app.launchEnvironment["PET_YARD_DOG"] = dog }
         app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
         app.launchEnvironment["PET_SCHEME"] = "light"
         app.launchEnvironment["PET_OPEN"] = "yard"
@@ -74,31 +79,107 @@ final class YardScreenUITests: XCTestCase {
 
         // Сначала копилка — она наверху, под сценой.
         let collect = any["yard.screen.collect"]
-        XCTAssertTrue(tap(collect, expecting: any["toast"], timeout: 5, name: "ui-34-yard-collect-miss"), "сбор без тоста")
+        XCTAssertTrue(tap(collect, expecting: any["toast"], timeout: 8, name: "ui-34-yard-collect-miss"), "сбор без тоста")
         settle(0.6)
         snap("ui-34-yard-collect")
 
         let up = any["yard.screen.station.dryer.up"]
         XCTAssertTrue(up.waitForExistence(timeout: 5), "нет кнопки «Улучшить» у сушилки")
-        for _ in 0..<5 where !inView(up, app) {
-            screen.swipeUp()
-            settle(0.5)
-        }
+        reveal(up, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(up), "«Улучшить» не нажимается")
-        // На CI сцена с 3D-станциями обновляет значение дольше 5 с (прогон 40410665893: dryer=4 пришло после таймаута).
         XCTAssertTrue(wait(scene, valueHas: "dryer=4", timeout: 20), "сушилка не выросла (\(String(describing: scene.value)))")
         settle(1)
         snap("ui-34-yard-station")
 
         let close = any["yard.screen.close"]
-        for _ in 0..<5 where !inView(close, app) {
-            screen.swipeDown()
-            settle(0.4)
-        }
+        toTop(screen, app: app)
+        reveal(close, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(close), "нет крестика")
-        XCTAssertTrue(screen.waitForNonExistence(timeout: 5), "двор не закрылся")
+        XCTAssertTrue(screen.waitForNonExistence(timeout: 10), "двор не закрылся")
         XCTAssertTrue(any["open.yard"].waitForExistence(timeout: 10), "на главной нет кнопки «Двор»")
         app.terminate()
+    }
+
+    /// Шиба сам ходит к станциям; в тесте держим его у каши, чтобы снимок был про дело, а не про дорогу.
+    @MainActor
+    func testDogAtStation() throws {
+        let app = launch("yard_rich", dog: "porridge")
+        let scene = app.descendants(matching: .any)["yard.screen.scene"]
+        XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
+        XCTAssertTrue(wait(scene, valueHas: "dog=act.porridge", timeout: 10),
+                      "пёс не у каши (\(String(describing: scene.value)))")
+        XCTAssertTrue(scene.label.contains("Шиба"), "VoiceOver не говорит, где Шиба: \(scene.label)")
+        // План говорит «у каши» сразу, а модель грузится отдельно: ждём, пока пёс сядет в сцену и она отрисуется.
+        XCTAssertTrue(wait(scene, valueHas: "dog3d=on", timeout: 45),
+                      "пёс не появился в сцене (\(String(describing: scene.value)))")
+        settle(3)
+        snap("ui-35-yard-dog")
+        app.terminate()
+    }
+
+    /// Таблички в сцене, потом золотая табличка сушилки за клочки.
+    @MainActor
+    func testGoldPlate() throws {
+        let app = launch("yard_rich")
+        let any = app.descendants(matching: .any)
+        let screen = any["yard.screen"]
+        let scene = any["yard.screen.scene"]
+        XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
+        XCTAssertTrue(wait(scene, valueHas: "gold=bones"), "сид yard_rich: косточки золотые (\(String(describing: scene.value)))")
+        XCTAssertTrue(scene.label.contains("/ч"), "VoiceOver не читает доход станций: \(scene.label)")
+        _ = wait(scene, valueHas: "dog3d=on", timeout: 45)
+        settle(2)
+        snap("ui-35-yard-plate")
+
+        let gold = any["yard.screen.station.dryer.gold"]
+        XCTAssertTrue(gold.waitForExistence(timeout: 5), "нет кнопки золотой таблички у сушилки")
+        reveal(gold, in: screen, app: app)
+        XCTAssertTrue(tapWhenReady(gold), "золотая табличка не нажимается")
+        XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer"), "сушилка не стала золотой (\(String(describing: scene.value)))")
+        XCTAssertTrue(any["yard.screen.station.dryer.goldOwned"].waitForExistence(timeout: 5), "нет строки «Золотая табличка»")
+        // Наверх до шапки: сцена видна целиком.
+        toTop(screen, app: app)
+        reveal(any["yard.screen.close"], in: screen, app: app)
+        reveal(scene, in: screen, app: app)
+        // Золото пересобрало сцену: ждём, пока новая отрисуется (пёс в ней — значит, кадры идут).
+        _ = wait(scene, valueHas: "dog3d=on", timeout: 30)
+        settle(3)
+        snap("ui-35-yard-gold")
+        app.terminate()
+    }
+
+    /// Прокрутить экран двора, пока рамка e целиком не окажется в окне. Не swipeUp/swipeDown: их середина экрана
+    /// попадает в 3D-сцену, и на CI свайп то листал, то нет; и не isHittable: у кнопки за краем экрана в ScrollView
+    /// он бывает true. Тянем пальцем ниже сцены (или выше — вниз) по рамкам, до 8 рывков. Сцена, ушедшая за край,
+    /// снимается с экрана (YardScreen.sceneOnScreen) — дальше листается легко.
+    @MainActor
+    private func reveal(_ e: XCUIElement, in screen: XCUIElement, app: XCUIApplication) {
+        guard e.waitForExistence(timeout: 5) else { return }
+        let win = app.windows.firstMatch.frame
+        let top = win.minY + 60, bottom = win.maxY - 60
+        for _ in 0..<8 {
+            let f = e.frame
+            if f.minY >= top && f.maxY <= bottom { return }
+            let low = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
+            let high = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
+            // Ниже окна — тянем вверх, выше — вниз; шаг ~четверть экрана, чтобы не проскочить.
+            if f.maxY > bottom {
+                low.press(forDuration: 0.05, thenDragTo: high, withVelocity: .slow, thenHoldForDuration: 0.1)
+            } else {
+                high.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.1)
+            }
+            settle(0.8)
+            // На медленном CI-симуляторе рывок иногда не доходит: рамка не сдвинулась — даём приложению отдышаться.
+            if abs(e.frame.minY - f.minY) < 1 { settle(2) }
+        }
+    }
+
+    /// Наверх одним касанием строки состояния (scrollsToTop): на медленном CI это надёжнее рывков вниз —
+    /// по пути вверх сцена снова встаёт на экран и тяжелеет, и второй-третий рывок не успевал дойти.
+    @MainActor
+    private func toTop(_ screen: XCUIElement, app: XCUIApplication) {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).tap()
+        settle(1.5)
     }
 
     /// Значение элемента содержит text (ждём до timeout секунд).

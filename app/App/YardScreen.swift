@@ -1,8 +1,9 @@
 // Волна 34 G: экран «Двор» — маленький тайкун. Сверху двор в 3D из сейва (YardLive) с табличками «+N/ч»,
 // под ним копилка-свинка (тап — сбор), карточка следующей плиты, карточки станций и кнопка следующего яруса.
 // Логика — Yard и YardText (Shared), действия — AppModel+Yard; тут только вид. Денег нет: всё в монетах 🪙 из игры.
-// Решения (Вадим может поменять): кнопки не тускнеют — без монет нажатие качает карточку и объясняет тостом;
-// тикают не больше двух станций (тихий восьмибитный тик раз в ~3 с).
+// Решения (Вадим может поменять): кнопки не тускнеют — без монет нажатие качает карточку и объясняет тостом.
+// Волна 35 M: таблички «+N/ч», пёс у станций и тиканье монет живут в сцене (YardLive, YardDogLive): тик — когда
+// монетка/сухарик падает в корзинку, не больше двух станций. Золотая табличка станции — за клочки ✂️.
 
 import RealityKit
 import SwiftUI
@@ -22,8 +23,10 @@ struct YardScreen: View {
     @State private var plateShake = 0
     @State private var tierShake = 0
     @State private var shakes: [String: Int] = [:]
-    @State private var tickTask: Task<Void, Never>?
     @State private var popTask: Task<Void, Never>?
+    /// Сцена в окне прокрутки. Ушла за край — RealityView убираем: 3D не рисует впустую (батарея), а на CI
+    /// главный поток не стоит в ожидании кадра и UI-тест успевает листать. Вернулась — мир собирается заново, уже на виду.
+    @State private var sceneOnScreen = true
 
     var body: some View {
         ScrollView {
@@ -49,11 +52,7 @@ struct YardScreen: View {
             }
         }
         .animation(.snappy, value: model.toast)
-        .onAppear { startTicks() }
-        .onDisappear {
-            tickTask?.cancel()
-            popTask?.cancel()
-        }
+        .onDisappear { popTask?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("yard.screen")
     }
@@ -123,58 +122,52 @@ struct YardScreen: View {
         let fill = Float((Yard.fill(f, now: now, dogLevel: dog) * 4).rounded() / 4)
         let s = f.yard
         let levels = s.stations.keys.sorted().map { "\($0)=\(s.stations[$0] ?? 0)" }.joined(separator: ",")
-        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)"
         let pop = popId
         let spots = YardLive.spots(s, tier: tier)
-        let cam = YardLive.camera(tier: tier)
         let helper = Yard.helper(f)
-        // Один RealityView на весь экран: после покупки двор меняется внутри него (держатель и камера живут
-        // всё время). Пересоздание вида через .id на симуляторе оставляло пустой поднос.
-        RealityView { content in
-            content.camera = .virtual
-            YardArtSystem.registerOnce()
-            let holder = Entity()
-            holder.name = YardLive.holderName
-            content.add(holder)
-            let eye = PerspectiveCamera()
-            eye.name = YardLive.cameraName
-            content.add(eye)
-        } update: { content in
-            guard let holder = content.entities.first(where: { $0.name == YardLive.holderName }) else { return }
-            if let eye = content.entities.first(where: { $0.name == YardLive.cameraName }) as? PerspectiveCamera {
-                eye.camera.fieldOfViewInDegrees = cam.fov
-                eye.look(at: cam.target, from: cam.eye, relativeTo: nil)
-            }
-            guard holder.children.first?.name != key else { return }
-            holder.children.removeAll()
-            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false, camera: false)
-            scene.name = key
-            holder.addChild(scene)
+        let rates = spots.map { YardTickRate(id: $0.id, rate: Yard.stationRate($0.id, in: s, dogLevel: dog, helper: helper)) }
+        let mode = YardDogMode.of(pose: model.snap.pose, alive: model.snap.alive)
+        let live = YardLive.Live(rates: rates, mode: mode, calm: reduceMotion, forced: YardDogLive.forced)
+        let gold = s.gold.sorted().joined(separator: ",")
+        let perHour = rates.map { "\($0.id)=\(YardText.perHour($0.rate))" }.joined(separator: ",")
+        // Ключ сцены — всё видимое: ярус, плиты, уровни, поднос, ночь, доход на табличках, золото, дома ли пёс.
+        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)"
+        let dogPose = YardDogLive.pose(mode: mode, spots: spots, tier: tier, night: night, calm: reduceMotion, now: now)
+        // Сцена по ключу: одна и та же RealityView, внутри меняется только мир. Раньше вид пересоздавался .id(key),
+        // и новый, родившийся за краем экрана (улучшили станцию внизу списка), на CI оставался пустым.
+        let build: @MainActor @Sendable () -> Entity = {
+            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false, live: live)
             if let pop, let spot = spots.first(where: { $0.id == pop }) {
                 YardLive.pop(pop, in: scene, scale: spot.scale)
+            }
+            // Пёс догружается отдельно: двор виден сразу. Мир успел смениться — сядет в старый, его уже нет в сцене.
+            if mode != .absent {
+                Task { @MainActor in
+                    let body = await YardDogLive.model()
+                    YardDogLive.attach(to: scene, body: body)
+                }
+            }
+            return scene
+        }
+        Group {
+            if sceneOnScreen {
+                RealityView { content in
+                    content.camera = .virtual
+                    YardArtSystem.registerOnce()
+                    YardLiveSystem.registerOnce()
+                    let holder = Entity()
+                    YardLive.swap(in: holder, key: key, build: build)
+                    content.add(holder)
+                } update: { content in
+                    guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
+                    YardLive.swap(in: holder, key: key, build: build)
+                }
+            } else {
+                Color.clear
             }
         }
         .frame(height: 300)
         .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
-        .overlay {
-            GeometryReader { geo in
-                ForEach(spots, id: \.id) { spot in
-                    let top = spot.at + SIMD3<Float>(0, 0.62 * spot.scale, 0)
-                    if let p = YardLive.project(top, cam: cam, size: geo.size) {
-                        Text(YardText.perHour(Yard.stationRate(spot.id, level: spot.level, dogLevel: dog, helper: helper)))
-                            .petFont(12, .heavy)
-                            .monospacedDigit()
-                            .foregroundStyle(PetPalette.ink)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(PetPalette.card.opacity(0.92)))
-                            .position(p)
-                    }
-                }
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
         .overlay {
             ZStack {
                 YardBurst(emoji: "🪙", trigger: flyCoins, inward: true)
@@ -185,17 +178,31 @@ struct YardScreen: View {
             .accessibilityHidden(true)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .onScrollVisibilityChange(threshold: 0.02) { sceneOnScreen = $0 }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(sceneLabel(f, tier: tier)))
-        // Для UI-тестов: сколько плит, ярус и уровни станций («dryer=3»).
-        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels)"))
+        .accessibilityLabel(Text(sceneLabel(tier: tier, rates: rates, dog: dogPose, mode: mode)))
+        // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции.
+        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"))
         .accessibilityIdentifier("yard.screen.scene")
     }
 
-    private func sceneLabel(_ f: SaveFile, tier: Int) -> String {
-        let st = owned(f).map(\.name)
+    /// VoiceOver: ярус, станции с доходом (таблички в сцене не читаются), где Шиба.
+    private func sceneLabel(tier: Int, rates: [YardTickRate], dog: YardDogPose?, mode: YardDogMode) -> String {
+        let cfg = YardConfig.shared
         let head = "Двор, ярус «\(YardText.tierName(tier))»"
-        return st.isEmpty ? head + ". Станций пока нет" : head + ". Станции: " + st.joined(separator: ", ")
+        let st = rates.compactMap { r in cfg.station(r.id).map { "\($0.name) \(YardText.perHour(r.rate))" } }
+        var out = st.isEmpty ? head + ". Станций пока нет" : head + ". Станции: " + st.joined(separator: ", ")
+        switch mode {
+        case .absent: break
+        case .asleep: out += ". Шиба спит"
+        case .awake:
+            if let id = dog?.station, let name = cfg.station(id)?.name {
+                out += dog?.phase == .act ? ". Шиба у станции «\(name)»" : ". Шиба бегает к станции «\(name)»"
+            } else {
+                out += ". Шиба отдыхает во дворе"
+            }
+        }
+        return out
     }
 
     // MARK: - Копилка
@@ -350,7 +357,8 @@ struct YardScreen: View {
     @ViewBuilder private func stationCard(_ st: YardStation, f: SaveFile, dog: Int) -> some View {
         let level = f.yard.stations[st.id] ?? 1
         let helper = Yard.helper(f)
-        let now = Yard.stationRate(st.id, level: level, dogLevel: dog, helper: helper)
+        let gold = f.yard.gold.contains(st.id)
+        let now = Yard.stationRate(st.id, level: level, dogLevel: dog, helper: helper, gold: gold)
         let top = st.maxLevel
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
@@ -388,7 +396,7 @@ struct YardScreen: View {
             }
 
             if level < top {
-                let next = Yard.stationRate(st.id, level: level + 1, dogLevel: dog, helper: helper)
+                let next = Yard.stationRate(st.id, level: level + 1, dogLevel: dog, helper: helper, gold: gold)
                 Rectangle()
                     .fill(PetPalette.soft.opacity(0.2))
                     .frame(height: 1)
@@ -420,6 +428,7 @@ struct YardScreen: View {
                 .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.yellow.opacity(0.14)))
                 .accessibilityElement(children: .combine)
             }
+            goldRow(st, gold: gold)
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
@@ -432,6 +441,42 @@ struct YardScreen: View {
         guard let r = model.upgradeYardStation(id) else { return }
         if case .upgraded = r {
             flyCoins += 1
+            pop(id)
+        } else {
+            shakes[id, default: 0] += 1
+        }
+    }
+
+    /// Золотая табличка: есть — строка-награда, нет — кнопка за клочки ✂️ (сток клочков, +3 % к станции).
+    @ViewBuilder private func goldRow(_ st: YardStation, gold: Bool) -> some View {
+        let cfg = YardConfig.shared
+        if gold {
+            HStack(spacing: 6) {
+                Text("🏅")
+                    .accessibilityHidden(true)
+                Text("Золотая табличка · +\(cfg.goldPct) %")
+            }
+            .axLines(2)
+            .petFont(14, .bold)
+            .foregroundStyle(PetPalette.yellow)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.yellow.opacity(0.14)))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("yard.screen.station.\(st.id).goldOwned")
+        } else if cfg.goldPrice > 0 {
+            YardActionButton(title: "Золотая табличка +\(cfg.goldPct) %", price: cfg.goldPrice,
+                             id: "yard.screen.station.\(st.id).gold",
+                             label: "\(st.name): золотая табличка за \(EconText.shards(cfg.goldPrice))",
+                             currency: "✂️", filled: false) {
+                gild(st.id)
+            }
+        }
+    }
+
+    private func gild(_ id: String) {
+        guard let r = model.goldYardStation(id) else { return }
+        if case .ok = r {
+            sparkle += 1
             pop(id)
         } else {
             shakes[id, default: 0] += 1
@@ -517,22 +562,6 @@ struct YardScreen: View {
         }
     }
 
-    /// Тихий восьмибитный тик: раз в ~3 с, не больше двух станций (у каждой своя нота).
-    private func startTicks() {
-        tickTask?.cancel()
-        tickTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(3))
-                if Task.isCancelled { return }
-                guard let f = model.file else { continue }
-                let ids = YardConfig.shared.stations.indices.filter { f.yard.stations[YardConfig.shared.stations[$0].id] != nil }
-                for (k, i) in ids.suffix(2).enumerated() {
-                    SoundKit.shared.play(.yardTick(i), after: Double(k) * 0.35)
-                }
-            }
-        }
-    }
-
     /// Значок станции на карточке.
     static func emoji(_ id: String) -> String {
         switch id {
@@ -550,11 +579,14 @@ struct YardScreen: View {
 }
 
 /// «Поставить · 🪙 140». Не тускнеет без монет: нажатие объясняет отказ тостом и качает карточку.
+/// currency — значок цены (✂️ у золотой таблички), filled: false — контурная, для второстепенного действия.
 struct YardActionButton: View {
     let title: String
     let price: Int
     let id: String
     let label: String
+    var currency = "🪙"
+    var filled = true
     let action: () -> Void
 
     var body: some View {
@@ -563,16 +595,22 @@ struct YardActionButton: View {
                 Text(title)
                     .petFont(15, .bold)
                 Spacer(minLength: 8)
-                Text(price > 0 ? "🪙 \(price)" : "даром")
+                Text(price > 0 ? "\(currency) \(price)" : "даром")
                     .petFont(15, .heavy)
                     .monospacedDigit()
             }
             .axLines(1)
             .minimumScaleFactor(0.8)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(filled ? Color.white : PetPalette.accent)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.accent))
+            .background {
+                if filled {
+                    RoundedRectangle(cornerRadius: 14).fill(PetPalette.accent)
+                } else {
+                    RoundedRectangle(cornerRadius: 14).strokeBorder(PetPalette.accent, lineWidth: 1.5)
+                }
+            }
             .contentShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(SquishStyle())

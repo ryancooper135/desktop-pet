@@ -1,6 +1,7 @@
 // Волна 34 G: настоящий двор в 3D — сцена экрана «Двор» из сейва, а не из ползунков превью (YardStage).
 // Слои яруса — по купленным плитам (порядок конфига = порядок YardArtTier.plates), станции — по f.yard.stations
-// на своём уровне. Плюс проекция точки сцены на экран: таблички «+N/ч» висят над станциями SwiftUI-слоем.
+// на своём уровне. Волна 35 M: таблички «+N/ч» — в самой сцене (YardPlate3D), золотая табличка станции — рамка
+// и плашка из золота на плите-основании, пёс и тиканье монет — YardDogLive (YardLiveComponent на корне).
 
 import RealityKit
 import SwiftUI
@@ -73,14 +74,20 @@ enum YardLive {
     /// Имя сущности станции в сцене — по нему находим её для «выскока» после покупки.
     static func name(_ id: String) -> String { "yard.live.\(id)" }
 
-    /// Держатель сцены и постоянная камера экрана двора (сцена внутри держателя меняется, они — нет).
-    static let holderName = "yard.live.holder"
-    static let cameraName = "yard.live.camera"
+    /// Что в сцене живёт кроме станций: доход (таблички и тиканье), пёс.
+    struct Live {
+        /// Доход станций в монетах в час (с уровнем пса, помощником и золотом).
+        var rates: [YardTickRate] = []
+        var mode: YardDogMode = .absent
+        /// Reduce Motion: пёс отдыхает на месте.
+        var calm = false
+        /// PET_YARD_DOG (UI-тест).
+        var forced: String?
+    }
 
-    /// Сцена: слои 0…max(ярус, 1) (за подоконником — пустырь), станции, свет и камера (camera: false — без неё,
-    /// экран держит свою).
-    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool,
-                      camera withCamera: Bool = true) -> Entity {
+    /// Сцена: слои 0…max(ярус, 1) (за подоконником — пустырь), станции, таблички, свет и камера.
+    /// Пса сцена не ждёт: YardDogLive.model() грузит его отдельно, экран сажает через attach.
+    static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool, live: Live = Live()) -> Entity {
         let world = Entity()
         world.name = "yardLive"
         // Корень «живёт» (нулевой пульс): часы двора идут, даже если станций ещё нет.
@@ -90,20 +97,43 @@ enum YardLive {
             let b = k <= tier ? bought(s, tier: k) : 0
             world.addChild(YardArtStage.entity(YardArtTier.layer(k, bought: b)))
         }
-        for spot in spots(s, tier: tier) {
+        let cam = camera(tier: tier)
+        let all = spots(s, tier: tier)
+        for spot in all {
             guard let st = YardArtStation.allCases.first(where: { $0.configId == spot.id }) else { continue }
             let e = YardArtStage.entity(YardArt.station(st, level: spot.level, fill: fill, night: night, brushed: brushed))
             e.name = name(spot.id)
             e.position = spot.at
             e.scale = SIMD3<Float>(repeating: spot.scale)
+            let gold = s.gold.contains(spot.id)
+            if gold { e.addChild(YardPlate3D.goldTrim()) }
             world.addChild(e)
+            if let r = live.rates.first(where: { $0.id == spot.id }) {
+                let top = spot.at + SIMD3<Float>(0, 0.62 * spot.scale, 0)
+                world.addChild(YardPlate3D.make(YardText.perHour(r.rate), at: top, cam: cam, gold: gold, id: spot.id))
+            }
         }
-        if withCamera {
-            let cam = camera(tier: tier)
-            world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
-        }
+        world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         world.addChild(PetRoom.lights())
+        let rest = YardDogLive.rest(tier: tier)
+        world.components.set(YardLiveComponent(mode: live.mode, spots: YardDogLive.spots(all), rest: rest.at,
+                                               dogScale: rest.scale, night: night, brushed: brushed, calm: live.calm,
+                                               forced: live.forced, rates: live.rates))
         return world
+    }
+
+    /// Держатель мира в RealityView экрана: в имени — ключ сцены (всё видимое), мир внутри меняется, когда ключ
+    /// другой. Сам вид не пересоздаётся.
+    private static let holderPrefix = "yard.holder#"
+
+    static func isHolder(_ e: Entity) -> Bool { e.name.hasPrefix(holderPrefix) }
+
+    static func swap(in holder: Entity, key: String, build: @MainActor () -> Entity) {
+        let name = holderPrefix + key
+        guard holder.name != name else { return }
+        holder.name = name
+        for child in Array(holder.children) { child.removeFromParent() }
+        holder.addChild(build())
     }
 
     /// Новая станция «выскакивает»: из точки до полного размера с перелётом (кривая easeOutBack).
@@ -131,5 +161,90 @@ enum YardLive {
         let sx = YardArtMath.dot(d, r) / (z * t * aspect)
         let sy = YardArtMath.dot(d, u) / (z * t)
         return CGPoint(x: size.width / 2 * CGFloat(1 + sx), y: size.height / 2 * CGFloat(1 - sy))
+    }
+}
+
+/// Табличка «+N/ч» над станцией прямо в сцене: светлая доска с тёмными цифрами, без света и теней
+/// (читается и ночью), всегда лицом к экрану. Размер — от расстояния до камеры: на любом ярусе как ~12 pt.
+/// Золотая станция — доска цвета монеты.
+@MainActor
+enum YardPlate3D {
+    static let cream: UInt32 = 0xfdf6ea
+    static let ink: UInt32 = 0x4a3b33
+    /// Высота строки на экране — доля высоты кадра.
+    static let screenShare: Float = 0.055
+
+    private static var meshes: [String: MeshResource] = [:]
+
+    static func name(_ id: String) -> String { "yard.plate.\(id)" }
+
+    /// Доля пути от станции к камере: табличка встаёт на луче взгляда ближе к зрителю — на экране там же и того же
+    /// размера, но фонарь, ограда и соседние станции её больше не закрывают.
+    static let pull: Float = 0.45
+
+    static func make(_ text: String, at anchor: SIMD3<Float>, cam: YardLive.Cam, gold: Bool, id: String) -> Entity {
+        let root = Entity()
+        root.name = name(id)
+        let p = anchor + (cam.eye - anchor) * pull
+        root.position = p
+        // Плоскость таблички параллельна кадру: лицом против взгляда камеры.
+        let f = YardArtMath.normalize(cam.target - cam.eye)
+        let d = -f
+        let yaw = atan2(d.x, d.z)
+        let pitch = -asin(max(-1, min(1, d.y)))
+        root.orientation = simd_quatf(angle: yaw, axis: SIMD3(0, 1, 0)) * simd_quatf(angle: pitch, axis: SIMD3(1, 0, 0))
+        let dist = YardArtMath.dot(p - cam.eye, f)
+        let k = max(0.05, screenShare * 2 * dist * tan(cam.fov * .pi / 360)) / 0.1
+        root.scale = SIMD3<Float>(repeating: k)
+
+        let mesh = textMesh(text)
+        let b = mesh.bounds
+        let glyphs = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: PetRoom.color(ink))])
+        glyphs.position = SIMD3(-b.center.x, -b.center.y, 0.004)
+        let w = b.extents.x + 0.07, h = max(b.extents.y, 0.07) + 0.04
+        let board = ModelEntity(mesh: .generatePlane(width: w, height: h, cornerRadius: h / 2),
+                                materials: [UnlitMaterial(color: PetRoom.color(gold ? YardArtColors.coin : cream))])
+        PetRoom.noShadow(board)
+        PetRoom.noShadow(glyphs)
+        root.addChild(board)
+        root.addChild(glyphs)
+        return root
+    }
+
+    /// Меш строки при кегле 0,1 м (масштаб — у корня таблички), один на строку.
+    private static func textMesh(_ text: String) -> MeshResource {
+        if let m = meshes[text] { return m }
+        let m = MeshResource.generateText(text, extrusionDepth: 0.002,
+                                          font: .systemFont(ofSize: 0.1, weight: .heavy))
+        meshes[text] = m
+        return m
+    }
+
+    /// Золотая табличка станции: рамка из золота по краю плиты-основания и плашка спереди (в координатах станции).
+    static func goldTrim() -> Entity {
+        let root = Entity()
+        root.name = "yard.gold"
+        var mat = PetRoom.matteMaterial(YardArtColors.coin)
+        mat.metallic = .init(floatLiteral: 0.35)
+        mat.roughness = .init(floatLiteral: 0.4)
+        func bar(_ size: SIMD3<Float>, _ at: SIMD3<Float>) {
+            let e = ModelEntity(mesh: .generateBox(size: size), materials: [mat])
+            e.position = at
+            PetRoom.noShadow(e)
+            root.addChild(e)
+        }
+        // Плита: x ±0,25, z −0,25…0,2, верх 0,03 — рамка чуть шире и выше.
+        bar(SIMD3(0.54, 0.045, 0.025), SIMD3(0, 0.0225, 0.2075))
+        bar(SIMD3(0.54, 0.045, 0.025), SIMD3(0, 0.0225, -0.2575))
+        bar(SIMD3(0.025, 0.045, 0.44), SIMD3(0.2575, 0.0225, -0.025))
+        bar(SIMD3(0.025, 0.045, 0.44), SIMD3(-0.2575, 0.0225, -0.025))
+        // Плашка спереди, чуть наклонена к зрителю.
+        let plaque = ModelEntity(mesh: .generateBox(width: 0.17, height: 0.075, depth: 0.012, cornerRadius: 0.006),
+                                 materials: [mat])
+        plaque.position = SIMD3(0, 0.07, 0.225)
+        plaque.orientation = simd_quatf(angle: -0.35, axis: SIMD3(1, 0, 0))
+        PetRoom.noShadow(plaque)
+        root.addChild(plaque)
+        return root
     }
 }

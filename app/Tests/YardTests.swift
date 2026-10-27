@@ -464,4 +464,74 @@ final class YardTests: XCTestCase {
         let h = Yard.collect(in: &f, now: t0 + 12 * hour, dogLevel: 1, calm)
         XCTAssertEqual(h.coins, Int((42 * 1.05 * 12).rounded(.down)))
     }
+
+    // MARK: золотая табличка (волна 35 M)
+
+    /// Старый сейв без поля gold читается пустым; пустой список не пишется; с золотом — туда и обратно.
+    func testGoldSaveCompat() throws {
+        let old = #"{"plates": ["window"], "stations": {"dryer": 2}, "bank": 3, "t": 100}"#
+        let y = try JSONDecoder().decode(YardState.self, from: Data(old.utf8))
+        XCTAssertEqual(y.gold, [])
+        XCTAssertEqual(y.stations, ["dryer": 2])
+        let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(y)) as? [String: Any]
+        XCTAssertNil(plain?["gold"], "без золота поле не пишется")
+        XCTAssertNotNil(plain?["collected"], "остальные поля пишутся как раньше")
+        var g = y
+        g.gold = ["dryer"]
+        let back = try JSONDecoder().decode(YardState.self, from: JSONEncoder().encode(g))
+        XCTAssertEqual(back, g)
+        let junk = try JSONDecoder().decode(YardState.self, from: Data(#"{"gold": 7}"#.utf8))
+        XCTAssertEqual(junk.gold, [])
+    }
+
+    func testGoldRatePlusThreePercent() {
+        XCTAssertEqual(cfg.goldPrice, 60)
+        XCTAssertEqual(cfg.goldPct, 3)
+        XCTAssertEqual(Yard.stationRate("mill", level: 1, dogLevel: 1, gold: true, cfg), 42 * 1.03, accuracy: 1e-9)
+        var s = state(["mill": 1, "dryer": 1], at: t0)
+        let plain = Yard.rate(s, dogLevel: 1, cfg)
+        s.gold = ["mill"]
+        XCTAssertEqual(Yard.rate(s, dogLevel: 1, cfg), plain + 42 * 0.03, accuracy: 1e-9, "только своей станции")
+        XCTAssertEqual(Yard.stationRate("mill", in: s, dogLevel: 1, cfg), 42 * 1.03, accuracy: 1e-9)
+        XCTAssertEqual(Yard.stationRate("dryer", in: s, dogLevel: 1, cfg), 4, accuracy: 1e-9)
+        XCTAssertEqual(Yard.stationRate("pies", in: s, dogLevel: 1, cfg), 0, "не поставлена")
+        // С помощником и уровнем — проценты складываются.
+        let h = YardHelper(station: "mill", pct: 5)
+        XCTAssertEqual(Yard.stationRate("mill", level: 1, dogLevel: 25, helper: h, gold: true, cfg),
+                       42 * (1 + 0.05 + 0.05 + 0.03), accuracy: 1e-9)
+    }
+
+    func testGildRefusalsAndAccrual() {
+        var s = state(["dryer": 1], at: t0)
+        var shards = 100
+        XCTAssertEqual(Yard.gild("nope", &s, shards: &shards, now: t0, dogLevel: 1, cfg), .unknown)
+        XCTAssertEqual(Yard.gild("bones", &s, shards: &shards, now: t0, dogLevel: 1, cfg), .notBuilt)
+        var poor = 59
+        XCTAssertEqual(Yard.gild("dryer", &s, shards: &poor, now: t0, dogLevel: 1, cfg), .noShards(need: 1))
+        XCTAssertEqual(poor, 59)
+        XCTAssertEqual(s.gold, [])
+        // Час копили по старой ставке — начислено до позолоты.
+        XCTAssertEqual(Yard.gild("dryer", &s, shards: &shards, now: t0 + hour, dogLevel: 1, cfg), .ok(price: 60))
+        XCTAssertEqual(shards, 40)
+        XCTAssertEqual(s.gold, ["dryer"])
+        XCTAssertEqual(s.bank, 4, accuracy: 1e-9)
+        XCTAssertEqual(Yard.gild("dryer", &s, shards: &shards, now: t0 + hour, dogLevel: 1, cfg), .owned)
+        XCTAssertEqual(shards, 40)
+        Yard.accrue(&s, now: t0 + 2 * hour, dogLevel: 1, cfg)
+        XCTAssertEqual(s.bank, 4 + 4 * 1.03, accuracy: 1e-9)
+    }
+
+    func testGildFromSave() {
+        var f = SaveFile.fresh(now: t0)
+        f.yard.stations = ["bones": 2]
+        f.yard.t = t0
+        f.econ.wallet.shards = 75
+        let coins = f.econ.wallet.coins
+        XCTAssertEqual(Yard.gild("bones", in: &f, now: t0, dogLevel: 1, cfg), .ok(price: 60))
+        XCTAssertEqual(f.econ.wallet.shards, 15)
+        XCTAssertEqual(f.econ.wallet.coins, coins, "монеты не трогаем")
+        XCTAssertEqual(f.yard.gold, ["bones"])
+        XCTAssertEqual(Yard.gild("bones", in: &f, now: t0, dogLevel: 1, cfg), .owned)
+        XCTAssertEqual(f.econ.wallet.shards, 15)
+    }
 }
