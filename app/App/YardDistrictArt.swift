@@ -30,6 +30,17 @@ enum YardDecorColors {
     static let tank: UInt32 = 0x8a6a52
     static let city: UInt32 = 0xd8b6a6
     static let cityNight: UInt32 = 0x3a3352
+    // Волна 37 B: ночные огни районов и мелочь на станциях.
+    /// Свет в окне дома ночью и тёплое пятно от лампочки на кирпиче.
+    static let warm: UInt32 = 0xffc874
+    static let spill: UInt32 = 0xc98a62
+    /// Стекло фонаря на мостике и лампочки у будки днём — не горит.
+    static let lampOff: UInt32 = 0xf1e7cf
+    static let lantern: UInt32 = 0xffd88a
+    static let glint: UInt32 = 0xffe9b0
+    /// Окна города ночью: тёплые и одно холодное (телевизор).
+    static let cityLights: [UInt32] = [0xffd36b, 0xffe6a3, 0xf6b65a, 0xa9d4f0]
+    static let oar: UInt32 = 0xc9a06a
 }
 
 extension YardArtTier {
@@ -59,7 +70,27 @@ extension YardArtTier {
             }
             m.body()
         }
+        // Ночь района (волна 37 B): свои огни поверх общего ночного неба. Узлы «night.*» есть только ночью.
+        if night {
+            switch district {
+            case .winter: YardDecorArt.winterNight(&m, ctx)
+            case .river: YardDecorArt.riverNight(&m, ctx)
+            case .roof: YardDecorArt.roofNight(&m, ctx)
+            case .street: break
+            }
+            m.body()
+        }
         return m
+    }
+
+    /// Ночные узлы района на виде до слоя top — что обязано загореться ночью (тесты).
+    static func nightNodes(_ district: YardDistrict, top: Int) -> [String] {
+        switch district {
+        case .street: return []
+        case .winter: return ["night.window", "night.eave0", "night.eave1"]
+        case .river: return ["night.lantern", "night.glint"]
+        case .roof: return top >= 3 ? ["night.bulb", "night.city"] : ["night.bulb"]
+        }
     }
 
     /// Худший декор по всем районам, слоям и ночи — для бюджета (тест и подпись превью).
@@ -268,6 +299,20 @@ enum YardDecorArt {
             }
             m.box(YardDecorColors.plankDark, SIMD3(0.026, 0.026, len - 0.02), at: SIMD3(0.16 * side, 0.17, zc))
         }
+        // Фонарь на левом столбике у берега дома: стойка, колпак, стекло. Ночью стекло горит (riverNight).
+        let l = lanternAt(c)
+        m.box(YardDecorColors.plankDark, SIMD3(0.02, 0.2, 0.02), at: l + SIMD3(0, -0.11, 0))
+        m.prism(YardDecorColors.metalDark, sides: 4, r: 0.048, h: 0.04, top: 0, at: l + SIMD3(0, 0.055, 0))
+        if !c.night {
+            m.gem(YardDecorColors.lampOff, sides: 4, r: 0.034, h: 0.07, at: l)
+        }
+    }
+
+    /// Стекло фонаря на мостике: над левым столбиком у берега дома.
+    static func lanternAt(_ c: YardDecorCtx) -> SIMD3<Float> {
+        let (near, _) = riverBand(c)
+        let z0 = (c.top >= 2 ? near : 0) - 0.04
+        return SIMD3(-0.16, 0.39, z0 + 0.03)
     }
 
     static func reeds(_ m: inout YardArtModel, _ c: YardDecorCtx) {
@@ -338,7 +383,17 @@ enum YardDecorArt {
         wall(SIMD3(t, h, sideLen), SIMD3(c.left + t / 2, h / 2, back + sideLen / 2))
         wall(SIMD3(t, h, sideLen), SIMD3(c.right - t / 2, h / 2, back + sideLen / 2))
         wall(SIMD3(c.width, h, t), SIMD3(c.midX, h / 2, frontZ))
+        // Лампочка у будки выхода (кирпичная стена дома, справа над окном): кронштейн и колпак; ночью горит.
+        let b = boothBulbAt
+        m.box(YardArtColors.pole, SIMD3(0.022, 0.022, 0.08), at: b + SIMD3(0, 0.055, -0.035))
+        m.prism(YardDecorColors.metalDark, sides: 4, r: 0.05, h: 0.035, top: 0.022, at: b + SIMD3(0, 0.035, 0))
+        if !c.night {
+            m.gem(YardDecorColors.lampOff, sides: 4, r: 0.026, h: 0.05, at: b)
+        }
     }
+
+    /// Лампочка у будки: на стене справа над окном (слева стоит высокая антенна).
+    static let boothBulbAt = SIMD3<Float>(0.6, 1.17, wallZ + 0.135)
 
     static func antenna(_ m: inout YardArtModel, at p: SIMD3<Float>, height: Float, phase: Float, name: String) {
         m.box(YardArtColors.pole, SIMD3(0.08, 0.03, 0.08), at: p + SIMD3(0, 0.015, 0))
@@ -411,17 +466,134 @@ enum YardDecorArt {
     static func skyline(_ m: inout YardArtModel, _ c: YardDecorCtx) {
         guard c.top >= 3 else { return }
         let color = c.night ? YardDecorColors.cityNight : YardDecorColors.city
-        let n = 8
-        for i in 0..<n {
-            let w: Float = 0.52 + 0.16 * rnd(i, 11)
-            let x = -2.6 + 5.2 * (Float(i) + 0.5) / Float(n)
-            let h: Float = 1.55 + 0.5 * rnd(i, 12)
-            let z: Float = -2.15 - 0.2 * rnd(i, 13)
-            m.box(color, SIMD3(w, h, 0.3), at: SIMD3(x, h / 2, z))
-            if c.night, i % 2 == 0 {
-                m.box(YardArtColors.lamp, SIMD3(0.07, 0.09, 0.006), at: SIMD3(x + (rnd(i, 14) - 0.5) * w * 0.5, h - 0.14, z + 0.153),
-                      glow: true)
+        for b in skylineHouses {
+            m.box(color, SIMD3(b.w, b.h, 0.3), at: SIMD3(b.x, b.h / 2, b.z))
+        }
+    }
+
+    /// Дома города: центр x, ширина, высота, z центра — одни и те же днём и ночью.
+    static let skylineHouses: [(x: Float, w: Float, h: Float, z: Float)] = (0..<8).map { i in
+        let x: Float = -2.6 + 5.2 * (Float(i) + 0.5) / 8
+        let w: Float = 0.52 + 0.16 * rnd(i, 11)
+        let h: Float = 1.55 + 0.5 * rnd(i, 12)
+        let z: Float = -2.15 - 0.2 * rnd(i, 13)
+        return (x: x, w: w, h: h, z: z)
+    }
+
+    // MARK: Ночь (волна 37 B)
+
+    /// Зима: в окне дома тёплый свет, под свесом крыши вторая гирлянда (мигает вразнобой с той, что над окном).
+    static func winterNight(_ m: inout YardArtModel, _ c: YardDecorCtx) {
+        // Две створки по бокам средника: рама и средник стоят перед стеклом и закрывают края таблички.
+        m.node("night.window", at: SIMD3(0, 0.82, wallZ + 0.065))
+        for x in [Float(-0.18), 0.18] {
+            m.panel(YardDecorColors.warm, SIMD2(0.33, 0.55), at: SIMD3(x, 0, 0.0065), glow: true)
+        }
+        // 7 огоньков-трёхгранников по свесу, две группы по очереди, со сдвигом от гирлянды окна.
+        for g in 0..<2 {
+            let blink = YardArtMotion.keys([YardArtKey(t: 0), YardArtKey(t: 0.42), YardArtKey(t: 0.5, scale: 0),
+                                            YardArtKey(t: 0.92, scale: 0), YardArtKey(t: 1)],
+                                           axis: SIMD3(0, 1, 0), period: 2.4, phase: 0.25 + Float(g) * 0.5)
+            m.node("night.eave\(g)", at: SIMD3(0, 1.355, wallZ + 0.21), motion: blink)
+            for k in stride(from: g, to: 7, by: 2) {
+                let x = -1.08 + Float(k) * 0.36
+                let sag: Float = k % 2 == 0 ? 0 : -0.02
+                m.gem(YardDecorColors.bulbs[k % 4], sides: 3, r: 0.022, h: 0.036, at: SIMD3(x, sag, 0), glow: true)
             }
+        }
+    }
+
+    /// Река: фонарь на мостике горит, на воде слева от мостика дрожит его блик.
+    static func riverNight(_ m: inout YardArtModel, _ c: YardDecorCtx) {
+        m.node("night.lantern", at: lanternAt(c))
+        m.gem(YardDecorColors.lantern, sides: 4, r: 0.034, h: 0.07, at: .zero, glow: true)
+        let (near, far) = riverBand(c)
+        m.node("night.glint", at: SIMD3(-0.36, -0.005, near + (far - near) * 0.35),
+               motion: .pulse(amount: 0.25, period: 2.2, phase: 0))
+        for (k, d) in [SIMD3<Float>(0, 0, 0), SIMD3(-0.05, 0, 0.07), SIMD3(0.03, 0, 0.14)].enumerated() {
+            m.panel(YardDecorColors.glint, SIMD2(0.16 - Float(k) * 0.035, 0.018), at: d, up: true, glow: true)
+        }
+    }
+
+    /// Крыша: лампочка у будки горит и подсвечивает кирпич; с яруса 3 в домах города окна.
+    static func roofNight(_ m: inout YardArtModel, _ c: YardDecorCtx) {
+        let b = boothBulbAt
+        m.node("night.bulb", at: b)
+        m.gem(YardArtColors.lamp, sides: 4, r: 0.026, h: 0.05, at: .zero, glow: true)
+        m.panel(YardDecorColors.spill, SIMD2(0.3, 0.26), at: SIMD3(0, -0.09, wallZ + 0.0605 - b.z), glow: true)
+        guard c.top >= 3 else { return }
+        // По три окна на дом табличками (2 треугольника); места по «случаю», каждую ночь те же.
+        m.node("night.city", at: .zero)
+        for (i, h) in skylineHouses.enumerated() {
+            for k in 0..<3 {
+                let col = Float(Int(rnd(i * 3 + k, 15) * 3)) - 1
+                let row = Float(k) * 0.22 + Float(Int(rnd(i * 3 + k, 16) * 2)) * 0.1
+                let p = SIMD3<Float>(h.x + col * h.w * 0.27, h.h - 0.16 - row, h.z + 0.152)
+                m.panel(YardDecorColors.cityLights[(i + k) % 4], SIMD2(0.07, 0.09), at: p, glow: true)
+            }
+        }
+    }
+}
+
+// MARK: - Станции в духе района (волна 37 B)
+
+extension YardArt {
+    /// Мелочь района поверх станции: силуэт, вывески и лампочки те же. Зима — шапки снега на крышах,
+    /// река — спасательный круг у фотобудки и вёсла у грядки, крыша — антенна на будке и вентиляция у грядки.
+    /// Узел «accent», если есть что добавить; у улицы ничего.
+    static func accent(_ m: inout YardArtModel, _ s: YardArtStation, district: YardDistrict) {
+        let snow = YardDecorColors.snow
+        switch (district, s) {
+        case (.winter, .photo):
+            // Крыша будки 0.28 × 0.24, верх на 0.42; углы не трогаем — там медные лампочки.
+            m.node("accent", at: .zero)
+            m.box(snow, SIMD3(0.24, 0.02, 0.2), at: SIMD3(-0.06, 0.43, -0.1))
+        case (.winter, .mill):
+            // Конус крыши: шапка по верхней половине, остриё чуть выше.
+            m.node("accent", at: .zero)
+            m.prism(snow, sides: 6, r: 0.054, h: 0.06, top: 0, at: SIMD3(-0.04, 0.405, -0.1), bottom: false)
+        case (.winter, .oven):
+            // Плоский верх купола (r 0.07 на высоте 0.29), труба сбоку свободна.
+            m.node("accent", at: .zero)
+            m.prism(snow, sides: 8, r: 0.07, h: 0.02, top: 0.05, at: SIMD3(-0.05, 0.298, -0.08), bottom: false)
+        case (.winter, .conveyor):
+            // Сугробик на коробе машины (верх на 0.3).
+            m.node("accent", at: .zero)
+            m.gem(snow, sides: 5, r: 0.034, h: 0.034, at: SIMD3(-0.2, 0.3, -0.08), scale: SIMD3(1, 1, 1.3))
+        case (.river, .photo):
+            // Спасательный круг на правом боку будки (грань x = 0.06): 6 долек в плоскости yz.
+            m.node("accent", at: SIMD3(0.07, 0.24, -0.1))
+            for k in 0..<6 {
+                let a = Float(k) * 60
+                let p = YardArtMath.rotX(SIMD3(0, 0.055, 0), a)
+                m.box(k % 2 == 0 ? YardDecorColors.buoyRed : YardDecorColors.duck, SIMD3(0.018, 0.026, 0.058),
+                      at: p, rot: SIMD3(a, 0, 0))
+            }
+        case (.river, .bonePatch):
+            // Два весла крест-накрест за ящиком.
+            m.node("accent", at: SIMD3(0.15, 0.13, -0.18))
+            for tilt in [Float(-24), 24] {
+                // Сдвиг по z, чтобы весла на пересечении не делили грани (мерцание).
+                let dz: Float = tilt < 0 ? -0.007 : 0.007
+                m.box(YardDecorColors.oar, SIMD3(0.012, 0.26, 0.012), at: SIMD3(0, 0, dz), rot: SIMD3(0, 0, tilt))
+                m.box(YardDecorColors.oar, SIMD3(0.04, 0.07, 0.008),
+                      at: YardArtMath.rotZ(SIMD3(0, 0.15, 0), tilt) + SIMD3(0, 0, dz), rot: SIMD3(0, 0, tilt))
+            }
+        case (.roof, .photo):
+            // Телеантенна на крыше будки, в дальнем левом углу (лампа-вспышка в центре).
+            m.node("accent", at: SIMD3(-0.14, 0.42, -0.16))
+            m.box(YardDecorColors.metal, SIMD3(0.012, 0.2, 0.012), at: SIMD3(0, 0.1, 0))
+            for (k, w) in [Float(0.12), 0.08].enumerated() {
+                m.box(YardDecorColors.metal, SIMD3(w, 0.008, 0.008), at: SIMD3(0, 0.14 + 0.045 * Float(k), 0),
+                      rot: SIMD3(0, 25, 0))
+            }
+        case (.roof, .bonePatch):
+            // Вентиляционная труба с колпаком за ящиком.
+            m.node("accent", at: SIMD3(0.2, 0, -0.205))
+            m.prism(YardDecorColors.metal, sides: 6, r: 0.028, h: 0.2, at: SIMD3(0, 0.1, 0), bottom: false)
+            m.prism(YardDecorColors.metalDark, sides: 6, r: 0.05, h: 0.03, top: 0.02, at: SIMD3(0, 0.215, 0))
+        default:
+            break
         }
     }
 }

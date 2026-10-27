@@ -123,7 +123,7 @@ let package = Package(
                       "PetChoreoTests.swift", "RoomDecorTests.swift", "PetStanceTests.swift", "PetSleepViewTests.swift",
                       "WidgetSnapshotTests.swift", "IslandPlanTests.swift", "ActionIntentTests.swift",
                       "HomeLayoutTests.swift", "VisualPolishTests.swift", "StrokeTrackerTests.swift",
-                      "IslandLookSnapshotTests.swift"],
+                      "IslandLookSnapshotTests.swift", "YardNightTests.swift"],
             sources: [
                 "PetLogicTests.swift",
                 "A11yTests.swift",

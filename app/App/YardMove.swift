@@ -27,6 +27,10 @@ enum YardMoveColors {
     static let furDark: UInt32 = 0xc97a3a
     static let cream: UInt32 = 0xfbebd6
     static let ink: UInt32 = 0x4a3b33
+    // Ночь (волна 37 B): фонарь у дороги, лучи фар на асфальте, лампочка в кузове.
+    static let streetLamp: UInt32 = 0xffd88a
+    static let beam: UInt32 = 0xe9dca8
+    static let cargoLight: UInt32 = 0xd9b27a
 }
 
 extension YardArt {
@@ -39,7 +43,9 @@ extension YardArt {
 
     /// Фургон переезда. Земля — район, откуда уезжаем; полоса на борту и знак у дороги — цвета района, куда едем.
     /// calm (Reduce Motion) — без качки и без въезжающих коробок: они уже стоят в кузове.
-    static func moveScene(from: YardDistrict, to: YardDistrict, calm: Bool = false) -> YardArtModel {
+    /// night (волна 37 B) — фонарь у дороги, лучи фар на асфальте и свет в кузове (узлы moveNightNodes).
+    static func moveScene(from: YardDistrict, to: YardDistrict, calm: Bool = false,
+                          night: Bool = false) -> YardArtModel {
         var m = YardArtModel(name: "yardMove")
         let src = from.palette, dst = to.palette
         typealias C = YardMoveColors
@@ -122,6 +128,8 @@ extension YardArt {
             m.box(C.ink, SIMD3(0.02, 0.022, 0.01), at: SIMD3(x, 0.02, 0.071))
         }
 
+        if night { moveNight(&m, calm: calm) }
+
         // Три коробки по очереди въезжают по сходне и уходят вглубь кузова (за борт — их уже не видно).
         guard !calm else { return m }
         let inside = SIMD3<Float>(-0.5, 0.3, 0)
@@ -141,6 +149,32 @@ extension YardArt {
         return m
     }
 
+    /// Ночные узлы сцены переезда — есть только ночью.
+    static let moveNightNodes = ["night.lamp", "night.beam", "night.cargo"]
+
+    /// Ночь у фургона: фонарь слева за бордюром, от фар по асфальту два луча, в кузове горит лампочка
+    /// (качается вместе с фургоном). Около 60 треугольников сверх дня.
+    private static func moveNight(_ m: inout YardArtModel, calm: Bool) {
+        typealias C = YardMoveColors
+        m.body()
+        let p = SIMD3<Float>(-1.2, 0, -1.0)
+        m.prism(C.chassis, sides: 6, r: 0.02, h: 1.25, at: p + SIMD3(0, 0.625, 0), bottom: false)
+        m.box(C.chassis, SIMD3(0.22, 0.02, 0.02), at: p + SIMD3(0.1, 1.24, 0))
+        m.prism(C.chassis, sides: 4, r: 0.07, h: 0.04, top: 0.025, at: p + SIMD3(0.2, 1.22, 0))
+        m.node("night.lamp", at: p + SIMD3(0.2, 1.18, 0))
+        m.gem(C.streetLamp, sides: 4, r: 0.04, h: 0.05, at: .zero, glow: true)
+        m.node("night.beam", at: SIMD3(1.2, 0.006, 0))
+        for z: Float in [-0.25, 0.25] {
+            m.panel(C.beam, SIMD2(0.75, 0.2), at: SIMD3(0, 0, z), up: true, glow: true)
+        }
+        m.node("night.cargo", at: .zero,
+               motion: calm ? nil : YardArtMotion.swing(axis: SIMD3(1, 0, 0), deg: 1.1, period: 1.7, phase: 0))
+        m.gem(C.streetLamp, sides: 4, r: 0.035, h: 0.05, at: SIMD3(-0.3, 0.81, 0), glow: true)
+        // Тёплый отсвет на дальнем борту изнутри — его видно в открытый зад.
+        m.panel(C.cargoLight, SIMD2(0.9, 0.5), at: SIMD3(-0.3, 0.55, -0.3185), glow: true)
+        m.body()
+    }
+
     /// Коробка с лентой поверх: 24 треугольника.
     private static func cardboard(_ m: inout YardArtModel, _ size: SIMD3<Float>, at: SIMD3<Float>, rot: Float = 0) {
         m.box(YardMoveColors.cardboard, size, at: at, rot: SIMD3(0, rot, 0))
@@ -154,11 +188,11 @@ extension YardArt {
 @MainActor
 enum YardMoveStage {
     /// Фургон, свет и камера. Пёс садится позже (seat) — модель грузится асинхронно.
-    static func scene(from: YardDistrict, to: YardDistrict, calm: Bool) -> Entity {
+    static func scene(from: YardDistrict, to: YardDistrict, calm: Bool, night: Bool = false) -> Entity {
         let world = Entity()
         world.name = "yardMove"
         world.components.set(YardArtMotionComponent(motion: .pulse(amount: 0, period: 1, phase: 0), base: .zero))
-        world.addChild(YardArtStage.entity(YardArt.moveScene(from: from, to: to, calm: calm)))
+        world.addChild(YardArtStage.entity(YardArt.moveScene(from: from, to: to, calm: calm, night: night)))
         world.addChild(YardArtStage.camera(target: SIMD3(-0.15, 0.42, 0), eye: SIMD3(-1.9, 1.25, 2.9), fov: 42))
         world.addChild(PetRoom.lights())
         return world
@@ -182,28 +216,31 @@ enum YardMoveStage {
 }
 
 /// Экран переезда: подпись «Переезжаем: Улица → Зимний квартал» и фургон. Фон — небо района, куда едем.
+/// night (волна 37 B) — ночное небо, светлая подпись и ночные огни у фургона.
 struct YardMoveView: View {
     let from: YardDistrict
     let to: YardDistrict
+    var night: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var onScreen = false
 
     var body: some View {
-        let from = self.from, to = self.to, calm = reduceMotion
+        let from = self.from, to = self.to, calm = reduceMotion, night = self.night
+        let ink = Color(hex: night ? 0xf1ece2 : 0x3a3330)
         VStack(spacing: 14) {
             Text(YardDistrict.moveCaption(from: from, to: to))
                 .font(.system(.title2, design: .rounded).weight(.bold))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color(hex: 0x3a3330))
+                .foregroundStyle(ink)
                 .accessibilityIdentifier("yard.move.caption")
             // Сцена рождается после въезда экрана: RealityView, созданный за краем, на CI оставался пустым.
             // Пёс садится отдельной задачей — фургон виден сразу, не ждёт загрузки модели.
             Group {
                 if onScreen {
                     // Как превью и экран двора: мир в держателе, update тоже ставит его (на CI вид без update не рисовал).
-                    let key = "\(from)#\(to)#\(calm)"
+                    let key = "\(from)#\(to)#\(calm)#\(night)"
                     let build: @MainActor @Sendable () -> Entity = {
-                        let world = YardMoveStage.scene(from: from, to: to, calm: calm)
+                        let world = YardMoveStage.scene(from: from, to: to, calm: calm, night: night)
                         Task { @MainActor in await YardMoveStage.seat(in: world) }
                         return world
                     }
@@ -229,11 +266,11 @@ struct YardMoveView: View {
             Text("Станции едут с нами — во дворе нового района всё строится заново")
                 .font(.system(.subheadline, design: .rounded))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color(hex: 0x3a3330).opacity(0.75))
+                .foregroundStyle(ink.opacity(0.75))
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(to.skyColor(night: false).ignoresSafeArea())
+        .background(to.skyColor(night: night).ignoresSafeArea())
         .task {
             // Экран въезжает ~0,5 с; на медленном симуляторе дольше — ждём с запасом.
             try? await Task.sleep(for: .milliseconds(900))

@@ -67,7 +67,8 @@ struct YardScreen: View {
         .animation(.snappy, value: confirmMove)
         .overlay {
             if let trip {
-                YardMoveView(from: trip.from, to: trip.to)
+                YardMoveView(from: trip.from, to: trip.to,
+                             night: model.roomSchedule.phaseNow(dark: colorScheme == .dark) >= 1.5)
                     .overlay(alignment: .topTrailing) {
                         Button("Готово") { closeTrip() }
                             .font(.system(.body, design: .rounded).weight(.semibold))

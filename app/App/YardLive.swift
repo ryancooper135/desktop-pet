@@ -110,7 +110,8 @@ enum YardLive {
         let all = spots(s, tier: tier)
         for spot in all {
             guard let st = YardArtStation.allCases.first(where: { $0.configId == spot.id }) else { continue }
-            let e = YardArtStage.entity(YardArt.station(st, level: spot.level, fill: fill, night: night, brushed: brushed))
+            let e = YardArtStage.entity(YardArt.station(st, level: spot.level, fill: fill, night: night, brushed: brushed,
+                                                                district: district))
             e.name = name(spot.id)
             e.position = spot.at
             e.scale = SIMD3<Float>(repeating: spot.scale)
