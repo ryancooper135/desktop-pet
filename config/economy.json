@@ -183,16 +183,16 @@
     "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames в BlockDuo.swift): «Лови мячик», «Блок Дуо» и «Щенок против зомби» вместе; у каждой ещё свой daily_cap",
     "list": {
       "blockduo":   { "name": "Блок Дуо",            "base": 5,  "max": 40, "par_score": 3000, "daily_cap": 60,
-                      "_note": "BlockDuo.swift, волна 12: своя игра вместе с Шибой вместо веб-версии в браузере. Очки как в веб-версии (клетка 1, линии 40·n·(n+1)·комбо, пустое поле +500), счёт общий с Шибой; монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x; свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
+                      "_note": "BlockDuo.swift, волна 12: своя игра вместе с Шибой вместо веб-версии в браузере. Очки как в веб-версии (клетка 1, линии 40·n·(n+1)·комбо, пустое поле +500), счёт общий с Шибой; монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x (польза вещей, ItemPerks); свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
       "catch":      { "name": "Лови мячик",          "base": 5,  "max": 30, "par_score": 40, "daily_cap": 60, "round_seconds": 30, "misses": 3,
-                      "_note": "CatchGame.swift: мячик 1 очко, косточка 2; монеты = base + (max − base)·min(очки, par_score)/par_score, × diminishing по номеру раунда за сутки × minigame_coins_x дома (линия play), округление в конце; не больше daily_cap в сутки (бафф потолок не поднимает); 0 очков — 0 монет. Настроение — ядерным play (fun_gain/energy_cost)" },
+                      "_note": "CatchGame.swift: мячик 1 очко, косточка 2; монеты = base + (max − base)·min(очки, par_score)/par_score, × diminishing по номеру раунда за сутки × minigame_coins_x (польза вещей, ItemPerks; дом с волны 36 R монет не прибавляет), округление в конце; не больше daily_cap в сутки (бафф потолок не поднимает); 0 очков — 0 монет. Настроение — ядерным play (fun_gain/energy_cost)" },
       "fetch":      { "name": "Апорт",               "base": 10, "max": 50, "par_score": 12, "walk_gain": 15 },
       "zoomies":    { "name": "Поймай зумиз",        "base": 5,  "max": 25, "only_in_state": "zoomies", "walk_gain": 10 },
       "simon":      { "name": "Повторюшка",          "base": 8,  "max": 50, "par_score": 9 },
       "hide_seek":  { "name": "Прятки",              "base": 10, "max": 45, "per_hiding_spot": 2, "_note": "больше мебели = больше укрытий = больше награда" },
       "dig":        { "name": "Копай!",              "per_day": 3, "loot": "dig_table", "requires_upgrade": "yard>=2" },
       "zombie_run": { "name": "Щенок против зомби",  "base": 5,  "max": 40, "par_score": 350, "daily_cap": 60, "round_seconds": 50, "hearts": 3,
-                      "_note": "ZombieRun.swift, волна 13 (стиль C, PS1): зомби-друг 10 очков, мелкий 15, большой (три попадания) 30; дошёл до Шибы — минус сердечко; раунд round_seconds или до последнего сердечка. Монеты — формула catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x; свой daily_cap и общий minigames.daily_cap. par_score ≈ 0,9 от автопилота (≈ 395). Настроение — ядерным play" }
+                      "_note": "ZombieRun.swift, волна 13 (стиль C, PS1): зомби-друг 10 очков, мелкий 15, большой (три попадания) 30; дошёл до Шибы — минус сердечко; раунд round_seconds или до последнего сердечка. Монеты — формула catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x (польза вещей, ItemPerks); свой daily_cap и общий minigames.daily_cap. par_score ≈ 0,9 от автопилота (≈ 395). Настроение — ядерным play" }
     },
     "dig_table": [ [40, "coins:10"], [25, "coins:25"], [15, "food:common"], [10, "treasure:common"], [6, "treasure:rare"], [3, "tickets:1"], [1, "treasure:epic"] ]
   },
@@ -263,6 +263,7 @@
 
   "home_upgrades": {
     "_note": "уровень 1 — бесплатный стартовый. Уровни 3/4 открываются уровнем хозяина 5/12 (хозяин, не питомец — дом переживает смерть питомца).",
+    "_income": "волна 36 R: дом монет не приносит. Монетный ключ в buff (…coin…, income, earn) пускает только EconomyTests.testHomeCoinBuffsPaybackWithin90Days — с честной формулой и окупаемостью ≤ 90 дн. Убраны minigame_coins_x у «Игрового уголка» (потолок мини-игр бафф не поднимал: окуп ~257 и ~1150 дн.) и friend_visit_coins_x у «Парка»/«Квартала» (визитов друзей с монетами в коде нет).",
     "bath":    { "name": "Ванная",         "levels": [
       { "name": "Тазик",               "price": 0 },
       { "name": "Ванна",               "price": 700,  "buff": { "bath_min": 40, "clean_decay_x": 0.9 } },
@@ -294,14 +295,14 @@
     "play":    { "name": "Игровой уголок", "levels": [
       { "name": "Пустой угол",         "price": 0 },
       { "name": "Корзина игрушек",     "price": 500,  "buff": { "fun_decay_x": 0.9 } },
-      { "name": "Игровой комплекс",    "price": 1400, "buff": { "fun_decay_x": 0.8, "minigame_coins_x": 1.1 } },
-      { "name": "Батут и горка",       "price": 3000, "buff": { "fun_decay_x": 0.7, "minigame_coins_x": 1.15 } } ] },
+      { "name": "Игровой комплекс",    "price": 1400, "buff": { "fun_decay_x": 0.8 } },
+      { "name": "Батут и горка",       "price": 3000, "buff": { "fun_decay_x": 0.7 } } ] },
     "yard":    { "name": "Участок",        "levels": [
       { "name": "Подоконник",          "price": 0 },
       { "name": "Дворик",              "price": 700,  "buff": { "walk_decay_x": 0.85, "dig": true } },
       { "name": "Сад",                 "price": 1700, "buff": { "walk_decay_x": 0.75, "npc_visitors": true, "memorial_garden": true } },
-      { "name": "Парк",                "price": 3500, "buff": { "walk_decay_x": 0.65, "dig_per_day": 5, "friend_visit_coins_x": 2 } },
-      { "name": "Квартал",             "price": 9000, "buff": { "walk_decay_x": 0.55, "dig_per_day": 5, "friend_visit_coins_x": 2 } } ] },
+      { "name": "Парк",                "price": 3500, "buff": { "walk_decay_x": 0.65, "dig_per_day": 5 } },
+      { "name": "Квартал",             "price": 9000, "buff": { "walk_decay_x": 0.55, "dig_per_day": 5 } } ] },
     "rooms": [
       { "id": "wardrobe", "name": "Гардеробная",   "price": 1500, "buff": { "outfit_slots": 5 } },
       { "id": "room2",    "name": "Вторая комната","price": 2500, "buff": { "furniture_slots": 12 } },

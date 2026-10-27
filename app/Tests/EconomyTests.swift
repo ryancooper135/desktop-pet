@@ -1,5 +1,6 @@
 // Экономика без экрана: кошелёк, монеты за уход и шаги с дневными потолками, идемпотентность по журналу,
-// капсула (детерминизм, веса, гарант, дубликаты, нехватка монет, лимит на день), старые сейвы, тексты.
+// капсула (детерминизм, веса, гарант, дубликаты, нехватка монет, лимит на день), старые сейвы, тексты,
+// окупаемость ≤ 90 дн.: станции двора и монетные ключи в баффах дома (волна 36 R).
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
 import Foundation
@@ -459,6 +460,90 @@ final class EconomyTests: XCTestCase {
         }
         XCTAssertGreaterThan(worst.days, 80, "граница не пустая: самое долгое — \(worst)")
     }
+
+    // MARK: дом — доход честно (волна 36 R)
+
+    /// Платный уровень дома с монетным ключом окупается ≤ 90 дн. по честной формуле — сейчас таких ключей нет.
+    /// Будущая правка конфига не протащит «доход» на 1000 дней: тест назовёт уровень и срок.
+    func testHomeCoinBuffsPaybackWithin90Days() throws {
+        let econ = try XCTUnwrap(Catalog.economy())
+        XCTAssertFalse(econ["home_upgrades"].object.isEmpty)
+        XCTAssertEqual(homeCoinViolations(econ), [])
+    }
+
+    /// Сторож не пустой: прошлый конфиг (до волны 36 R) он бы не пропустил — все четыре уровня.
+    func testHomeCoinGuardCatchesOldConfig() throws {
+        let old = """
+        { "minigames": { "daily_cap": 60 },
+          "home_upgrades": {
+            "play": { "levels": [ { "price": 0 }, { "price": 500, "buff": { "fun_decay_x": 0.9 } },
+              { "name": "Игровой комплекс", "price": 1400, "buff": { "fun_decay_x": 0.8, "minigame_coins_x": 1.1 } },
+              { "name": "Батут и горка", "price": 3000, "buff": { "fun_decay_x": 0.7, "minigame_coins_x": 1.15 } } ] },
+            "yard": { "levels": [ { "price": 0 },
+              { "name": "Парк", "price": 3500, "buff": { "walk_decay_x": 0.65, "friend_visit_coins_x": 2 } },
+              { "name": "Квартал", "price": 9000, "buff": { "walk_decay_x": 0.55, "friend_visit_coins_x": 2 } } ] },
+            "kitchen": { "levels": [ { "price": 0 }, { "price": 3500, "buff": { "food_price_x": 0.9, "cooking": true } } ] },
+            "rooms": [ { "name": "Гостевая", "price": 3000, "buff": { "guest_hours_x": 1.5 } } ] } }
+        """
+        let econ = try JSONDecoder().decode(JSONValue.self, from: Data(old.utf8))
+        let v = homeCoinViolations(econ)
+        XCTAssertEqual(v.count, 4, "\(v)")
+        XCTAssertTrue(v.contains("play ур. 2 «Игровой комплекс»: minigame_coins_x окупается 257 дн."), "\(v)")   // 60·(1 − 1/1,1) ≈ 5,5 🪙/сут
+        XCTAssertTrue(v.contains("play ур. 3 «Батут и горка»: minigame_coins_x окупается 1150 дн."), "\(v)")     // 60·(1 − 1,1/1,15) ≈ 2,6
+        XCTAssertEqual(v.filter { $0.contains("friend_visit_coins_x — нет честной формулы") }.count, 2, "\(v)")
+        // Честный доход проходит: ×1,1 за 270 🪙 (5,45 🪙/сут) — 49,5 дн.
+        let cheap = try JSONDecoder().decode(JSONValue.self, from: Data("""
+        { "minigames": { "daily_cap": 60 }, "home_upgrades": { "play": { "levels": [ { "price": 0 },
+          { "price": 270, "buff": { "minigame_coins_x": 1.1 } } ] } } }
+        """.utf8))
+        XCTAssertEqual(homeCoinViolations(cheap), [])
+    }
+}
+
+
+/// Волна 36 R: монетные ключи в баффах дома и их окупаемость — нарушения правила «доход окупается ≤ 90 дн.».
+/// Монетный ключ — в имени coin / income / earn (`minigame_coins_x`, `friend_visit_coins_x`, `coins_per_*`, …).
+/// Не монетные нарочно: `food_price_x` — скидка на еду, а не доход; `cooking` — флаг готовки (подарок первого блюда
+/// дня — см. DECISIONS «Волна 36 R», «Нашёл, но оставил»). Честная формула «сколько 🪙/сут сверху прошлого уровня»
+/// есть только у `minigame_coins_x`: общий потолок мини-игр бафф не поднимает, лучший для хозяина случай — сырых
+/// ровно cap/x, тогда сверху cap·(1 − prev/x). У ключа без формулы (визитов друзей с монетами в коде нет) дохода 0.
+private func homeCoinViolations(_ econ: JSONValue, limit: Double = 90) -> [String] {
+    func isCoinKey(_ k: String) -> Bool {
+        let l = k.lowercased()
+        return l.contains("coin") || l.contains("income") || l.contains("earn")
+    }
+    let sharedCap = econ["minigames"]["daily_cap"].double ?? Double(MiniGames.defaultSharedCap)
+    func perDay(_ k: String, _ x: Double, prev: Double) -> Double? {
+        switch k {
+        case CatchGame.buffKey: return sharedCap * (1 - prev / x)
+        default: return nil
+        }
+    }
+    var out: [String] = []
+    func check(_ name: String, price: Double, buff: [String: JSONValue], prev: [String: JSONValue]) {
+        guard price > 0 else { return }
+        for (k, v) in buff where isCoinKey(k) {
+            guard let x = v.double else { out.append("\(name): \(k) не число"); continue }
+            guard let d = perDay(k, x, prev: prev[k]?.double ?? 1) else {
+                out.append("\(name): \(k) — нет честной формулы дохода (кто его платит?)"); continue
+            }
+            guard d > 0 else { out.append("\(name): \(k) — монеты обещаны, а сверху 0 🪙/сут"); continue }
+            let days = price / d
+            if days > limit + 1e-9 { out.append("\(name): \(k) окупается \(Int(days.rounded())) дн.") }
+        }
+    }
+    let h = econ["home_upgrades"]
+    for (id, line) in h.object.sorted(by: { $0.key < $1.key }) {
+        let levels = line["levels"].array
+        for (i, l) in levels.enumerated() {
+            check("\(id) ур. \(i) «\(l["name"].string ?? "")»", price: l["price"].double ?? 0,
+                  buff: l["buff"].object, prev: i > 0 ? levels[i - 1]["buff"].object : [:])
+        }
+    }
+    for r in h["rooms"].array {
+        check("комната «\(r["name"].string ?? "")»", price: r["price"].double ?? 0, buff: r["buff"].object, prev: [:])
+    }
+    return out
 }
 
 private extension Result {

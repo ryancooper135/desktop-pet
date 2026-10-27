@@ -197,7 +197,7 @@ enum ItemPerks {
         }
     }
 
-    /// Множитель монет мини-игр от вещей (бафф дома — отдельно, CatchGame.coinsX).
+    /// Множитель монет мини-игр от вещей (дом монет не прибавляет — волна 36 R; общий множитель — CatchGame.coinsX).
     static func coinsX(_ f: SaveFile, _ cfg: PremiumConfig = .shared) -> Double {
         factor(.coins, pct: totals(f, cfg)[.coins] ?? 0)
     }

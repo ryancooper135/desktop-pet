@@ -253,20 +253,22 @@ enum CatchGame {
 
     // MARK: награда
 
-    /// Бафф дома к монетам мини-игр (линия «Игровая», home_upgrades.play): ×1,1 «Игровой комплекс», ×1,15 «Батут и горка».
+    /// Ключ множителя монет мини-игр: польза вещей (ItemPerks, PerkKind.coins). В доме его с волны 36 R нет —
+    /// потолок мини-игр бафф не поднимает, и «Игровой уголок» окупался бы ~257 и ~1150 дн. (DECISIONS.md).
     static let buffKey = "minigame_coins_x"
 
-    /// Множитель монет за раунд от дома питомца (произведение по линиям, как mods ядра); 1 — баффа нет.
+    /// Множитель монет за раунд из mods ядра (дом питомца); в конфиге дома ключа нет — 1. Вернуть его в дом
+    /// не даст EconomyTests.testHomeCoinBuffsPaybackWithin90Days, пока окупаемость не уложится в 90 дн.
     static func coinsX(_ pet: PetState) -> Double {
         if case .number(let n)? = PetEngine.mods(pet, Catalog.rules)[buffKey], n > 0 { return n }
         return 1
     }
 
-    /// Множитель монет за раунд с вещами хозяина (волна 32, ItemPerks): дом × польза вещей.
+    /// Множитель монет за раунд с вещами хозяина (волна 32, ItemPerks): mods дома (сейчас 1) × польза вещей.
     static func coinsX(_ f: SaveFile) -> Double { coinsX(f.pet) * ItemPerks.coinsX(f) }
 
     /// Сколько монет хочется за раунд: 0 без очков; base…max пропорционально очкам до par_score;
-    /// game — номер раунда за сутки (с 1), с него убывание; buff — бафф дома (coinsX), округление один раз в конце.
+    /// game — номер раунда за сутки (с 1), с него убывание; buff — множитель coinsX (вещи), округление один раз в конце.
     /// Дневной потолок daily_cap бафф не поднимает: с ним до потолка просто доходят быстрее (DECISIONS.md).
     static func want(score: Int, game: Int, buff: Double = 1, _ cfg: CatchConfig = .shared) -> Int {
         guard score > 0 else { return 0 }
