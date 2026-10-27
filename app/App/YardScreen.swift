@@ -124,7 +124,7 @@ struct YardScreen: View {
         if Yard.canMove(f.yard, dogLevel: dog) {
             moveCard(f)
         }
-        Text("Копилка копит до суток. Двор остаётся, даже если начать заново с новым щенком.")
+        Text("Копилка копит до суток. Новый щенок двор не сбрасывает — заново он начинается только с переездом.")
             .petFont(12, .medium)
             .foregroundStyle(PetPalette.soft)
             .multilineTextAlignment(.center)
@@ -674,6 +674,9 @@ struct YardScreen: View {
     private func move() {
         confirmMove = false
         guard let r = model.moveYard(), case .ok = r else { return }
+        // Список под сценой разом стал коротким, и сцена вернулась в кадр без прокрутки: onScrollVisibilityChange
+        // об этом молчит, и на её месте оставалась пустота (прогон 40450379551, ui-36-yard-moved).
+        sceneOnScreen = true
         sparkle += 1
     }
 
