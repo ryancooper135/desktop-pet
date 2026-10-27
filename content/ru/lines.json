@@ -677,6 +677,29 @@
       {"id": "w.trait_scruffy.03", "text": "Я сорванец. Ванна подождёт."},
       {"id": "w.trait_scruffy.04", "text": "Чистота — это скучно. Гав!"}
     ],
+    "weather_cloudy": [
+      {"id": "w.weather_cloudy.01", "text": "Тучки. Самое время для пледа."},
+      {"id": "w.weather_cloudy.02", "text": "Солнце спряталось. Я — нет!"},
+      {"id": "w.weather_cloudy.03", "text": "Серо за окном. Поиграем?"},
+      {"id": "w.weather_cloudy.04", "text": "Небо хмурится, а я нет."}
+    ],
+    "weather_rain": [
+      {"id": "w.weather_rain.01", "text": "Дождик стучит. Кап-кап-гав!"},
+      {"id": "w.weather_rain.02", "text": "Лапы промокнут… но лужи!"},
+      {"id": "w.weather_rain.03", "text": "Слушаю дождь у окна."},
+      {"id": "w.weather_rain.04", "text": "Дождь. Полотенце наготове?"}
+    ],
+    "weather_storm": [
+      {"id": "w.weather_storm.01", "text": "Гром! Я совсем не боюсь. Почти."},
+      {"id": "w.weather_storm.02", "text": "Гремит. Посиди со мной?"},
+      {"id": "w.weather_storm.03", "text": "Бах! Это не я, это небо."}
+    ],
+    "weather_snow": [
+      {"id": "w.weather_snow.01", "text": "Снег! Ловлю снежинки носом."},
+      {"id": "w.weather_snow.02", "text": "Всё белое! Можно гулять?"},
+      {"id": "w.weather_snow.03", "text": "Снежинка на окне. Моя!"},
+      {"id": "w.weather_snow.04", "text": "Лапы мёрзнут, но как красиво."}
+    ],
     "rare": [
       {"id": "w.rare.01", "text": "Поймал бабочку. Отпустил. Я добрый.", "frame": "butterfly"},
       {"id": "w.rare.02", "text": "Обнял тапок. Тапок не против.", "frame": "slipper"},
@@ -998,6 +1021,22 @@
     "trait_scruffy": [
       {"id": "i.trait_scruffy.01", "text": "Где тут лужа?"},
       {"id": "i.trait_scruffy.02", "text": "Я сорванец"}
+    ],
+    "weather_cloudy": [
+      {"id": "i.weather_cloudy.01", "text": "Тучки"},
+      {"id": "i.weather_cloudy.02", "text": "Серо, но уютно"}
+    ],
+    "weather_rain": [
+      {"id": "i.weather_rain.01", "text": "Кап-кап-гав"},
+      {"id": "i.weather_rain.02", "text": "Дождик стучит"}
+    ],
+    "weather_storm": [
+      {"id": "i.weather_storm.01", "text": "Гром! Я не боюсь"},
+      {"id": "i.weather_storm.02", "text": "Гремит…"}
+    ],
+    "weather_snow": [
+      {"id": "i.weather_snow.01", "text": "Снег!"},
+      {"id": "i.weather_snow.02", "text": "Ловлю снежинки"}
     ],
     "rare": [
       {"id": "i.rare.01", "text": "Поймал бабочку!", "frame": "butterfly"},
