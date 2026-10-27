@@ -1,5 +1,6 @@
 // Волна 36 P: переезд двора и слава (Yard.canMove, Yard.move, Yard.glory, Yard.district, YardText переезда).
-// Волна 37 A: гейт ур. 28 = мельница (переезд в день полного двора), Yard.moveWait и тусклая карточка.
+// Волна 37 A: гейт = мельница (переезд в день полного двора), Yard.moveWait и тусклая карточка.
+// Волна 38 A: мельница и гейт ур. 22 (было 28), слава ×2,5 → ×4 → ×5,5 (было ×1,5/×2/×2,5).
 
 import Foundation
 import XCTest
@@ -42,10 +43,10 @@ final class YardMoveTests: XCTestCase {
     // MARK: конфиг
 
     func testConfigDefaults() {
-        XCTAssertEqual(cfg.moveMinDogLevel, 28)
-        XCTAssertEqual(YardConfig.shared.moveMinDogLevel, 28, "economy.json: yard.move.min_dog_level")
+        XCTAssertEqual(cfg.moveMinDogLevel, 22)
+        XCTAssertEqual(YardConfig.shared.moveMinDogLevel, 22, "economy.json: yard.move.min_dog_level")
         XCTAssertEqual(cfg.moveKeepCoins, 1000)
-        XCTAssertEqual(cfg.gloryX, [1.5, 2, 2.5])
+        XCTAssertEqual(cfg.gloryX, [2.5, 4, 5.5])
         var e: [String: JSONValue] = [:]
         e["yard"] = .object(["move": .object(["min_dog_level": .number(25), "keep_coins": .number(500),
                                               "glory_x": .array([.number(1.2), .number(0.5)])])])
@@ -61,9 +62,9 @@ final class YardMoveTests: XCTestCase {
         let s = full()
         XCTAssertTrue(Yard.isFull(s, cfg))
         XCTAssertEqual(Yard.moveLeft(s, cfg), 0)
-        XCTAssertTrue(Yard.canMove(s, dogLevel: 28, cfg))
+        XCTAssertTrue(Yard.canMove(s, dogLevel: 22, cfg))
         XCTAssertTrue(Yard.canMove(s, dogLevel: 40, cfg))
-        XCTAssertFalse(Yard.canMove(s, dogLevel: 27, cfg), "пёс мал")
+        XCTAssertFalse(Yard.canMove(s, dogLevel: 21, cfg), "пёс мал")
 
         var one = s
         one.stations["mill"] = 4
@@ -125,7 +126,7 @@ final class YardMoveTests: XCTestCase {
     func testMoveRefusedWithoutGate() {
         var f = fullSave(coins: 5_000)
         let before = f
-        XCTAssertEqual(Yard.move(in: &f, now: t0, dogLevel: 27, cfg), .level(need: 28))
+        XCTAssertEqual(Yard.move(in: &f, now: t0, dogLevel: 21, cfg), .level(need: 22))
         XCTAssertEqual(f.yard, before.yard, "отказ ничего не меняет")
         XCTAssertEqual(f.econ.wallet, before.econ.wallet)
         XCTAssertEqual(f.journal.count, before.journal.count)
@@ -154,10 +155,10 @@ final class YardMoveTests: XCTestCase {
 
     func testGloryLadder() {
         XCTAssertEqual(Yard.glory(moves: 0, cfg), 1)
-        XCTAssertEqual(Yard.glory(moves: 1, cfg), 1.5)
-        XCTAssertEqual(Yard.glory(moves: 2, cfg), 2)
-        XCTAssertEqual(Yard.glory(moves: 3, cfg), 2.5)
-        XCTAssertEqual(Yard.glory(moves: 7, cfg), 2.5, "дальше — последняя ступень")
+        XCTAssertEqual(Yard.glory(moves: 1, cfg), 2.5)
+        XCTAssertEqual(Yard.glory(moves: 2, cfg), 4)
+        XCTAssertEqual(Yard.glory(moves: 3, cfg), 5.5)
+        XCTAssertEqual(Yard.glory(moves: 7, cfg), 5.5, "дальше — последняя ступень")
         XCTAssertEqual(Yard.glory(moves: -1, cfg), 1)
         XCTAssertEqual(Yard.gloryStars(moves: 0, cfg), 0)
         XCTAssertEqual(Yard.gloryStars(moves: 2, cfg), 2)
@@ -170,7 +171,7 @@ final class YardMoveTests: XCTestCase {
         s.gold = ["mill"]
         s.t = t0
         let base = Yard.rate(s, dogLevel: 30, cfg)
-        XCTAssertEqual(Yard.stationRate("mill", level: 1, dogLevel: 1, gold: true, moves: 1, cfg), 42 * 1.03 * 1.5,
+        XCTAssertEqual(Yard.stationRate("mill", level: 1, dogLevel: 1, gold: true, moves: 1, cfg), 42 * 1.03 * 2.5,
                        accuracy: 1e-9, "слава — поверх процентов")
         for m in 1...4 {
             var g = s
@@ -185,13 +186,14 @@ final class YardMoveTests: XCTestCase {
             XCTAssertEqual(b.bank, a.bank * x, accuracy: 1e-6)
             XCTAssertEqual(Yard.fullAt(g, now: t0, dogLevel: 30, cfg)!, Yard.fullAt(s, now: t0, dogLevel: 30, cfg)!, accuracy: 1e-6)
         }
-        // Сбор со славой: монет в 1,5 раза больше.
+        // Сбор со славой: монет в 2,5 раза больше.
         var g = s
         g.moves = 1
         var plain = s
         let hs = Yard.collect(&plain, now: t0 + 24 * hour, dogLevel: 30, calm)
         let hg = Yard.collect(&g, now: t0 + 24 * hour, dogLevel: 30, calm)
-        XCTAssertEqual(Double(hg.coins), Double(hs.coins) * 1.5, accuracy: 1.01)
+        // Обе суммы — floor копилки: расхождение до 1 + 2,5 монеты.
+        XCTAssertEqual(Double(hg.coins), Double(hs.coins) * 2.5, accuracy: 3.51)
         // «≈ N сборов» — меньше со славой.
         let r0 = Yard.rate(s, dogLevel: 30, cfg), r1 = Yard.rate({ var c = s; c.moves = 1; return c }(), dogLevel: 30, cfg)
         XCTAssertLessThan(Yard.collectsToAfford(50_000, coins: 0, rate: r1, cfg)!,
@@ -204,7 +206,7 @@ final class YardMoveTests: XCTestCase {
         f.yard.t = t0
         let base = Yard.rate(f, dogLevel: 1, cfg)
         f.yard.moves = 2
-        XCTAssertEqual(Yard.rate(f, dogLevel: 1, cfg), base * 2, accuracy: 1e-9, "островок и виджет берут ставку отсюда")
+        XCTAssertEqual(Yard.rate(f, dogLevel: 1, cfg), base * 4, accuracy: 1e-9, "островок и виджет берут ставку отсюда")
     }
 
     /// Окупаемость со славой только короче, и всё так же ≤ 90 дней.
@@ -270,7 +272,7 @@ final class YardMoveTests: XCTestCase {
         for c in [cfg, YardConfig.shared] {
             let latest = c.plates.map(\.level).max() ?? 0
             XCTAssertLessThanOrEqual(c.moveMinDogLevel, latest, "переезд не должен ждать уровня после полного двора")
-            XCTAssertEqual(c.plates.first { $0.id == "mill" }?.level, 28)
+            XCTAssertEqual(c.plates.first { $0.id == "mill" }?.level, 22)
             // Двор можно достроить только с ур. latest — и с него же переезд открыт.
             var s = YardState()
             for p in c.plates where !p.isStation { s.plates.append(p.id) }
@@ -297,21 +299,21 @@ final class YardMoveTests: XCTestCase {
         XCTAssertEqual(w.left, 2)
         XCTAssertEqual(w.cost, cfg.station("mill")!.price(toLevel: 5)! + cfg.plate("telescope")!.price)
 
-        // Мельница не поставлена, пёс ур. 25: ждём уровня — плита и уровень названы.
+        // Мельница не поставлена, пёс ур. 21 (сосиски уже можно): ждём уровня — плита и уровень названы.
         var m = full()
         m.stations["mill"] = nil
-        let wl = Yard.moveWait(m, dogLevel: 25, cfg)!
+        let wl = Yard.moveWait(m, dogLevel: 21, cfg)!
         XCTAssertEqual(wl.left, 5)
         XCTAssertEqual(wl.plate?.id, "mill")
-        XCTAssertEqual(wl.needLevel, 28)
+        XCTAssertEqual(wl.needLevel, 22)
         XCTAssertEqual(wl.cost, cfg.station("mill")!.prices.reduce(0, +))
-        // Тот же двор с псом ур. 28: держат только деньги.
-        let wm = Yard.moveWait(m, dogLevel: 28, cfg)!
+        // Тот же двор с псом ур. 22: держат только деньги.
+        let wm = Yard.moveWait(m, dogLevel: 22, cfg)!
         XCTAssertNil(wm.plate)
         XCTAssertEqual(wm.needLevel, 0)
 
         // Можно переезжать — ждать нечего.
-        XCTAssertNil(Yard.moveWait(full(), dogLevel: 28, cfg))
+        XCTAssertNil(Yard.moveWait(full(), dogLevel: 22, cfg))
         // Полный двор, но гейт поднят конфигом выше плит — ждём только уровня.
         var high = cfg
         high.moveMinDogLevel = 30
@@ -323,8 +325,8 @@ final class YardMoveTests: XCTestCase {
     func testMoveLockedTexts() {
         var m = full()
         m.stations["mill"] = nil
-        let byLevel = YardText.moveLocked(Yard.moveWait(m, dogLevel: 25, cfg)!, coins: 0, rate: 500, cfg)
-        XCTAssertEqual(byLevel, ["Откроется, когда двор достроен: ещё 5 покупок", "Лунная мельница — с ур. 28 пса"])
+        let byLevel = YardText.moveLocked(Yard.moveWait(m, dogLevel: 21, cfg)!, coins: 0, rate: 500, cfg)
+        XCTAssertEqual(byLevel, ["Откроется, когда двор достроен: ещё 5 покупок", "Лунная мельница — с ур. 22 пса"])
 
         var s = full()
         s.stations["mill"] = 4
@@ -357,24 +359,26 @@ final class YardMoveTests: XCTestCase {
         XCTAssertEqual(YardText.times(1.5), "×1,5")
         XCTAssertEqual(YardText.times(2), "×2")
         XCTAssertEqual(YardText.times(2.5), "×2,5")
+        XCTAssertEqual(YardText.times(4), "×4")
+        XCTAssertEqual(YardText.times(5.5), "×5,5")
         XCTAssertEqual(YardText.gloryStars(moves: 0, cfg), "")
         XCTAssertEqual(YardText.gloryStars(moves: 1, cfg), "★")
         XCTAssertEqual(YardText.gloryStars(moves: 5, cfg), "★★★")
-        XCTAssertEqual(YardText.gloryLabel(moves: 2, cfg), "Слава двора ×2")
+        XCTAssertEqual(YardText.gloryLabel(moves: 2, cfg), "Слава двора ×4")
         XCTAssertEqual(YardText.moveTitle, "Переезд двора")
         XCTAssertEqual(YardText.moveConfirm(moves: 0, cfg), [
             "Останется: Шиба, его уровень и рост, вещи, дом, ✂️, альбом, 1000 🪙",
             "Начнётся заново: плиты, станции, копилка, монеты сверх 1000",
-            "Слава двора ×1,5 к доходу станций навсегда",
+            "Слава двора ×2,5 к доходу станций навсегда",
         ])
-        XCTAssertEqual(YardText.moveConfirm(moves: 1, cfg).last, "Слава двора ×2 к доходу станций навсегда")
-        XCTAssertEqual(YardText.moveConfirm(moves: 3, cfg).last, "Слава двора ×2,5 к доходу станций навсегда")
-        XCTAssertEqual(YardText.moveLine(moves: 0, cfg), "Двор достроен. Новый район — «Зимний квартал», слава ×1,5")
-        XCTAssertEqual(YardText.moved(moves: 1, cfg), "Переехали: «Зимний квартал» · слава ×1,5")
-        XCTAssertEqual(YardText.moved(moves: 4, cfg), "Переехали: «Зимний квартал» · слава ×2,5")
+        XCTAssertEqual(YardText.moveConfirm(moves: 1, cfg).last, "Слава двора ×4 к доходу станций навсегда")
+        XCTAssertEqual(YardText.moveConfirm(moves: 3, cfg).last, "Слава двора ×5,5 к доходу станций навсегда")
+        XCTAssertEqual(YardText.moveLine(moves: 0, cfg), "Двор достроен. Новый район — «Зимний квартал», слава ×2,5")
+        XCTAssertEqual(YardText.moved(moves: 1, cfg), "Переехали: «Зимний квартал» · слава ×2,5")
+        XCTAssertEqual(YardText.moved(moves: 4, cfg), "Переехали: «Зимний квартал» · слава ×5,5")
         XCTAssertEqual((0...3).map(YardText.districtName), ["Улица", "Зимний квартал", "У реки", "На крыше"])
         XCTAssertNil(YardText.moveRefuse(.ok(moves: 1, cut: 0)))
-        XCTAssertEqual(YardText.moveRefuse(.level(need: 28)), "Переезд — с ур. 28 пса")
+        XCTAssertEqual(YardText.moveRefuse(.level(need: 22)), "Переезд — с ур. 22 пса")
         XCTAssertEqual(YardText.moveRefuse(.notFull(left: 3)), "Сначала дострой двор — осталось 3")
         for line in YardText.moveConfirm(moves: 0, cfg) + [YardText.moveLine(moves: 0, cfg)] {
             XCTAssertLessThanOrEqual(line.count, 80, "коротко: \(line)")
