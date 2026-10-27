@@ -136,10 +136,8 @@ enum YardText {
         return "×" + s
     }
 
-    /// Район двора по номеру (Yard.district): улица, зимний двор, у реки, на крыше.
-    static func districtName(_ d: Int) -> String {
-        ["Улица", "Зимний двор", "У реки", "На крыше"][min(max(0, d), 3)]
-    }
+    /// Район двора по номеру (Yard.district): улица, зимний квартал, у реки, на крыше. Те же имена, что у 3D-района.
+    static func districtName(_ d: Int) -> String { YardDistrict(index: d).title }
 
     /// Звёзды славы на вывеске: «★★»; без переездов — пусто.
     static func gloryStars(moves: Int, _ cfg: YardConfig = .shared) -> String {

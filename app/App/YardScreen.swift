@@ -31,6 +31,8 @@ struct YardScreen: View {
     @State private var sceneOnScreen = true
     /// Открыто подтверждение переезда.
     @State private var confirmMove = false
+    /// Только что переехали: экран фургона «Улица → Зимний квартал» поверх двора, пока не нажмут «Готово».
+    @State private var trip: YardTrip?
 
     var body: some View {
         ScrollView {
@@ -63,6 +65,22 @@ struct YardScreen: View {
             }
         }
         .animation(.snappy, value: confirmMove)
+        .overlay {
+            if let trip {
+                YardMoveView(from: trip.from, to: trip.to)
+                    .overlay(alignment: .topTrailing) {
+                        Button("Готово") { closeTrip() }
+                            .font(.system(.body, design: .rounded).weight(.semibold))
+                            .padding(16)
+                            .accessibilityIdentifier("yard.move.close")
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityAddTraits(.isModal)
+                    .accessibilityIdentifier("yard.move")
+                    .transition(.opacity)
+            }
+        }
+        .animation(.snappy, value: trip)
         .onDisappear { popTask?.cancel() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("yard.screen")
@@ -143,6 +161,7 @@ struct YardScreen: View {
         // Поднос копилки — четвертями: сцена не пересобирается каждую секунду.
         let fill = Float((Yard.fill(f, now: now, dogLevel: dog) * 4).rounded() / 4)
         let s = f.yard
+        let district = YardDistrict(index: Yard.district(moves: s.moves))
         let levels = s.stations.keys.sorted().map { "\($0)=\(s.stations[$0] ?? 0)" }.joined(separator: ",")
         let pop = popId
         let spots = YardLive.spots(s, tier: tier)
@@ -153,12 +172,13 @@ struct YardScreen: View {
         let gold = s.gold.sorted().joined(separator: ",")
         let perHour = rates.map { "\($0.id)=\(YardText.perHour($0.rate))" }.joined(separator: ",")
         // Ключ сцены — всё видимое: ярус, плиты, уровни, поднос, ночь, доход на табличках, золото, дома ли пёс.
-        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)"
+        let key = "\(tier)#\(s.plates.joined(separator: ","))#\(levels)#\(fill)#\(night)#\(perHour)#\(gold)#\(mode)#\(reduceMotion)#\(district)"
         let dogPose = YardDogLive.pose(mode: mode, spots: spots, tier: tier, night: night, calm: reduceMotion, now: now)
         // Сцена по ключу: одна и та же RealityView, внутри меняется только мир. Раньше вид пересоздавался .id(key),
         // и новый, родившийся за краем экрана (улучшили станцию внизу списка), на CI оставался пустым.
         let build: @MainActor @Sendable () -> Entity = {
-            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false, live: live)
+            let scene = YardLive.scene(s, tier: tier, fill: fill, night: night, brushed: false,
+                                       district: district, live: live)
             if let pop, let spot = spots.first(where: { $0.id == pop }) {
                 YardLive.pop(pop, in: scene, scale: spot.scale)
             }
@@ -189,7 +209,8 @@ struct YardScreen: View {
             }
         }
         .frame(height: 300)
-        .background(night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+        .background(district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
+                                        : district.skyColor(night: night))
         .overlay {
             ZStack {
                 YardBurst(emoji: "🪙", trigger: flyCoins, inward: true)
@@ -673,7 +694,15 @@ struct YardScreen: View {
 
     private func move() {
         confirmMove = false
+        let from = YardDistrict(index: Yard.district(moves: model.file?.yard.moves ?? 0))
         guard let r = model.moveYard(), case .ok = r else { return }
+        // Пока едет фургон, сцена двора под ним не рисуется: два RealityView разом — лишняя батарея.
+        sceneOnScreen = false
+        trip = YardTrip(from: from, to: YardDistrict(index: Yard.district(moves: model.file?.yard.moves ?? 0)))
+    }
+
+    private func closeTrip() {
+        trip = nil
         // Список под сценой разом стал коротким, и сцена вернулась в кадр без прокрутки: onScrollVisibilityChange
         // об этом молчит, и на её месте оставалась пустота (прогон 40450379551, ui-36-yard-moved).
         sceneOnScreen = true
@@ -812,4 +841,10 @@ struct YardBurst: View {
                 }
             }
     }
+}
+
+/// Переезд, который показывает экран фургона.
+private struct YardTrip: Equatable {
+    let from: YardDistrict
+    let to: YardDistrict
 }

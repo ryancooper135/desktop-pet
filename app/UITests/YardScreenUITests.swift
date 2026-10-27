@@ -11,6 +11,7 @@
 // Волна 36 P (в значении сцены ещё «moves=N»; сид yard_full — пёс ур. 30, двор полный, 5000 🪙):
 //   ui-36-yard-move          внизу тихая карточка «Переезд двора»
 //   ui-36-yard-move-confirm  подтверждение: что останется, что заново, слава ×1,5
+//   ui-36-yard-trip          сразу после «Переехать»: экран фургона «Улица → Зимний квартал»
 //   ui-36-yard-moved         переехали: двор пустой, в шапке ★ славы
 
 import XCTest
@@ -189,6 +190,14 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(tap(move, expecting: confirm, timeout: 8, name: "ui-36-yard-move-miss2"),
                       "подтверждение не открылось второй раз")
         XCTAssertTrue(tapWhenReady(confirm), "«Переехать» не нажимается")
+        // Сразу после переезда — экран фургона поверх двора; «Готово» возвращает к пустому двору.
+        let caption = any["yard.move.caption"]
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "после переезда нет экрана фургона")
+        XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
+        settle(2.5)
+        snap("ui-36-yard-trip")
+        XCTAssertTrue(tapWhenReady(any["yard.move.close"]), "«Готово» на экране фургона не нажимается")
+        XCTAssertTrue(caption.waitForNonExistence(timeout: 8), "экран фургона не закрылся")
         XCTAssertTrue(wait(scene, valueHas: "moves=1", timeout: 20), "переезд не случился (\(String(describing: scene.value)))")
         XCTAssertTrue(wait(scene, valueHas: "plates=0"), "после переезда плиты остались (\(String(describing: scene.value)))")
         XCTAssertTrue(move.waitForNonExistence(timeout: 8), "карточка переезда не ушла с пустого двора")
