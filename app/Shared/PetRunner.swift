@@ -16,6 +16,9 @@ enum PetRunner {
         Runaway.observe(&f, now: now)
         // Волна 33: рост досматривает время до now по стейту до догона (беды по дороге), уют — от двора.
         Growth.observe(&f, now: now, cozy: Yard.cozy(f.yard))
+        // Волна 43 K: наступившие просьбы решаются по стейту на их старт — до догона, пока peek ещё видит то же,
+        // что виджет и остров.
+        DogAsks.observe(&f, now: now)
         if f.pet.t - now > 300 {
             if f.journal.last?.kind != "clock_back" { f.log("clock_back", t: now, value: Int(f.pet.t - now)) }
             return
@@ -35,9 +38,10 @@ enum PetRunner {
     /// сработать достижение (кухня, трюк, открытка, двор, мини-игра): иначе оно платилось только следующей записью —
     /// с датой «Получено» той записи и тостом невпопад, через минуты или дни (волна 42 I).
     /// Опыт первым: достижение «Ур. N» за уровень, добитый этой записью, — в ту же запись.
-    /// Ещё раньше — задания дня (волна 42 J): их запись task.done даёт опыт этой же записью.
+    /// Ещё раньше — задания дня (волна 42 J) и просьбы пса (волна 43 K): task.done и ask.done дают опыт этой же записью.
     static func settleRewards(_ f: inout SaveFile, now: Double) {
         DailyTasks.settle(&f, now: now)
+        DogAsks.settle(&f, now: now)
         DogLevel.settle(&f, now: now)
         Shards.settle(&f, now: now)
     }

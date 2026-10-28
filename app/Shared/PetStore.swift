@@ -172,6 +172,8 @@ final class PetStore: @unchecked Sendable {
             fresh.shardLog = old.shardLog.carriedOver()
             // Задания дня (волна 42 J) — день хозяина: тот же набор и те же оплаты, без второго набора за сутки.
             fresh.tasks = old.tasks.carriedOver()
+            // Просьбы пса (волна 43 K) — так же: те же просьбы дня и оплаты, курсор журнала с нуля.
+            fresh.asks = old.asks.carriedOver()
             // Свой персонаж (CharacterStore) — выбор хозяина: новый щенок в том же облике.
             fresh.character = old.character
             fresh.characterName = old.characterName

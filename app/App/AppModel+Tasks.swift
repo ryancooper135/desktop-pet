@@ -1,6 +1,7 @@
 // Волна 42 J: «Задания дня» — данные для листа (TasksSheet) и замена задания.
 // Вся логика в Shared/DailyTasks.swift; здесь только запись в стор и тосты. Тост выполненного задания —
 // AppModel.noteTasks (из refresh).
+// Волна 43 K: просьба пса на доме (Shared/DogAsks.swift) — плашка и подсказка по нажатию; тост — AppModel.noteAsks.
 
 import Foundation
 @preconcurrency import PetCore
@@ -32,5 +33,17 @@ extension AppModel {
             show("Новое задание: \(DailyTaskText.name(t))", emoji: DailyTaskText.emoji(t.id))
             Task { await AppActions.shared.afterChange() }
         }
+    }
+
+    /// Открытая просьба пса на время снимка (на копии, без записи). nil — нет просьбы или пёс не дома/не жив.
+    var dogAsk: DogAsk? {
+        guard DogAsks.enabled, snap.alive, let f = file else { return nil }
+        return DogAsks.current(f, now: snap.t)
+    }
+
+    /// Нажатие на плашку: подсказка, какую кнопку нажать и сколько монет.
+    func tapAsk(_ a: DogAsk) {
+        Feel.tap()
+        show(DogAskText.hint(a), emoji: DogAskText.emoji(a.kind ?? ""))
     }
 }

@@ -154,6 +154,35 @@ struct HomeScreen: View {
                         .accessibilityIdentifier("pet.thought")
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
+                    // Волна 43 K: просьба пса («Почеши за ушком? · ещё 40 мин») — нажатие подскажет кнопку и награду.
+                    if let ask = model.dogAsk {
+                        Button {
+                            model.tapAsk(ask)
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(DogAskText.emoji(ask.kind ?? ""))
+                                    .font(.system(size: 13))
+                                Text(DogAskText.plate(ask, now: snap.t))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(PetPalette.ink)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(PetPalette.card))
+                            .overlay(Capsule().stroke(PetPalette.accent.opacity(0.45), lineWidth: 1))
+                            .frame(minHeight: 30)
+                            .contentShape(Capsule())
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text("Просьба: \(DogAskText.plate(ask, now: snap.t))"))
+                        }
+                        .buttonStyle(SquishStyle())
+                        .accessibilityHint(Text("Подскажет, что нажать"))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityIdentifier("pet.ask")
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
                     Text(model.sayLine ?? snap.line)
                         .font(.system(size: min(lineSize, Self.lineMax), weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
@@ -227,6 +256,7 @@ struct HomeScreen: View {
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)
         .animation(.snappy, value: snap.wantIcon)
+        .animation(.snappy, value: model.dogAsk?.start)
         .animation(.snappy, value: snap.pose == .away)
         .animation(.snappy, value: noteHeld)
         .animation(.snappy, value: model.sayLine)

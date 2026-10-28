@@ -170,6 +170,9 @@ final class AppModel {
     /// пришедший следом из settle, его не перебивает (волна 42 J).
     @ObservationIgnored private var taskToastT: Double? = nil
     @ObservationIgnored private var taskShownAt: Double = -100
+    /// Волна 43 K: последняя показанная выполненная просьба пса и когда показан её тост.
+    @ObservationIgnored private var askToastT: Double? = nil
+    @ObservationIgnored private var askShownAt: Double = -100
     /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
     @ObservationIgnored private var pendingLine: String? = nil
 
@@ -295,6 +298,7 @@ final class AppModel {
             noteLevel(f, now: now)
             notePlaceNews(f, now: now)
             noteTasks(f, now: now)
+            noteAsks(f, now: now)
             noteAchievement(f, now: now)
         } catch {
             storeError = error.localizedDescription
@@ -612,7 +616,11 @@ final class AppModel {
     }
 
     /// Тост задания дня показан только что (до 1,5 с) — тосты монет и ✂️ того же действия его не перебивают.
-    private var taskToastFresh: Bool { ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 }
+    /// Волна 43 K: и тост выполненной просьбы — тоже.
+    private var taskToastFresh: Bool {
+        let up = ProcessInfo.processInfo.systemUptime
+        return up - taskShownAt < 1.5 || up - askShownAt < 1.5
+    }
 
     /// Волна 42 J: «Задание дня: Покормить 2 раза · +20 🪙», за последнее — «Все задания дня! … · +1 ✂️».
     /// Один раз на выполнение, только свежее (до 10 с): из refresh — и после действия, и после похода/двора/виджета.
@@ -621,6 +629,16 @@ final class AppModel {
         taskToastT = w.t
         taskShownAt = ProcessInfo.processInfo.systemUptime
         show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
+    }
+
+    /// Волна 43 K: «Просьба выполнена! Покормить · +10 🪙» — один раз, только свежее (до 10 с). Если то же действие
+    /// закрыло и задание дня, его тост важнее: просьбу отмечаем показанной без своего тоста (монеты всё равно пришли).
+    private func noteAsks(_ f: SaveFile, now: Double) {
+        guard DogAsks.enabled, let w = f.asks.last, w.t != askToastT, abs(now - w.t) < 10 else { return }
+        askToastT = w.t
+        if ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 { return }
+        askShownAt = ProcessInfo.processInfo.systemUptime
+        show(DogAskText.toast(w), emoji: DogAskText.emoji(w.kind))
     }
 
     /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh

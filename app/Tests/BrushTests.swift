@@ -319,7 +319,8 @@ final class BrushTests: XCTestCase {
     func testBrushLogRoundTrip() throws {
         var (f, t) = bDull()
         let plain = try JSONEncoder().encode(f)
-        XCTAssertFalse(String(decoding: plain, as: UTF8.self).contains("\"brush\""), "пустое в файл не пишется")
+        // Ищем ключ поля, а не слово: просьба пса (волна 43 K) может хранить вид "brush" как значение.
+        XCTAssertFalse(String(decoding: plain, as: UTF8.self).contains("\"brush\":"), "пустое в файл не пишется")
         _ = Brush.finish(&f, now: t)
         let data = try JSONEncoder().encode(f)
         let back = try JSONDecoder().decode(SaveFile.self, from: data)
