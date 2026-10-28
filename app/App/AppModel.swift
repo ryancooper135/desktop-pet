@@ -618,11 +618,15 @@ final class AppModel {
     /// refresh уже отложил в pendingAward — выходит один тост на всё (волна 40 E).
     private func noteShards() {
         let now = Clock.now()
-        if let f = file, let g = Shards.freshGain(f, now: now, shownT: shardToastT), !g.reason.hasPrefix("ach.") {
-            shardToastT = g.t
-            var p = pendingAward ?? PendingAward()
-            p.plain = g
-            pendingAward = p
+        // Волна 43 L: все обычные выплаты записи (день заботы и сундук недели), а не одна последняя.
+        if let f = file {
+            let gs = Shards.freshPlain(f, now: now, shownT: shardToastT)
+            if let t = gs.map(\.t).max() {
+                shardToastT = t
+                var p = pendingAward ?? PendingAward()
+                for g in gs { p.add(plain: g) }
+                pendingAward = p
+            }
         }
         // Тост задания дня того же действия не перебиваем: награда подождёт его (show → showAward).
         if taskToastFresh { return }
@@ -663,7 +667,7 @@ final class AppModel {
         guard LevelSeen.on, let fr = Achievements.fresh(f, now: now, shownT: achToastT) else { return }
         achToastT = fr.t
         var p = pendingAward ?? PendingAward()
-        p.ids += fr.ids.filter { !p.ids.contains($0) }
+        p.add(ids: fr.ids)
         pendingAward = p
     }
 
@@ -689,11 +693,7 @@ final class AppModel {
     private func showAward(over: Bool) {
         guard let p = pendingAward, awardVisible, over || toast == nil else { return }
         pendingAward = nil
-        if let text = Achievements.toast(p.ids, also: p.plain) {
-            show(text, emoji: "🏆")
-        } else if let g = p.plain {
-            show(Shards.toastText(g), emoji: "✂️")
-        }
+        if let a = p.toast() { show(a.text, emoji: a.emoji) }
     }
 
     /// Вкус еды или игрушки: любимое — сердечки и «Моё любимое!», нелюбимое — сдержанное «😑» и реплика.
@@ -1662,8 +1662,4 @@ final class AppModel {
     }
 }
 
-/// Награда ✂️ для тоста, ещё не показанная (волна 40 E): достижения и обычная выплата того же действия.
-struct PendingAward {
-    var ids: [String] = []
-    var plain: ShardGain? = nil
-}
+// PendingAward — в app/Shared/PendingAward.swift (волна 43 L: тесты в WSL, несколько выплат в одну запись).

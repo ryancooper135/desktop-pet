@@ -193,18 +193,20 @@ enum Weather {
         at(t, tzOffsetMin: Clock.tzOffsetMin(at: t), cfg)
     }
 
-    static func at(_ t: Double, tzOffsetMin: Int, _ cfg: WeatherConfig = .shared) -> WeatherKind {
-        kind(block: block(t, tzOffsetMin: tzOffsetMin, cfg), cfg)
+    /// season — сезон вместо календарного (закреплённый или PET_SEASON, Seasons.picked): шансы берутся его,
+    /// чтобы зимой «по заказу» шёл снег, а не осенний дождь. nil — по дате блока.
+    static func at(_ t: Double, tzOffsetMin: Int, season: Season? = nil, _ cfg: WeatherConfig = .shared) -> WeatherKind {
+        kind(block: block(t, tzOffsetMin: tzOffsetMin, cfg), season: season, cfg)
     }
 
     /// Погода блока b: с шансом stay — как у прошлого блока (если та уместна в этом сезоне), иначе свой бросок
     /// по шансам сезона. Гроза не тянется: повтор грозы — уже просто дождь.
-    static func kind(block b: Int, _ cfg: WeatherConfig = .shared) -> WeatherKind {
-        kind(block: b, depth: 0, cfg)
+    static func kind(block b: Int, season: Season? = nil, _ cfg: WeatherConfig = .shared) -> WeatherKind {
+        kind(block: b, depth: 0, season: season, cfg)
     }
 
-    private static func kind(block b: Int, depth: Int, _ cfg: WeatherConfig) -> WeatherKind {
-        let season = season(ofBlock: b, cfg)
+    private static func kind(block b: Int, depth: Int, season fixed: Season?, _ cfg: WeatherConfig) -> WeatherKind {
+        let season = fixed ?? season(ofBlock: b, cfg)
         let h = StableRandom.mix(StableHash.fnv1a("weather:\(b)"))
         let u1 = Double(h & 0xFFFF_FFFF) / 4_294_967_296
         let u2 = Double(h >> 32) / 4_294_967_296
@@ -212,7 +214,7 @@ enum Weather {
         let stays = u1 < cfg.stay
         // Прошлый блок нужен для повтора и для грозы; считается один раз (цепочка не глубже stayDepth).
         let prev = depth < cfg.stayDepth && (stays || rolled == .storm)
-            ? kind(block: b - 1, depth: depth + 1, cfg) : nil
+            ? kind(block: b - 1, depth: depth + 1, season: fixed, cfg) : nil
         if stays, let prev {
             let next: WeatherKind = prev == .storm ? .rain : prev
             if cfg.chance(next, in: season) > 0 { return next }
@@ -249,12 +251,12 @@ enum Weather {
     static let forced: WeatherKind? = Env.value("PET_WEATHER").flatMap(WeatherKind.init(rawValue:))
 
     /// Погода для показа: закреплённая, из PET_WEATHER, под тестами — ясно (снимки и строки не меняются
-    /// от даты прогона), иначе по часам.
+    /// от даты прогона), иначе по часам — с шансами того сезона, что показан (Seasons.picked, волна 43 L).
     static func shown(at t: Double, tzOffsetMin: Int) -> WeatherKind {
         if let p = pinned { return p }
         if let f = forced { return f }
         if underTest { return .clear }
-        return at(t, tzOffsetMin: tzOffsetMin)
+        return at(t, tzOffsetMin: tzOffsetMin, season: Seasons.picked)
     }
 
     /// Под тестами: Xcode (Env) или swift test на Linux, где XCTestConfigurationFilePath нет, а бинарник — *.xctest.
@@ -266,14 +268,22 @@ enum Weather {
         return shown(at: t, tzOffsetMin: Clock.tzOffsetMin(at: t))
     }
 
-    static func seasonNow() -> Season { Season(day: DayKey.of(Clock.now())) }
+    /// Сезон погоды — тот же, что у декора и Мастерской: Seasons.now() (закреплённый, PET_SEASON, под тестами —
+    /// осень, иначе по местной дате). Раньше здесь была своя дата (и по UTC) — волна 43 L.
+    static func seasonNow() -> Season { Seasons.now() }
 
     /// Погода во дворе квартала: в Зимнем квартале вместо дождя снег, а зимой снег всегда. Под тестами без
-    /// закреплённой погоды — ясно и там (снимки района не зависят от месяца прогона).
+    /// закреплённой погоды и сезона — ясно и там (снимки района не зависят от месяца прогона).
     static func now(in d: YardDistrict) -> WeatherKind {
-        let w = now()
-        if pinned == nil && forced == nil && underTest { return w }
-        return w.inDistrict(d, season: seasonNow())
+        let t = Clock.now()
+        return shown(at: t, tzOffsetMin: Clock.tzOffsetMin(at: t), in: d)
+    }
+
+    /// Погода квартала d в момент t. Сезон — Seasons.shown на тот же момент.
+    static func shown(at t: Double, tzOffsetMin: Int, in d: YardDistrict) -> WeatherKind {
+        let w = shown(at: t, tzOffsetMin: tzOffsetMin)
+        if pinned == nil && forced == nil && Seasons.picked == nil && underTest { return w }
+        return w.inDistrict(d, season: Seasons.shown(at: t, tzOffsetMin: tzOffsetMin))
     }
 }
 

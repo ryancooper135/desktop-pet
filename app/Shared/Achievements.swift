@@ -179,13 +179,18 @@ enum Achievements {
     /// Тост при получении: «Достижение: Ур. 10 · +3 ✂️»; несколько разом — одной строкой. also — обычная выплата
     /// того же действия (день заботы): дописывается в тот же тост, второго тоста подряд нет (волна 40 E).
     static func toast(_ ids: [String], also: ShardGain? = nil, _ cfg: PremiumConfig = .shared) -> String? {
+        toast(ids, alsoAll: also.map { [$0] } ?? [], cfg)
+    }
+
+    /// То же с несколькими обычными выплатами той же записи (волна 43 L: день заботы и сундук недели).
+    static func toast(_ ids: [String], alsoAll: [ShardGain], _ cfg: PremiumConfig = .shared) -> String? {
         let items = ids.compactMap(item)
         guard let first = items.first else { return nil }
         let sum = items.reduce(0) { $0 + reward($1.id, cfg) }
         let head = items.count == 1 ? "Достижение: \(first.title)" : "Достижения: \(items.count) новых"
         let main = sum > 0 ? "\(head) · \(rewardText(sum))" : head
-        guard let g = also, g.shards > 0, !g.reason.hasPrefix("ach.") else { return main }
-        return "\(main) · \(Shards.gainText(g))"
+        let extra = alsoAll.filter { $0.shards > 0 && !$0.reason.hasPrefix("ach.") }.map(Shards.gainText)
+        return ([main] + extra).joined(separator: " · ")
     }
 
     /// Свежие для тоста: получены не раньше 10 с назад и позже показанного (shownT). Самые новые — по времени.
