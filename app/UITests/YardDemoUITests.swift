@@ -208,31 +208,38 @@ final class YardDemoUITests: XCTestCase {
     @MainActor
     private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String, snap: String? = nil) {
         let scene = el(app, "yard.scene")
-        var last: String?
-        var accepted = false
-        let wait = { (t: TimeInterval) -> Bool in
-            self.eventually(timeout: t) {
-                last = self.valueNow(scene)
-                guard let v = last, v.contains(mark) else { return false }
-                accepted = true
-                return snap == nil || v.contains("frame=ready")
-            }
-        }
+        let frame = snap != nil
         tapWhenReady(el(app, chip), timeout: 30)
-        var ready = wait(30)
-        if !accepted {
+        var w = poll(scene, mark, frame: frame, timeout: 30)
+        if !w.accepted {
             tapWhenReady(el(app, chip), timeout: 30)
-            ready = wait(30)
+            w = poll(scene, mark, frame: frame, timeout: 30)
         }
-        XCTAssertTrue(accepted, "\(chip): сцена не приняла выбор (\(last ?? "нет сцены"))")
+        let last = w.last
+        XCTAssertTrue(w.accepted, "\(chip): сцена не приняла выбор (\(last ?? "нет сцены"))")
         guard let snap else { return }
-        if accepted && !ready { ready = wait(30) }
-        if !ready {
-            let note = XCTAttachment(string: "\(snap): нет \(mark) frame=ready; value=\(last ?? "нет элемента")")
+        if w.accepted && !w.ready { w = poll(scene, mark, frame: true, timeout: 30) }
+        if !w.ready {
+            let note = XCTAttachment(string: "\(snap): нет \(mark) frame=ready; value=\(w.last ?? "нет элемента")")
             note.name = "\(snap)-not-ready"
             note.lifetime = .keepAlways
             add(note)
         }
+    }
+
+    /// Опрос значения сцены, один снимок на попытку: принят ли выбор (mark) и, если frame, нарисован ли кадр.
+    @MainActor
+    private func poll(_ scene: XCUIElement, _ mark: String, frame: Bool,
+                      timeout: TimeInterval) -> (accepted: Bool, ready: Bool, last: String?) {
+        var last: String?
+        var accepted = false
+        let ready = eventually(timeout: timeout) {
+            last = valueNow(scene)
+            guard let v = last, v.contains(mark) else { return false }
+            accepted = true
+            return !frame || v.contains("frame=ready")
+        }
+        return (accepted, ready, last)
     }
 
     @MainActor
