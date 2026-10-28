@@ -54,7 +54,7 @@ enum SeasonDecor {
     /// Снеговик: три кома, угольки, морковка, шарф и ведро-шапка.
     private static func snowman(_ m: inout YardArtModel) {
         typealias C = Colors
-        m.gem(C.snow, sides: 8, r: 0.065, h: 0.11, at: SIMD3(0, 0.05, 0), scale: SIMD3(1, 1, 1))
+        m.gem(C.snow, sides: 8, r: 0.065, h: 0.11, at: SIMD3(0, 0.055, 0), scale: SIMD3(1, 1, 1))
         m.gem(C.snow, sides: 8, r: 0.048, h: 0.085, at: SIMD3(0, 0.125, 0))
         m.gem(C.snow, sides: 6, r: 0.034, h: 0.065, at: SIMD3(0, 0.185, 0))
         m.box(C.scarf, SIMD3(0.07, 0.014, 0.07), at: SIMD3(0, 0.158, 0), rot: SIMD3(0, 22, 0))
