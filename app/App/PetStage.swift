@@ -73,6 +73,8 @@ struct PetStage: View {
         let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
                                          zombie: model?.showZombie ?? false, away: model?.away != nil)
         let off = self.stageOff
+        // Дела простоя (волна 44 M): под обложкой и с Reduce Motion пёс сам никуда не ходит.
+        let idle = covered || off || reduceMotion ? nil : model?.idleScene
         // Сезонный акцент у окна (волна 40 F): бесплатный, по дате; под тестами — осень.
         let season = Seasons.now()
         return RealityView { content in
@@ -116,6 +118,7 @@ struct PetStage: View {
             room.isEnabled = !off
             // Лапы на матрасе лежанки, а не в нём (RoomPlan.petLift).
             PetChoreo.setHome(pet, home)
+            PetModel.idleScene = idle
             // Клипы играем, когда питомец уже в сцене. Старую реакцию при открытии не повторяем.
             PetModel.prime(pet, reactionId: reaction.id)
             PetChoreo.walk(pet, away: pose == .away, instant: pose == .dead, homeId: walkHome.id, find: walkHome.find,
@@ -159,6 +162,7 @@ struct PetStage: View {
                 PetChoreo.growBowl(room)
             }
             PetChoreo.setHome(pet, home)
+            PetModel.idleScene = idle
         }
         // Сменили персонажа или переставили его папку — сцена собирается заново (make, а не update).
         .id("\(character?.id ?? "shiba")#\(model?.characterRev ?? 0)")
@@ -442,6 +446,18 @@ enum PetModel {
             return
         }
 
+        // Дело простоя (волна 44 M): любое касание или новая поза его прерывает — пёс плавно домой.
+        // Лежал на ковре — сперва встаёт; цикл дома снова тот, что был до дела (ниже его может сменить поза).
+        // Шаги подъёма идут и в общую очередь ниже (cutSteps): иначе реакция сменила бы их рывком из лёжа.
+        var cutSteps: [String] = []
+        if let back = PetChoreo.cutChore(pet, clock: st.clock), !reduceMotion {
+            cutSteps = PetStance.pick(back, available: ClipTable.sharedNames)
+            let busy = ClipPlayer.play(cutSteps, then: st.loop, on: pet,
+                                       transition: 0.25, randomSpeed: false, initial: false) ?? 0
+            st.busyUntil = st.clock + busy
+            st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
+        }
+
         if reduceMotion {
             // Без переходов и реакций: сразу статичная поза на последнем кадре цикла.
             PetChoreo.stop(pet)
@@ -471,6 +487,7 @@ enum PetModel {
         let initial = st.current.isEmpty
         var steps: [String] = []
         if !initial {
+            steps += cutSteps
             steps += PetStance.pick(PetStance.path(from: st.stance, to: target), available: available)
         }
         var mainLoop = loop
@@ -610,7 +627,16 @@ enum PetModel {
             return
         }
         guard !st.reduceMotion, st.pendingPose == nil, st.stance != .dead,
-              st.clock >= st.busyUntil, st.clock >= st.nextFidgetAt, ClipTable.shared != nil else {
+              st.clock >= st.busyUntil, ClipTable.shared != nil else {
+            pet.components.set(st)
+            return
+        }
+        // Дело простоя (волна 44 M): раз в слот пёс сам решает, сходить ли к миске, окну, мячику.
+        if idle(pet, &st) {
+            pet.components.set(st)
+            return
+        }
+        guard st.clock >= st.nextFidgetAt else {
             pet.components.set(st)
             return
         }
@@ -645,6 +671,44 @@ enum PetModel {
         st.busyUntil = st.clock + busy
         st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
         pet.components.set(st)
+    }
+
+    // MARK: дела простоя (волна 44 M)
+
+    /// Сцена для DogIdle (AppModel.idleScene). nil — дела выключены: UI-тест без сида idle*, нет сейва,
+    /// комната под обложкой (StagePause).
+    static var idleScene: IdleScene?
+
+    /// Затеять дело простоя, если слот новый и выпало. Выбор — DogIdle (чистый, в Shared), здесь только клипы и путь.
+    /// Сон, ночь хозяина, не жив — DogIdle.decide; Reduce Motion и «лежит мёртвый» отсекает guard в tick.
+    static func idle(_ pet: Entity, _ st: inout ClipState) -> Bool {
+        guard DogIdle.enabled, let scene = idleScene, !PetChoreo.busy(pet) else { return false }
+        let now = Clock.now()
+        let slot = DogIdle.slot(now)
+        guard slot != st.idleSlot else { return false }
+        // Первый слот после открытия пропускаем: пёс не уходит из кадра, едва экран появился.
+        let first = st.idleSlot < 0
+        st.idleSlot = slot
+        if first { return false }
+        let pose = st.pose ?? scene.pose
+        guard pose != .away, pose != .dead,
+              let plan = DogIdle.decide(scene, pose: pose, at: now, weather: Weather.now(), season: Seasons.now(),
+                                        last: st.lastChore,
+                                        lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled) else { return false }
+        let available = ClipTable.sharedNames
+        // Свой персонаж без нужных клипов дела не делает: стоять посреди комнаты без анимации хуже, чем дома.
+        guard plan.clips.allSatisfy({ available.contains($0) }) else { return false }
+        let size = Float(ChoreoPath.body.length) * PetChoreo.growth
+        let route = IdleRoute.make(plan, act: plan.act(PetChoreo.duration), size: size)
+        let cues = DogIdle.cues(plan, route, homeLoop: st.loop, len: PetChoreo.duration)
+        PetChoreo.startChore(pet, route: route, cues: cues, clock: st.clock)
+        st.busyUntil = st.clock + route.homeAt
+        st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
+        st.lastChore = plan.chore
+        if UIAccessibility.isVoiceOverRunning {
+            UIAccessibility.post(notification: .announcement, argument: plan.line)
+        }
+        return true
     }
 
     static func floor() -> Entity {
@@ -746,6 +810,9 @@ struct ClipState: Component {
     /// Положение модели после load(): от него считается сдвиг лёжа на боку (deathShift).
     var bodyBase: SIMD3<Float>? = nil
     var shifted = false
+    /// Дела простоя (волна 44 M): слот, в котором уже решали, и последнее дело (его вес ниже — не по кругу).
+    var idleSlot = -1
+    var lastChore: IdleChore? = nil
 }
 
 /// shiba.clips.json из tools/assets: клипы — куски одной анимации «Clips», границы в секундах.
