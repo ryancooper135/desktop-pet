@@ -150,6 +150,7 @@ let package = Package(
                 "PostcardsTests.swift",
                 "PostcardPhotosTests.swift",
                 "Wave5SeamTests.swift",
+                "Wave42SeamTests.swift",
                 "PetRunnerCoverageTests.swift",
                 "SaveFileCoverageTests.swift",
                 "PetStoreRecoveryTests.swift",

@@ -27,9 +27,17 @@ enum PetRunner {
         Postcards.refresh(&f, now: now)
         // Волна 34: вернулся из похода — находка места и событие. До DogLevel: опыт за trip.first в ту же запись.
         Places.settle(&f, now: now)
-        Shards.settle(&f, now: now)
-        // Опыт пса — по журналу, один раз на запись (волна 33).
+        settleRewards(&f, now: now)
+    }
+
+    /// Опыт пса (DogLevel, волна 33), потом клочки ✂️ с достижениями (Shards, волны 32 и 39) — по журналу и сейву,
+    /// один раз на запись; повторный вызов ничего не добавляет. Звать в конце любой записи, после которой может
+    /// сработать достижение (кухня, трюк, открытка, двор, мини-игра): иначе оно платилось только следующей записью —
+    /// с датой «Получено» той записи и тостом невпопад, через минуты или дни (волна 42 I).
+    /// Опыт первым: достижение «Ур. N» за уровень, добитый этой записью, — в ту же запись.
+    static func settleRewards(_ f: inout SaveFile, now: Double) {
         DogLevel.settle(&f, now: now)
+        Shards.settle(&f, now: now)
     }
 
     /// Метки «последний раз» из будущего (часы перевели назад; перелёт их не двигает — это unix-время)
@@ -128,9 +136,9 @@ enum PetRunner {
         if OwnerSleep.counts(source) { OwnerSleep.note(&f.sleep, t: now, tzOffsetMin: f.owner.tzOffsetMin) }
         // Монеты за уход и шаги — по журналу, один раз на запись (Economy.settle).
         let coins = Economy.settle(&f).reduce(0) { $0 + $1.coins }
-        // Клочки ✂️ за день заботы, сундук недели, рекорды и находки — тоже по журналу, один раз (волна 32).
-        Shards.settle(&f, now: now)
-        DogLevel.settle(&f, now: now)
+        // Опыт, потом клочки ✂️ за день заботы, сундук недели, рекорды, находки и достижения — тоже по журналу,
+        // один раз (волна 32). Опыт первым: иначе «Ур. N» платился только следующей записью (волна 42 I).
+        settleRewards(&f, now: now)
         return ActOutcome(ok: res.ok, reason: res.reason, coins: coins)
     }
 
