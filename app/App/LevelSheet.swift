@@ -3,6 +3,7 @@
 // («Щенок · примерно 6 дней до подростка») и что даёт стадия. Ниже — что даст следующий уровень, лента ближайших
 // открытий и за что дают опыт. Логика и тексты — LevelInfo (Shared), тут только вид. Только чтение: ничего не пишет.
 // Волна 39 C: под шапкой — карточка «Достижения · 4 из 25», открывает AchievementsSheet поверх.
+// Волна 42 J: над ней — карточка «Задания дня · 1 из 2», открывает TasksSheet поверх (нет заданий — карточки нет).
 
 import SwiftUI
 @preconcurrency import PetCore
@@ -10,6 +11,7 @@ import SwiftUI
 struct LevelSheet: View {
     @Environment(AppModel.self) private var model
     @State private var showAchieve = false
+    @State private var showTasks = false
 
     var body: some View {
         let now = model.snap.t
@@ -18,6 +20,7 @@ struct LevelSheet: View {
                 if let f = model.file {
                     let p = DogLevel.progress(f)
                     header(p, f, now: now)
+                    if let b = model.taskBoard { tasksCard(b) }
                     achieveCard(f)
                     growthCard(f)
                     nextCard(p)
@@ -35,6 +38,47 @@ struct LevelSheet: View {
                 .environment(model)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $showTasks) {
+            TasksSheet()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    // MARK: задания дня (волна 42 J)
+
+    private func tasksCard(_ b: TaskBoard) -> some View {
+        Button {
+            showTasks = true
+        } label: {
+            card {
+                HStack(spacing: 10) {
+                    Image(systemName: "checklist")
+                        .foregroundStyle(PetPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(DailyTaskText.title)
+                            .petFont(15, .semibold)
+                            .foregroundStyle(PetPalette.ink)
+                        Text(b.allPaid ? "Все выполнены" : "\(b.doneCount) из \(b.items.count) · \(DailyTaskText.allReward(b))")
+                            .petFont(13, .medium)
+                            .monospacedDigit()
+                            .foregroundStyle(PetPalette.soft)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(PetPalette.soft)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(SquishStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Задания дня: выполнено \(b.doneCount) из \(b.items.count)")
+        .accessibilityHint("Открыть задания дня")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("level.tasks")
     }
 
     // MARK: достижения (волна 39 C)

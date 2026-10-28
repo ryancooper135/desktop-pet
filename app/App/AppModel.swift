@@ -166,6 +166,10 @@ final class AppModel {
     @ObservationIgnored private var shardToastT: Double? = nil
     /// Время последнего показанного достижения — тост «Достижение: …» один раз (волна 39 C).
     @ObservationIgnored private var achToastT: Double? = nil
+    /// Последнее показанное задание дня (TaskWin.t) и когда показали (uptime): тост «+5 монет» действия,
+    /// пришедший следом из settle, его не перебивает (волна 42 J).
+    @ObservationIgnored private var taskToastT: Double? = nil
+    @ObservationIgnored private var taskShownAt: Double = -100
     /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
     @ObservationIgnored private var pendingLine: String? = nil
 
@@ -290,6 +294,7 @@ final class AppModel {
             noteOwnerSleep(f, now: now)
             noteLevel(f, now: now)
             notePlaceNews(f, now: now)
+            noteTasks(f, now: now)
             noteAchievement(f, now: now)
         } catch {
             storeError = error.localizedDescription
@@ -577,6 +582,8 @@ final class AppModel {
 
     /// «+5 монет» после действия; «На сегодня монет хватит» — раз в сутки, на действие, упёршееся в потолок.
     private func noteEarn(_ a: PetAction, _ out: ActOutcome) {
+        // Это же действие закрыло задание дня — его тост (с монетами задания) уже висит.
+        if taskToastFresh { return }
         let now = Clock.now()
         if out.coins > 0 {
             let e = Earning(id: "", kind: a.kind, coins: out.coins, capped: false, t: now)
@@ -600,7 +607,20 @@ final class AppModel {
             noteAchievement(f, now: now)
             return
         }
+        if taskToastFresh { return }
         show(Shards.toastText(g), emoji: "✂️")
+    }
+
+    /// Тост задания дня показан только что (до 1,5 с) — тосты монет и ✂️ того же действия его не перебивают.
+    private var taskToastFresh: Bool { ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 }
+
+    /// Волна 42 J: «Задание дня: Покормить 2 раза · +20 🪙», за последнее — «Все задания дня! … · +1 ✂️».
+    /// Один раз на выполнение, только свежее (до 10 с): из refresh — и после действия, и после похода/двора/виджета.
+    private func noteTasks(_ f: SaveFile, now: Double) {
+        guard DailyTasks.enabled, let w = f.tasks.last, w.t != taskToastT, abs(now - w.t) < 10 else { return }
+        taskToastT = w.t
+        taskShownAt = ProcessInfo.processInfo.systemUptime
+        show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
     }
 
     /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh
