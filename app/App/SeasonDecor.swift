@@ -96,8 +96,8 @@ enum SeasonDecor {
     /// Тыква с хвостиком, тыковка поменьше и три кленовых листа на земле.
     private static func pumpkin(_ m: inout YardArtModel) {
         typealias C = Colors
-        m.gem(C.pumpkin, sides: 10, r: 0.07, h: 0.11, at: SIMD3(-0.01, 0.05, 0), scale: SIMD3(1, 1, 0.9))
-        m.prism(C.pumpkinStem, sides: 5, r: 0.008, h: 0.03, top: 0.005, at: SIMD3(-0.008, 0.11, 0), rot: SIMD3(0, 0, -12))
+        m.gem(C.pumpkin, sides: 10, r: 0.07, h: 0.11, at: SIMD3(-0.01, 0.055, 0), scale: SIMD3(1, 1, 0.9))
+        m.prism(C.pumpkinStem, sides: 5, r: 0.008, h: 0.03, top: 0.005, at: SIMD3(-0.008, 0.115, 0), rot: SIMD3(0, 0, -12))
         m.gem(C.pumpkinSmall, sides: 8, r: 0.036, h: 0.055, at: SIMD3(0.07, 0.026, 0.03))
         m.prism(C.pumpkinStem, sides: 4, r: 0.005, h: 0.018, top: 0.003, at: SIMD3(0.07, 0.058, 0.03))
         let leaves: [(x: Float, z: Float, a: Float, c: UInt32)] = [
