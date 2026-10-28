@@ -69,13 +69,16 @@ enum Seasons {
     /// PET_SEASON=<winter|spring|summer|autumn> — сезон для снимков и UI-тестов (и для отладки на телефоне).
     static let forced: Season? = Env.value("PET_SEASON").flatMap(Season.init(rawValue:))
 
+    /// Сезон «по заказу» — закреплённый или из PET_SEASON; nil — по дате (под тестами — testSeason).
+    /// Единый источник для погоды (Weather.shown, Weather.now(in:)), декора и Мастерской — волна 43 L.
+    static var picked: Season? { pinned ?? forced }
+
     /// Сезон под тестами без закрепления: осень (капсула и так «осенняя», декор с тыквой проверен глазами).
     static let testSeason = Season.autumn
 
     /// Сезон для показа и продажи: закреплённый, из PET_SEASON, под тестами — осень, иначе по местной дате.
     static func shown(at t: Double, tzOffsetMin: Int) -> Season {
-        if let p = pinned { return p }
-        if let f = forced { return f }
+        if let o = picked { return o }
         if Weather.underTest { return testSeason }
         return Season(day: DayKey.of(t, tzOffsetMin: tzOffsetMin))
     }
@@ -88,7 +91,7 @@ enum Seasons {
     /// Сезон для реплик. Под тестами без закрепления — молчим (как погода: под тестами ясно и без слов),
     /// чтобы строки пузыря в старых тестах не зависели от сезона.
     static func talking(at t: Double, tzOffsetMin: Int) -> Season? {
-        if pinned == nil && forced == nil && Weather.underTest { return nil }
+        if picked == nil && Weather.underTest { return nil }
         return shown(at: t, tzOffsetMin: tzOffsetMin)
     }
 
