@@ -167,6 +167,8 @@ final class PetStore: @unchecked Sendable {
             fresh.habits = old.habits
             // Кухня шефа — вместе с домом: дневной лимит блюд и бонус не обнуляются новым щенком.
             fresh.cooking = old.cooking
+            // Интерьер (волна 41 G) — комната хозяина: обои, пол и ковёр остаются и у нового щенка.
+            fresh.interior = old.interior
             fresh.shardLog = old.shardLog.carriedOver()
             // Свой персонаж (CharacterStore) — выбор хозяина: новый щенок в том же облике.
             fresh.character = old.character

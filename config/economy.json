@@ -345,6 +345,16 @@
     "talk_one_in": 3
   },
 
+  "interior": {
+    "_doc": "Волна 41 G: обои, пол и ковёр в комнате пса. Чистая косметика — на доход, потолки и уровень не влияет. Первый вариант каждой части бесплатный и стоит по умолчанию; coins — цены за монеты (уровня игрушек лавки), shards — эксклюзивы за ✂️ (между сезонной вещью 70 и эксклюзивом места 120). Купленное навсегда и переходит новому щенку. Умолчания — InteriorConfig в app/Shared/Interior.swift",
+    "coins": {
+      "wall_stripes": 300, "wall_mint": 450, "wall_diamonds": 600,
+      "floor_mint": 300, "floor_planks": 450, "floor_zigzag": 600,
+      "rug_rings": 200, "rug_oval": 250, "rug_square": 300
+    },
+    "shards": { "wall_stars": 120, "rug_stripes": 90 }
+  },
+
   "friends": {
     "levels": [
       { "name": "Приятели",       "days": 1,  "perks": ["poke", "guest_visit"] },
