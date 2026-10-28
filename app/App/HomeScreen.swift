@@ -65,9 +65,12 @@ struct HomeScreen: View {
             .accessibilityIdentifier("pet.stage")
             // Волна 31: VoiceOver слышит сводку «хочет играть; сытость 70 %, …» (A11y.stageValue).
             // В UI-тестах вместо неё — какие уровни дома стоят в комнате (HouseUITests) и проход стекла
-            // (GlassSettle): «glass=1» — кнопки уже пересмотрели готовую комнату.
+            // (GlassSettle): «glass=1» — кнопки уже пересмотрели готовую комнату. Волна 41 H: впереди — последняя
+            // реплика и последний тост («said=…|toast=…|»): они не гаснут, как пузырь (5 с) и тост (2,5 с), и тест
+            // на медленном CI видит их и после долгого касания. «glass=N» остаётся в конце (тесты ждут …glass=N$).
             .accessibilityValue(Text(Env.isUITest
-                ? GlassSettle.stageValue(levels: model.homeLevels.tag, pass: model.glassPass, uiTest: true)
+                ? Self.uiTrace(said: model.uiSaid, toast: model.uiToast)
+                    + GlassSettle.stageValue(levels: model.homeLevels.tag, pass: model.glassPass, uiTest: true)
                 : A11y.stageValue(snap, order: VisibleNeeds.all)))
 
             // Часы и батарейка следуют теме: где стена того же тона — подложка под статус-бар.
@@ -330,6 +333,13 @@ struct HomeScreen: View {
                 Text("Того пса уже не найти: поиски закончатся. Дом, вещи и монеты останутся.")
             }
         }
+    }
+
+    /// След для UI-теста: «said=<реплика>|said=<…>|toast=<тост>|» в одну строку (MATCHES в тестах не видит переносов).
+    private static func uiTrace(said: [String], toast: [String]) -> String {
+        let flat = { (s: String) in s.components(separatedBy: .newlines).joined(separator: " ").replacingOccurrences(of: "|", with: "/") }
+        if said.isEmpty && toast.isEmpty { return "" }
+        return said.map { "said=\(flat($0))|" }.joined() + toast.map { "toast=\(flat($0))|" }.joined() + " "
     }
 
     /// Действие ухода со сцены (VoiceOver): те же вызовы, что у кнопок ActionBar.

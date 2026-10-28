@@ -248,10 +248,10 @@ struct YardMoveView: View {
                 .accessibilityIdentifier("yard.move.caption")
             // Сцена рождается после въезда экрана: RealityView, созданный за краем, на CI оставался пустым.
             // Пёс садится отдельной задачей — фургон виден сразу, не ждёт загрузки модели.
+            let key = "\(from)#\(to)#\(calm)#\(night)#\(weather)"
             Group {
                 if onScreen {
                     // Как превью и экран двора: мир в держателе, update тоже ставит его (на CI вид без update не рисовал).
-                    let key = "\(from)#\(to)#\(calm)#\(night)#\(weather)"
                     let build: @MainActor @Sendable () -> Entity = {
                         let world = YardMoveStage.scene(from: from, to: to, calm: calm, night: night, weather: weather)
                         Task { @MainActor in await YardMoveStage.seat(in: world) }
@@ -261,12 +261,13 @@ struct YardMoveView: View {
                         content.camera = .virtual
                         YardArtSystem.registerOnce()
                         let holder = Entity()
-                        YardLive.swap(in: holder, key: key, build: build)
+                        YardLive.swap(in: holder, key: key, probe: "yard.move", build: build)
                         content.add(holder)
                     } update: { content in
                         guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
-                        YardLive.swap(in: holder, key: key, build: build)
+                        YardLive.swap(in: holder, key: key, probe: "yard.move", build: build)
                     }
+                    .onDisappear { YardFrame.gone("yard.move") }
                 } else {
                     Color.clear
                 }
@@ -275,6 +276,8 @@ struct YardMoveView: View {
             .frame(height: 380)
             .accessibilityElement()
             .accessibilityLabel("Фургон у дома, коробки едут в кузов, Шиба сидит в кабине")
+            // UI-тест (волна 41 H): фургон уже нарисован — «frame=ready» вместо паузы перед снимком.
+            .modifier(YardFrameProbe(probe: "yard.move", key: key))
             .accessibilityIdentifier("yard.move.scene")
             Text("Станции едут с нами — во дворе нового района всё строится заново")
                 .font(.system(.subheadline, design: .rounded))
