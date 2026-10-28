@@ -74,10 +74,15 @@ jobs:
                      "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText",
                      # волна 36 Q: превью двора теперь рисует 3D (раньше было пустым) — 1–2 кадра/с на CI, весь класс
                      # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
-                     "YardDemoUITests"]
+                     # волна 41 H: ожидания «выбор принят» и «кадр нарисован» вместо пауз дороже при 3D — шард 1 упёрся
+                     # в 45 мин (прогон 40718623848); районы днём и ночью уехали в шард 3 (он шёл 19 мин)
+                     "YardDemoUITests/testYard1Stations", "YardDemoUITests/testYard1bStations",
+                     "YardDemoUITests/testYard1cLooks", "YardDemoUITests/testYard2Tiers",
+                     "YardDemoUITests/testYard5WeatherChips"]
           # Шард 3 (27.10, волна 38): шард 2 дошёл до 44 м 42 с из 45 — двор 3D (YardScreenUITests 11,9 мин),
           # замеры (3,2) и мелкие экраны двора уехали на свой раннер. Замер 27.10: шард 1 ≈ 35, 2 ≈ 25, 3 ≈ 17 мин.
-          yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests"]
+          yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests",
+                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in yard_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui + yard_ui)

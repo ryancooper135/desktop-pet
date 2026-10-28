@@ -81,13 +81,11 @@ final class YardDemoUITests: XCTestCase {
 
     @MainActor
     private func shootStations(_ app: XCUIApplication, _ range: ClosedRange<Int>) {
-        let scene = el(app, "yard.scene")
         for s in range {
             // Чип нажался — в значении сцены «shot=st.N»; на CI тап иногда теряется — ещё одно нажатие.
             let shot = "shot=st.\(s),"
-            choose(app, "yard.st.\(s)", shows: shot)
             // Вместо паузы 1,6 с — мир станции прожил несколько кадров (YardFrame).
-            readyForSnap(scene, has: shot, "frame=ready", timeout: 60, name: "ui-98-yard-st-\(s)")
+            choose(app, "yard.st.\(s)", shows: shot, snap: "ui-98-yard-st-\(s)")
             snap("ui-98-yard-st-\(s)")
             let tris = number(app, "yard.tris")
             XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
@@ -124,13 +122,10 @@ final class YardDemoUITests: XCTestCase {
         // Волна 41 H: четыре района в 3D и фургон — ожидания готовности вместо пауз, запас под них.
         executionTimeAllowance = 420
         let app = try openDemo()
-        let scene = el(app, "yard.scene")
         choose(app, "yard.lv.3", shows: "lv=3,")
         choose(app, "yard.tier.4", shows: "shot=tier.4,")
         for d in ["street", "winter", "river", "roof"] {
-            let mark = "district=\(d),"
-            choose(app, "yard.district.\(d)", shows: mark)
-            readyForSnap(scene, has: mark, "frame=ready", timeout: 60, name: "ui-36-district-\(d)")
+            choose(app, "yard.district.\(d)", shows: "district=\(d),", snap: "ui-36-district-\(d)")
             snap("ui-36-district-\(d)")
         }
         // Ярус 4 с декором на симуляторе CI — 2–3 кадра/с, снимок дерева элементов медленный: ждём с запасом.
@@ -163,14 +158,11 @@ final class YardDemoUITests: XCTestCase {
         // Волна 41 H: как testYard3Districts — готовность вместо пауз.
         executionTimeAllowance = 420
         let app = try openDemo()
-        let scene = el(app, "yard.scene")
         choose(app, "yard.lv.3", shows: "lv=3,")
         choose(app, "yard.tier.4", shows: "shot=tier.4,")
         tapWhenReady(el(app, "yard.night"), timeout: 30)
         for d in ["winter", "river", "roof", "street"] {
-            let mark = "district=\(d),"
-            choose(app, "yard.district.\(d)", shows: mark)
-            readyForSnap(scene, has: mark, "frame=ready", timeout: 60, name: "ui-37-district-\(d)-night")
+            choose(app, "yard.district.\(d)", shows: "district=\(d),", snap: "ui-37-district-\(d)-night")
             snap("ui-37-district-\(d)-night")
         }
         // С улицы ночью — в зимний квартал.
@@ -210,16 +202,37 @@ final class YardDemoUITests: XCTestCase {
     /// Нажать чип превью и дождаться, что сцена его приняла: в значении yard.scene есть mark («shot=st.3,», «lv=3,»,
     /// «district=winter,»). Волна 41 H: на CI тап при 3D иногда теряется — не дождались за 30 с, жмём ещё раз;
     /// так и не принял — провал (раньше тест молча снимал не тот вид после паузы).
+    /// snap — дальше будет снимок: тем же опросом ждём и «frame=ready» (мир нарисован, YardFrame). Один запрос к
+    /// дереву на попытку: при 3D на CI каждый стоит десятки секунд, отдельные ожидания «выбор» и «кадр» удваивали
+    /// время (первый прогон волны 41 H упёрся в 45 мин шарда). Кадр не дождались — не провал, заметка <snap>-not-ready.
     @MainActor
-    private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String) {
+    private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String, snap: String? = nil) {
         let scene = el(app, "yard.scene")
-        tapWhenReady(el(app, chip), timeout: 30)
-        var ok = waitValue(scene, has: mark, timeout: 30)
-        if !ok {
-            tapWhenReady(el(app, chip), timeout: 30)
-            ok = waitValue(scene, has: mark, timeout: 30)
+        var last: String?
+        var accepted = false
+        let wait = { (t: TimeInterval) -> Bool in
+            self.eventually(timeout: t) {
+                last = self.valueNow(scene)
+                guard let v = last, v.contains(mark) else { return false }
+                accepted = true
+                return snap == nil || v.contains("frame=ready")
+            }
         }
-        XCTAssertTrue(ok, "\(chip): сцена не приняла выбор (\(valueNow(scene) ?? "нет сцены"))")
+        tapWhenReady(el(app, chip), timeout: 30)
+        var ready = wait(30)
+        if !accepted {
+            tapWhenReady(el(app, chip), timeout: 30)
+            ready = wait(30)
+        }
+        XCTAssertTrue(accepted, "\(chip): сцена не приняла выбор (\(last ?? "нет сцены"))")
+        guard let snap else { return }
+        if accepted && !ready { ready = wait(30) }
+        if !ready {
+            let note = XCTAttachment(string: "\(snap): нет \(mark) frame=ready; value=\(last ?? "нет элемента")")
+            note.name = "\(snap)-not-ready"
+            note.lifetime = .keepAlways
+            add(note)
+        }
     }
 
     @MainActor
