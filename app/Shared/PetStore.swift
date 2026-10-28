@@ -172,6 +172,8 @@ final class PetStore: @unchecked Sendable {
             fresh.shardLog = old.shardLog.carriedOver()
             // Задания дня (волна 42 J) — день хозяина: тот же набор и те же оплаты, без второго набора за сутки.
             fresh.tasks = old.tasks.carriedOver()
+            // Просьбы пса (волна 43 K) — так же: те же просьбы дня и оплаты, курсор журнала с нуля.
+            fresh.asks = old.asks.carriedOver()
             // Опыт — про собаку: новый щенок с ур. 1 (волна 32). Без отметки started первый DogLevel.settle принял бы
             // дни заботы хозяина (shardLog.goodDays переходит) за старый сейв и дал до ур. 10, а партии мини-игр
             // прошлого пса за сегодня — за свои (волна 40 E).

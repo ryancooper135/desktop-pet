@@ -12,6 +12,9 @@
 // Волна 42 J, сид tasks (ур. 7 — три задания дня; задания в UI-тестах включены только сидами tasks*):
 //   ui-42-tasks-entry  лист «Уровень» с карточкой «Задания дня · 0 из 3»
 //   ui-42-tasks-sheet  лист «Задания дня»: три задания с прогрессом и наградой, награда за все (✂️)
+// Волна 43 K, сид asks (ур. 7, пёс просит «Почеши за ушком?»; просьбы в UI-тестах включены только сидами asks*):
+//   ui-43-ask-plate  плашка просьбы под мыслью: «🤲 Почеши за ушком? · ещё 59 мин»
+//   ui-43-ask-hint   тост-подсказка по нажатию: «Нажми «Погладить» — +… 🪙»
 
 import XCTest
 
@@ -156,6 +159,32 @@ final class LevelUITests: XCTestCase {
         _ = sheet.waitForNonExistence(timeout: 5)
         XCTAssertFalse(sheet.exists, "лист «Задания дня» не закрылся")
         XCTAssertTrue(level.exists, "лист «Уровень» под ним остался")
+        app.terminate()
+    }
+
+    @MainActor
+    func testDogAsk() throws {
+        let app = launch("asks")
+        let any = app.descendants(matching: .any)
+
+        let plate = any["pet.ask"].firstMatch
+        XCTAssertTrue(plate.waitForExistence(timeout: 15), "нет плашки просьбы")
+        XCTAssertTrue(plate.label.contains("Почеши за ушком"), "плашка: \(plate.label)")
+        XCTAssertTrue(plate.label.contains("ещё"), "плашка без остатка времени: \(plate.label)")
+        settle(1)
+        snap("ui-43-ask-plate")
+
+        // Тост живёт ~2,5 с; под нагрузкой CI первый тап мог уйти мимо — до трёх нажатий, подсказка безвредна.
+        let hint = any.matching(identifier: "toast").matching(NSPredicate(format: "label CONTAINS %@", "Погладить")).firstMatch
+        var shown = false
+        for _ in 0..<3 where !shown {
+            guard tapWhenReady(plate, timeout: 10) else { continue }
+            shown = hint.waitForExistence(timeout: 5)
+        }
+        XCTAssertTrue(shown, "нет подсказки по нажатию на просьбу")
+        settle(0.6)
+        snap("ui-43-ask-hint")
+        XCTAssertTrue(plate.exists, "плашка пропала от подсказки")
         app.terminate()
     }
 

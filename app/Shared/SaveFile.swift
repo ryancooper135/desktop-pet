@@ -150,6 +150,8 @@ struct SaveFile: Codable, Sendable {
     var interior = InteriorState()
     /// Задания дня (волна 42 J, DailyTasks). Пустое не пишется — старые сейвы читаются без него.
     var tasks = DailyTasksLog()
+    /// Просьбы пса (волна 43 K, DogAsks). Пустое не пишется — старые сейвы читаются без него.
+    var asks = DogAsksLog()
 
     /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
@@ -227,6 +229,7 @@ struct SaveFile: Codable, Sendable {
         case level, growth, yard, trip, challenge
         case interior
         case tasks
+        case asks
     }
 
     init(from decoder: Decoder) throws {
@@ -306,6 +309,7 @@ struct SaveFile: Codable, Sendable {
         challenge = (try? c.decodeIfPresent(ChallengeLog.self, forKey: .challenge)) ?? ChallengeLog()
         interior = (try? c.decodeIfPresent(InteriorState.self, forKey: .interior)) ?? InteriorState()
         tasks = (try? c.decodeIfPresent(DailyTasksLog.self, forKey: .tasks)) ?? DailyTasksLog()
+        asks = (try? c.decodeIfPresent(DogAsksLog.self, forKey: .asks)) ?? DogAsksLog()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -371,6 +375,7 @@ struct SaveFile: Codable, Sendable {
         if !challenge.isEmpty { try c.encode(challenge, forKey: .challenge) }
         if !interior.isEmpty { try c.encode(interior, forKey: .interior) }
         if !tasks.isEmpty { try c.encode(tasks, forKey: .tasks) }
+        if !asks.isEmpty { try c.encode(asks, forKey: .asks) }
     }
 }
 

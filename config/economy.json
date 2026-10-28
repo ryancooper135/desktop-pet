@@ -1396,5 +1396,15 @@
     "swaps_per_day": 1,
     "need": { "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1 }
   },
+  "asks": {
+    "_about": "Волна 43 K: просьбы пса (app/Shared/DogAsks.swift). Час дня даёт просьбу с шансом chance_pct (по petId/суткам/часу), старт в минуту 0–44, между стартами не меньше min_gap_min, в сутки не больше per_day, всё окно — днём (не раньше wake_gap_min после подъёма хозяина). Выполнено за window_min — монеты base + per_level × уровень к кратному round и ask.done (опыт — dog_level.xp). Не выполнено — без наказания. below: шкала ниже порога — пёс просит именно её.",
+    "per_day": 5,
+    "chance_pct": 40,
+    "min_gap_min": 120,
+    "window_min": 60,
+    "wake_gap_min": 30,
+    "coins": { "base": 5, "per_level": 1, "round": 5 },
+    "below": { "food": 45, "clean": 35, "love": 45, "fun": 45, "walk": 40 }
+  },
   "analytics": { "upload": "batch on app open, max 1/10 min", "retention_days_raw": 90, "weekly_report": "mon 10:00" }
 }

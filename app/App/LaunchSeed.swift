@@ -33,6 +33,8 @@ import Foundation
 /// challenge — бодрый пёс 12 уровня (челлендж дня открыт), рекорд «Блок Дуо» 1800 → цель 2 000; день, когда
 /// челлендж в «Блок Дуо», UI-тест выбирает сам через PET_NOW (волна 35 K, ui-35-challenge-*).
 /// tasks — бодрый пёс 7 уровня, три задания дня (третье открывается на ур. 7), ни одно ещё не начато (волна 42 J, ui-42-tasks).
+/// asks — бодрый пёс 7 уровня просит «Почеши за ушком?» (началась минуту назад, окно ещё ~59 мин); просьбы в UI-тестах
+/// включены только сидами asks* (волна 43 K, ui-43-ask).
 /// sinks — 500 ✂️, карта открыта, на остановке половина находок: золотой шарик и эксклюзив места (волна 35 L, ui-35-sinks).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
@@ -369,6 +371,23 @@ enum LaunchSeed {
                 f.level.seenSeq = f.seq
                 f.level.xp = DogLevel.xpTo(7)
                 f.level.paidLevel = 7
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "asks":
+                // Волна 43 K (LevelUITests.testDogAsk): ур. 7, нужды в норме; сегодняшнее расписание — одна просьба
+                // «погладить», начатая минуту назад. Расписание дня уже «раздано» — prepare его не перекатит.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.level.started = true
+                f.level.day = DayKey.of(now)
+                f.level.seenSeq = f.seq
+                f.level.xp = DogLevel.xpTo(7)
+                f.level.paidLevel = 7
+                f.asks = DogAsksLog()
+                f.asks.started = true
+                f.asks.day = DayKey.of(now)
+                f.asks.seenSeq = f.seq
+                f.asks.items = [DogAsk(start: now - 60, kind: "pet", coins: DogAskConfig.shared.coins(level: 7))]
                 f.seen = f.pet
                 f.lastSeenT = now
             case "sinks":
