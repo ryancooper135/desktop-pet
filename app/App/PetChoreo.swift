@@ -49,10 +49,24 @@ struct ChoreoState: Component {
         var cued = false
     }
 
+    /// Дело простоя (волна 44 M, DogIdle): путь по комнате и реплики клипов.
+    struct Chore {
+        /// Часы на начале.
+        var start: Double
+        var route: IdleRoute
+        var cues: [IdleCue]
+        var cue = 0
+        /// Чем встать домой, если перебили (back последней сыгранной реплики).
+        var back: [String] = []
+    }
+
     var feed: Feed?
     var play: Play?
     var petting: Petting?
     var walk: Walk?
+    var chore: Chore?
+    /// Длина текущего перехода (blend); перебитое дело возвращается домой дольше — по расстоянию.
+    var blendLen: Double = PetChoreo.blend
     /// Гуляет: тело и пятно спрятаны, комната пустая.
     var hidden = false
     /// Последнее возвращение, которое сцена уже видела (AppModel.walkHome.id), как lastReactionId у реакций.
@@ -105,7 +119,7 @@ struct PetFace: Component {
 
 @MainActor
 enum PetChoreo {
-    static let blend: Double = 0.35
+    nonisolated static let blend: Double = 0.35
     /// Рост пса (волна 34 I, ставит PetRig.setGrowth): щенку миска поменьше и ближе — под его морду.
     static var growth: Float = 1
 
@@ -160,6 +174,31 @@ enum PetChoreo {
         return until
     }
 
+    /// Дело простоя (волна 44 M): пёс сам идёт по route, клипы — по cues. Только из покоя: хореография
+    /// не занята и Шиба не гуляет (проверяет PetModel.tick).
+    static func startChore(_ pet: Entity, route: IdleRoute, cues: [IdleCue], clock: Double) {
+        var cs = pet.components[ChoreoState.self] ?? ChoreoState()
+        cs.chore = .init(start: clock, route: route, cues: cues)
+        cs.active = true
+        pet.components.set(cs)
+    }
+
+    /// Хореография занята (игра, миска, прогулка, ласка, дело или переход) или пёс гуляет.
+    static func busy(_ pet: Entity) -> Bool {
+        guard let cs = pet.components[ChoreoState.self] else { return false }
+        return cs.active || cs.hidden
+    }
+
+    /// Касание или новая поза перебили дело простоя: пёс плавно домой. Возвращает клипы, которыми встать
+    /// в стойку (лежал на ковре — lie_out), или nil, если дела не было.
+    @discardableResult
+    static func cutChore(_ pet: Entity, clock: Double) -> [String]? {
+        guard var cs = pet.components[ChoreoState.self], let c = cs.chore else { return nil }
+        interrupt(&cs, clock)
+        pet.components.set(cs)
+        return c.back
+    }
+
     /// Гладят стоя: поверх клипов реакции наклон к руке, виляние и закрытые глаза на length секунд.
     /// Вызывать после begin (begin снимает прошлую ласку).
     static func petting(_ pet: Entity, clock: Double, length: Double, side: Float) {
@@ -188,6 +227,8 @@ enum PetChoreo {
         SoundKit.shared.cancelChoreo()
         cs.feed = nil
         cs.play = nil
+        cs.chore = nil
+        cs.blendLen = blend
         if cs.walk != nil {
             cs.walk = nil
             removeProp(pet)
@@ -224,6 +265,15 @@ enum PetChoreo {
         if cs.play != nil {
             cs.play = nil
             snapshot(&cs, clock)
+        }
+        if cs.chore != nil {
+            // Дело простоя: домой из того места, где застали, тем же поворотом без лишнего витка.
+            cs.chore = nil
+            snapshot(&cs, clock)
+            cs.fromYaw = IdleRoute.near(cs.fromYaw, PetRoom.yaw3q)
+            let d = Double(simd_length(SIMD2<Float>(cs.fromPos.x, cs.fromPos.z)))
+            cs.blendLen = max(blend, min(1.2, d * 1.2))
+            cs.active = true
         }
         if var f = cs.feed {
             let t = clock - f.start
@@ -298,6 +348,19 @@ enum PetChoreo {
                 placeProp(pet, ChoreoPath.walkProp(u))
                 cs.walk = u >= ChoreoPath.Walk.inLength ? nil : w
             }
+        } else if var c = cs.chore {
+            // Дело простоя (волна 44 M): клипы на репликах, тело — по пути DogIdle.
+            let u = now - c.start
+            while c.cue < c.cues.count, u >= c.cues[c.cue].at {
+                let q = c.cues[c.cue]
+                ClipPlayer.play(PetStance.pick(q.steps, available: availableClips()), then: q.loop, on: pet,
+                                transition: 0.25, randomSpeed: false, initial: false)
+                c.back = q.back
+                c.cue += 1
+            }
+            let p = c.route.pose(at: u)
+            pose = ChoreoPath.PetPose(position: SIMD3<Float>(p.p.x, 0, p.p.z), yaw: p.yaw)
+            cs.chore = u >= c.route.homeAt ? nil : c
         }
 
         var bliss = false
@@ -316,7 +379,8 @@ enum PetChoreo {
             }
         }
 
-        let k = ChoreoPath.smooth((now - cs.blendStart) / blend)
+        let k = ChoreoPath.smooth((now - cs.blendStart) / cs.blendLen)
+        if k >= 1 { cs.blendLen = blend }
         cs.pos = cs.fromPos + (pose.position - cs.fromPos) * k
         cs.yaw = cs.fromYaw + (pose.yaw - cs.fromYaw) * k
         cs.ball = cs.fromBall + (ball - cs.fromBall) * k
@@ -326,7 +390,7 @@ enum PetChoreo {
             face.bliss = bliss
             pet.components.set(face)
         }
-        if cs.feed == nil && cs.play == nil && cs.petting == nil && cs.walk == nil && k >= 1 {
+        if cs.feed == nil && cs.play == nil && cs.petting == nil && cs.walk == nil && cs.chore == nil && k >= 1 {
             cs.active = false
         }
         pet.components.set(cs)

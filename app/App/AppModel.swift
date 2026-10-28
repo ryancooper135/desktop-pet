@@ -63,6 +63,8 @@ final class AppModel {
     @ObservationIgnored var tripHerald = TripHerald()
     /// Идёт пауза notePlaceBack (1.6 с после праздника прогулки): тост о походе ждёт её.
     @ObservationIgnored var placeBackWaiting = false
+    /// Волна 44 M: черты для дел простоя (idleScene) — считаются по истории, поэтому раз в 10 минут на питомца.
+    @ObservationIgnored var idleTraits: (key: String, traits: [Trait])? = nil
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
@@ -1663,3 +1665,24 @@ final class AppModel {
 }
 
 // PendingAward — в app/Shared/PendingAward.swift (волна 43 L: тесты в WSL, несколько выплат в одну запись).
+
+// MARK: - дела простоя (волна 44 M)
+
+extension AppModel {
+    /// Что нужно DogIdle, чтобы решить, чем пёс займётся сам: поза и нужды снимка, вещи дома, черты, ночь.
+    /// nil — дела выключены (UI-тест без сида idle*) или сейва нет. Сцена (PetStage) читает раз в обновление.
+    var idleScene: IdleScene? {
+        guard DogIdle.enabled, let f = file else { return nil }
+        let t = snap.t
+        let key = "\(f.petId)#\(Int((t / 600).rounded(.down)))"
+        let traits: [Trait]
+        if let c = idleTraits, c.key == key {
+            traits = c.traits
+        } else {
+            traits = Traits.visibleTraits(f, at: t).compactMap(\.trait)
+            idleTraits = (key, traits)
+        }
+        return DogIdle.scene(f, name: snap.name, pose: snap.pose, needs: snap.needs, alive: snap.alive,
+                             levels: homeLevels, traits: traits, at: t)
+    }
+}
