@@ -1,6 +1,6 @@
 // Волна 42 J: «Задания дня» — данные для листа (TasksSheet) и замена задания.
 // Вся логика в Shared/DailyTasks.swift; здесь только запись в стор и тосты. Тост выполненного задания —
-// AppModel.noteTasks (из refresh).
+// AppModel.noteRewards (из refresh, очередь тостов — волна 43 L).
 
 import Foundation
 @preconcurrency import PetCore

@@ -162,14 +162,12 @@ final class AppModel {
     @ObservationIgnored private var knownTastes: Set<String>? = nil
     /// В какие сутки уже сказали «На сегодня монет хватит» — не чаще раза в день.
     @ObservationIgnored private var capNoticeDay: Int? = nil
-    /// Время последней показанной награды клочками ✂️ — один тост на награду (волна 32).
-    @ObservationIgnored private var shardToastT: Double? = nil
-    /// Время последнего показанного достижения — тост «Достижение: …» один раз (волна 39 C).
-    @ObservationIgnored private var achToastT: Double? = nil
-    /// Последнее показанное задание дня (TaskWin.t) и когда показали (uptime): тост «+5 монет» действия,
-    /// пришедший следом из settle, его не перебивает (волна 42 J).
-    @ObservationIgnored private var taskToastT: Double? = nil
-    @ObservationIgnored private var taskShownAt: Double = -100
+    /// Волна 43 L: очередь тостов. Награды (задание дня, достижения, ✂️, уровень) — по одной, каждая один раз
+    /// (ключ награды); обычные тосты — сразу поверх (ToastQueue, app/Shared/RewardToasts.swift).
+    @ObservationIgnored private var toasts = ToastQueue()
+    /// Когда в очередь встала новая награда (uptime): тост «+5 монет» того же действия, пришедший следом
+    /// из settle, её не перебивает (волна 42 J — для задания дня, с 43 L — для любой награды).
+    @ObservationIgnored private var rewardShownAt: Double = -100
     /// «Доброе утро», пока открыт «Пока тебя не было»: скажем, когда отчёт закроют (sayPending).
     @ObservationIgnored private var pendingLine: String? = nil
 
@@ -294,8 +292,7 @@ final class AppModel {
             noteOwnerSleep(f, now: now)
             noteLevel(f, now: now)
             notePlaceNews(f, now: now)
-            noteTasks(f, now: now)
-            noteAchievement(f, now: now)
+            noteRewards(f, now: now)
         } catch {
             storeError = error.localizedDescription
         }
@@ -562,7 +559,7 @@ final class AppModel {
             popDelta(delta)
             if a == .pet { heartBurst() }
             noteEarn(a, out)
-            noteShards()
+            if let f = file { noteRewards(f, now: Clock.now()) }
             noteTaste(a)
             if let k = PostcardPhotos.kind(forAction: a.kind, key: a.key) { notePhoto(k, delay: PostcardCamera.actionDelay) }
             // Окно позы в приложении 12 с, а тикер ходит раз в 30 с — пересчитать снимок вовремя.
@@ -582,8 +579,8 @@ final class AppModel {
 
     /// «+5 монет» после действия; «На сегодня монет хватит» — раз в сутки, на действие, упёршееся в потолок.
     private func noteEarn(_ a: PetAction, _ out: ActOutcome) {
-        // Это же действие закрыло задание дня — его тост (с монетами задания) уже висит.
-        if taskToastFresh { return }
+        // Это же действие дало награду (задание дня, достижение, день заботы) — её тост важнее монет.
+        if rewardToastFresh { return }
         let now = Clock.now()
         if out.coins > 0 {
             let e = Earning(id: "", kind: a.kind, coins: out.coins, capped: false, t: now)
@@ -597,38 +594,18 @@ final class AppModel {
         if let text = EconText.toast(e) { show(text, emoji: "🪙") }
     }
 
-    /// «+3 ✂️ за день заботы» — клочки редкие, такую награду видно поверх тоста монет.
-    private func noteShards() {
-        let now = Clock.now()
-        guard let f = file, let g = Shards.freshGain(f, now: now, shownT: shardToastT) else { return }
-        shardToastT = g.t
-        // Достижение — свой тост «Достижение: …» с суммой (несколько разом — одной строкой).
-        if g.reason.hasPrefix("ach.") {
-            noteAchievement(f, now: now)
-            return
+    /// Награда встала в очередь только что (до 1,5 с) — тост монет того же действия её не перебивает.
+    private var rewardToastFresh: Bool { ProcessInfo.processInfo.systemUptime - rewardShownAt < 1.5 }
+
+    /// Награды записи — тостами по очереди, каждая один раз (волна 43 L; раньше — один тост на запись):
+    /// «Задание дня: … · +20 🪙» (42 J), «Достижение: Ур. 10 · +3 ✂️» (39 C, несколько разом — одной строкой),
+    /// «+3 клочка за день заботы» и «сундук недели» (32). Из refresh (догон, двор, походы, виджет) и после
+    /// действия. Достижения в UI-тестах — как сцены уровня: только с сидом level*.
+    private func noteRewards(_ f: SaveFile, now: Double) {
+        for n in RewardToasts.collect(f, now: now, achievements: LevelSeen.on) {
+            if let k = n.key, !toasts.seen.contains(k) { rewardShownAt = ProcessInfo.processInfo.systemUptime }
+            reward(n)
         }
-        if taskToastFresh { return }
-        show(Shards.toastText(g), emoji: "✂️")
-    }
-
-    /// Тост задания дня показан только что (до 1,5 с) — тосты монет и ✂️ того же действия его не перебивают.
-    private var taskToastFresh: Bool { ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 }
-
-    /// Волна 42 J: «Задание дня: Покормить 2 раза · +20 🪙», за последнее — «Все задания дня! … · +1 ✂️».
-    /// Один раз на выполнение, только свежее (до 10 с): из refresh — и после действия, и после похода/двора/виджета.
-    private func noteTasks(_ f: SaveFile, now: Double) {
-        guard DailyTasks.enabled, let w = f.tasks.last, w.t != taskToastT, abs(now - w.t) < 10 else { return }
-        taskToastT = w.t
-        taskShownAt = ProcessInfo.processInfo.systemUptime
-        show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
-    }
-
-    /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh
-    /// (догон, двор, походы) и после действия. В UI-тестах — как сцены уровня: только с сидом level*.
-    private func noteAchievement(_ f: SaveFile, now: Double) {
-        guard LevelSeen.on, let fr = Achievements.fresh(f, now: now, shownT: achToastT) else { return }
-        achToastT = fr.t
-        if let text = Achievements.toast(fr.ids) { show(text, emoji: "🏆") }
     }
 
     /// Вкус еды или игрушки: любимое — сердечки и «Моё любимое!», нелюбимое — сдержанное «😑» и реплика.
@@ -989,13 +966,27 @@ final class AppModel {
         }
     }
 
+    /// Обычный тост (отказ, монеты, подсказка): сразу, поверх. Награду, которую перебил, очередь покажет следом.
     func show(_ text: String, ok: Bool = true, emoji: String? = nil) {
-        toast = Toast(text: text, ok: ok, emoji: emoji)
+        toasts.plain(ToastNote(text: text, ok: ok, emoji: emoji))
+        presentToast()
+    }
+
+    /// Тост награды: в очередь за текущим, один раз на key (волна 43 L).
+    func reward(_ n: ToastNote) {
+        if toasts.reward(n) { presentToast() }
+    }
+
+    /// Показать текущий тост очереди и через ToastQueue.hold — следующий (или убрать).
+    private func presentToast() {
+        toast = toasts.current.map { Toast(text: $0.text, ok: $0.ok, emoji: $0.emoji) }
         toastTask?.cancel()
+        guard toasts.current != nil else { return }
         toastTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2.5))
-            if Task.isCancelled { return }
-            self?.toast = nil
+            try? await Task.sleep(for: .seconds(ToastQueue.hold))
+            guard let self, !Task.isCancelled else { return }
+            self.toasts.next()
+            self.presentToast()
         }
     }
 

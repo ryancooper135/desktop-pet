@@ -303,8 +303,19 @@ struct ShardLog: Codable, Hashable, Sendable {
     /// Всего заработано клочков этими источниками (без повторок) — для статистики.
     var earned = 0
     var last: ShardGain?
+    /// Волна 43 L: последние выплаты (до recentMax), а не одна last: в одну запись бывает день заботы и сундук
+    /// недели, или день заботы и достижение — тосты показываются все (RewardToasts). last — для Мастерской.
+    var recent: [ShardGain] = []
+    static let recentMax = 6
 
     init() {}
+
+    /// Запомнить выплату: last и хвост recent.
+    mutating func note(_ g: ShardGain) {
+        last = g
+        recent.append(g)
+        if recent.count > Self.recentMax { recent.removeFirst(recent.count - Self.recentMax) }
+    }
 
     var isEmpty: Bool { self == ShardLog() }
 
@@ -314,12 +325,13 @@ struct ShardLog: Codable, Hashable, Sendable {
         s.seenSeq = 0
         s.finds = -1
         s.last = nil
+        s.recent = []
         return s
     }
 
     enum CodingKeys: String, CodingKey {
         case seenSeq, day, dayActs, dayPaid, week, weekDays, chestPaid, goodDays, best, recordDay, finds, once
-        case atelier, earned, last, achT
+        case atelier, earned, last, achT, recent
     }
 
     init(from decoder: Decoder) throws {
@@ -340,6 +352,7 @@ struct ShardLog: Codable, Hashable, Sendable {
         earned = (try? c.decodeIfPresent(Int.self, forKey: .earned)) ?? 0
         last = try? c.decodeIfPresent(ShardGain.self, forKey: .last)
         achT = (try? c.decodeIfPresent([String: Double].self, forKey: .achT)) ?? [:]
+        recent = (try? c.decodeIfPresent([ShardGain].self, forKey: .recent)) ?? []
     }
 }
 
@@ -375,7 +388,7 @@ enum Shards {
             f.econ.wallet.shards += n
             s.earned += n
             let g = ShardGain(reason: reason, shards: n, t: t)
-            s.last = g
+            s.note(g)
             out.append(g)
         }
 
@@ -639,5 +652,14 @@ extension Shards {
     static func freshGain(_ f: SaveFile, now: Double, shownT: Double?) -> ShardGain? {
         guard let g = f.shardLog.last, g.shards > 0, now - g.t < 10, g.t != shownT else { return nil }
         return g
+    }
+
+    /// Волна 43 L: все свежие выплаты (не старше within с, не из будущего), по порядку выплаты. Старый сейв без
+    /// recent — одна last. Что уже показано, решает ToastQueue по ключу «reason@t».
+    static func freshGains(_ f: SaveFile, now: Double, within: Double = 10) -> [ShardGain] {
+        let all = f.shardLog.recent.isEmpty ? (f.shardLog.last.map { [$0] } ?? []) : f.shardLog.recent
+        var out: [ShardGain] = []
+        for g in all where g.shards > 0 && now - g.t < within && g.t <= now + 1 && !out.contains(g) { out.append(g) }
+        return out
     }
 }

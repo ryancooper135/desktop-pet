@@ -689,7 +689,7 @@ enum Places {
         guard n > 0 else { return }
         f.econ.wallet.shards += n
         f.shardLog.earned += n
-        f.shardLog.last = ShardGain(reason: reason, shards: n, t: now)
+        f.shardLog.note(ShardGain(reason: reason, shards: n, t: now))
     }
 
     // MARK: Колодец
