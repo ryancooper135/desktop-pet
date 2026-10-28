@@ -15,6 +15,9 @@ struct WorkshopSheet: View {
 
     var body: some View {
         let offers = model.file.map { Shards.offers($0) } ?? []
+        // Волна 40 F: сезонные вещи — свой раздел, только в свой сезон (под тестами осень).
+        let season = Seasons.now()
+        let seasonal = model.file.map { Seasons.offers($0, season: season) } ?? []
         ScrollView {
             VStack(spacing: 12) {
                 header
@@ -27,6 +30,10 @@ struct WorkshopSheet: View {
                         .accessibilityIdentifier("workshop.refusal")
                 }
                 ForEach(offers) { card($0) }
+                if !seasonal.isEmpty {
+                    seasonHeader(season)
+                    ForEach(seasonal) { card($0) }
+                }
                 Text("Клочки — за дни заботы, сундук недели, рекорды, находки на прогулке и повторки из капсул.")
                     .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
@@ -92,6 +99,24 @@ struct WorkshopSheet: View {
                 .accessibilityIdentifier("workshop.progress")
             }
         }
+    }
+
+    /// «🍂 Осеннее — только осенью» и строка о том, что купленное остаётся.
+    private func seasonHeader(_ s: Season) -> some View {
+        VStack(spacing: 2) {
+            Text(Seasons.title(s))
+                .petFont(17, .bold)
+                .foregroundStyle(PetPalette.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text(Seasons.note(s))
+                .petFont(12, .medium)
+                .foregroundStyle(PetPalette.soft)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("workshop.season")
     }
 
     private func card(_ o: ShardOffer) -> some View {

@@ -87,6 +87,7 @@ struct PremiumConfig: Hashable, Sendable {
     var perkPct: [Rarity: Int] = [.common: 3, .rare: 5, .epic: 8, .legendary: 12]
     var perkCapPct = 20
     var perks: [String: PerkKind] = PremiumConfig.stubPerks.merging(ScrapSinks.perks) { a, _ in a }   // + вещи мест (волна 35 L)
+        .merging(Seasons.perks) { a, _ in a }   // + сезонные (волна 40 F)
 
     /// Редкость эксклюзивов: польза как у эпической вещи.
     static let exclusiveRarity = Rarity.epic
@@ -564,6 +565,8 @@ struct ShardOffer: Hashable, Sendable, Identifiable {
     enum Kind: Hashable, Sendable {
         case atelier(Rarity)
         case exclusive(String)
+        /// Волна 40 F: сезонная вещь (Seasons.offers) — только в свой сезон.
+        case season(String)
     }
     enum State: Hashable, Sendable {
         /// Можно взять; need > 0 — не хватает клочков.
@@ -586,12 +589,15 @@ struct ShardOffer: Hashable, Sendable, Identifiable {
         switch kind {
         case .atelier(let r): return "atelier.\(r.rawValue)"
         case .exclusive(let id): return "shards.\(id)"
+        case .season(let id): return "season.\(id)"
         }
     }
     /// Иконка: у лоскутной — сама вещь, у ателье — nil (экран рисует ножницы).
     var itemId: String? {
-        if case .exclusive(let id) = kind { return id }
-        return nil
+        switch kind {
+        case .exclusive(let id), .season(let id): return id
+        case .atelier: return nil
+        }
     }
 }
 

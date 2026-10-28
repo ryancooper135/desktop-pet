@@ -90,8 +90,10 @@ enum YardLive {
     /// district (волна 36 Q) — квартал после переезда: свои земля, плиты, забор и декор; станции те же.
     /// Небо — фон экрана: `district.skyColor(night:)`. Под UI-тестом район задаёт PET_YARD_DISTRICT.
     /// weather (волна 39 D) — погода в квартале (Weather.now(in:)): приглушённый свет и капли или хлопья.
+    /// season (волна 40 F) — сезонный акцент на подоконнике (SeasonDecor); под тестами — осень.
     static func scene(_ s: YardState, tier: Int, fill: Float, night: Bool, brushed: Bool,
-                      district: YardDistrict = .street, weather: WeatherKind = .clear, live: Live = Live()) -> Entity {
+                      district: YardDistrict = .street, weather: WeatherKind = .clear, live: Live = Live(),
+                      season: Season = Seasons.now()) -> Entity {
         let district = YardDistrict.forced ?? district
         let world = Entity()
         world.name = "yardLive"
@@ -124,6 +126,8 @@ enum YardLive {
                 world.addChild(YardPlate3D.make(YardText.perHour(r.rate), at: top, cam: cam, gold: gold, id: spot.id))
             }
         }
+        // Сезонный акцент (волна 40 F) — до света: ночью его тонирует, как и всё остальное.
+        world.addChild(SeasonDecor.yard(season))
         world.addChild(YardArtStage.camera(target: cam.target, eye: cam.eye, fov: cam.fov))
         world.addChild(PetRoom.lights())
         // Ночью — лунный свет, тинт и тёплые огни (волна 38 B); пёс садится позже и тинта не получает.

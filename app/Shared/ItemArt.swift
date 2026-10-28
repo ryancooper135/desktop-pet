@@ -32,7 +32,7 @@ struct ArtLayer: Hashable, Sendable {
 }
 
 enum ItemArt {
-    static func layers(_ id: String) -> [ArtLayer]? { table[id] ?? SinksArt.table[id] }   // + вещи мест (волна 35 L)
+    static func layers(_ id: String) -> [ArtLayer]? { table[id] ?? SinksArt.table[id] ?? SeasonItemArt.table[id] }   // + вещи мест (35 L), сезонные (40 F)
 
     // MARK: построители
 

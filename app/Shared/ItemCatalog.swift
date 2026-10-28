@@ -42,7 +42,7 @@ enum ItemCatalog {
         "pumpkin_small", "acorn_jar", "trophy_cup",
         // волна 32: лоскутные, только за клочки ✂️
         "pillow_patch", "armchair_patch",
-    ]).union(ScrapSinks.decor)   // волна 35 L: вещи мест
+    ]).union(ScrapSinks.decor).union(Seasons.decor)   // волна 35 L: вещи мест, 40 F: сезонные
 
     /// Мячики для «Поиграть».
     static let toys: [String: ToyInfo] = [
@@ -61,7 +61,7 @@ enum ItemCatalog {
         "trophy_cup": "🏆", "ball_star": "⭐",
         "cape_champion": "🦸", "kennel_castle": "🏰", "crown_champion": "👑",
         "scarf_patch": "🧶", "hat_patch": "🧢", "blanket_patch": "🧵", "pillow_patch": "🛏", "armchair_patch": "🪑",
-    ].merging(ScrapSinks.emoji) { a, _ in a }
+    ].merging(ScrapSinks.emoji) { a, _ in a }.merging(Seasons.emoji) { a, _ in a }
 
     static func emoji(_ id: String) -> String { emoji[id] ?? "📦" }
 

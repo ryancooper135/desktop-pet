@@ -751,6 +751,8 @@ extension RoomDecor {
         default:
             // Волна 35 L: вещи мест — в RoomDecor+Sinks.
             if sinksShelf(id, sx: sx, y: y, z: z, in: g) { break }
+            // Волна 40 F: сезонные вещи — в SeasonDecor.
+            if seasonShelf(id, sx: sx, y: y, z: z, in: g) { break }
             part(box(0.03, 0.03, 0.03), C.wicker, [sx, y + 0.015, z], in: g)
         }
         return g

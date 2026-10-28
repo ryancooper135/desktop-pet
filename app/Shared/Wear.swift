@@ -38,6 +38,7 @@ enum Wear {
         "hat_patch":      WearInfo(slot: .head, shape: .genericHat, color: 0x4FA3A5, accent: 0xE2554B),
         "blanket_patch":  WearInfo(slot: .back, shape: .genericBlanket, color: 0x6E8B3D, accent: 0xE8B04A),
     ].merging(ScrapSinks.wear) { a, _ in a }   // волна 35 L: полотенце и дуршлаг (ScrapSinks)
+        .merging(Seasons.wear) { a, _ in a }   // волна 40 F: сезонные шапка, венок, бандана, шарф
 
     static func info(_ id: String) -> WearInfo? { table[id] }
     static func canWear(_ id: String) -> Bool { table[id] != nil }

@@ -111,8 +111,10 @@ enum YardArtStage {
     /// Сцена превью целиком: модели, земля под станцией, свет комнаты и камера под кадр.
     /// district (волна 36 Q) — квартал двора: подложки в его цветах и его декор.
     /// weather (волна 39 D) — погода превью: свет приглушён, капли или хлопья перед камерой; calm — Reduce Motion.
+    /// season (волна 40 F) — сезонный акцент на подоконнике у вида яруса (SeasonDecor); под тестами — осень.
     static func scene(_ shot: YardArtShot, level: Int, fill: Float, night: Bool, progress: Int,
-                      district: YardDistrict = .street, weather: WeatherKind = .clear, calm: Bool = false) -> Entity {
+                      district: YardDistrict = .street, weather: WeatherKind = .clear, calm: Bool = false,
+                      season: Season = Seasons.now()) -> Entity {
         let world = Entity()
         world.name = "yardArt"
         // Купленные плиты по слоям — для ночных огней (у .station их нет: фонаря двора в кадре нет).
@@ -151,6 +153,7 @@ enum YardArtStage {
                     world.addChild(st)
                 }
             }
+            world.addChild(SeasonDecor.yard(season))
             switch shown {
             case 0: cam = (SIMD3(0, 0.55, -1.5), SIMD3(0, 1.05, 0.15), 40)
             case 1: cam = (SIMD3(0, 0.15, -0.8), SIMD3(0, 1.7, 1.6), 44)
