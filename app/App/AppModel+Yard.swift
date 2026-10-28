@@ -1,6 +1,6 @@
 // Волна 34 G: действия экрана «Двор» — купить плиту, улучшить станцию, открыть ярус, собрать копилку.
-// Всё через стор (PetStore.mutate) в одной записи: двор, кошелёк, опыт пса (DogLevel.settle), потом снимок
-// и виджеты с островком (AppActions.afterChange). Отказ не немой: тост с причиной и «не-а» (refuse).
+// Всё через стор (PetStore.mutate) в одной записи: двор, кошелёк, опыт, клочки и достижения (PetRunner.settleRewards),
+// потом снимок и виджеты с островком (AppActions.afterChange). Отказ не немой: тост с причиной и «не-а» (refuse).
 
 import Foundation
 @preconcurrency import PetCore
@@ -112,7 +112,9 @@ extension AppModel {
         do {
             r = try PetStore.shared.mutate { f -> R in
                 let out = body(&f, now)
-                DogLevel.settle(&f, now: now)
+                // Опыт пса, потом клочки ✂️ и достижения двора («Первая станция», «Золотая табличка», «Переезд»):
+                // раньше они платились только следующей записью, и тост из refresh здесь не срабатывал (волна 42 I).
+                PetRunner.settleRewards(&f, now: now)
                 return out
             }
         } catch {

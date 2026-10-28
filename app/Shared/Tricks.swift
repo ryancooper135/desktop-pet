@@ -310,6 +310,8 @@ enum Tricks {
         if learnedNow {
             f.log("trick.learn", t: now, key: t.rawValue)
             coins = pay(&f, now: now)
+            // Опыт за выучку, «Первый трюк» и «Все трюки» — в эту же запись (волна 42 I).
+            PetRunner.settleRewards(&f, now: now)
         }
         return TrickOutcome(trick: t, ok: true, reason: nil, counted: counted, progress: min(needed, e.n),
                             learnedNow: learnedNow, coins: coins, love: love)
