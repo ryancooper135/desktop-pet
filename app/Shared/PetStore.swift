@@ -170,6 +170,8 @@ final class PetStore: @unchecked Sendable {
             // Интерьер (волна 41 G) — комната хозяина: обои, пол и ковёр остаются и у нового щенка.
             fresh.interior = old.interior
             fresh.shardLog = old.shardLog.carriedOver()
+            // Задания дня (волна 42 J) — день хозяина: тот же набор и те же оплаты, без второго набора за сутки.
+            fresh.tasks = old.tasks.carriedOver()
             // Свой персонаж (CharacterStore) — выбор хозяина: новый щенок в том же облике.
             fresh.character = old.character
             fresh.characterName = old.characterName

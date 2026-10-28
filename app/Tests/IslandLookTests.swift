@@ -266,6 +266,9 @@ final class IslandLookTests: XCTestCase {
     // MARK: «Собрать» из виджета
 
     func testCollectGivesCoinsAndXp() {
+        // Меряем только сбор: задание дня «собрать копилку» (волна 42 J) добавило бы свои монеты и опыт.
+        DailyTasks.enabled = false
+        defer { DailyTasks.enabled = true }
         var f = file(at: noon - 12 * 3600)
         f.yard.stations = ["dryer": 3]
         f.yard.t = noon - 12 * 3600

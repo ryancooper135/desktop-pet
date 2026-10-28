@@ -559,6 +559,8 @@ enum Places {
         f.pet.outing?.until = trip.until
         f.trip.active = trip
         f.log("place.go", t: begin, key: id, value: mins)
+        // Задание дня «сходить в место», опыт и достижения — этой же записью (волна 42 J).
+        PetRunner.settleRewards(&f, now: now)
         return .success(trip)
     }
 

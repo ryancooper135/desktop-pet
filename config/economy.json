@@ -1388,5 +1388,13 @@
       }
     }
   },
+  "daily_tasks": {
+    "_about": "Волна 42 J: задания дня (app/Shared/DailyTasks.swift). 2 в день, третье с ур. 7 (tasks.3). Монеты за задание = base + per_level × уровень, к ближайшему кратному round. ✂️ — только за все задания дня. need: сколько раз сделать; 0 — задания нет. Старый income.daily_quests не читается.",
+    "count": 2,
+    "coins": { "base": 15, "per_level": 3, "round": 5 },
+    "all_done": { "shards": 1, "coins": 0 },
+    "swaps_per_day": 1,
+    "need": { "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1 }
+  },
   "analytics": { "upload": "batch on app open, max 1/10 min", "retention_days_raw": 90, "weekly_report": "mon 10:00" }
 }
