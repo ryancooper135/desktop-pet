@@ -554,8 +554,8 @@ enum Postcards {
         try store.mutate { f in
             PetRunner.catchUp(&f, now: now)
             let r = save(id, in: &f, now: now)
-            // «Первая открытка» и «Десять открыток» — в эту же запись, а не со следующим действием (волна 42 I).
-            if r == .saved { PetRunner.settleRewards(&f, now: now) }
+            // «Первая открытка» и «Десять открыток» — в эту же запись (волна 40 E).
+            PetRunner.settleRewards(&f, now: now)
             return r
         }
     }

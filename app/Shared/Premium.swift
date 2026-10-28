@@ -304,7 +304,7 @@ struct ShardLog: Codable, Hashable, Sendable {
     var earned = 0
     var last: ShardGain?
     /// Волна 43 L: последние выплаты (до recentMax), а не одна last: в одну запись бывает день заботы и сундук
-    /// недели, или день заботы и достижение — тосты показываются все (RewardToasts). last — для Мастерской.
+    /// недели, или день заботы и достижение — в тост идут все (Shards.freshPlain, PendingAward). last — для Мастерской.
     var recent: [ShardGain] = []
     static let recentMax = 6
 
@@ -313,6 +313,11 @@ struct ShardLog: Codable, Hashable, Sendable {
     /// Запомнить выплату: last и хвост recent.
     mutating func note(_ g: ShardGain) {
         last = g
+        remember(g)
+    }
+
+    /// Только в хвост recent (last не трогаем — см. правило 40 E для достижений в Shards.settle).
+    mutating func remember(_ g: ShardGain) {
         recent.append(g)
         if recent.count > Self.recentMax { recent.removeFirst(recent.count - Self.recentMax) }
     }
@@ -369,12 +374,13 @@ enum Shards {
     /// Неделя с понедельника: DayKey 0 — четверг.
     static func week(_ day: Int) -> Int { DayKey.floorDiv(day + 3, 7) }
 
-    /// Мини-игры с рекордами — ключи records.
-    static let recordGames = ["catch", "blockduo", "zombie"]
+    /// Мини-игры с рекордами — ключи records. Один источник правды — ChallengeGame (волна 40 E): новая игра там —
+    /// и она в рекордах, и в цели «Все игры»; раньше два списка здесь легко расходились.
+    static var recordGames: [String] { ChallengeGame.allCases.map(\.rawValue) }
 
-    /// Рекорды мини-игр: имя → поле сейва.
+    /// Рекорды мини-игр: имя → поле сейва (ChallengeGame.record).
     static func records(_ f: SaveFile) -> [String: Int] {
-        ["catch": f.catchBest, "blockduo": f.blockduoBest, "zombie": f.zombieBest]
+        Dictionary(uniqueKeysWithValues: ChallengeGame.allCases.map { ($0.rawValue, $0.record(f)) })
     }
 
     /// Оплатить всё новое. Повторный вызов ничего не добавляет. now — для рекордов и находок (их нет в журнале).
@@ -388,7 +394,15 @@ enum Shards {
             f.econ.wallet.shards += n
             s.earned += n
             let g = ShardGain(reason: reason, shards: n, t: t)
-            s.note(g)
+            // Волна 43 L: recent — все выплаты записи (день заботы и сундук недели в одной записи — оба тоста).
+            s.remember(g)
+            // Волна 40 E: достижение не затирает свежую обычную выплату (день заботы и «7 дней заботы» — в одной
+            // записи): у достижений своя дата в achT и свой тост, а «+3 ✂️ за день заботы» иначе терялся.
+            if reason.hasPrefix("ach."), let l = s.last, !l.reason.hasPrefix("ach."), t - l.t < 10, l.t <= t {
+                out.append(g)
+                return
+            }
+            s.last = g
             out.append(g)
         }
 
@@ -655,11 +669,17 @@ extension Shards {
     }
 
     /// Волна 43 L: все свежие выплаты (не старше within с, не из будущего), по порядку выплаты. Старый сейв без
-    /// recent — одна last. Что уже показано, решает ToastQueue по ключу «reason@t».
+    /// recent — одна last.
     static func freshGains(_ f: SaveFile, now: Double, within: Double = 10) -> [ShardGain] {
         let all = f.shardLog.recent.isEmpty ? (f.shardLog.last.map { [$0] } ?? []) : f.shardLog.recent
         var out: [ShardGain] = []
         for g in all where g.shards > 0 && now - g.t < within && g.t <= now + 1 && !out.contains(g) { out.append(g) }
         return out
+    }
+
+    /// Свежие обычные выплаты (за достижения — свой тост по ids) позже показанной (shownT — время последней
+    /// показанной): все выплаты одной записи разом, повторный settle — ничего нового.
+    static func freshPlain(_ f: SaveFile, now: Double, shownT: Double?) -> [ShardGain] {
+        freshGains(f, now: now).filter { !$0.reason.hasPrefix("ach.") && $0.t > (shownT ?? -.infinity) }
     }
 }

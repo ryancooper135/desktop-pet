@@ -8,7 +8,8 @@
 import Foundation
 @preconcurrency import PetCore
 
-/// Игра челленджа. rawValue — ключ рекордов (как в Shards.records).
+/// Мини-игра с рекордом — она же игра челленджа. rawValue — ключ рекордов. Это единственный список игр с рекордом:
+/// Shards.recordGames и Shards.records (и цель «Все игры») берут его отсюда (волна 40 E).
 enum ChallengeGame: String, Codable, CaseIterable, Hashable, Sendable {
     case ball = "catch"
     case blockduo
@@ -195,6 +196,8 @@ enum Challenges {
         let target = goal(g, in: f, cfg)
         let r = round(&f, now)
         settle(g, score: r.score, free: r.free, goal: target, in: &f, now: now, cfg)
+        // Опыт за челлендж и достижения («Первый челлендж», «Все игры» — и за партию «просто так») — в эту запись.
+        PetRunner.settleRewards(&f, now: now)
         return r
     }
 

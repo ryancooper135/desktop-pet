@@ -1,6 +1,6 @@
 // Волна 43 L: хвосты волны 42 I. (1) Один источник текущего сезона: погода, декор и Мастерская сходятся
-// и при PET_SEASON / закреплённом сезоне. (2) Несколько наград в одну запись — тосты все, по очереди, без дублей
-// при повторном settle. Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
+// и при PET_SEASON / закреплённом сезоне. (2) Несколько наград в одну запись — в тосте все (механизм 40 E + recent),
+// без дублей при повторном settle. Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
 import Foundation
 import XCTest
@@ -106,74 +106,11 @@ final class Wave43SeamTests: XCTestCase {
         XCTAssertEqual(Seasons.talking(at: july, tzOffsetMin: 0), .spring)
     }
 
-    // MARK: 2. Очередь тостов
+    // MARK: 2. Награды одной записи
 
-    private func note(_ s: String, _ key: String? = nil) -> ToastNote { ToastNote(text: s, key: key) }
-
-    /// Награды встают по очереди и показываются все, по одной.
-    func testQueueShowsAllRewardsInOrder() {
-        var q = ToastQueue()
-        XCTAssertTrue(q.reward(note("A", "a")))
-        XCTAssertFalse(q.reward(note("B", "b")))
-        XCTAssertFalse(q.reward(note("C", "c")))
-        XCTAssertEqual(q.current?.text, "A")
-        XCTAssertEqual(q.next()?.text, "B")
-        XCTAssertEqual(q.next()?.text, "C")
-        XCTAssertNil(q.next())
-        XCTAssertNil(q.current)
-    }
-
-    /// Та же награда (тот же ключ) второй раз не встаёт — ни пока ждёт, ни после показа.
-    func testQueueDedupsByKey() {
-        var q = ToastQueue()
-        q.reward(note("A", "a"))
-        q.reward(note("B", "b"))
-        XCTAssertFalse(q.reward(note("A", "a")))
-        XCTAssertFalse(q.reward(note("B", "b")))
-        XCTAssertEqual(q.pending.count, 1)
-        q.next(); q.next()
-        XCTAssertNil(q.current)
-        XCTAssertFalse(q.reward(note("A", "a")), "показанная не возвращается")
-        XCTAssertNil(q.current)
-        q.clear()
-        XCTAssertFalse(q.reward(note("B", "b")), "clear ключи помнит")
-        // Другой ключ с тем же текстом, пока тот на экране, — не дубль на экране.
-        XCTAssertTrue(q.reward(note("X", "x1")))
-        XCTAssertFalse(q.reward(note("X", "x2")))
-        XCTAssertTrue(q.pending.isEmpty)
-    }
-
-    /// Обычный тост показывается сразу, а перебитая награда — следом.
-    func testPlainToastDoesNotEatReward() {
-        var q = ToastQueue()
-        q.reward(note("Награда", "r"))
-        q.reward(note("Вторая", "r2"))
-        q.plain(note("+5 монет"))
-        XCTAssertEqual(q.current?.text, "+5 монет")
-        XCTAssertEqual(q.next()?.text, "Награда")
-        XCTAssertEqual(q.next()?.text, "Вторая")
-        XCTAssertNil(q.next())
-        // Обычный поверх обычного — прошлый просто уходит.
-        q.plain(note("a"))
-        q.plain(note("b"))
-        XCTAssertEqual(q.current?.text, "b")
-        XCTAssertTrue(q.pending.isEmpty)
-    }
-
-    /// Лавина наград не копится без меры.
-    func testQueueIsBounded() {
-        var q = ToastQueue()
-        for i in 0..<20 { q.reward(note("n\(i)", "k\(i)")) }
-        XCTAssertEqual(q.pending.count, ToastQueue.maxPending)
-        for i in 0..<100 { q.reward(note("m\(i)", "j\(i)")) }
-        XCTAssertLessThanOrEqual(q.seen.count, ToastQueue.keepKeys)
-    }
-
-    // MARK: 3. Награды одной записи
-
-    /// Одно действие: день заботы, сундук недели и «Уровень 5» — три тоста (раньше ShardLog.last держал одну
-    /// выплату: день заботы терялся за сундуком, а достижение глушило всё ✂️).
-    func testOneWriteGivesAllRewardToasts() {
+    /// Одно действие: день заботы, сундук недели и «Уровень 5». Раньше ShardLog.last держал одну выплату,
+    /// и «+3 ✂️ за день заботы» терялся за сундуком; теперь recent хранит все, а freshPlain отдаёт обычные.
+    func testOneWriteKeepsAllPays() {
         let t = sT0 + 120
         var f = allAtOnce(t)
         XCTAssertTrue(PetRunner.apply(.pet, source: .app, to: &f, now: t).ok)
@@ -182,46 +119,75 @@ final class Wave43SeamTests: XCTestCase {
         XCTAssertTrue(reasons.contains("week_chest"), "\(reasons)")
         XCTAssertTrue(reasons.contains("ach.level_5"), "\(reasons)")
 
-        let notes = RewardToasts.collect(f, now: t + 1)
-        let keys = notes.compactMap(\.key)
-        XCTAssertTrue(keys.contains("shard:care_day@\(t)"), "\(keys)")
-        XCTAssertTrue(keys.contains("shard:week_chest@\(t)"), "\(keys)")
-        XCTAssertTrue(keys.contains("ach@\(t)"), "\(keys)")
-        XCTAssertFalse(keys.contains { $0.hasPrefix("shard:ach.") }, "достижение — своим тостом, не ✂️")
-        XCTAssertEqual(Set(keys).count, keys.count)
-        XCTAssertTrue(notes.first { $0.key == "ach@\(t)" }?.text.contains(Achievements.toast(["level_5"]) ?? "?") ?? false)
-
-        var q = ToastQueue()
-        for n in notes { q.reward(n) }
-        var shown: [String] = []
-        while let c = q.current { shown.append(c.text); q.next() }
-        XCTAssertEqual(shown.count, notes.count, "все награды записи — на экране, по одной")
+        let plain = Shards.freshPlain(f, now: t + 1, shownT: nil).map(\.reason)
+        XCTAssertEqual(Set(plain), ["care_day", "week_chest"], "достижение — своим тостом по ids, не ✂️")
+        XCTAssertEqual(plain.count, 2)
     }
 
-    /// Повторный settle (refresh, следующая запись без наград) и повторный сбор — без дублей тостов.
+    /// Один тост на всю запись: достижение и обе обычные выплаты, ничего не теряется.
+    func testOneToastHasEveryReward() {
+        let t = sT0 + 120
+        var f = allAtOnce(t)
+        XCTAssertTrue(PetRunner.apply(.pet, source: .app, to: &f, now: t).ok)
+        var p = PendingAward()
+        p.add(ids: ["level_5"])
+        for g in Shards.freshPlain(f, now: t + 1, shownT: nil) { p.add(plain: g) }
+        let a = try? XCTUnwrap(p.toast())
+        XCTAssertEqual(a?.emoji, "🏆")
+        let text = a?.text ?? ""
+        XCTAssertTrue(text.hasPrefix(Achievements.toast(["level_5"]) ?? "?"), text)
+        for g in f.shardLog.recent where !g.reason.hasPrefix("ach.") {
+            XCTAssertTrue(text.contains(Shards.gainText(g)), "\(g.reason): \(text)")
+        }
+    }
+
+    /// Повторный settle (refresh, следующая запись без наград) ничего не платит и новых выплат для тоста не даёт.
     func testRepeatSettleNoDuplicates() {
         let t = sT0 + 120
         var f = allAtOnce(t)
         XCTAssertTrue(PetRunner.apply(.pet, source: .app, to: &f, now: t).ok)
-        var q = ToastQueue()
-        var shown: [String] = []
-        func drain() { while let c = q.current { shown.append(c.text); q.next() } }
-
-        for n in RewardToasts.collect(f, now: t + 1) { q.reward(n) }
-        drain()
-        let first = shown.count
-        XCTAssertGreaterThanOrEqual(first, 3)
+        let gs = Shards.freshPlain(f, now: t + 1, shownT: nil)
+        XCTAssertEqual(gs.count, 2)
+        let shownT = gs.map(\.t).max()
 
         let shards = f.econ.wallet.shards
+        let recent = f.shardLog.recent
         PetRunner.settleRewards(&f, now: t + 2)
         PetRunner.settleRewards(&f, now: t + 3)
         XCTAssertEqual(f.econ.wallet.shards, shards, "повторный settle ничего не платит")
-        for n in RewardToasts.collect(f, now: t + 4) { q.reward(n) }
-        drain()
-        XCTAssertEqual(shown.count, first, "повторный сбор — без дублей")
+        XCTAssertEqual(f.shardLog.recent, recent)
+        XCTAssertTrue(Shards.freshPlain(f, now: t + 4, shownT: shownT).isEmpty, "показанное не возвращается")
+        // Через 10 с выплаты уже не свежие: после перезапуска (shownT забыт) тост не вернётся.
+        XCTAssertTrue(Shards.freshPlain(f, now: t + 11, shownT: nil).isEmpty)
+    }
 
-        // Через 10 с награда уже не свежая: после перезапуска (новая очередь) тосты не вернутся.
-        XCTAssertTrue(RewardToasts.collect(f, now: t + RewardToasts.fresh + 1).isEmpty)
+    /// PendingAward: ids и выплаты без дублей, выплаты за достижения и нулевые не берёт.
+    func testPendingAwardDedups() {
+        var p = PendingAward()
+        p.add(ids: ["level_5"])
+        p.add(ids: ["level_5", "level_10"])
+        XCTAssertEqual(p.ids, ["level_5", "level_10"])
+        let day = ShardGain(reason: "care_day", shards: 3, t: sT0)
+        p.add(plain: day)
+        p.add(plain: day)
+        p.add(plain: ShardGain(reason: "ach.level_5", shards: 5, t: sT0))
+        p.add(plain: ShardGain(reason: "record", shards: 0, t: sT0))
+        XCTAssertEqual(p.plain, [day])
+        XCTAssertNil(PendingAward().toast())
+    }
+
+    /// Без достижения: одна выплата — прежний тост «+3 клочка за день заботы», несколько — все через « · ».
+    func testPlainOnlyToast() {
+        let day = ShardGain(reason: "care_day", shards: 3, t: sT0)
+        let place = ShardGain(reason: "place.park", shards: 2, t: sT0)
+        var p = PendingAward()
+        p.add(plain: day)
+        XCTAssertEqual(p.toast()?.text, Shards.toastText(day))
+        XCTAssertEqual(p.toast()?.emoji, "✂️")
+        p.add(plain: place)
+        XCTAssertEqual(p.toast()?.text, "\(Shards.gainText(day)) · \(Shards.gainText(place))")
+        // Старый вызов с одной выплатой — как раньше.
+        XCTAssertEqual(Achievements.toast(["level_5"], also: day), Achievements.toast(["level_5"], alsoAll: [day]))
     }
 
     /// Выплаты из будущего (часы назад) и старше 10 с — не тосты.
@@ -256,12 +222,11 @@ final class Wave43SeamTests: XCTestCase {
         XCTAssertEqual(Shards.freshGains(f, now: 101).map(\.reason), ["care_day"], "старый сейв — тост по last")
     }
 
-    /// Место (Places.pay) тоже пишет в recent: тост клочков за место не теряется за днём заботы.
+    /// Место (Places.pay) тоже пишет в recent: клочки за место не теряются за днём заботы той же записи.
     func testRecentKeepsBothPaysOfOneWrite() {
         var f = SaveFile.fresh(now: sT0)
         f.shardLog.note(ShardGain(reason: "care_day", shards: 3, t: sT0))
         f.shardLog.note(ShardGain(reason: "place.park", shards: 2, t: sT0))
-        let keys = RewardToasts.collect(f, now: sT0 + 1, tasks: false).compactMap(\.key)
-        XCTAssertEqual(keys, ["shard:care_day@\(sT0)", "shard:place.park@\(sT0)"])
+        XCTAssertEqual(Shards.freshPlain(f, now: sT0 + 1, shownT: nil).map(\.reason), ["care_day", "place.park"])
     }
 }

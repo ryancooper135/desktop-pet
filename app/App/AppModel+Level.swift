@@ -139,12 +139,11 @@ extension AppModel {
             if !self.levelCalm { self.react(Trick.jump.kind) }
             Feel.success(.hearts)
             self.pop(LevelInfo.star(s), at: self.levelAnchor)
-            // Волна 43 L: награды — в очередь тостов, задание дня или достижение той же записи их не затирают.
-            self.reward(ToastNote(text: LevelInfo.toast(s), emoji: "🪙", key: "level:\(s.from)-\(s.to)"))
+            self.show(LevelInfo.toast(s), emoji: "🪙")
             if let unlock {
                 try? await Task.sleep(for: .seconds(2.6))
                 guard !Task.isCancelled else { return }
-                self.reward(ToastNote(text: unlock, emoji: "✨", key: "unlock:\(s.from)-\(s.to)"))
+                self.show(unlock, emoji: "✨")
             }
             self.refreshAfterScene()
         }
@@ -159,7 +158,7 @@ extension AppModel {
             if !self.levelCalm { self.react(Trick.jump.kind) }
             Feel.success(.hearts)
             self.pop("📏", at: self.levelAnchor)
-            self.reward(ToastNote(text: LevelInfo.grewText(phase), emoji: "🐕", key: "grow:\(phase)"))
+            self.show(LevelInfo.grewText(phase), emoji: "🐕")
             self.refreshAfterScene()
         }
     }

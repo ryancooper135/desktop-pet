@@ -74,7 +74,7 @@ let package = Package(
                 "Habits.swift",
                 "Premium.swift",
                 "Achievements.swift",
-                "RewardToasts.swift",
+                "PendingAward.swift",
                 "ScrapSinks.swift",
                 "SinksArt.swift",
                 "Seasons.swift",
