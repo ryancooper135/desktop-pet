@@ -9,6 +9,9 @@
 //   ui-39-achieve-toast  тост «Достижения: 5 новых · +… ✂️» при запуске (если успели поймать)
 //   ui-39-achieve-entry  лист «Уровень» с карточкой «Достижения · 5 из …»
 //   ui-39-achieve-sheet  лист «Достижения»: сводка, полученные с датой, неполученные с прогрессом
+// Волна 42 J, сид tasks (ур. 7 — три задания дня; задания в UI-тестах включены только сидами tasks*):
+//   ui-42-tasks-entry  лист «Уровень» с карточкой «Задания дня · 0 из 3»
+//   ui-42-tasks-sheet  лист «Задания дня»: три задания с прогрессом и наградой, награда за все (✂️)
 
 import XCTest
 
@@ -120,6 +123,38 @@ final class LevelUITests: XCTestCase {
         XCTAssertTrue(tapWhenReady(any["achieve.close"].firstMatch), "нет кнопки закрытия")
         _ = sheet.waitForNonExistence(timeout: 5)
         XCTAssertFalse(sheet.exists, "лист «Достижения» не закрылся")
+        XCTAssertTrue(level.exists, "лист «Уровень» под ним остался")
+        app.terminate()
+    }
+
+    @MainActor
+    func testDailyTasksSheet() throws {
+        let app = launch("tasks")
+        let any = app.descendants(matching: .any)
+
+        let chip = any["level.chip"].firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 15), "нет значка уровня в шапке")
+        let level = any["level.sheet"].firstMatch
+        XCTAssertTrue(open(chip, level, name: "ui-42-tasks-chip"), "лист «Уровень» не открылся")
+        let entry = any["level.tasks"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "нет карточки «Задания дня»")
+        XCTAssertTrue(entry.label.contains("из 3"), "на ур. 7 три задания: \(entry.label)")
+        settle(1)
+        snap("ui-42-tasks-entry")
+
+        let sheet = any["tasks.sheet"].firstMatch
+        XCTAssertTrue(open(entry, sheet, name: "ui-42-tasks-entry-tap"), "лист «Задания дня» не открылся")
+        let rows = any.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tasks.row."))
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5), "нет строк заданий")
+        XCTAssertEqual(rows.count, 3, "заданий на ур. 7")
+        XCTAssertTrue(rows.firstMatch.label.contains("награда"), "строка: \(rows.firstMatch.label)")
+        XCTAssertTrue(any["tasks.all"].firstMatch.exists, "нет награды за все задания")
+        settle(1)
+        snap("ui-42-tasks-sheet")
+
+        XCTAssertTrue(tapWhenReady(any["tasks.close"].firstMatch), "нет кнопки закрытия")
+        _ = sheet.waitForNonExistence(timeout: 5)
+        XCTAssertFalse(sheet.exists, "лист «Задания дня» не закрылся")
         XCTAssertTrue(level.exists, "лист «Уровень» под ним остался")
         app.terminate()
     }

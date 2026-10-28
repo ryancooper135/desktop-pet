@@ -1430,6 +1430,63 @@
     ],
     "capsule_show_legendary": [
       {"id": "u.capsule_show_legendary.01", "text": "Чемпионская"}
+    ],
+    "interior_title": [
+      {"id": "u.interior_title.01", "text": "Интерьер"}
+    ],
+    "interior_note": [
+      {"id": "u.interior_note.01", "text": "Только для красоты — на доход не влияет. Купленное остаётся навсегда."}
+    ],
+    "interior_open": [
+      {"id": "u.interior_open.01", "text": "Обои, пол и ковёр"}
+    ],
+    "interior_part_walls": [
+      {"id": "u.interior_part_walls.01", "text": "Обои"}
+    ],
+    "interior_part_floor": [
+      {"id": "u.interior_part_floor.01", "text": "Пол"}
+    ],
+    "interior_part_rug": [
+      {"id": "u.interior_part_rug.01", "text": "Ковёр"}
+    ],
+    "interior_chosen": [
+      {"id": "u.interior_chosen.01", "text": "Стоит"}
+    ],
+    "interior_pick": [
+      {"id": "u.interior_pick.01", "text": "Поставить"}
+    ],
+    "interior_buy_coins": [
+      {"id": "u.interior_buy_coins.01", "text": "{n} 🪙"}
+    ],
+    "interior_buy_shards": [
+      {"id": "u.interior_buy_shards.01", "text": "{n} ✂️"}
+    ],
+    "interior_need_coins": [
+      {"id": "u.interior_need_coins.01", "text": "Не хватает {n} 🪙"}
+    ],
+    "interior_need_shards": [
+      {"id": "u.interior_need_shards.01", "text": "Не хватает {n} ✂️"}
+    ],
+    "interior_free": [
+      {"id": "u.interior_free.01", "text": "Бесплатно"}
+    ],
+    "interior_exclusive": [
+      {"id": "u.interior_exclusive.01", "text": "Эксклюзив"}
+    ],
+    "interior_bought": [
+      {"id": "u.interior_bought.01", "text": "Теперь в комнате: {item}"}
+    ],
+    "interior_set": [
+      {"id": "u.interior_set.01", "text": "Поставили: {item}"}
+    ],
+    "interior_refuse_owned": [
+      {"id": "u.interior_refuse_owned.01", "text": "Это уже есть"}
+    ],
+    "interior_refuse_not_owned": [
+      {"id": "u.interior_refuse_not_owned.01", "text": "Сначала купи"}
+    ],
+    "interior_refuse_unknown": [
+      {"id": "u.interior_refuse_unknown.01", "text": "Такого варианта нет"}
     ]
   }
 }

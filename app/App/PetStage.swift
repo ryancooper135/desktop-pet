@@ -57,6 +57,8 @@ struct PetStage: View {
         // Вещица на полке и мячик для игры (волна 11, ItemCatalog).
         let shelf = model?.shelf
         let toy = model?.toy
+        // Обои, пол и ковёр (волна 41 G, InteriorDecor).
+        let interior = model?.interior ?? .standard
         // Свой персонаж: разбор папки уже готов (CharacterStore.Entry — Sendable), модель грузим здесь.
         let character = model?.characterEntry
         // В сейве свой персонаж, а папки пака нет (удалили через «Файлы», не переустановили после переноса):
@@ -101,6 +103,7 @@ struct PetStage: View {
             RoomDecor.applyShelf(shelf, to: room)
             RoomDecor.applyToy(toy, to: room)
             RoomDecor.applySeason(season, window: home.window, to: room)
+            RoomDecor.applyInterior(interior, to: room)
             // Свет — внутри комнаты: RoomLighting красит его вместе с ней, сразу нужной фазы (без мигания).
             room.addChild(PetRoom.lights())
             // Погода за окном (волна 39 D): окна во двор нет — дождь в простом окошке; Reduce Motion — капли стоят.
@@ -145,10 +148,11 @@ struct PetStage: View {
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
             // Купили уровень — вещи перестраиваются сразу (RoomDecor сам пропускает, если уровни те же).
             if let room = content.entities.first(where: { $0.name == RoomDecor.roomName }) {
-                // Не через ||: все четыре должны отработать.
+                // Не через ||: все пять должны отработать.
                 let built = [RoomDecor.apply(home, to: room), RoomDecor.applyShelf(shelf, to: room),
                              RoomDecor.applyToy(toy, to: room),
-                             RoomDecor.applySeason(season, window: home.window, to: room)]
+                             RoomDecor.applySeason(season, window: home.window, to: room),
+                             RoomDecor.applyInterior(interior, to: room)]
                 let rebuilt = built.contains(true)
                 RoomLighting.update(room, schedule: schedule, dark: dark, force: rebuilt, plainWindow: !home.window,
                                     still: reduceMotion)

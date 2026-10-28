@@ -32,6 +32,7 @@ import Foundation
 /// map — пёс 12 уровня, 4 места открыты, на двух уже есть находки; map_trip — он же в походе на Кошачий холм (ui-34-map).
 /// challenge — бодрый пёс 12 уровня (челлендж дня открыт), рекорд «Блок Дуо» 1800 → цель 2 000; день, когда
 /// челлендж в «Блок Дуо», UI-тест выбирает сам через PET_NOW (волна 35 K, ui-35-challenge-*).
+/// tasks — бодрый пёс 7 уровня, три задания дня (третье открывается на ур. 7), ни одно ещё не начато (волна 42 J, ui-42-tasks).
 /// sinks — 500 ✂️, карта открыта, на остановке половина находок: золотой шарик и эксклюзив места (волна 35 L, ui-35-sinks).
 /// Срабатывает один раз за запуск.
 enum LaunchSeed {
@@ -356,6 +357,18 @@ enum LaunchSeed {
                 f.level.xp = DogLevel.xpTo(12)
                 f.level.paidLevel = 12
                 f.blockduoBest = max(f.blockduoBest, 1800)
+                f.seen = f.pet
+                f.lastSeenT = now
+            case "tasks":
+                // Волна 42 J (TasksUITests): ур. 7 — три задания дня; сами задания раздаст settle при первом refresh.
+                // Уровень уже оплачен — без сцены и монет.
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.level.started = true
+                f.level.day = DayKey.of(now)
+                f.level.seenSeq = f.seq
+                f.level.xp = DogLevel.xpTo(7)
+                f.level.paidLevel = 7
                 f.seen = f.pet
                 f.lastSeenT = now
             case "sinks":

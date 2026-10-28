@@ -23,6 +23,7 @@ struct HouseScreen: View {
     @State private var noteTask: Task<Void, Never>?
     @State private var shakes: [HomeLine: Int] = [:]
     @State private var bumps: [HomeLine: Int] = [:]
+    @State private var showInterior = false
 
     static let noteFor: Double = 2.5
 
@@ -32,6 +33,8 @@ struct HouseScreen: View {
         ScrollView {
             VStack(spacing: 14) {
                 header
+                // Волна 41 G: обои, пол и ковёр — косметика, поэтому вход отдельной строкой, а не линией улучшений.
+                InteriorEntry { showInterior = true }
                 if rows.isEmpty {
                     Text("Улучшений пока нет")
                         .petFont(15, .medium)
@@ -57,6 +60,11 @@ struct HouseScreen: View {
         .background(PetPalette.bg.ignoresSafeArea())
         .sheet(isPresented: $model.showKitchen) {
             KitchenSheet()
+                .environment(model)
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showInterior) {
+            InteriorSheet()
                 .environment(model)
                 .presentationDetents([.large])
         }

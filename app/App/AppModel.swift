@@ -90,6 +90,8 @@ final class AppModel {
     /// Вещица на полке и мячик для «Поиграть» (ItemCatalog): сцена перестраивает только при смене.
     private(set) var shelf: String? = nil
     private(set) var toy: String? = nil
+    /// Обои, пол и ковёр (волна 41 G, Interior): сцена перекрашивает только при смене.
+    private(set) var interior = InteriorShown.standard
     /// Свой персонаж вместо Шибы (волна 12): id папки в CharacterStore и её разбор для сцены; nil — Шиба.
     private(set) var character: String? = nil
     private(set) var characterEntry: CharacterStore.Entry? = nil
@@ -164,6 +166,10 @@ final class AppModel {
     @ObservationIgnored private var shardToastT: Double? = nil
     /// Время последнего показанного достижения — тост «Достижение: …» один раз (волна 39 C).
     @ObservationIgnored private var achToastT: Double? = nil
+    /// Последнее показанное задание дня (TaskWin.t) и когда показали (uptime): тост «+5 монет» действия,
+    /// пришедший следом из settle, его не перебивает (волна 42 J).
+    @ObservationIgnored private var taskToastT: Double? = nil
+    @ObservationIgnored private var taskShownAt: Double = -100
     /// Волна 40 E: награда ✂️, ещё не показанная тостом, — свежие достижения и обычная выплата. Ждёт, пока тост видно:
     /// нет отчёта «Пока тебя не было», листа (кроме двора — у него свой тост), сцены уровня и чужого тоста.
     @ObservationIgnored private var pendingAward: PendingAward? = nil
@@ -185,6 +191,7 @@ final class AppModel {
             worn = Wear.worn(f)
             shelf = ItemCatalog.shelf(f)
             toy = ItemCatalog.toy(f)
+            interior = Interior.shown(f)
             noteCharacter(f.character)
             knownTastes = Set(f.tastes.opened.keys)
             tripHerald.sync(f)
@@ -285,12 +292,15 @@ final class AppModel {
             let sh = ItemCatalog.shelf(f), ty = ItemCatalog.toy(f)
             if sh != shelf { shelf = sh }
             if ty != toy { toy = ty }
+            let look = Interior.shown(f)
+            if look != interior { interior = look }
             if f.character != character { noteCharacter(f.character) }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
             noteOwnerSleep(f, now: now)
             noteLevel(f, now: now)
             notePlaceNews(f, now: now)
+            noteTasks(f, now: now)
             noteAchievement(f, now: now)
             scheduleAward()
         } catch {
@@ -579,6 +589,8 @@ final class AppModel {
 
     /// «+5 монет» после действия; «На сегодня монет хватит» — раз в сутки, на действие, упёршееся в потолок.
     private func noteEarn(_ a: PetAction, _ out: ActOutcome) {
+        // Это же действие закрыло задание дня — его тост (с монетами задания) уже висит.
+        if taskToastFresh { return }
         let now = Clock.now()
         if out.coins > 0 {
             let e = Earning(id: "", kind: a.kind, coins: out.coins, capped: false, t: now)
@@ -602,7 +614,21 @@ final class AppModel {
             p.plain = g
             pendingAward = p
         }
+        // Тост задания дня того же действия не перебиваем: награда подождёт его (show → showAward).
+        if taskToastFresh { return }
         showAward(over: true)
+    }
+
+    /// Тост задания дня показан только что (до 1,5 с) — тосты монет и ✂️ того же действия его не перебивают.
+    private var taskToastFresh: Bool { ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 }
+
+    /// Волна 42 J: «Задание дня: Покормить 2 раза · +20 🪙», за последнее — «Все задания дня! … · +1 ✂️».
+    /// Один раз на выполнение, только свежее (до 10 с): из refresh — и после действия, и после похода/двора/виджета.
+    private func noteTasks(_ f: SaveFile, now: Double) {
+        guard DailyTasks.enabled, let w = f.tasks.last, w.t != taskToastT, abs(now - w.t) < 10 else { return }
+        taskToastT = w.t
+        taskShownAt = ProcessInfo.processInfo.systemUptime
+        show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
     }
 
     /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh

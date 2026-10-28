@@ -145,6 +145,11 @@ struct SaveFile: Codable, Sendable {
     var trip = TripLog()
     /// Волна 35 K: челлендж дня в мини-играх (Challenges.swift). Пустое не пишется.
     var challenge = ChallengeLog()
+    /// Волна 41 G: интерьер комнаты — купленные обои, пол, ковры и что выбрано (Interior.swift). Пустое не
+    /// пишется, новому щенку переходит: это комната хозяина, как дом.
+    var interior = InteriorState()
+    /// Задания дня (волна 42 J, DailyTasks). Пустое не пишется — старые сейвы читаются без него.
+    var tasks = DailyTasksLog()
 
     /// Местные сутки рождения (номер DayKey) — в поясе рождения. Отсюда считаются дни вместе и дни рождения.
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
@@ -220,6 +225,8 @@ struct SaveFile: Codable, Sendable {
         case tips
         case shardLog
         case level, growth, yard, trip, challenge
+        case interior
+        case tasks
     }
 
     init(from decoder: Decoder) throws {
@@ -297,6 +304,8 @@ struct SaveFile: Codable, Sendable {
         yard = (try? c.decodeIfPresent(YardState.self, forKey: .yard)) ?? YardState()
         trip = (try? c.decodeIfPresent(TripLog.self, forKey: .trip)) ?? TripLog()
         challenge = (try? c.decodeIfPresent(ChallengeLog.self, forKey: .challenge)) ?? ChallengeLog()
+        interior = (try? c.decodeIfPresent(InteriorState.self, forKey: .interior)) ?? InteriorState()
+        tasks = (try? c.decodeIfPresent(DailyTasksLog.self, forKey: .tasks)) ?? DailyTasksLog()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -360,6 +369,8 @@ struct SaveFile: Codable, Sendable {
         if !yard.isEmpty { try c.encode(yard, forKey: .yard) }
         if !trip.isEmpty { try c.encode(trip, forKey: .trip) }
         if !challenge.isEmpty { try c.encode(challenge, forKey: .challenge) }
+        if !interior.isEmpty { try c.encode(interior, forKey: .interior) }
+        if !tasks.isEmpty { try c.encode(tasks, forKey: .tasks) }
     }
 }
 

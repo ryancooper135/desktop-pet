@@ -62,6 +62,40 @@ final class HouseUITests: XCTestCase {
         app.terminate()
     }
 
+    /// Волна 41 G: из «Дома» открывается «Интерьер», обои покупаются и сразу встают («Стоит»).
+    ///   ui-56-interior  лист «Интерьер» после покупки полосатых обоев
+    @MainActor
+    func testInteriorBuyWalls() throws {
+        let app = ScreenshotUITests.makeApp()
+        app.launchEnvironment["PET_SEED"] = "house_rich"
+        app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
+        app.launchEnvironment["PET_SCHEME"] = "light"
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+
+        let any = app.descendants(matching: .any)
+        let open = any["open.house"]
+        XCTAssertTrue(open.waitForExistence(timeout: 20), "нет кнопки «Дом»")
+        let house = any["house.screen"]
+        XCTAssertTrue(tap(open, expecting: house, timeout: 10, name: "ui-56-interior-house"), "лист «Дом» не открылся")
+
+        let entry = any["house.interior.open"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "нет входа «Обои, пол и ковёр»")
+        let screen = any["interior.screen"]
+        XCTAssertTrue(tap(entry, expecting: screen, timeout: 10, name: "ui-56-interior-open"), "лист «Интерьер» не открылся")
+
+        XCTAssertTrue(any["interior.take.wall_cream"].waitForExistence(timeout: 5), "нет обоев по умолчанию")
+        let buy = any["interior.take.wall_stripes"]
+        XCTAssertTrue(buy.waitForExistence(timeout: 5), "нет кнопки полосатых обоев")
+        tapWhenReady(buy)
+        let p = NSPredicate(format: "label CONTAINS %@", "Стоит")
+        let placed = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: p, object: buy)], timeout: 5)
+        XCTAssertEqual(placed, .completed, "обои не встали (\(buy.label))")
+        snap("ui-56-interior")
+        app.terminate()
+    }
+
     /// Значение элемента содержит text (ждём до timeout секунд).
     @MainActor
     private func wait(_ e: XCUIElement, valueHas text: String, timeout: TimeInterval = 5) -> Bool {

@@ -167,7 +167,11 @@ final class PetStore: @unchecked Sendable {
             fresh.habits = old.habits
             // Кухня шефа — вместе с домом: дневной лимит блюд и бонус не обнуляются новым щенком.
             fresh.cooking = old.cooking
+            // Интерьер (волна 41 G) — комната хозяина: обои, пол и ковёр остаются и у нового щенка.
+            fresh.interior = old.interior
             fresh.shardLog = old.shardLog.carriedOver()
+            // Задания дня (волна 42 J) — день хозяина: тот же набор и те же оплаты, без второго набора за сутки.
+            fresh.tasks = old.tasks.carriedOver()
             // Опыт — про собаку: новый щенок с ур. 1 (волна 32). Без отметки started первый DogLevel.settle принял бы
             // дни заботы хозяина (shardLog.goodDays переходит) за старый сейв и дал до ур. 10, а партии мини-игр
             // прошлого пса за сегодня — за свои (волна 40 E).

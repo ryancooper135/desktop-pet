@@ -189,6 +189,7 @@ extension AppModel {
             guard let self, !Task.isCancelled else { return }
             let now = Clock.now()
             _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+                // С опытом — клочки и достижения («Первый челлендж», «Ур. N», «Все игры») в эту же запись (волна 42 I).
                 PetRunner.settleRewards(&f, now: now)
             }
             self.refresh(now: now)

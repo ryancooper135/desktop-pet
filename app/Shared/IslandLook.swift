@@ -546,6 +546,7 @@ struct WidgetLook: Hashable, Sendable {
     static func collect(in f: inout SaveFile, now: Double) -> YardHarvest {
         PetRunner.catchUp(&f, now: now)
         let h = Yard.collect(in: &f, now: now, dogLevel: DogLevel.level(f))
+        // Опыт и достижение за добитый уровень — в эту же запись (волна 42 I).
         PetRunner.settleRewards(&f, now: now)
         return h
     }
