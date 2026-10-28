@@ -125,6 +125,9 @@ final class YardScreenUITests: XCTestCase {
     /// Таблички в сцене, потом золотая табличка сушилки за клочки.
     @MainActor
     func testGoldPlate() throws {
+        // Обычно 158 с при лимите 180 по умолчанию: на медленном CI-симуляторе упирался в него (спиндампы ровно
+        // через 180 с в джобах 122272639659, 122124251510, 122315423291) — запас как у соседей по классу.
+        executionTimeAllowance = 300
         let app = launch("yard_rich")
         let any = app.descendants(matching: .any)
         let screen = any["yard.screen"]
@@ -230,9 +233,14 @@ final class YardScreenUITests: XCTestCase {
         for _ in 0..<8 {
             let f = e.frame
             if f.minY >= top && f.maxY <= bottom { return }
-            let low = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
-            let high = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
-            // Ниже окна — тянем вверх, выше — вниз; шаг ~четверть экрана, чтобы не проскочить.
+            // Волна 40 E: цель дальше полуэкрана вниз — один длинный рывок (~60 % экрана). Пока 3D-сцена в кадре,
+            // каждое событие на CI стоит 20–40 с (прогон 40566595118: четыре коротких рывка по ~38 с, testMoveYard
+            // упёрся в 300 с); длинный рывок сразу уводит сцену за край, дальше рывки по 4–8 с. Не проскочит:
+            // верх цели после рывка остаётся ниже bottom − 0,12 экрана.
+            let far = f.minY - bottom > win.height * 0.5
+            let low = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: far ? 0.92 : 0.88))
+            let high = screen.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: far ? 0.3 : 0.62))
+            // Ниже окна — тянем вверх, выше — вниз; вблизи шаг ~четверть экрана, чтобы не проскочить.
             if f.maxY > bottom {
                 low.press(forDuration: 0.05, thenDragTo: high, withVelocity: .slow, thenHoldForDuration: 0.1)
             } else {

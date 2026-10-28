@@ -284,6 +284,66 @@ final class AchievementsTests: XCTestCase {
         XCTAssertNil(Achievements.toast([]))
     }
 
+    /// Волна 40 E: достижение и обычная выплата одного действия — один тост, не два подряд.
+    func testToastAlso() {
+        let day = ShardGain(reason: "care_day", shards: 3, t: aT0)
+        XCTAssertEqual(Achievements.toast(["good_days_7"], also: day),
+                       "Достижение: Неделя заботы · +\(Achievements.reward("good_days_7")) ✂️ · +3 ✂️ за день заботы")
+        XCTAssertEqual(Achievements.toast(["level_10"], also: ShardGain(reason: "ach.level_5", shards: 2, t: aT0)),
+                       "Достижение: Ур. 10 · +3 ✂️", "достижение в also не дублируем")
+        // Самый длинный вариант — две строки тоста, не больше.
+        let reasons = ["care_day", "week_chest", "record", "find", "new_find", Places.shardReason, Places.setReason,
+                       Places.wellReason]
+        for a in Achievements.all {
+            for r in reasons {
+                let t = Achievements.toast([a.id], also: ShardGain(reason: r, shards: 12, t: aT0)) ?? ""
+                XCTAssertLessThanOrEqual(t.count, 80, t)
+            }
+        }
+    }
+
+    /// Волна 40 E: «7 дней заботы» в той же записи, что и день заботы, не затирает last — тост ✂️ не теряется.
+    func testAchievementKeepsFreshPlainGain() {
+        var f = aFile()
+        f.level.xp = DogLevel.xpTo(5)
+        f.shardLog.last = ShardGain(reason: "care_day", shards: 3, t: aT0)
+        let g = Shards.settle(&f, now: aT0 + 1)
+        XCTAssertEqual(g.map(\.reason), ["ach.level_5"])
+        XCTAssertEqual(f.shardLog.last?.reason, "care_day", "свежая обычная выплата осталась последней")
+        XCTAssertEqual(Shards.freshGain(f, now: aT0 + 2, shownT: nil)?.reason, "care_day")
+        // Старую обычную выплату достижение сменяет как раньше.
+        var h = aFile()
+        h.level.xp = DogLevel.xpTo(5)
+        h.shardLog.last = ShardGain(reason: "care_day", shards: 3, t: aT0 - 3600)
+        Shards.settle(&h, now: aT0)
+        XCTAssertEqual(h.shardLog.last?.reason, "ach.level_5")
+    }
+
+    /// Волна 40 E: уровень, взятый в записи (тут — миграция старого сейва), платит «Ур. N» в ней же, а не при
+    /// следующем действии.
+    func testSettleRewardsPaysLevelSameWrite() {
+        var f = aFile()
+        f.shardLog.goodDays = 30
+        f.shardLog.once = ["ach.good_days_7", "ach.good_days_30"]
+        XCTAssertFalse(f.level.started)
+        PetRunner.settleRewards(&f, now: aT0)
+        XCTAssertGreaterThanOrEqual(DogLevel.level(f), 5)
+        XCTAssertTrue(Achievements.got("level_5", f), "в той же записи")
+        XCTAssertEqual(f.shardLog.achT["level_5"], aT0)
+    }
+
+    /// Волна 40 E: список игр с рекордом один — ChallengeGame; цель «Все игры» и рекорды из него же.
+    func testRecordGamesOneSource() {
+        let games = ChallengeGame.allCases.map(\.rawValue)
+        XCTAssertEqual(Shards.recordGames, games)
+        let f = allDone()
+        XCTAssertEqual(Set(Shards.records(f).keys), Set(games))
+        XCTAssertEqual(Achievements.goal("games_all"), games.count)
+        XCTAssertEqual(Achievements.progress("games_all", f), games.count)
+        XCTAssertEqual(Set(DogLevel.games(f).keys), Set(games), "опыт за партии — по тем же играм")
+        for g in ChallengeGame.allCases { XCTAssertGreaterThan(g.record(f), 0, g.rawValue) }
+    }
+
     func testReasonText() {
         XCTAssertEqual(Shards.reasonText("ach.first_dish"), "первое блюдо", "старые подписи как были")
         XCTAssertEqual(Shards.reasonText("ach.trip_all"), "за достижение «Все места»")

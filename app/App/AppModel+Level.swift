@@ -189,7 +189,7 @@ extension AppModel {
             guard let self, !Task.isCancelled else { return }
             let now = Clock.now()
             _ = try? PetStore.shared.mutate { (f: inout SaveFile) -> Void in
-                _ = DogLevel.settle(&f, now: now)
+                PetRunner.settleRewards(&f, now: now)
             }
             self.refresh(now: now)
             let gained = (self.file?.level.xp ?? before) - before

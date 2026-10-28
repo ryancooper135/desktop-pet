@@ -124,6 +124,9 @@ struct WeatherConfig: Hashable, Sendable {
         func int(_ v: JSONValue, _ d: Int) -> Int { v.double.map { Int($0) } ?? d }
         let w = e["weather"]
         blockHours = min(max(int(w["block_hours"], blockHours), 1), 24)
+        // Блоки выровнены по местной полуночи, только если длина делит сутки: 5 ч дали бы блок через полночь
+        // и сутки без своего начала. Берём ближайший делитель 24 вниз (волна 40 E).
+        while 24 % blockHours != 0 { blockHours -= 1 }
         stay = min(max(num(w["stay"], stay), 0), 0.95)
         stayDepth = min(max(int(w["stay_depth"], stayDepth), 0), 32)
         for season in Season.allCases {

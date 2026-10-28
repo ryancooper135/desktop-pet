@@ -396,6 +396,26 @@ final class EconomyTests: XCTestCase {
         XCTAssertNil(second.econ.lastEarn)
     }
 
+    /// Волна 40 E: дни заботы хозяина переходят новому щенку (клочки, достижения), но опыт — про собаку:
+    /// щенок начинает с ур. 1, а не с миграции старого сейва до ур. 10; партии прошлого пса — не его.
+    func testStartOverPuppyStartsLevelOne() throws {
+        let dir = StoreHooks.makeTempStoreDir("pet-econ")
+        defer { StoreHooks.removeTempStore(dir) }
+        let store = PetStore(dir: dir)
+        try store.startOver(now: eT0)
+        try store.mutate { (f: inout SaveFile) -> Void in
+            f.shardLog.goodDays = 40
+            f.catchDay = DayKey.of(eT0)
+            f.catchGames = 3
+        }
+        try store.startOver(now: eT0 + 100)
+        try store.mutate { (f: inout SaveFile) -> Void in PetRunner.settleRewards(&f, now: eT0 + 200) }
+        let f = try XCTUnwrap(store.read())
+        XCTAssertEqual(f.shardLog.goodDays, 40, "дни заботы — хозяина")
+        XCTAssertEqual(DogLevel.level(f), 1)
+        XCTAssertEqual(f.level.gameSeen["catch"], 3, "партии прошлого пса за сегодня учтены как виденные")
+    }
+
     func testPerformThroughStore() throws {
         let dir = StoreHooks.makeTempStoreDir("pet-econ")
         defer { StoreHooks.removeTempStore(dir) }

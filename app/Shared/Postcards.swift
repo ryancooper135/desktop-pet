@@ -553,7 +553,10 @@ enum Postcards {
     static func save(_ id: String, store: PetStore = .shared, now: Double = Clock.now()) throws -> SaveResult {
         try store.mutate { f in
             PetRunner.catchUp(&f, now: now)
-            return save(id, in: &f, now: now)
+            let r = save(id, in: &f, now: now)
+            // «Первая открытка» и «Десять открыток» — в эту же запись (волна 40 E).
+            PetRunner.settleRewards(&f, now: now)
+            return r
         }
     }
 
