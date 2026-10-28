@@ -90,6 +90,8 @@ final class AppModel {
     /// Вещица на полке и мячик для «Поиграть» (ItemCatalog): сцена перестраивает только при смене.
     private(set) var shelf: String? = nil
     private(set) var toy: String? = nil
+    /// Обои, пол и ковёр (волна 41 G, Interior): сцена перекрашивает только при смене.
+    private(set) var interior = InteriorShown.standard
     /// Свой персонаж вместо Шибы (волна 12): id папки в CharacterStore и её разбор для сцены; nil — Шиба.
     private(set) var character: String? = nil
     private(set) var characterEntry: CharacterStore.Entry? = nil
@@ -181,6 +183,7 @@ final class AppModel {
             worn = Wear.worn(f)
             shelf = ItemCatalog.shelf(f)
             toy = ItemCatalog.toy(f)
+            interior = Interior.shown(f)
             noteCharacter(f.character)
             knownTastes = Set(f.tastes.opened.keys)
             tripHerald.sync(f)
@@ -279,6 +282,8 @@ final class AppModel {
             let sh = ItemCatalog.shelf(f), ty = ItemCatalog.toy(f)
             if sh != shelf { shelf = sh }
             if ty != toy { toy = ty }
+            let look = Interior.shown(f)
+            if look != interior { interior = look }
             if f.character != character { noteCharacter(f.character) }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }

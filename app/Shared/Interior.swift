@@ -416,13 +416,14 @@ struct WallShape: Hashable, Sendable {
 
 /// Кусок ковра: диск, эллипс или брусок; центр в (x, z) от середины ковра, верх на top.
 struct RugPiece: Hashable, Sendable {
-    enum Shape: Hashable, Sendable {
+    /// Не «Shape»: имя затенило бы SwiftUI.Shape в приложении (Wave5SeamTests).
+    enum Cut: Hashable, Sendable {
         case disc(r: Float)
         case ellipse(rx: Float, rz: Float)
         case box(w: Float, d: Float)
     }
 
-    var shape: Shape
+    var shape: Cut
     var x: Float = 0
     var z: Float = 0
     var top: Float
