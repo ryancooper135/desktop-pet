@@ -28,6 +28,9 @@ final class YardDemoUITests: XCTestCase {
     /// волны 38 B упирался в 3 мин на тест (1–2 кадра/с на CI) — разбит на три теста.
     @MainActor
     func testYard1Stations() throws {
+        // Волна 41 H: вместо пауз — ожидание «shot=…,frame=ready» у сцены; каждое — запрос к дереву при 3D (на CI
+        // десятки секунд), поэтому запас 420 с вместо 180 по умолчанию.
+        executionTimeAllowance = 420
         let app = try openDemo()
         let worst = number(app, "yard.maxTris")
         XCTAssertNotNil(worst, "нет подписи худшей станции")
@@ -39,11 +42,16 @@ final class YardDemoUITests: XCTestCase {
     /// Станции 5–8 и fps.
     @MainActor
     func testYard1bStations() throws {
+        executionTimeAllowance = 420
         let app = try openDemo()
         shootStations(app, 5...8)
-        // Секунда-другая на счётчик кадров (окно — 1 с), потом показание.
-        settle(1.5)
-        let fps = number(app, "yard.fps") ?? 0
+        // Счётчик кадров считает окном в 1 с и перечитывается раз в секунду: опрашиваем, пока не покажет кадры
+        // (вместо паузы 1,5 с; проверка та же — fps > 0).
+        var fps = 0
+        eventually(timeout: 30) {
+            fps = number(app, "yard.fps", timeout: 5) ?? 0
+            return fps > 0
+        }
         let note = XCTAttachment(string: "fps \(fps) (симулятор CI, станция 8)")
         note.name = "ui-98-yard-fps"
         note.lifetime = .keepAlways
@@ -74,8 +82,10 @@ final class YardDemoUITests: XCTestCase {
     @MainActor
     private func shootStations(_ app: XCUIApplication, _ range: ClosedRange<Int>) {
         for s in range {
-            tapWhenReady(el(app, "yard.st.\(s)"))
-            settle(1.6)
+            // Чип нажался — в значении сцены «shot=st.N»; на CI тап иногда теряется — ещё одно нажатие.
+            let shot = "shot=st.\(s),"
+            // Вместо паузы 1,6 с — мир станции прожил несколько кадров (YardFrame).
+            choose(app, "yard.st.\(s)", shows: shot, snap: "ui-98-yard-st-\(s)")
             snap("ui-98-yard-st-\(s)")
             let tris = number(app, "yard.tris")
             XCTAssertNotNil(tris, "станция \(s): нет подписи треугольников")
@@ -109,17 +119,18 @@ final class YardDemoUITests: XCTestCase {
     /// Бюджет декора района — 800 треугольников сверх слоёв (подпись yard.districtTris, второе число — худший).
     @MainActor
     func testYard3Districts() throws {
+        // Волна 41 H: четыре района в 3D и фургон — ожидания готовности вместо пауз, запас под них.
+        executionTimeAllowance = 420
         let app = try openDemo()
-        tapWhenReady(el(app, "yard.lv.3"))
-        tapWhenReady(el(app, "yard.tier.4"))
+        choose(app, "yard.lv.3", shows: "lv=3,")
+        choose(app, "yard.tier.4", shows: "shot=tier.4,")
         for d in ["street", "winter", "river", "roof"] {
-            tapWhenReady(el(app, "yard.district.\(d)"))
-            settle(1.8)
+            choose(app, "yard.district.\(d)", shows: "district=\(d),", snap: "ui-36-district-\(d)")
             snap("ui-36-district-\(d)")
         }
         // Ярус 4 с декором на симуляторе CI — 2–3 кадра/с, снимок дерева элементов медленный: ждём с запасом.
         let label = el(app, "yard.districtTris")
-        if label.waitForExistence(timeout: 15) {
+        if waitExists(label, timeout: 60) {
             let nums = label.label.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
             XCTAssertEqual(nums.count, 2, "подпись декора: \(label.label)")
             if let worst = nums.last { XCTAssertLessThanOrEqual(worst, 800, "декор района тяжелее бюджета") }
@@ -127,13 +138,15 @@ final class YardDemoUITests: XCTestCase {
             XCTFail("нет подписи декора района")
         }
         // Переезд с улицы в зимний квартал: фургон, подпись, Шиба в кабине.
-        tapWhenReady(el(app, "yard.district.street"))
+        choose(app, "yard.district.street", shows: "district=street,")
         let caption = el(app, "yard.move.caption")
-        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 15, name: "ui-36-move-open"),
+        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 30, name: "ui-36-move-open"),
                       "сцена переезда не открылась")
         XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
-        XCTAssertTrue(el(app, "yard.move.scene").waitForExistence(timeout: 10), "нет сцены фургона")
-        settle(4)
+        let van = el(app, "yard.move.scene")
+        XCTAssertTrue(waitExists(van, timeout: 60), "нет сцены фургона")
+        // Вместо паузы 4 с — фургон уже нарисован (YardFrame).
+        readyForSnap(van, has: "frame=ready", timeout: 90, name: "ui-36-move-van")
         snap("ui-36-move-van")
         tapWhenReady(el(app, "yard.move.close"))
         app.terminate()
@@ -142,21 +155,23 @@ final class YardDemoUITests: XCTestCase {
     /// Волна 37 B: те же районы ночью (ui-37-district-*-night) и переезд ночью (ui-37-move-van-night).
     @MainActor
     func testYard4DistrictsNight() throws {
+        // Волна 41 H: как testYard3Districts — готовность вместо пауз.
+        executionTimeAllowance = 420
         let app = try openDemo()
-        tapWhenReady(el(app, "yard.lv.3"))
-        tapWhenReady(el(app, "yard.tier.4"))
-        tapWhenReady(el(app, "yard.night"))
+        choose(app, "yard.lv.3", shows: "lv=3,")
+        choose(app, "yard.tier.4", shows: "shot=tier.4,")
+        tapWhenReady(el(app, "yard.night"), timeout: 30)
         for d in ["winter", "river", "roof", "street"] {
-            tapWhenReady(el(app, "yard.district.\(d)"))
-            settle(1.8)
+            choose(app, "yard.district.\(d)", shows: "district=\(d),", snap: "ui-37-district-\(d)-night")
             snap("ui-37-district-\(d)-night")
         }
         // С улицы ночью — в зимний квартал.
         let caption = el(app, "yard.move.caption")
-        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 15, name: "ui-37-move-open"),
+        XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 30, name: "ui-37-move-open"),
                       "сцена переезда ночью не открылась")
-        XCTAssertTrue(el(app, "yard.move.scene").waitForExistence(timeout: 10), "нет сцены фургона")
-        settle(4)
+        let van = el(app, "yard.move.scene")
+        XCTAssertTrue(waitExists(van, timeout: 60), "нет сцены фургона")
+        readyForSnap(van, has: "frame=ready", timeout: 90, name: "ui-37-move-van-night")
         snap("ui-37-move-van-night")
         tapWhenReady(el(app, "yard.move.close"))
         app.terminate()
@@ -184,18 +199,66 @@ final class YardDemoUITests: XCTestCase {
 
     // MARK: - Помощники
 
+    /// Нажать чип превью и дождаться, что сцена его приняла: в значении yard.scene есть mark («shot=st.3,», «lv=3,»,
+    /// «district=winter,»). Волна 41 H: на CI тап при 3D иногда теряется — не дождались за 30 с, жмём ещё раз;
+    /// так и не принял — провал (раньше тест молча снимал не тот вид после паузы).
+    /// snap — дальше будет снимок: тем же опросом ждём и «frame=ready» (мир нарисован, YardFrame). Один запрос к
+    /// дереву на попытку: при 3D на CI каждый стоит десятки секунд, отдельные ожидания «выбор» и «кадр» удваивали
+    /// время (первый прогон волны 41 H упёрся в 45 мин шарда). Кадр не дождались — не провал, заметка <snap>-not-ready.
+    @MainActor
+    private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String, snap: String? = nil) {
+        let scene = el(app, "yard.scene")
+        let frame = snap != nil
+        tapWhenReady(el(app, chip), timeout: 30)
+        var w = poll(scene, mark, frame: frame, timeout: 30)
+        if !w.accepted {
+            tapWhenReady(el(app, chip), timeout: 30)
+            w = poll(scene, mark, frame: frame, timeout: 30)
+        }
+        let last = w.last
+        XCTAssertTrue(w.accepted, "\(chip): сцена не приняла выбор (\(last ?? "нет сцены"))")
+        guard let snap else { return }
+        if w.accepted && !w.ready { w = poll(scene, mark, frame: true, timeout: 30) }
+        if !w.ready {
+            let note = XCTAttachment(string: "\(snap): нет \(mark) frame=ready; value=\(w.last ?? "нет элемента")")
+            note.name = "\(snap)-not-ready"
+            note.lifetime = .keepAlways
+            add(note)
+        }
+    }
+
+    /// Опрос значения сцены, один снимок на попытку: принят ли выбор (mark) и, если frame, нарисован ли кадр.
+    @MainActor
+    private func poll(_ scene: XCUIElement, _ mark: String, frame: Bool,
+                      timeout: TimeInterval) -> (accepted: Bool, ready: Bool, last: String?) {
+        var last: String?
+        var accepted = false
+        let ready = eventually(timeout: timeout) {
+            last = valueNow(scene)
+            guard let v = last, v.contains(mark) else { return false }
+            accepted = true
+            return !frame || v.contains("frame=ready")
+        }
+        return (accepted, ready, last)
+    }
+
     @MainActor
     private func el(_ app: XCUIApplication, _ id: String) -> XCUIElement {
         app.descendants(matching: .any)[id]
     }
 
-    /// Первое число в подписи («треугольников 268 из 400» → 268).
+    /// Первое число в подписи («треугольников 268 из 400» → 268). Волна 41 H: опросом со сроком и одним снимком
+    /// элемента на попытку (подпись и число из одного состояния), а не waitForExistence на 5 с + отдельный label.
     @MainActor
-    private func number(_ app: XCUIApplication, _ id: String) -> Int? {
+    private func number(_ app: XCUIApplication, _ id: String, timeout: TimeInterval = 30) -> Int? {
         let e = el(app, id)
-        guard e.waitForExistence(timeout: 5) else { return nil }
-        let digits = e.label.split(whereSeparator: { !$0.isNumber }).first
-        return digits.flatMap { Int($0) }
+        var n: Int?
+        eventually(timeout: timeout) {
+            guard let s = try? e.snapshot() else { return false }
+            n = s.label.split(whereSeparator: { !$0.isNumber }).first.flatMap { Int($0) }
+            return n != nil
+        }
+        return n
     }
 
     /// Настройки по PET_OPEN → вниз до «Каталог превью» → «Двор 3D».

@@ -40,29 +40,32 @@ final class SinksUITests: XCTestCase {
 
     @MainActor
     func testPlaceExclusive() throws {
+        // Волна 41 H: старт на главной — комната в 3D, на CI каждый запрос к дереву идёт десятки секунд, и ожидания
+        // по 3–10 с (одно XCTWaiter на 6 с после покупки) успевали глянуть раз. Теперь опрос со сроком; проверки те же.
+        executionTimeAllowance = 300
         let app = launch([:])
         let any = app.descendants(matching: .any)
         let walk = any["act.walk"]
-        XCTAssertTrue(walk.waitForExistence(timeout: 10), "нет кнопки «Гулять»")
-        XCTAssertTrue(tap(walk, expecting: any["map.screen"], timeout: 10, name: "ui-35-sinks-map"), "карта не открылась")
+        XCTAssertTrue(waitExists(walk, timeout: 60), "нет кнопки «Гулять»")
+        XCTAssertTrue(tap(walk, expecting: any["map.screen"], timeout: 30, name: "ui-35-sinks-map"), "карта не открылась")
         let bus = any["map.place.bus_stop"]
-        XCTAssertTrue(bus.waitForExistence(timeout: 5), "на карте нет остановки")
+        XCTAssertTrue(waitExists(bus, timeout: 30), "на карте нет остановки")
         let card = any["map.card"]
-        XCTAssertTrue(tap(bus, expecting: card, timeout: 10, name: "ui-35-sinks-card"), "карточка места не открылась")
+        XCTAssertTrue(tap(bus, expecting: card, timeout: 30, name: "ui-35-sinks-card"), "карточка места не открылась")
         let button = any["sinks.exclusive"]
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "в карточке нет эксклюзива места")
+        XCTAssertTrue(waitExists(button, timeout: 30), "в карточке нет эксклюзива места")
         for _ in 0..<3 where !button.isHittable { card.swipeUp() }
         let note = any["sinks.exclusive.note"]
-        XCTAssertTrue(note.waitForExistence(timeout: 3), "нет подписи под эксклюзивом")
+        XCTAssertTrue(waitExists(note, timeout: 30), "нет подписи под эксклюзивом")
         settle(1)
         snap("ui-35-sinks-3")
 
-        XCTAssertTrue(tapWhenReady(button), "эксклюзив не нажимается")
-        let owned = NSPredicate(format: "label CONTAINS 'уже у тебя'")
-        let done = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: owned, object: button)], timeout: 6)
+        XCTAssertTrue(tapWhenReady(button, timeout: 30), "эксклюзив не нажимается")
+        // Подпись кнопки одним снимком на попытку: «— уже у тебя» после покупки.
+        let done = eventually(timeout: 60) { (try? button.snapshot())?.label.contains("уже у тебя") == true }
         settle(1)
         snap("ui-35-sinks-4")
-        XCTAssertEqual(done, .completed, "после покупки кнопка говорит «уже у тебя» (\(button.label))")
+        XCTAssertTrue(done, "после покупки кнопка говорит «уже у тебя» (\((try? button.snapshot())?.label ?? "нет кнопки"))")
         app.terminate()
     }
 

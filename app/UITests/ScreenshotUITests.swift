@@ -349,11 +349,17 @@ final class ScreenshotUITests: XCTestCase {
         let env = ["PET_SEED": "kitchen", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "kitchen"]
         let app = try shootOptional("ui-78-before", env: env, marker: "kitchen.cook.stew_home", keepRunning: true)
         let cook = app.descendants(matching: .any)["kitchen.cook.stew_home"]
+        // Фраза в пузыре живёт 5 с, тост — 2,5 с, а касание на CI (комната в 3D) возвращается через десятки секунд:
+        // пузырь успевал погаснуть до первой проверки (волна 41 H). Фразу подтверждает любое из двух: пузырь на экране
+        // или след «said=…» в pet.stage (последняя реплика, держится до следующей) — как покупку в HouseUITests.
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
         if tapWhenReady(cook) {
             let line = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "уплетает"))
-            XCTAssertTrue(line.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Приготовить» нет фразы «Шиба уплетает…»")
-            settle(0.6)
+            let said = eventually(timeout: 60) {
+                line.firstMatch.exists || (valueNow(stage)?.contains("уплетает") ?? false)
+            }
             snap("ui-78-cooked")
+            XCTAssertTrue(said, "ui-78: после «Приготовить» нет фразы «Шиба уплетает…» (\(valueNow(stage) ?? "нет pet.stage"))")
             settle(1.5)
             snap("ui-78-cooked-2")
         }
@@ -362,11 +368,15 @@ final class ScreenshotUITests: XCTestCase {
         let shop = try shootOptional("ui-78-buy-before", env: env, marker: "kitchen.buy.carrot",
                                      scrollIn: "kitchen.screen", keepRunning: true)
         let buy = shop.descendants(matching: .any)["kitchen.buy.carrot"]
+        let shopStage = shop.descendants(matching: .any)["pet.stage"].firstMatch
         if tapWhenReady(buy) {
             let toast = shop.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", "Угощение: "))
-            XCTAssertTrue(toast.firstMatch.waitForExistence(timeout: 8), "ui-78: после «Угостить» нет тоста с ценой")
-            settle(0.6)
+            // Тост — или след «toast=Угощение: …» в pet.stage (см. выше).
+            let shown = eventually(timeout: 60) {
+                toast.firstMatch.exists || (valueNow(shopStage)?.contains("toast=Угощение: ") ?? false)
+            }
             snap("ui-78-bought")
+            XCTAssertTrue(shown, "ui-78: после «Угостить» нет тоста с ценой (\(valueNow(shopStage) ?? "нет pet.stage"))")
         }
         shop.terminate()
     }
@@ -1094,6 +1104,74 @@ extension XCTestCase {
         snap("\(name)-retry")
         e.tap()
         return target.waitForExistence(timeout: timeout)
+    }
+
+    /// Повторять проверку, пока не выйдет или не истечёт срок (волна 41 H). Пока на экране 3D, на CI-симуляторе
+    /// один запрос к дереву идёт 20–40 с, и XCTNSPredicateExpectation с таймаутом 5–8 с успевал проверить один раз:
+    /// состояние наступало на секунду позже — тест падал. Здесь проверок минимум две, срок смотрим после каждой,
+    /// так что последнее состояние перед сроком всегда проверено. Ретраи с таймаутом вместо фиксированных пауз.
+    @MainActor
+    @discardableResult
+    func eventually(timeout: TimeInterval, poll: TimeInterval = 0.5, _ check: () -> Bool) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        var tries = 0
+        while true {
+            if check() { return true }
+            tries += 1
+            if tries >= 2 && Date() >= deadline { return false }
+            RunLoop.current.run(until: Date().addingTimeInterval(poll))
+        }
+    }
+
+    /// Значение элемента одним снимком; элемента нет — nil.
+    @MainActor
+    func valueNow(_ e: XCUIElement) -> String? {
+        guard let s = try? e.snapshot() else { return nil }
+        return s.value as? String
+    }
+
+    /// Дождаться, пока в значении элемента есть все подстроки (сцены двора: «frame=ready», «dog3d=on»…).
+    @MainActor
+    @discardableResult
+    func waitValue(_ e: XCUIElement, has parts: String..., timeout: TimeInterval = 60) -> Bool {
+        waitValue(e, all: parts, timeout: timeout)
+    }
+
+    @MainActor
+    @discardableResult
+    func waitValue(_ e: XCUIElement, all parts: [String], timeout: TimeInterval = 60) -> Bool {
+        eventually(timeout: timeout) {
+            guard let v = valueNow(e) else { return false }
+            return parts.allSatisfy { v.contains($0) }
+        }
+    }
+
+    /// Перед снимком 3D: дождаться признака готовности сцены («frame=ready» — мир по текущему ключу прожил несколько
+    /// кадров, YardFrame) вместо паузы наугад. Это про качество кадра, не проверка поведения: не дождались — снимок
+    /// всё равно делаем, а в отчёт кладём заметку <name>-not-ready с последним значением, чтобы было видно почему.
+    @MainActor
+    @discardableResult
+    func readyForSnap(_ e: XCUIElement, has parts: String..., timeout: TimeInterval = 60, name: String) -> Bool {
+        if waitValue(e, all: parts, timeout: timeout) { return true }
+        let note = XCTAttachment(string: "\(name): за \(Int(timeout)) с нет \(parts.joined(separator: ", ")); value=\(valueNow(e) ?? "нет элемента")")
+        note.name = "\(name)-not-ready"
+        note.lifetime = .keepAlways
+        add(note)
+        return false
+    }
+
+    /// Дождаться, пока элемент уйдёт из дерева, опросом (пара к waitExists).
+    @MainActor
+    @discardableResult
+    func waitGone(_ e: XCUIElement, timeout: TimeInterval = 60) -> Bool {
+        eventually(timeout: timeout) { !e.exists }
+    }
+
+    /// Дождаться элемента опросом (а не одним waitForExistence, которое на CI с 3D успевает глянуть раз).
+    @MainActor
+    @discardableResult
+    func waitExists(_ e: XCUIElement, timeout: TimeInterval = 60) -> Bool {
+        eventually(timeout: timeout) { e.exists }
     }
 
     /// Идентификаторы всего, что сейчас в дереве приложения, одним снимком иерархии. Проверка «А и Б вместе»

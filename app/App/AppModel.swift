@@ -83,6 +83,11 @@ final class AppModel {
     /// Только UI-тесты (GlassSettle): сколько раз ряды стеклянных кнопок пересоздали поверх готовой комнаты.
     /// В обычном запуске всегда 0.
     private(set) var glassPass = 0
+    /// Только UI-тесты (волна 41 H): последние реплики Шибы и тосты (до четырёх) — не гаснут через 5 и 2,5 с, как сами
+    /// пузырь и тост. На CI касание возвращается через десятки секунд, и короткоживущее тест видеть не успевал;
+    /// несколько, а не одно — следом может прийти тост награды или реплика вкуса. В обычном запуске всегда пусто.
+    private(set) var uiSaid: [String] = []
+    private(set) var uiToast: [String] = []
     /// Свет комнаты: «Комната вечером» и сон хозяина (RoomLighting). Меняется только при правке, не на каждый тик.
     private(set) var roomSchedule = RoomSchedule.standard
     /// Надетое на собаке (Wear.worn): сцена вешает на кости только при смене.
@@ -452,6 +457,7 @@ final class AppModel {
     /// Реплика Шибы поверх обычной на несколько секунд.
     func speak(_ text: String, for seconds: Double = 5) {
         sayLine = text
+        if Env.isUITest { uiSaid = Array((uiSaid + [text]).suffix(4)) }
         sayTask?.cancel()
         sayTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(seconds))
@@ -1032,6 +1038,7 @@ final class AppModel {
 
     func show(_ text: String, ok: Bool = true, emoji: String? = nil) {
         toast = Toast(text: text, ok: ok, emoji: emoji)
+        if Env.isUITest { uiToast = Array((uiToast + [text]).suffix(4)) }
         toastTask?.cancel()
         toastTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))

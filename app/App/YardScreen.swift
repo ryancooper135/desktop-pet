@@ -209,12 +209,13 @@ struct YardScreen: View {
                     YardArtSystem.registerOnce()
                     YardLiveSystem.registerOnce()
                     let holder = Entity()
-                    YardLive.swap(in: holder, key: key, build: build)
+                    YardLive.swap(in: holder, key: key, probe: "yard.screen", build: build)
                     content.add(holder)
                 } update: { content in
                     guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
-                    YardLive.swap(in: holder, key: key, build: build)
+                    YardLive.swap(in: holder, key: key, probe: "yard.screen", build: build)
                 }
+                .onDisappear { YardFrame.gone("yard.screen") }
             } else {
                 Color.clear
             }
@@ -235,8 +236,10 @@ struct YardScreen: View {
         .onScrollVisibilityChange(threshold: 0.02) { sceneOnScreen = $0 }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(sceneLabel(tier: tier, rates: rates, dog: dogPose, mode: mode)))
-        // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции.
-        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),moves=\(s.moves),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"))
+        // Для UI-тестов: сколько плит, ярус, уровни станций («dryer=3»), что делает пёс и золотые станции; под тестом
+        // ещё frame=ready — мир по текущему ключу уже нарисован (YardFrame), тест ждёт его вместо паузы.
+        .accessibilityValue(Text("plates=\(s.plates.count),tier=\(tier),\(levels),dog=\(dogPose?.clipKey ?? "none"),gold=\(gold),moves=\(s.moves),dog3d=\(mode == .absent ? "none" : YardDogLive.state)"
+                                 + (Env.isUITest ? ",frame=\(sceneOnScreen && YardFrame.ready("yard.screen", key: key) ? "ready" : "wait")" : "")))
         .accessibilityIdentifier("yard.screen.scene")
     }
 

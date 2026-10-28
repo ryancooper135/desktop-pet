@@ -74,10 +74,15 @@ jobs:
                      "AccessibilityUITests/testAccessibilityAudit3Shops", "AccessibilityUITests/testAccessibilityExtraLargeText",
                      # волна 36 Q: превью двора теперь рисует 3D (раньше было пустым) — 1–2 кадра/с на CI, весь класс
                      # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
-                     "YardDemoUITests"]
+                     # волна 41 H: ожидания «выбор принят» и «кадр нарисован» вместо пауз дороже при 3D — шард 1 упёрся
+                     # в 45 мин (прогон 40718623848); районы днём и ночью уехали в шард 3 (он шёл 19 мин)
+                     "YardDemoUITests/testYard1Stations", "YardDemoUITests/testYard1bStations",
+                     "YardDemoUITests/testYard1cLooks", "YardDemoUITests/testYard2Tiers",
+                     "YardDemoUITests/testYard5WeatherChips"]
           # Шард 3 (27.10, волна 38): шард 2 дошёл до 44 м 42 с из 45 — двор 3D (YardScreenUITests 11,9 мин),
           # замеры (3,2) и мелкие экраны двора уехали на свой раннер. Замер 27.10: шард 1 ≈ 35, 2 ≈ 25, 3 ≈ 17 мин.
-          yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests"]
+          yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests",
+                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
           only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in yard_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui + yard_ui)
@@ -245,6 +250,15 @@ jobs:
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES -default-test-execution-time-allowance 180 \
             -quiet
+
+      # Волна 41 H: как у юнит-тестов — с -quiet в логе видно только имя упавшего UI-теста, а причина
+      # (какая проверка, таймаут ли) лежит в xcresult. Печатаем её сюда, чтобы не качать xcresult.
+      - name: UI failures
+        if: ${{ failure() && matrix.ui != '' }}
+        run: |
+          R="$OUT/PetUITests-$SHARD.xcresult"
+          if [ ! -d "$R" ]; then echo "xcresult UI-тестов нет"; exit 0; fi
+          xcrun xcresulttool get test-results summary --path "$R" | python3 -c 'import json,sys; [print(f.get("testIdentifierString"), "|", f.get("failureText")) for f in json.load(sys.stdin).get("testFailures", [])]' || true
 
       - name: Perf metrics
         # Замеры PerfUITests (волна 26): xcodebuild идёт с -quiet, поэтому числа берём из xcresult и печатаем сюда.

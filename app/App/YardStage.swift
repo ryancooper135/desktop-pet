@@ -225,12 +225,13 @@ struct YardArtDemoScreen: View {
                             content.camera = .virtual
                             YardArtSystem.registerOnce()
                             let holder = Entity()
-                            YardLive.swap(in: holder, key: key, build: build)
+                            YardLive.swap(in: holder, key: key, probe: "yard.demo", build: build)
                             content.add(holder)
                         } update: { content in
                             guard let holder = content.entities.first(where: { YardLive.isHolder($0) }) else { return }
-                            YardLive.swap(in: holder, key: key, build: build)
+                            YardLive.swap(in: holder, key: key, probe: "yard.demo", build: build)
                         }
+                        .onDisappear { YardFrame.gone("yard.demo") }
                     } else {
                         Color.clear
                     }
@@ -239,6 +240,10 @@ struct YardArtDemoScreen: View {
                 .background((district == .street ? (night ? Color(hex: 0x2a3350) : PetPalette.stageBg)
                              : district.skyColor(night: night)).overlay(WeatherVeil(kind: weather)))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                // UI-тест (волна 41 H): что показано и нарисован ли уже этот мир — «shot=st.3,lv=2,district=street,frame=ready».
+                .accessibilityElement(children: .ignore)
+                .modifier(YardFrameProbe(probe: "yard.demo", key: key,
+                                         tag: "shot=\(Self.tag(shot)),lv=\(level),district=\(district.rawValue),"))
                 .accessibilityIdentifier("yard.scene")
 
                 caption(worst: worst)
@@ -263,6 +268,14 @@ struct YardArtDemoScreen: View {
                         .padding(16)
                         .accessibilityIdentifier("yard.move.close")
                 }
+        }
+    }
+
+    /// Вид для UI-теста: «st.<номер станции>» или «tier.<ярус>».
+    private static func tag(_ shot: YardArtShot) -> String {
+        switch shot {
+        case .station(let s): return "st.\(s.rawValue)"
+        case .tier(let n): return "tier.\(n)"
         }
     }
 

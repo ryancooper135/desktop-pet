@@ -151,12 +151,15 @@ enum YardLive {
 
     static func isHolder(_ e: Entity) -> Bool { e.name.hasPrefix(holderPrefix) }
 
-    static func swap(in holder: Entity, key: String, build: @MainActor () -> Entity) {
+    /// probe — имя сцены для UI-теста (YardFrame): под тестом мир помечается, и экран знает, что он уже нарисован.
+    static func swap(in holder: Entity, key: String, probe: String? = nil, build: @MainActor () -> Entity) {
         let name = holderPrefix + key
         guard holder.name != name else { return }
         holder.name = name
         for child in Array(holder.children) { child.removeFromParent() }
-        holder.addChild(build())
+        let world = build()
+        if let probe, Env.isUITest { YardFrame.mark(world, probe: probe, key: key) }
+        holder.addChild(world)
     }
 
     /// Новая станция «выскакивает»: из точки до полного размера с перелётом (кривая easeOutBack).
@@ -285,4 +288,96 @@ extension YardDistrict {
 
     /// Небо района — фон под RealityView.
     func skyColor(night: Bool) -> Color { Color(hex: sky(night: night)) }
+}
+
+// MARK: - Готовность кадра для UI-теста (волна 41 H)
+
+/// Под CI-симулятором RealityKit рисует 1–2 кадра в секунду, и фиксированная пауза перед снимком то хватает, то нет.
+/// Под тестом (Env.isUITest) мир сцены помечается YardFrameMark; система считает кадры, которые он прожил в сцене,
+/// и после нескольких кадров последний мир этой сцены считается нарисованным. Экран пишет это в accessibilityValue
+/// («frame=ready»), тест ждёт его вместо паузы. Без тестового флага метки нет и система не регистрируется.
+@MainActor
+enum YardFrame {
+    /// Сколько кадров мир должен прожить в сцене, чтобы считаться нарисованным.
+    static let frames = 3
+
+    private static var seq = 0
+    private static var current: [String: (seq: Int, key: String)] = [:]
+    private static var drawn: [String: Int] = [:]
+    private static var registered = false
+
+    /// Новый мир сцены probe (по ключу key): с этого момента она «ждёт кадра».
+    static func mark(_ world: Entity, probe: String, key: String) {
+        if !registered {
+            registered = true
+            YardFrameMark.registerComponent()
+            YardFrameSystem.registerSystem()
+        }
+        seq += 1
+        current[probe] = (seq, key)
+        world.components.set(YardFrameMark(probe: probe, seq: seq))
+    }
+
+    /// Мир прожил нужное число кадров.
+    static func drew(_ probe: String, seq: Int) {
+        if seq > (drawn[probe] ?? 0) { drawn[probe] = seq }
+    }
+
+    /// Сцена ушла с экрана (RealityView снята): пока её не поставят заново, кадра нет.
+    static func gone(_ probe: String) {
+        current[probe] = nil
+    }
+
+    /// Последний мир сцены собран по этому ключу и уже нарисован.
+    static func ready(_ probe: String, key: String) -> Bool {
+        guard let c = current[probe], c.key == key else { return false }
+        return (drawn[probe] ?? 0) >= c.seq
+    }
+}
+
+struct YardFrameMark: Component {
+    var probe: String
+    var seq: Int
+    var frames = 0
+}
+
+struct YardFrameSystem: System {
+    private let query = EntityQuery(where: .has(YardFrameMark.self))
+
+    init(scene: RealityKit.Scene) {}
+
+    @MainActor func update(context: SceneUpdateContext) {
+        for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
+            guard var m = e.components[YardFrameMark.self], m.frames < YardFrame.frames else { continue }
+            m.frames += 1
+            e.components.set(m)
+            if m.frames >= YardFrame.frames { YardFrame.drew(m.probe, seq: m.seq) }
+        }
+    }
+}
+
+/// accessibilityValue сцены для UI-теста: «<tag>frame=ready|wait». Опрос раз в 0,3 с, пока сцена на экране;
+/// новый ключ — снова «wait», пока новый мир не нарисуется. Без тестового флага — ничего не меняет.
+struct YardFrameProbe: ViewModifier {
+    let probe: String
+    let key: String
+    var tag: String = ""
+    @State private var ready = false
+
+    func body(content: Content) -> some View {
+        if Env.isUITest {
+            content
+                .accessibilityValue(Text(tag + "frame=" + (ready ? "ready" : "wait")))
+                .task(id: key) {
+                    ready = false
+                    while !Task.isCancelled {
+                        let now = YardFrame.ready(probe, key: key)
+                        if now != ready { ready = now }
+                        try? await Task.sleep(for: .milliseconds(300))
+                    }
+                }
+        } else {
+            content
+        }
+    }
 }
