@@ -119,7 +119,7 @@ struct PetFace: Component {
 
 @MainActor
 enum PetChoreo {
-    static let blend: Double = 0.35
+    nonisolated static let blend: Double = 0.35
     /// Рост пса (волна 34 I, ставит PetRig.setGrowth): щенку миска поменьше и ближе — под его морду.
     static var growth: Float = 1
 
