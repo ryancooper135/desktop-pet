@@ -3,6 +3,8 @@
 //     до того, как просьбы появились (их никто не видел). (2) Окно просьбы не переходит через полночь: в полночь
 //     расписание сменяется, и просьба «ещё 40 мин» в 23:20 пропадала невыполнимой. (3) Задание и просьба,
 //     закрытые одним действием, — обе выплаты и оба опыта в ту же запись (страховка порядка settleRewards).
+// И доход монет: (4) вещи лавки с пользой монет окупаются ≤ 90 дн. (ShopDaily.incomeCap), (5) расчёт монет
+//     в сутки на ур. 1, 10, 25 при 2 и 3 заходах — таблица ECONOMY.md «Волна 44 N».
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
 import Foundation
@@ -172,5 +174,110 @@ final class Wave44SeamTests: XCTestCase {
         PetRunner.settleRewards(&f, now: s + 125)
         XCTAssertEqual(f.econ.wallet, after.econ.wallet, "повторный settle не платит")
         XCTAssertEqual(f.level.xp, after.level.xp)
+    }
+
+    // MARK: 4. Вещи лавки с пользой монет окупаются ≤ 90 дн.
+
+    /// Лучший случай прибавки от вещи с пользой монет, 🪙 в сутки: общий потолок мини-игр вещь не поднимает, сверху
+    /// не больше cap·(1 − 1/x) (та же честная формула, что у дома в волне 36 R, без других вещей).
+    private func perkPerDay(_ id: String) -> Double {
+        let x = ItemPerks.factor(.coins, pct: ItemPerks.pct(id))
+        return Double(CatchConfig.shared.sharedCap) * (1 - 1 / x)
+    }
+
+    /// Лавка продаёт за монеты вещи «Монет за мини-игры на N% больше» — покупка, которая подаётся как доход
+    /// (правило владельца: окупается ≤ 90 дн.). Ошейник со звездой 300–600 🪙 и кубок 1200–2500 🪙 при прибавке
+    /// 2,9 и 4,4 🪙/сут окупались полгода и больше.
+    func testShopCoinPerkItemsPayBackWithin90Days() {
+        let pools = EconomyConfig.shared.capsule.pools
+        var checked = 0
+        for r in ShopDaily.slots {
+            for it in pools[r] ?? [] where PremiumConfig.shared.perks[it.id] == .coins {
+                let perDay = perkPerDay(it.id)
+                let price = ShopDaily.price(it)
+                checked += 1
+                print(String(format: "Wave44Shop %@ (%@): %d 🪙, +%.2f 🪙/сут, окупается %.0f дн.",
+                             it.id, r.rawValue, price, perDay, Double(price) / perDay))
+                XCTAssertLessThanOrEqual(Double(price) / perDay, 90 + 1e-9,
+                                         "\(it.id) (\(r.rawValue)) за \(price) 🪙 при +\(perDay) 🪙/сут")
+            }
+        }
+        XCTAssertGreaterThanOrEqual(checked, 3, "bell_collar, collar_star, trophy_cup")
+        // Потолки цены: 90 × 60 × N / (100 + N), к 10 вниз.
+        XCTAssertEqual(ShopDaily.incomeCap("bell_collar"), 150)
+        XCTAssertEqual(ShopDaily.incomeCap("collar_star"), 250)
+        XCTAssertEqual(ShopDaily.incomeCap("trophy_cup"), 400)
+        XCTAssertNil(ShopDaily.incomeCap("bandana_red"), "польза не монетная — потолка нет")
+    }
+
+    /// Остальные вещи лавки — по-прежнему в своей полосе цен: потолок окупаемости трогает только доход.
+    func testShopOtherItemsKeepBandPrices() {
+        let pools = EconomyConfig.shared.capsule.pools
+        let b = ShopDaily.bands
+        for r in ShopDaily.slots {
+            for it in pools[r] ?? [] where PremiumConfig.shared.perks[it.id] != .coins {
+                let band = (ItemCatalog.decor.contains(it.id) ? b.furniture : b.clothes)[r]!
+                XCTAssertTrue(band.contains(ShopDaily.price(it)), "\(it.id): \(ShopDaily.price(it)) вне \(band)")
+            }
+        }
+    }
+
+    // MARK: 5. Доход монет в сутки — расчёт для ECONOMY.md
+
+    /// Сколько монет в сутки при 2 и 3 заходах на ур. 1, 10, 25 — на настоящих конфигах (задания, просьбы,
+    /// уход, уровни пса, двор модели темпа). Печатает таблицу (ECONOMY.md «Волна 44 N»), проверяет, что денег
+    /// хватает: на ур. 1 за сутки — вещь интерьера или обычная вещь лавки, на ур. 10 за неделю — редкая вещь
+    /// и следующий уровень станции, на ур. 25 двор даёт больше всего остального.
+    func testDailyCoinIncomeByLevel() {
+        let econ = EconomyConfig.shared
+        let tasks = DailyTaskConfig.shared, asks = DogAskConfig.shared
+        // Среднее число просьб в сутки — по настоящему расписанию.
+        let f0 = nFile()
+        let day0 = DayKey.of(nT0)
+        let askDays = 120
+        let asksPerDay = Double((day0..<(day0 + askDays)).reduce(0) { $0 + DogAsks.schedule(f0, day: $1).count })
+            / Double(askDays)
+
+        // Двор: средний профиль модели темпа — ставка, когда пёс впервые на ур. 10 и 25.
+        var sim = YardPaceSim(player: .medium)
+        var yardRate: [Int: Double] = [:]
+        while yardRate[25] == nil, sim.day < 400 {
+            sim.step()
+            for l in [10, 25] where yardRate[l] == nil && sim.dogLevel >= l {
+                yardRate[l] = Yard.rate(sim.s, dogLevel: sim.dogLevel, helper: sim.helper, sim.cfg)
+                print("Wave44Coins двор ур. \(l): день \(sim.day), \(Int(yardRate[l]!)) 🪙/ч")
+            }
+        }
+        yardRate[1] = 0
+
+        func care(_ v: Int) -> Int {
+            // Заход: покормить, погладить дважды, поиграть; раз в день — купание и прогулка.
+            let c = econ.careCoins
+            let visit = (c["feed"] ?? 0) + 2 * (c["pet"] ?? 0) + (c["play"] ?? 0)
+            return min(econ.careDailyCap, v * visit + (c["bath"] ?? 0) + (c["walk"] ?? 0))
+        }
+        var rows: [Int: [Int: Int]] = [:]
+        for l in [1, 10, 25] {
+            for v in [2, 3] {
+                let c = care(v)
+                let games = min(CatchConfig.shared.sharedCap, v * 15)                // раунд за заход, середина 5…30
+                let t = DailyTasks.slots(level: l) * tasks.coins(level: l)
+                let a = Int((asksPerDay * Double(v) / 16 * Double(asks.coins(level: l))).rounded())   // заход ловит часовое окно из 16 ч
+                let xp = v == 2 ? 80 : 98                                             // опыт за сутки (DECISIONS «Волна 44 N»)
+                let step = DogLevel.xpTo(l + 1) - DogLevel.xpTo(l)
+                let lvl = Int((Double(DogLevel.reward(l + 1).coins) * Double(xp) / Double(step)).rounded())
+                let cook = l >= 25 ? 15 : 0                                           // первое блюдо дня, кухня куплена
+                let base = c + games + t + a + lvl + cook
+                let yard = Int((yardRate[l] ?? 0) * 24)
+                rows[l, default: [:]][v] = base + yard
+                print("Wave44Coins ур. \(l), заходов \(v): уход \(c), игры \(games), задания \(t), просьбы \(a), "
+                      + "уровни \(lvl), кухня \(cook) = \(base) без двора; двор \(yard); всего \(base + yard) "
+                      + "(+шаги до 25 со Здоровьем)")
+            }
+        }
+        print(String(format: "Wave44Coins просьб в сутки в среднем %.2f", asksPerDay))
+        XCTAssertGreaterThanOrEqual(rows[1]![2]!, 200, "ур. 1: вещь интерьера (200–600) за сутки-трое")
+        XCTAssertGreaterThanOrEqual(rows[10]![2]! * 7, 600 + 900, "ур. 10: за неделю редкая вещь лавки и станция")
+        XCTAssertGreaterThan(rows[25]![2]!, rows[10]![3]!)
     }
 }

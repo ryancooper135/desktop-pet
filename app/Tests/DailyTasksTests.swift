@@ -56,12 +56,12 @@ final class DailyTasksTests: XCTestCase {
         XCTAssertEqual(code.swaps, json.swaps)
         XCTAssertEqual(code.need, json.need)
         XCTAssertEqual(Set(code.need.keys), Set(DailyTasks.pool.map(\.id)), "у каждого задания пула есть need")
-        // Монеты за задание: 15 + 3 × уровень, к ближайшим 5.
-        XCTAssertEqual(code.coins(level: 1), 20)
-        XCTAssertEqual(code.coins(level: 7), 35)
-        XCTAssertEqual(code.coins(level: 10), 45)
-        XCTAssertEqual(code.coins(level: 20), 75)
-        XCTAssertEqual(code.coins(level: 30), 105)
+        // Монеты за задание: 25 + 3 × уровень, к ближайшим 5 (волна 44 N: было 15 + 3 × уровень).
+        XCTAssertEqual(code.coins(level: 1), 30)
+        XCTAssertEqual(code.coins(level: 7), 45)
+        XCTAssertEqual(code.coins(level: 10), 55)
+        XCTAssertEqual(code.coins(level: 20), 85)
+        XCTAssertEqual(code.coins(level: 30), 115)
         // ✂️ — скупо: только 1 за все задания дня.
         XCTAssertEqual(code.allShards, 1)
     }

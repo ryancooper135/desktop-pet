@@ -82,12 +82,29 @@ enum ShopDaily {
     static func hash(_ s: String) -> UInt64 { StableRandom.mix(StableHash.fnv1a(s)) }
 
     /// Цена предмета: точка в полосе его редкости, шаг 10 монет. От дня не зависит — у вещи одна цена.
+    /// Вещь с пользой монет — не дороже incomeCap (окупаемость ≤ 90 дн., волна 44 N).
     static func price(_ item: CapsuleItem, _ b: Bands = bands) -> Int {
         let table = ItemCatalog.decor.contains(item.id) ? b.furniture : b.clothes
         guard let band = table[item.rarity] else { return 0 }
         let lo = (band.lowerBound + 9) / 10 * 10
         let steps = max(0, (band.upperBound - lo) / 10)
-        return lo + Int(hash("shop:price:\(item.id)") % UInt64(steps + 1)) * 10
+        let p = lo + Int(hash("shop:price:\(item.id)") % UInt64(steps + 1)) * 10
+        return incomeCap(item.id).map { min(p, $0) } ?? p
+    }
+
+    /// Окупаемость покупки, которая подаётся как доход (правило владельца, волна 36 R).
+    static let paybackDays = 90
+
+    /// Волна 44 N: вещь «Монет за мини-игры на N% больше» за монеты — это доход, и он окупается ≤ paybackDays.
+    /// Общий потолок мини-игр вещь не поднимает: лучший случай сверху — cap·(1 − 1/x) = cap·N/(100+N) 🪙 в сутки
+    /// (честная формула дома из волны 36 R). Цена — не больше paybackDays таких суток, к 10 вниз: ошейник со
+    /// звездой 250, кубок 400 (было 300–600 и 1200–2500 — окупались 4 месяца и год). nil — монет вещь не прибавляет.
+    static func incomeCap(_ id: String, _ cfg: PremiumConfig = .shared,
+                          sharedCap: Int = CatchConfig.shared.sharedCap) -> Int? {
+        guard cfg.perks[id] == .coins else { return nil }
+        let pct = ItemPerks.pct(id, cfg)
+        guard pct > 0 else { return nil }
+        return paybackDays * sharedCap * pct / (100 + pct) / 10 * 10
     }
 
     /// Витрина на сутки day: из каждой редкости слота — предмет, которого ещё нет; если есть всё —

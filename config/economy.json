@@ -1389,9 +1389,9 @@
     }
   },
   "daily_tasks": {
-    "_about": "Волна 42 J: задания дня (app/Shared/DailyTasks.swift). 2 в день, третье с ур. 7 (tasks.3). Монеты за задание = base + per_level × уровень, к ближайшему кратному round. ✂️ — только за все задания дня. need: сколько раз сделать; 0 — задания нет. Старый income.daily_quests не читается.",
+    "_about": "Волна 42 J: задания дня (app/Shared/DailyTasks.swift). 2 в день, третье с ур. 7 (tasks.3). Монеты за задание = base + per_level × уровень, к ближайшему кратному round. ✂️ — только за все задания дня. need: сколько раз сделать; 0 — задания нет. Старый income.daily_quests не читается. Волна 44 N: base 15 → 25 (+10 за задание, +20–30 🪙 в сутки — первые дни, см. ECONOMY.md).",
     "count": 2,
-    "coins": { "base": 15, "per_level": 3, "round": 5 },
+    "coins": { "base": 25, "per_level": 3, "round": 5 },
     "all_done": { "shards": 1, "coins": 0 },
     "swaps_per_day": 1,
     "need": { "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1 }
