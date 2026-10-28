@@ -175,6 +175,9 @@ enum DogAsks {
             guard Int(hv % 100) < cfg.chancePct else { continue }
             let start = midnight + Double(h) * 3600 + Double((hv >> 16) % 45) * 60
             guard DayKey.of(start) == day else { continue }   // сутки перевода часов: час за пределами суток
+            // Волна 44 N: окно целиком в своих сутках — в полночь расписание сменяется, и просьба 23:30 у хозяина,
+            // который ложится в 2:00, пропадала с плашкой «ещё 20 мин» невыполнимой.
+            guard DayKey.of(start + cfg.window - 60) == day else { continue }
             if let p = out.last, start - p < Double(cfg.minGapMin) * 60 { continue }
             guard awake(f, r, start, cfg) else { continue }
             out.append(start)
@@ -261,6 +264,11 @@ enum DogAsks {
     static func prepare(_ s: inout DogAsksLog, _ f: SaveFile, now: Double, _ cfg: DogAskConfig) {
         let today = DayKey.of(now)
         if !s.started || today > s.day {
+            // Волна 44 N: первый раз (старый сейв до волны 43 K) — записи журнала до этого момента сделаны без
+            // просьб, плашки никто не видел: курсор сразу на конец журнала, иначе первая запись после обновления
+            // платила за сегодняшние ласки и кормёжки, попавшие в окна задним числом. Новый щенок приходит
+            // с started (carriedOver) и курсором с нуля — его это не касается.
+            if !s.started { s.seenSeq = f.seq }
             s.started = true
             s.day = today
             s.items = schedule(f, day: today, cfg).map { DogAsk(start: $0) }

@@ -155,6 +155,7 @@ let package = Package(
                 "Wave5SeamTests.swift",
                 "Wave42SeamTests.swift",
                 "Wave43SeamTests.swift",
+                "Wave44SeamTests.swift",
                 "PetRunnerCoverageTests.swift",
                 "SaveFileCoverageTests.swift",
                 "PetStoreRecoveryTests.swift",
