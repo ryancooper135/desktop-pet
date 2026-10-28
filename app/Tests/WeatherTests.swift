@@ -189,6 +189,22 @@ final class WeatherTests: XCTestCase {
         XCTAssertEqual(WeatherConfig(json: .null), WeatherConfig())
     }
 
+    /// Волна 40 E: длина блока, не делящая сутки, не даёт блока через полночь — берётся делитель 24 вниз.
+    func testBlockHoursDivideDay() throws {
+        for (raw, want) in [(5, 4), (7, 6), (9, 8), (13, 12), (24, 24), (1, 1), (0, 1), (40, 24)] {
+            let json = try JSONDecoder().decode(JSONValue.self, from: Data(#"{"weather": {"block_hours": \#(raw)}}"#.utf8))
+            let c = WeatherConfig(json: json)
+            XCTAssertEqual(c.blockHours, want, "\(raw)")
+            // Местная полночь — всегда начало блока, и блок не переходит в другие сутки.
+            for tz in [-300, 0, 60, 345] {
+                let midnight = utc(2026, 3, 1) - Double(tz) * 60
+                let b = Weather.block(midnight, tzOffsetMin: tz, c)
+                XCTAssertEqual(Weather.block(midnight - 1, tzOffsetMin: tz, c), b - 1)
+                XCTAssertEqual(Weather.day(ofBlock: b, c), Weather.day(ofBlock: b + 24 / c.blockHours - 1, c))
+            }
+        }
+    }
+
     func testConfigReadsOverrides() throws {
         let raw = #"{"weather": {"block_hours": 6, "odds": {"summer": {"clear": 1}}, "room": {"rain": 3}, "fall": {"snow": 0.5}}}"#
         let c = WeatherConfig(json: try JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)))
