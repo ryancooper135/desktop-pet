@@ -473,21 +473,32 @@ final class PetLogicTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: broken.path), "старый файл не стёрт, а отложен")
     }
 
+    /// Волна 44 N: petId у SaveFile.fresh случайный, а расписание просьб пса (волна 43 K) зависит от него — примерно
+    /// в 5 % запусков на момент ласки выпадала просьба «погладь», и за act.pet в журнал вставал ask.done (CI, run
+    /// 40765117525). Теперь прогон по 60 фиксированным petId (среди них есть и такие, где просьба открыта).
     func testRepeatedRefusalLoggedOnce() {
-        var f = SaveFile.fresh(now: t0)
-        let first = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120)
-        XCTAssertFalse(first.ok)
-        let n = f.journal.count
-        for i in 1...30 {
-            let out = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + Double(i) * 5)
-            XCTAssertEqual(out, first, "отказ по-прежнему возвращается")
+        for k in 0..<60 {
+            var f = SaveFile.fresh(now: t0)
+            f.petId = "refusal-\(k)"
+            let first = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120)
+            XCTAssertFalse(first.ok)
+            let n = f.journal.count
+            for i in 1...30 {
+                let out = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + Double(i) * 5)
+                XCTAssertEqual(out, first, "отказ по-прежнему возвращается")
+            }
+            XCTAssertEqual(f.journal.count, n, "30 одинаковых отказов подряд — одна запись")
+            XCTAssertEqual(f.lastAction?.ok, false)
+            _ = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 60)
+            XCTAssertEqual(f.journal.count, n + 1, "через 10 минут тот же отказ пишется снова")
+            let before = f.journal.count
+            _ = PetRunner.apply(.pet, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 70)
+            let added = Array(f.journal.dropFirst(before))
+            XCTAssertEqual(added.first?.kind, "act.pet", "другое действие пишется сразу (\(f.petId))")
+            // Следом может идти только выполненная этой же лаской просьба.
+            XCTAssertTrue(added.dropFirst().allSatisfy { $0.kind == DogAsks.doneKind && $0.key == "pet" },
+                          "\(f.petId): \(added.map(\.kind))")
         }
-        XCTAssertEqual(f.journal.count, n, "30 одинаковых отказов подряд — одна запись")
-        XCTAssertEqual(f.lastAction?.ok, false)
-        _ = PetRunner.apply(.wake, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 60)
-        XCTAssertEqual(f.journal.count, n + 1, "через 10 минут тот же отказ пишется снова")
-        _ = PetRunner.apply(.pet, source: .app, to: &f, now: t0 + 120 + PetRunner.refusalGap + 70)
-        XCTAssertEqual(f.journal.last?.kind, "act.pet", "другое действие пишется сразу")
     }
 
     func testPerformWritesJournalAndLastAction() throws {

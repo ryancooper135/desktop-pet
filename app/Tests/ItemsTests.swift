@@ -217,7 +217,13 @@ final class ShopDailyTests: XCTestCase {
             for it in EconomyConfig.shared.capsule.pools[r] ?? [] {
                 let p = ShopDaily.price(it, b)
                 let band = ItemCatalog.decor.contains(it.id) ? b.furniture[r]! : b.clothes[r]!
-                XCTAssertTrue(band.contains(p), "\(it.id): \(p) мимо \(band)")
+                if let cap = ShopDaily.incomeCap(it.id) {
+                    // Волна 44 N: вещь с пользой монет — не дороже окупаемости 90 дн.
+                    XCTAssertLessThanOrEqual(p, cap, it.id)
+                    XCTAssertGreaterThan(p, 0, it.id)
+                } else {
+                    XCTAssertTrue(band.contains(p), "\(it.id): \(p) мимо \(band)")
+                }
                 XCTAssertEqual(p % 10, 0, it.id)
                 XCTAssertEqual(p, ShopDaily.price(it, b), "цена не прыгает")
             }

@@ -16,7 +16,7 @@ struct DailyTaskConfig: Sendable {
     /// Заданий в сутки до открытия «tasks.3».
     var count = 2
     /// Монеты за задание: base + perLevel × уровень пса, к ближайшему кратному round.
-    var coinBase = 15
+    var coinBase = 25   // волна 44 N: было 15 — ранний доход чуть выше (ECONOMY.md)
     var coinPerLevel = 3
     var coinRound = 5
     /// За все задания дня.
