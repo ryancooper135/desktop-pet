@@ -319,6 +319,19 @@ enum DogAsks {
         return c.asks.items.first { $0.open(at: now, window: cfg.window) }
     }
 
+    /// Волна 46 Q: просьба, которую видно хозяину на now — общая для дома (AppModel.dogAsk) и островка
+    /// (IslandFeed.ask), как кадр виджета (IslandEvents.frames): пса нет дома (гуляет, в походе), дремлет, моется,
+    /// ночь пса или пса нет — просьбы не видно. Окно при этом не закрывается: вернулся в окне — плашка снова.
+    /// Раньше дом проверял только «жив», и плашка «Почеши за ушком?» висела, пока пёс гулял.
+    static func shown(_ f: SaveFile, now: Double, _ cfg: DogAskConfig = .shared) -> DogAsk? {
+        guard let a = current(f, now: now, cfg) else { return nil }
+        if let tr = f.trip.active, now < tr.until { return nil }
+        let s = PetRunner.peek(f, at: now)
+        guard s.alive, s.napUntil == nil, s.outing == nil, s.bathUntil == nil else { return nil }
+        if PetEngine.petNight(now, ItemPerks.rules(f), PetRunner.owner(f, at: now)) { return nil }
+        return a
+    }
+
     /// Волна 45 O: просьбы, открытые хоть часть отрезка [now, until) — для кадров виджета. Сейв не пишется.
     /// Уже наступившие — как в current (журнал учтён, выполненные мимо). Будущие — прогноз: что пёс попросит,
     /// решается так же, как решит приложение (choose по peek на старт), пока хозяин ничего не сделал.
