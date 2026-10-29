@@ -65,6 +65,8 @@ final class AppModel {
     @ObservationIgnored var placeBackWaiting = false
     /// Волна 44 M: черты для дел простоя (idleScene) — считаются по истории, поэтому раз в 10 минут на питомца.
     @ObservationIgnored var idleTraits: (key: String, traits: [Trait])? = nil
+    /// Волна 47 T: dogAsk на пару (запись сейва, snap.t) — тело HomeScreen читает его на каждое движение пальца.
+    @ObservationIgnored var askMemo = AskMemo()
     /// Идёт расчёсывание (волна 9): прогресс сеанса; nil — не чешем.
     private(set) var brush: BrushSession? = nil
     /// Колтунов на спине в начале сеанса (по стадии шерсти) — сцена убирает их по мере мазков.
