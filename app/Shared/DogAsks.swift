@@ -332,6 +332,26 @@ enum DogAsks {
         return a
     }
 
+    /// Волна 47 S: когда просьбу, видную на now, перестанет быть видно сама — без хозяина (ядро без действий):
+    /// пёс задремал (энергия ниже nap_below), уснул на ночь или его не стало. nil — до конца окна видна.
+    /// Островок ставится один раз при уходе в фон: без этого края просьба «Почеши за ушком?» висела на нём
+    /// над задремавшим псом, а кадр виджета в то же время уже показывал сон без просьбы.
+    static func hiddenAt(_ f: SaveFile, _ a: DogAsk, now: Double, _ cfg: DogAskConfig = .shared) -> Double? {
+        let end = a.start + cfg.window
+        guard now < end else { return nil }
+        let r = ItemPerks.rules(f)
+        var s = PetRunner.peek(f, at: now)
+        var t = now
+        while t < end {
+            t = min(end, (t / 60).rounded(.down) * 60 + 60)
+            if t > s.t { s = PetEngine.advance(s, r, f.owner, t) }
+            guard t < end else { break }
+            if !s.alive || s.napUntil != nil || s.outing != nil || s.bathUntil != nil
+                || PetEngine.petNight(t, r, PetRunner.owner(f, at: t)) { return t }
+        }
+        return nil
+    }
+
     /// Волна 45 O: просьбы, открытые хоть часть отрезка [now, until) — для кадров виджета. Сейв не пишется.
     /// Уже наступившие — как в current (журнал учтён, выполненные мимо). Будущие — прогноз: что пёс попросит,
     /// решается так же, как решит приложение (choose по peek на старт), пока хозяин ничего не сделал.

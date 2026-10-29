@@ -243,6 +243,16 @@ enum PetChoreo {
         return trip.steps
     }
 
+    /// Волна 47 S: что играло бы сейчас дело простоя или путь домой (DogIdle.resume) — для ClipPlayer.wake,
+    /// когда клипы остановились под обложкой. nil — тело ведёт не дело (игра, прогулка) или дела нет.
+    static func resumeClips(_ pet: Entity, clock: Double, homeLoop: String) -> (steps: [String], loop: String)? {
+        guard let cs = pet.components[ChoreoState.self], cs.active, let c = cs.chore,
+              DogIdle.lead(now: clock, playStart: cs.play?.start, walking: cs.walk != nil, chore: true,
+                           homing: c.homing) == .chore else { return nil }
+        let r = DogIdle.resume(at: clock - c.start, c.cues, homeLoop: homeLoop, len: duration)
+        return (PetStance.pick(r.steps, available: availableClips()), r.loop)
+    }
+
     /// Гладят стоя: поверх клипов реакции наклон к руке, виляние и закрытые глаза на length секунд.
     /// Вызывать после begin (begin снимает прошлую ласку).
     static func petting(_ pet: Entity, clock: Double, length: Double, side: Float) {
@@ -358,7 +368,10 @@ enum PetChoreo {
         var pose = ChoreoPath.PetPose(position: .zero, yaw: PetRoom.yaw3q)
         var ball = ChoreoPath.Play.ballHome
         var look: Float? = nil
-        if var p = cs.play {
+        // Волна 47 S: игра после пути домой (cutChore → begin) берёт тело только со своего старта (DogIdle.lead).
+        let lead = DogIdle.lead(now: now, playStart: cs.play?.start, walking: cs.walk != nil,
+                                chore: cs.chore != nil, homing: cs.chore?.homing == true)
+        if lead == .play, var p = cs.play {
             let u = now - p.start
             let cues = ChoreoPath.Play.cues
             // Набор клипов — только когда подошла реплика, а не на каждом кадре игры.
@@ -372,7 +385,7 @@ enum PetChoreo {
             ball = ChoreoPath.ball(u)
             look = ChoreoPath.look(u, limit: PetFace.limit)
             cs.play = u >= ChoreoPath.Play.length ? nil : p
-        } else if var w = cs.walk {
+        } else if lead == .walk, var w = cs.walk {
             let u = now - w.start
             if w.out {
                 pose = ChoreoPath.walkOut(max(u, 0))
@@ -393,7 +406,7 @@ enum PetChoreo {
                 placeProp(pet, ChoreoPath.walkProp(u))
                 cs.walk = u >= ChoreoPath.Walk.inLength ? nil : w
             }
-        } else if var c = cs.chore {
+        } else if lead == .chore, var c = cs.chore {
             // Дело простоя (волна 44 M): клипы на репликах, тело — по пути DogIdle.
             // Путь домой (homing): клипы уже поставлены одним набором, только тело.
             let u = now - c.start

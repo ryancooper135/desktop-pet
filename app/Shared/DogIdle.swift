@@ -599,4 +599,35 @@ enum DogIdle {
         let steps = toStand + Array(repeating: "walk", count: n) + Gait.backClips(from: .stand, to: home)
         return (route.fitted(back: Double(n) * walkLen), steps, n)
     }
+
+    /// Волна 47 S: кто ведёт тело в кадре хореографии (PetChoreo.step). Обычно игра с мячом, потом возвращение
+    /// с прогулки, потом дело простоя. Но игра, поставленная после пути домой (касание перебило дело или прошлую
+    /// игру: cutChore, затем begin со шагами пути впереди play_bow), ведёт только со своего старта — до него
+    /// тело идёт по пути домой. Раньше ветка игры брала тело сразу: ChoreoPath.pet до старта — это дом, и пёс
+    /// съезжал домой за 0,35 с, а клипы walk шагали на месте.
+    enum Lead: Equatable, Sendable { case play, walk, chore, none }
+
+    static func lead(now: Double, playStart: Double?, walking: Bool, chore: Bool, homing: Bool) -> Lead {
+        if let s = playStart, now >= s || !(chore && homing) { return .play }
+        if walking { return .walk }
+        if chore { return .chore }
+        return playStart != nil ? .play : .none
+    }
+
+    /// Волна 47 S: что доиграть, если клипы дела остановились (комната была выключена под обложкой — StagePause,
+    /// ClipPlayer.wake). Последняя наступившая реплика: её клипы с того, что идёт сейчас (сыгранный больше чем
+    /// наполовину — мимо, как в stance), потом её цикл; пустой цикл (путь домой) — цикл дома.
+    /// Раньше wake ставил цикл дома (idle), и пёс доходил дело или путь домой, не переставляя лап.
+    static func resume(at u: Double, _ cues: [IdleCue], homeLoop: String,
+                       len: (String) -> Double) -> (steps: [String], loop: String) {
+        guard let i = cues.lastIndex(where: { $0.at <= u }) else { return ([], homeLoop) }
+        let c = cues[i]
+        var t = c.at
+        var rest = c.steps[...]
+        while let clip = rest.first, t + len(clip) / 2 <= u {
+            t += len(clip)
+            rest = rest.dropFirst()
+        }
+        return (Array(rest), c.loop.isEmpty ? homeLoop : c.loop)
+    }
 }

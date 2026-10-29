@@ -984,6 +984,11 @@ enum ClipPlayer {
     static func wake(_ pet: Entity) {
         guard let ctl = controllers[ObjectIdentifier(pet)], !ctl.isPlaying, !ctl.isComplete,
               let st = pet.components[ClipState.self], !st.reduceMotion, st.stance != .dead, !st.loop.isEmpty else { return }
+        // Волна 47 S: посреди дела простоя или пути домой — его клипы (шаг, а не цикл дома под едущим телом).
+        if let r = PetChoreo.resumeClips(pet, clock: st.clock, homeLoop: st.loop) {
+            play(r.steps, then: r.loop, on: pet, transition: 0.2, randomSpeed: false, initial: false)
+            return
+        }
         play([], then: st.loop, on: pet, transition: 0.2, randomSpeed: true, initial: false)
     }
 

@@ -108,8 +108,13 @@ struct IslandAsk: Hashable, Sendable {
     var start: Double
     var end: Double
     var coins: Int
+    /// Волна 47 S: с этого момента просьбу не видно (пёс задремал, ночь пса — DogAsks.hiddenAt); nil — до end.
+    /// Таймер на островке всё равно до end: окно не закрывается, проснётся в окне — дом снова покажет плашку.
+    var hideAt: Double? = nil
 
     var ask: DogAsk { DogAsk(start: start, kind: kind, coins: coins) }
+    /// Конец просьбы на островке.
+    var shownUntil: Double { min(end, hideAt ?? end) }
 }
 
 /// Окно сна хозяина в местных минутах (NotificationPlanner.quietHours) и пояс.
@@ -330,9 +335,9 @@ enum IslandEvents {
 
         // 4½. Просьба пса (волна 45 O): только уже открытая. Будущую заранее не показываем — «Попросит в 15:10»
         // обещал бы то, что решится по стейту на старт, и запускал бы активность ради пустяка.
-        if let a = i.ask, a.start <= now, now < a.end {
+        if let a = i.ask, a.start <= now, now < a.shownUntil {
             let line = DogAskText.line(a.kind)
-            out.append(IslandEvent(kind: .ask, from: a.start, until: a.end, title: line,
+            out.append(IslandEvent(kind: .ask, from: a.start, until: a.shownUntil, title: line,
                                    detail: DogAskText.hint(a.ask), soon: line, compact: DogAskText.emoji(a.kind),
                                    pose: .sit, timerEnd: a.end, progressFrom: nil, ring: nil, ask: a.kind))
         }

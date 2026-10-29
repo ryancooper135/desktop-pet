@@ -44,7 +44,9 @@ enum IslandFeed {
     static func ask(_ f: SaveFile, now: Double, _ cfg: DogAskConfig = .shared) -> IslandAsk? {
         // Волна 46 Q: те же условия, что у плашки дома (DogAsks.shown) — ещё и ночь пса, как в кадре виджета.
         guard let a = DogAsks.shown(f, now: now, cfg), let k = a.kind else { return nil }
-        return IslandAsk(kind: k, start: a.start, end: a.start + cfg.window, coins: a.coins)
+        // Волна 47 S: задремлет в окне — островок снимает просьбу в этот момент (staleDate), как кадр виджета.
+        return IslandAsk(kind: k, start: a.start, end: a.start + cfg.window, coins: a.coins,
+                         hideAt: DogAsks.hiddenAt(f, a, now: now, cfg))
     }
 
     /// Вход выбора острова целиком из сейва.
