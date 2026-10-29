@@ -287,10 +287,11 @@ struct WidgetCaption: View {
     var size: CGFloat = 13
 
     var body: some View {
-        Text(look.caption)
+        // Волна 45 O: просьба — «🤲 Почеши за ушком? · ещё 40 мин» в две строки, акцентом: в одну не влезает.
+        Text(look.askEmoji.map { "\($0) \(look.caption)" } ?? look.caption)
             .font(.system(size: size, weight: .bold, design: .rounded))
-            .foregroundStyle(PetPalette.ink)
-            .lineLimit(1)
+            .foregroundStyle(look.ask != nil ? PetPalette.accent : PetPalette.ink)
+            .lineLimit(look.ask != nil ? 2 : 1)
             .minimumScaleFactor(0.7)
             .accessibilityIdentifier("w34j.widget.caption")
     }
@@ -314,7 +315,8 @@ struct WidgetScreenSmallView: View {
             WidgetCaption(look: look, size: 12)
             if let tp = look.tripProgress {
                 WidgetTripDot(progress: tp)
-            } else if let m = look.main {
+            } else if look.ask == nil, let m = look.main {
+                // Просьба занимает две строки — шкалу в small тогда не показываем, места нет.
                 WidgetBarRow(bar: m)
                     .frame(height: 12)
             }
@@ -338,7 +340,8 @@ struct WidgetScreenMediumView: View {
                 if let tp = look.tripProgress {
                     WidgetTripDot(progress: tp)
                 }
-                ForEach(look.bars, id: \.need) { b in
+                // Просьба — две строки подписи: шкал тогда две, чтобы копилка не уехала за край.
+                ForEach(look.ask != nil ? Array(look.bars.prefix(2)) : look.bars, id: \.need) { b in
                     WidgetBarRow(bar: b, showName: true)
                 }
                 Spacer(minLength: 0)
@@ -454,7 +457,7 @@ struct WidgetLockRectangularView: View {
             PixelDogView(pose: look.pose, mono: true, animated: false)
                 .frame(width: 44, height: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text(look.caption)
+                Text(look.askEmoji.map { "\($0) \(look.caption)" } ?? look.caption)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .lineLimit(2)
                     .minimumScaleFactor(0.75)
@@ -478,7 +481,8 @@ struct WidgetLockInlineView: View {
     var look: WidgetLook
 
     var body: some View {
-        Text("\(Image(systemName: look.lock == .trip ? "figure.walk" : "pawprint.fill")) \(look.caption)")
+        let icon = look.ask != nil ? IslandGlyph.ask.symbol : (look.lock == .trip ? "figure.walk" : "pawprint.fill")
+        Text("\(Image(systemName: icon)) \(look.caption)")
     }
 }
 
@@ -486,7 +490,9 @@ struct WidgetLockInlineView: View {
 
 extension PreviewFixtures {
     /// Кадр виджета для каталога и снимков: настроение + копилка (доля 0…1, nil — без двора).
-    static func widgetLook(_ mood: String, bank: Double? = nil, tier: Int = 1) -> WidgetLook {
+    /// ask — просьба пса ("pet", "feed", …), открытая 20 минут назад (волна 45 O); nil — без просьб,
+    /// чтобы прежние снимки не зависели от расписания.
+    static func widgetLook(_ mood: String, bank: Double? = nil, tier: Int = 1, ask: String? = nil) -> WidgetLook {
         let r = file(mood)
         var f = r.file
         let t = r.t
@@ -497,7 +503,8 @@ extension PreviewFixtures {
             f.yard.bank = 0
             f.yard.t = t - b * YardConfig.shared.bankHours * 3600
         }
-        let looks = WidgetLook.looks(f, now: t, tzOffsetMin: 0)
+        let asks = ask.map { [DogAsk(start: t - 20 * 60, kind: $0, coins: 10)] } ?? []
+        let looks = WidgetLook.looks(f, now: t, tzOffsetMin: 0, asks: asks)
         var l = looks.first ?? WidgetLook.empty(t: t)
         switch mood {
         case "hungry": l.pose = .bowl

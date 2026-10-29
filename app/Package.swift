@@ -201,6 +201,7 @@ let package = Package(
                 "ChallengesTests.swift",
                 "DailyTasksTests.swift",
                 "DogAsksTests.swift",
+                "Wave45AskWidgetTests.swift",
                 "AutonomyTests.swift",
                 "IslandEventsTests.swift",
                 "IslandLookTests.swift",

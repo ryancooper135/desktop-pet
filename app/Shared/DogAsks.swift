@@ -319,6 +319,30 @@ enum DogAsks {
         return c.asks.items.first { $0.open(at: now, window: cfg.window) }
     }
 
+    /// Волна 45 O: просьбы, открытые хоть часть отрезка [now, until) — для кадров виджета. Сейв не пишется.
+    /// Уже наступившие — как в current (журнал учтён, выполненные мимо). Будущие — прогноз: что пёс попросит,
+    /// решается так же, как решит приложение (choose по peek на старт), пока хозяин ничего не сделал.
+    /// Сделает — приложение перезагрузит таймлайн виджета, и прогноз пересчитается.
+    static func upcoming(_ f: SaveFile, now: Double, until: Double, _ cfg: DogAskConfig = .shared) -> [DogAsk] {
+        guard enabled, until > now else { return [] }
+        var c = f
+        settle(&c, now: now, cfg)
+        var log = c.asks
+        var out: [DogAsk] = []
+        var cursor = now
+        for _ in 0..<3 {   // виджет смотрит на ~12 ч вперёд: больше двух суток не бывает
+            let dayEnd = DayKey.nextMidnight(after: cursor)
+            // Новые сутки prepare начнёт сам (today > day): расписание того дня, решения — на его старты.
+            prepare(&log, c, now: max(cursor, min(until, dayEnd - 1)), cfg)
+            for a in log.items where a.real && !a.done && a.start < until && a.start + cfg.window > now {
+                if !out.contains(where: { $0.start == a.start }) { out.append(a) }
+            }
+            guard until > dayEnd else { break }
+            cursor = dayEnd
+        }
+        return out.sorted { $0.start < $1.start }
+    }
+
     /// Минут до конца окна (не меньше 1).
     static func minutesLeft(_ a: DogAsk, now: Double, _ cfg: DogAskConfig = .shared) -> Int {
         max(1, Int(((a.start + cfg.window - now) / 60).rounded(.up)))

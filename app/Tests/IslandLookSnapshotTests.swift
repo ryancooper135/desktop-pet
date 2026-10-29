@@ -21,6 +21,8 @@ final class IslandLookSnapshotTests: XCTestCase {
             ("critical", PreviewFixtures.widgetLook("critical", tier: 0), t),
             ("walking", PreviewFixtures.widgetLook("walking", bank: 0.3, tier: 2), t),
             ("asleep", PreviewFixtures.widgetLook("asleep", bank: 0.8, tier: 2), t),
+            // Волна 45 O: просьба пса — плашка «Почеши за ушком? · ещё 40 мин» вместо подписи.
+            ("ask", PreviewFixtures.widgetLook("fed", bank: 0.6, tier: 1, ask: "pet"), t),
         ]
     }
 
@@ -34,6 +36,7 @@ final class IslandLookSnapshotTests: XCTestCase {
         i.trip = IslandTrip(from: now - 1800, backAt: now + 2400, place: "Маяк")
         i.bank = IslandBank(fullAt: now - 60, from: now - 12 * 3600, coins: 214)
         i.levelUp = IslandLevelUp(level: 14, at: now - 10)
+        i.ask = IslandAsk(kind: "pet", start: now - 1200, end: now + 2400, coins: 10)
         var home = i
         home.trip = IslandTrip(from: now - 5400, backAt: now - 60, place: "Маяк")
         var lost = i
@@ -49,6 +52,7 @@ final class IslandLookSnapshotTests: XCTestCase {
             guard let e = source.first(where: { $0.kind == kind && $0.from <= now }) else { continue }
             var c = IslandLook.card(e)
             if kind == .lastChance { c.act = .heal }
+            if kind == .ask { c.act = .pet }   // пёс не спит, ядро примет — кнопка просьбы (IslandPick.calm)
             out.append((kind.rawValue, c))
         }
         out.append(("rest", IslandLook.rest(name: "Шиба", night: false, at: now)))

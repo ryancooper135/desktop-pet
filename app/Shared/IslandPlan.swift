@@ -95,6 +95,9 @@ enum IslandAct: String, Codable, CaseIterable, Hashable, Sendable {
 struct IslandPick: Hashable, Sendable {
     var primary: IslandAct
     var secondary: IslandAct?
+    /// Волна 45 O: действия (feed, bath, play, pet), которые ядро примет прямо сейчас, не будя пса.
+    /// Ночью, в дрёме, на прогулке и в ванне — пусто: кнопка просьбы тогда «Открыть».
+    var calm: Set<IslandAct> = []
 }
 
 enum IslandPlan {
@@ -144,13 +147,27 @@ enum IslandPlan {
         var rest = wanted
         if petAsFallback { rest.append(.pet) }
         let secondary = rest.first { $0 != primary && accepted($0) }
-        return IslandPick(primary: primary, secondary: secondary)
+        let calm: Set<IslandAct> = s.napUntil != nil ? [] : Set([IslandAct.feed, .bath, .play, .pet].filter(accepted))
+        return IslandPick(primary: primary, secondary: secondary, calm: calm)
     }
 
     /// Волна 33 E: кнопка развёрнутого островка для события (IslandEvents). pick — что ядро примет сейчас:
     /// на «последнем сердечке» нужна та кнопка, что спасает; без неё — «Открыть».
-    static func act(for kind: IslandEvent.Kind, pick: IslandPick? = nil) -> IslandAct {
+    /// Волна 45 O: просьба — кнопкой та, что выполняет просьбу (ask: "pet" → «Погладить»), если ядро примет её
+    /// сейчас и пса не надо будить (pick.calm); расчесать и гулять — только в приложении; иначе «Открыть».
+    static func act(for kind: IslandEvent.Kind, pick: IslandPick? = nil, ask: String? = nil) -> IslandAct {
         switch kind {
+        case .ask:
+            let a: IslandAct?
+            switch ask {
+            case "feed"?: a = .feed
+            case "bath"?: a = .bath
+            case "pet"?: a = .pet
+            case "play"?: a = .play
+            default: a = nil
+            }
+            if let a, pick?.calm.contains(a) == true { return a }
+            return .open
         case .lastChance:
             if let p = pick?.primary, p.action != nil { return p }
             return .open

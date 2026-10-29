@@ -59,7 +59,7 @@ final class IslandEventsTests: XCTestCase {
         let dc = IslandEvents.candidates(d, cfg)
         XCTAssertEqual(dc.map(\.kind), [.runaway])
         XCTAssertEqual(IslandEvents.show(d, cfg).current?.title, "Найди Шиба: 1/2 следа, 41 ч")
-        XCTAssertEqual(IslandEvent.Kind.allCases.map(\.rank), [1, 2, 3, 4, 4, 5, 6])
+        XCTAssertEqual(IslandEvent.Kind.allCases.map(\.rank), [1, 2, 3, 4, 4, 5, 6, 7])
     }
 
     /// Волна 36 O: слово «след» согласовано с числом всего следов.

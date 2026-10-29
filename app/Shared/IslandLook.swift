@@ -39,11 +39,23 @@ enum IslandFeed {
         f.level.lastUp.map { IslandLevelUp(level: $0.level, at: $0.t) }
     }
 
+    /// Волна 45 O: просьба пса, открытая на now (та же, что плашка дома, — DogAsks.current).
+    /// nil, если пёс спит, гуляет, моется или в походе: островок его не будит и не зовёт туда, где его нет.
+    static func ask(_ f: SaveFile, now: Double, _ cfg: DogAskConfig = .shared) -> IslandAsk? {
+        guard let a = DogAsks.current(f, now: now, cfg), let k = a.kind else { return nil }
+        if let tr = f.trip.active, now < tr.until { return nil }
+        let s = PetRunner.peek(f, at: now)
+        guard s.alive, s.napUntil == nil, s.outing == nil, s.bathUntil == nil else { return nil }
+        return IslandAsk(kind: k, start: a.start, end: a.start + cfg.window, coins: a.coins)
+    }
+
     /// Вход выбора острова целиком из сейва.
     static func input(_ f: SaveFile, now: Double, tzOffsetMin: Int? = nil,
                       _ cfg: IslandEventsConfig = .shared) -> IslandInput {
-        IslandEvents.input(f, at: now, trip: trip(f, now: now, cfg), bank: bank(f, now: now),
-                           levelUp: levelUp(f), tzOffsetMin: tzOffsetMin, cfg)
+        var i = IslandEvents.input(f, at: now, trip: trip(f, now: now, cfg), bank: bank(f, now: now),
+                                   levelUp: levelUp(f), tzOffsetMin: tzOffsetMin, cfg)
+        i.ask = ask(f, now: now)
+        return i
     }
 
     /// Ярус двора (0 — подоконник) и его имя.
@@ -56,9 +68,10 @@ enum IslandFeed {
 
 // MARK: - Карточка острова
 
-/// Значок события: следы, сердце, миска, пёс-точка на полоске, домик, свинка, звезда; calm — тихий вид.
+/// Значок события: следы, сердце, миска, пёс-точка на полоске, домик, облачко просьбы, свинка, звезда;
+/// calm — тихий вид.
 enum IslandGlyph: String, Codable, CaseIterable, Hashable, Sendable {
-    case tracks, heart, bowl, trip, home, piggy, star, calm
+    case tracks, heart, bowl, trip, home, ask, piggy, star, calm
 
     init(_ k: IslandEvent.Kind) {
         switch k {
@@ -67,6 +80,7 @@ enum IslandGlyph: String, Codable, CaseIterable, Hashable, Sendable {
         case .hungry: self = .bowl
         case .trip: self = .trip
         case .home: self = .home
+        case .ask: self = .ask
         case .bank: self = .piggy
         case .levelUp: self = .star
         }
@@ -80,6 +94,7 @@ enum IslandGlyph: String, Codable, CaseIterable, Hashable, Sendable {
         case .bowl: return "fork.knife"
         case .trip: return "figure.walk"
         case .home: return "house.fill"
+        case .ask: return "bubble.left.fill"
         case .piggy: return "dollarsign.circle.fill"
         case .star: return "star.fill"
         case .calm: return "pawprint"
@@ -112,7 +127,7 @@ struct IslandCard: Codable, Hashable, Sendable {
     /// Компакт справа.
     var trailing: IslandTrailing {
         switch kind {
-        case .lastChance?, .trip?, .runaway?: return timerEnd != nil ? .timer : .text
+        case .lastChance?, .trip?, .runaway?, .ask?: return timerEnd != nil ? .timer : .text
         case .bank?: return .ring
         default: return .text
         }
@@ -137,7 +152,7 @@ enum IslandLook {
         IslandCard(kind: e.kind, glyph: IslandGlyph(e.kind), title: pending ? e.soon : e.title,
                    detail: pending ? nil : e.detail, compact: e.compact, pose: e.pose, from: e.from, until: e.until,
                    timerEnd: e.timerEnd, progressFrom: e.progressFrom, ring: e.ring,
-                   act: IslandPlan.act(for: e.kind, pick: pick))
+                   act: IslandPlan.act(for: e.kind, pick: pick, ask: e.ask))
     }
 
     /// Тихий вид: событие прошло, а нового нет. Ночью хозяина — спит, днём — «Всё хорошо».
@@ -449,6 +464,11 @@ struct WidgetLook: Hashable, Sendable {
     var lock: WidgetLockMode
     /// Размер пса по росту: щенок мельче.
     var dogScale: Double
+    /// Волна 45 O: просьба пса на кадре — caption тогда плашка «Почеши за ушком? · ещё 40 мин» (как дома),
+    /// askEmoji — значок перед ней, askEnd — конец окна. nil — просьбы нет.
+    var ask: String? = nil
+    var askEmoji: String? = nil
+    var askEnd: Double? = nil
 
     /// Порядок шкал (как VisibleNeeds.all в приложении).
     static let order: [Need] = [.food, .clean, .energy, .fun, .love, .walk]
@@ -465,11 +485,14 @@ struct WidgetLook: Hashable, Sendable {
     /// Smart Stack: поднять виджет, когда что-то нужно.
     var relevance: Float {
         guard alive else { return 0 }
+        let base: Float
         switch pose {
-        case .bowl: return 0.8
-        case .lie: return 0.4
-        default: return bankFull ? 0.6 : 0.1
+        case .bowl: base = 0.8
+        case .lie: base = 0.4
+        default: base = bankFull ? 0.6 : 0.1
         }
+        // Просьба уходит через час: поднять выше «Всё хорошо», но не выше голода.
+        return ask != nil ? max(base, 0.5) : base
     }
 
     static func caption(_ fr: PoseFrame) -> String {
@@ -495,7 +518,8 @@ struct WidgetLook: Hashable, Sendable {
     }
 
     static func make(_ fr: PoseFrame, bank: IslandBank?, trip: IslandTrip?, tier: Int, tierName: String,
-                     tz: Int, dogScale: Double = 1) -> WidgetLook {
+                     tz: Int, dogScale: Double = 1,
+                     askWindow: Double = DogAskConfig.shared.window) -> WidgetLook {
         let ring = fr.ring
         let full = fr.bankFull
         var coins: Int?
@@ -510,15 +534,24 @@ struct WidgetLook: Hashable, Sendable {
         if let u = fr.tripUntil, let tr = trip, tr.backAt == u { from = tr.from }
         let lowest = lowest(fr.bars, 3)
         let lock: WidgetLockMode = fr.tripUntil != nil && fr.alive ? .trip : (ring != nil ? .ring : .pose)
-        return WidgetLook(t: fr.t, pose: fr.pose, alive: fr.alive, caption: caption(fr),
-                          main: Self.lowest(fr.bars, 1).first, bars: lowest, ring: ring, coins: coins,
-                          coinsFull: bank?.coins, bankLine: line, bankFull: full, tripFrom: from,
-                          tripUntil: fr.tripUntil, sky: SkyPhase.at(fr.t, tz: tz), tier: tier, tierName: tierName,
-                          lock: lock, dogScale: min(1, max(0.7, dogScale)))
+        var look = WidgetLook(t: fr.t, pose: fr.pose, alive: fr.alive, caption: caption(fr),
+                              main: Self.lowest(fr.bars, 1).first, bars: lowest, ring: ring, coins: coins,
+                              coinsFull: bank?.coins, bankLine: line, bankFull: full, tripFrom: from,
+                              tripUntil: fr.tripUntil, sky: SkyPhase.at(fr.t, tz: tz), tier: tier, tierName: tierName,
+                              lock: lock, dogScale: min(1, max(0.7, dogScale)))
+        // Просьба: та же плашка, что дома (DogAskText.plate), минуты — на момент кадра.
+        if let a = fr.ask, let k = a.kind {
+            look.caption = DogAskText.plate(a, now: fr.t)
+            look.ask = look.caption
+            look.askEmoji = DogAskText.emoji(k)
+            look.askEnd = a.start + askWindow
+        }
+        return look
     }
 
-    /// Кадры виджета из сейва: 24 шт., сейчас и дальше по :00/:30 на 12 ч.
-    static func looks(_ f: SaveFile, now: Double, tzOffsetMin: Int? = nil,
+    /// Кадры виджета из сейва: 24 шт., сейчас и дальше по :00/:30 на 12 ч; в окнах просьб пса — ещё раз в 5 мин.
+    /// asks: nil — посчитать из сейва (DogAsks.upcoming, то же расписание, что у приложения); [] — без просьб.
+    static func looks(_ f: SaveFile, now: Double, tzOffsetMin: Int? = nil, asks: [DogAsk]? = nil,
                       _ cfg: IslandEventsConfig = .shared) -> [WidgetLook] {
         let tz = tzOffsetMin ?? Clock.tzOffsetMin(at: now)
         let bank = IslandFeed.bank(f, now: now)
@@ -527,7 +560,9 @@ struct WidgetLook: Hashable, Sendable {
         if trip == nil, let w = PetRunner.peek(f, at: now).outing {
             trip = IslandTrip(from: w.from, backAt: w.until, place: "Гуляет")
         }
-        let frames = IslandEvents.widget(f, now: now, trip: trip, bank: bank, tzOffsetMin: tzOffsetMin, cfg)
+        let until = (IslandEvents.frameTimes(now: now, cfg).last ?? now) + 1
+        let a = asks ?? DogAsks.upcoming(f, now: now, until: until)
+        let frames = IslandEvents.widget(f, now: now, trip: trip, bank: bank, tzOffsetMin: tzOffsetMin, asks: a, cfg)
         let tier = IslandFeed.yardTier(f)
         let scale = Growth.look(f).scale
         return frames.map {

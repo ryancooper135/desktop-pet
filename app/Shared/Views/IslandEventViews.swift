@@ -143,6 +143,7 @@ extension IslandGlyph {
         case .tracks, .heart: return PetPalette.red
         case .bowl: return PetPalette.need(.food)
         case .trip, .home: return PetPalette.green
+        case .ask: return PetPalette.accent
         case .piggy: return Color(hex: 0xf4a6b4)
         case .star: return PetPalette.yellow
         case .calm: return PetPalette.soft
