@@ -39,7 +39,8 @@ extension AppModel {
     /// Волна 46 Q: DogAsks.shown — как островок и виджет (раньше только «жив»: плашка висела, пока пёс гулял).
     var dogAsk: DogAsk? {
         guard DogAsks.enabled, snap.alive, let f = file else { return nil }
-        return DogAsks.shown(f, now: snap.t)
+        // Волна 47 T: тот же DogAsks.shown, но раз на (запись сейва, snap.t), а не на каждое тело HomeScreen.
+        return askMemo.shown(f, now: snap.t)
     }
 
     /// Нажатие на плашку: подсказка, какую кнопку нажать и сколько монет.
