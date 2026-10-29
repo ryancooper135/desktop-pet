@@ -59,9 +59,16 @@ final class LevelUITests: XCTestCase {
 
         // Сцена идёт сама: refresh видит оплаченный, но не показанный уровень. Тост «Уровень 3!» живёт 2.6 с, потом
         // его сменяет «Открылось: …» — пока тест закрывает системные окна, первый можно пропустить. Годится любой из двух.
+        // Волна 45 P: тост живёт 2,5 с, а один запрос к дереву под 3D на CI — до десятков секунд, и
+        // waitForExistence мог проспать оба тоста (прогон 40794999478, шард 3: «нет тоста нового уровня»). Как в ui-78:
+        // годится сам тост или след «toast=…|» в значении pet.stage (последние 4 тоста, только в UI-тестах, волна 41 H).
         let toast = any.matching(identifier: "toast")
             .matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "Уровень 3", "Открылось")).firstMatch
-        XCTAssertTrue(toast.waitForExistence(timeout: 15), "нет тоста нового уровня")
+        let stage = any["pet.stage"].firstMatch
+        let shown = eventually(timeout: 60) {
+            toast.exists || (valueNow(stage).map { $0.contains("toast=Уровень 3") || $0.contains("toast=Открылось") } ?? false)
+        }
+        XCTAssertTrue(shown, "нет тоста нового уровня (\(valueNow(stage) ?? "нет pet.stage"))")
         // Тост въезжает снизу с прозрачности (~0,35 с): без паузы снимок ловил пустое место.
         settle(0.6)
         snap("ui-34-level-up")
