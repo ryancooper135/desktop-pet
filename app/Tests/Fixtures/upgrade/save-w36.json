@@ -1,0 +1,519 @@
+{
+  "birthTz" : 120,
+  "blockduoBest" : 1500,
+  "blockduoCoins" : 4,
+  "blockduoDay" : 20370,
+  "blockduoGames" : 1,
+  "brush" : {
+    "n" : 5,
+    "t" : 1759970000
+  },
+  "build" : {
+    "expiresT" : 1760500000,
+    "seenT" : 1759990000
+  },
+  "cards" : {
+    "album" : [
+      {
+        "caption" : "Хрустики!",
+        "day" : 20369,
+        "expiresT" : 1760534800,
+        "id" : "20369-feed",
+        "kind" : "feed",
+        "pose" : "eating",
+        "savedT" : 1759940000,
+        "score" : 30,
+        "t" : 1759930000,
+        "tz" : 120
+      }
+    ],
+    "doneDay" : 20369,
+    "pending" : [
+
+    ]
+  },
+  "care" : {
+    "days" : {
+      "20370" : {
+        "feed" : 3,
+        "pet" : 2
+      }
+    },
+    "last" : {
+      "feed" : 1759995000
+    },
+    "seq" : 40
+  },
+  "catchBest" : 42,
+  "catchCoins" : 6,
+  "catchDay" : 20370,
+  "catchGames" : 2,
+  "challenge" : {
+    "count" : 4,
+    "day" : 20370,
+    "last" : {
+      "game" : "catch",
+      "goal" : 30,
+      "score" : 42,
+      "shards" : 1,
+      "t" : 1759975000,
+      "weekShards" : 0
+    },
+    "week" : 2910,
+    "weekDays" : 2
+  },
+  "character" : "fixture-char",
+  "characterName" : "Тестик",
+  "cooking" : {
+    "bonusDay" : 20369,
+    "day" : 20370,
+    "lastT" : 1759985000,
+    "today" : 1,
+    "total" : {
+      "soup" : 2
+    }
+  },
+  "createdT" : 1759136000,
+  "deviceId" : "fixture-device",
+  "econ" : {
+    "capsule" : {
+      "pityEpic" : 4,
+      "pityLegendary" : 9,
+      "pulls" : 9
+    },
+    "daily" : {
+      "care" : 12,
+      "coinPulls" : 1,
+      "day" : 20370,
+      "habits" : 5,
+      "steps" : 3000,
+      "stepsCoins" : 12
+    },
+    "items" : {
+      "ball_tennis" : 1,
+      "bandana_red" : 2,
+      "kennel_castle" : 1,
+      "scarf_knit" : 1
+    },
+    "lastEarn" : {
+      "capped" : false,
+      "coins" : 3,
+      "id" : "fixture-device:40",
+      "kind" : "feed",
+      "t" : 1759995000
+    },
+    "paidSeq" : 40,
+    "wallet" : {
+      "coins" : 1234,
+      "shards" : 17,
+      "tickets" : 3
+    }
+  },
+  "flags" : {
+    "notifAsked" : true,
+    "rulesShown" : true,
+    "widgetHintCount" : 2
+  },
+  "growth" : {
+    "day" : 20370,
+    "last" : {
+      "d" : 20369,
+      "g" : 12,
+      "h" : 4,
+      "home" : 0.9,
+      "n" : 0.8,
+      "v" : true
+    },
+    "open" : {
+      "awake" : 300,
+      "away" : 20,
+      "bad" : 20,
+      "d" : 20370,
+      "home" : 280,
+      "noData" : false,
+      "visit" : true
+    },
+    "points" : 340,
+    "t" : 1759990000
+  },
+  "habits" : {
+    "day" : 20370,
+    "last" : {
+      "water" : 1759990000
+    },
+    "today" : {
+      "water" : 1
+    },
+    "total" : {
+      "water" : 9
+    }
+  },
+  "island" : {
+    "enabled" : true
+  },
+  "journal" : [
+    {
+      "id" : "fixture-device:39",
+      "kind" : "act.pet",
+      "ok" : true,
+      "source" : "widget",
+      "t" : 1759994000
+    },
+    {
+      "id" : "fixture-device:40",
+      "key" : "kibble",
+      "kind" : "act.feed",
+      "ok" : true,
+      "source" : "app",
+      "t" : 1759995000
+    }
+  ],
+  "lastAction" : {
+    "kind" : "feed",
+    "ok" : true,
+    "source" : "app",
+    "t" : 1759995000
+  },
+  "lastSeenT" : 1759990000,
+  "lastStepsT" : 1759980000,
+  "level" : {
+    "counts" : {
+      "feed" : 2,
+      "walk" : 1
+    },
+    "day" : 20370,
+    "dayXp" : 60,
+    "firsts" : [
+      "feed",
+      "walk"
+    ],
+    "gameDay" : {
+      "catch" : 20370
+    },
+    "gameSeen" : {
+      "catch" : 2
+    },
+    "hearts" : 4,
+    "heartsT" : 1759990000,
+    "last" : {
+      "reason" : "feed",
+      "t" : 1759995000,
+      "xp" : 10
+    },
+    "lastUp" : {
+      "coins" : 50,
+      "level" : 24,
+      "shards" : 1,
+      "t" : 1759900000
+    },
+    "migrated" : 1,
+    "paidLevel" : 24,
+    "seenSeq" : 40,
+    "started" : true,
+    "visited" : true,
+    "xp" : 6500
+  },
+  "memories" : {
+    "catchBase" : 42,
+    "items" : [
+      {
+        "id" : "trick.sit",
+        "key" : "sit",
+        "t" : 1759950000
+      },
+      {
+        "id" : "find.acorn",
+        "key" : "acorn",
+        "t" : 1759800000
+      }
+    ],
+    "seq" : 40
+  },
+  "name" : "Шиба",
+  "notif" : {
+    "lastSentT" : 1759980000,
+    "scheduled" : [
+      1760010000
+    ]
+  },
+  "outbox" : [
+    {
+      "id" : "fixture-device:40",
+      "key" : "kibble",
+      "kind" : "act.feed",
+      "ok" : true,
+      "source" : "app",
+      "t" : 1759995000
+    }
+  ],
+  "owner" : {
+    "bedMin" : 1380,
+    "tzOffsetMin" : 120,
+    "wakeMin" : 480
+  },
+  "pet" : {
+    "alive" : true,
+    "bathUntil" : null,
+    "cause" : null,
+    "cooldowns" : {
+      "pet" : 1760000180
+    },
+    "diedAt" : null,
+    "finds" : {
+      "acorn" : 1,
+      "stick" : 3
+    },
+    "grace" : {
+      "dirty" : 1.5,
+      "starve" : 0,
+      "toska" : 0
+    },
+    "hearts" : 4,
+    "home" : {
+      "bath" : 1,
+      "bed" : 0,
+      "kennel" : 1,
+      "kitchen" : 2,
+      "play" : 0,
+      "yard" : 0
+    },
+    "lastChanceH" : null,
+    "lastHeartLossT" : 1759900000,
+    "napUntil" : null,
+    "needs" : {
+      "clean" : 64,
+      "energy" : 80,
+      "food" : 71.5,
+      "fun" : 55,
+      "look" : 75,
+      "love" : 90,
+      "walk" : 40
+    },
+    "outing" : null,
+    "pantry" : 2,
+    "t" : 1760000000
+  },
+  "petId" : "fixture-pet",
+  "rev" : 321,
+  "roomEvening" : "warm",
+  "runaway" : {
+    "comebacks" : [
+      1759500000
+    ],
+    "steps" : 0,
+    "trails" : [
+
+    ]
+  },
+  "seen" : {
+    "alive" : true,
+    "bathUntil" : null,
+    "cause" : null,
+    "cooldowns" : {
+
+    },
+    "diedAt" : null,
+    "finds" : {
+      "acorn" : 1,
+      "stick" : 3
+    },
+    "grace" : {
+      "dirty" : 1,
+      "starve" : 0,
+      "toska" : 0
+    },
+    "hearts" : 4,
+    "home" : {
+      "bath" : 1,
+      "bed" : 0,
+      "kennel" : 1,
+      "kitchen" : 2,
+      "play" : 0,
+      "yard" : 0
+    },
+    "lastChanceH" : null,
+    "lastHeartLossT" : null,
+    "napUntil" : null,
+    "needs" : {
+      "clean" : 66,
+      "energy" : 82,
+      "food" : 75,
+      "fun" : 58,
+      "look" : 76,
+      "love" : 92,
+      "walk" : 44
+    },
+    "outing" : null,
+    "pantry" : 2,
+    "t" : 1759990000
+  },
+  "seq" : 40,
+  "shardLog" : {
+    "atelier" : 0,
+    "best" : {
+      "catch" : 42,
+      "zombie" : 77
+    },
+    "chestPaid" : false,
+    "day" : 20370,
+    "dayActs" : 3,
+    "dayPaid" : true,
+    "earned" : 23,
+    "finds" : 4,
+    "goodDays" : 9,
+    "last" : {
+      "reason" : "care_day",
+      "shards" : 1,
+      "t" : 1759990000
+    },
+    "once" : [
+      "ach.first_trick",
+      "ach.first_dish"
+    ],
+    "recordDay" : 20369,
+    "seenSeq" : 40,
+    "week" : 2910,
+    "weekDays" : 2
+  },
+  "shelf" : "kennel_castle",
+  "shop" : {
+    "bought" : [
+      "ball_tennis"
+    ],
+    "day" : 20370,
+    "ids" : [
+      "bandana_red",
+      "ball_tennis"
+    ]
+  },
+  "shots" : {
+    "day" : 20370,
+    "items" : [
+      {
+        "day" : 20370,
+        "file" : "fixture-shot.jpg",
+        "kind" : "play",
+        "score" : 20,
+        "t" : 1759996000
+      }
+    ],
+    "taken" : 1
+  },
+  "sleep" : {
+    "greeted" : 20370,
+    "lastT" : 1759990000,
+    "nights" : [
+      {
+        "eve" : 660,
+        "morn" : 1200,
+        "n" : 20369
+      }
+    ]
+  },
+  "tastes" : {
+    "opened" : {
+      "food.kibble" : {
+        "r" : "like",
+        "t" : 1759900000
+      }
+    },
+    "seen" : {
+      "food.kibble" : {
+        "n" : 5,
+        "r" : "like",
+        "t" : 1759995000
+      }
+    }
+  },
+  "tips" : {
+    "lastStrokeT" : 1759980000,
+    "seen" : [
+      "pet",
+      "swipe"
+    ],
+    "strokes" : 12
+  },
+  "toy" : "ball_tennis",
+  "tricks" : {
+    "items" : {
+      "lie" : {
+        "n" : 2,
+        "t" : 1759960000,
+        "tries" : 4
+      },
+      "sit" : {
+        "learned" : 1759950000,
+        "n" : 6,
+        "t" : 1759950000,
+        "tries" : 8
+      }
+    },
+    "joyT" : 1759950000
+  },
+  "trip" : {
+    "album" : {
+      "bus_stop.badge" : 1,
+      "bus_stop.ticket" : 2
+    },
+    "count" : 5,
+    "last" : {
+      "coins" : 0,
+      "event" : "none",
+      "extra" : "bus_stop.ticket",
+      "extraNew" : false,
+      "extraTier" : "common",
+      "find" : "bus_stop.badge",
+      "isNew" : true,
+      "note" : "Нашёл значок",
+      "photo" : false,
+      "place" : "bus_stop",
+      "setShards" : 0,
+      "shards" : 1,
+      "star" : true,
+      "t" : 1759970000,
+      "ticket" : false,
+      "tier" : "rare",
+      "xp" : 30
+    },
+    "ticketWeek" : 2910,
+    "visits" : {
+      "bus_stop" : 3,
+      "laundry" : 2
+    },
+    "wellDay" : 20369,
+    "xp" : 150
+  },
+  "v" : 1,
+  "worn" : {
+    "neck" : "scarf_knit"
+  },
+  "yard" : {
+    "bank" : 55.5,
+    "collected" : 420,
+    "collects" : 7,
+    "food" : {
+      "dryer" : 3.5
+    },
+    "gold" : [
+      "window"
+    ],
+    "larder" : 1,
+    "moves" : 1,
+    "plates" : [
+      "window",
+      "daisy",
+      "dryer",
+      "trash"
+    ],
+    "stations" : {
+      "dryer" : 2
+    },
+    "t" : 1759990000,
+    "tipDay" : 20370,
+    "tipsToday" : 1
+  },
+  "zombieBest" : 77,
+  "zombieCoins" : 3,
+  "zombieDay" : 20370,
+  "zombieGames" : 1
+}

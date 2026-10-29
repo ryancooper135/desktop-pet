@@ -164,6 +164,7 @@ let package = Package(
                 "PetStoreRecoveryTests.swift",
                 "SaveRecoveryTests.swift",
                 "SaveMigrationTests.swift",
+                "Wave48SaveUpgradeTests.swift",
                 "NotificationPlannerCoverageTests.swift",
                 "PresenterCoverageTests.swift",
                 "CatalogHashTests.swift",
