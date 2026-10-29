@@ -71,6 +71,9 @@ struct IdlePlan: Equatable, Sendable {
     /// Лёжа (с ковра, после зевка) — встать, если дело перебили: lie_out.
     var lies = false
     var line: String
+    /// Как пёс стоял дома, когда затеял дело (и как должен стоять, вернувшись): от неё считается, чем
+    /// вернуться, если дело перебили (DogIdle.stance(at:), Gait.backClips).
+    var home: DogIdle.Stance = .stand
 
     var clips: [String] { steps + out + (hold.map { [$0] } ?? []) }
 
@@ -81,21 +84,21 @@ struct IdlePlan: Equatable, Sendable {
 }
 
 /// Реплика клипов дела: в момент at (от начала) сыграть steps по разу, потом цикл loop.
-/// back — чем вернуться в стойку дома, если дело перебили после этой реплики.
+/// Чем вернуться, если дело перебили, — по положению на момент перебоя (DogIdle.stance(at:)), а не по реплике:
+/// раньше «встать» знала только лёжка, и почесавшийся сидя пёс оставался стоять (волна 46 R).
 struct IdleCue: Equatable, Sendable {
     var at: Double
     var steps: [String]
     var loop: String
-    var back: [String] = []
 }
 
 /// Путь дела: из дома (начало координат, yaw3q) к месту, дело, обратно, дома ровно yaw3q.
 /// Повороты без перескоков: углы «развёрнуты» (PetChoreo.step смешивает их линейно, без заворота через ±π).
 struct IdleRoute: Equatable, Sendable {
     typealias P = RoomPlan.P
-    /// Шаг, м/с — как ChoreoPath.Walk.speed (клип walk, лапы не скользят). С плавным разгоном пик — 1,5 средней.
-    static let speed: Float = 0.4
-    /// Поворот на месте, рад/с, и не быстрее minTurn.
+    /// Шаг взрослого, м/с — как ChoreoPath.Walk.speed (клип walk, лапы не скользят). Под рост — Gait.speed.
+    static let speed: Float = Gait.nominal
+    /// Поворот на ходу, рад/с, и не быстрее minTurn (на месте — Gait.pivotTime, переступая).
     static let turnRate: Float = 3.0
     static let minTurn = 0.35
 
@@ -153,48 +156,125 @@ struct IdleRoute: Equatable, Sendable {
             spot = RoomPlan.playArea.clamp(spot, inset: reach(plan.face, size: size))
         }
         let moving = spot.length > 0.001
+        let v = Gait.speed(size: size)
         let yOut = moving ? near(RoomPlan.yaw(toward: spot), y0) : near(plan.face, y0)
         let yFace = near(plan.face, yOut)
-        // Назад: разворот к дому — в ту сторону, где пёс не заденет миску и мяч, а из двух таких — где
-        // поворачивать меньше (с доворотом дома). Если с места дела не выходит ни так, ни так — разворачивается,
-        // переступая от миски, на сколько нужно. На месте — сразу из yFace в 3/4 (за turnHome).
+        // На ходу поворачивает по пути (turnTime); на месте (мячик, ковёр) — переступая, медленнее (pivotTime).
+        let tOut = moving ? turnTime(yOut - y0) : Gait.pivotTime(yOut - y0)
+        let tFace = moving ? turnTime(yFace - yOut) : 0
+        let walk = moving ? Gait.walkTime(spot.length, speed: v) : 0
+        let leg = backLeg(spot: spot, yFace: yFace, size: size, chore: plan.chore, speed: v, moving: moving)
+        return IdleRoute(spot: spot, pivot: leg.pivot, y0: y0, yOut: yOut, yFace: yFace, yBack: leg.yBack,
+                         yHome: leg.yHome, turnOut: tOut, turnFace: tFace, turnBack: leg.tBack, turnHome: leg.tHome,
+                         go: max(walk, tOut + tFace), act: max(0, act), back: leg.back, size: size)
+    }
+
+    /// Обратный путь из места p с поворотом yaw: hold секунд стоит (встаёт с ковра), потом разворот и шаг домой
+    /// со скоростью клипа walk при темпе 1 (Gait.nominal * size). Так пёс уходит домой, если дело перебили.
+    /// Шаг почти не нужен (сдвиг меньше Gait.stepMin) — доезжает и доворачивает на месте не быстрее Gait.minPivot.
+    static func home(from p: P, yaw: Float, hold: Double, size: Float, chore: IdleChore) -> IdleRoute {
+        let size = max(0.2, size)
+        let moving = p.length >= Gait.stepMin
+        let v = Gait.nominal * size
+        var leg = backLeg(spot: p, yFace: yaw, size: size, chore: chore, speed: v, moving: moving)
+        if !moving && (p.length > 0.0001 || abs(leg.yHome - yaw) > 0.001) {
+            // Сдвиг в пару сантиметров — не рывком за кадр, а хотя бы за полсекунды.
+            leg.tHome = max(leg.tHome, Gait.minPivot)
+            leg.back = leg.tHome
+        }
+        return IdleRoute(spot: p, pivot: leg.pivot, y0: yaw, yOut: yaw, yFace: yaw, yBack: leg.yBack,
+                         yHome: leg.yHome, turnOut: 0, turnFace: 0, turnBack: leg.tBack, turnHome: leg.tHome,
+                         go: 0, act: max(0, hold), back: leg.back, size: size)
+    }
+
+    /// Обратный путь с места spot (мордой yFace): разворот к дому, где не задеть миску и мяч, шаг, доворот в 3/4.
+    private static func backLeg(spot: P, yFace: Float, size: Float, chore: IdleChore, speed v: Float,
+                                moving: Bool) -> (pivot: P, yBack: Float, yHome: Float, tBack: Double, tHome: Double,
+                                                  back: Double) {
+        let y0 = RoomPlan.Keep.yaw3q
+        guard moving else {
+            // На месте — сразу из yFace в 3/4, переступая.
+            let yHome = near(y0, yFace)
+            let t = Gait.pivotTime(yHome - yFace)
+            return (spot, yFace, yHome, 0, t, t)
+        }
+        let turn = backTurn(spot: spot, yFace: yFace, size: size, chore: chore)
+        // Дома ровно 3/4 — с точностью до витка (обошёл миску кругом — тот же поворот на 2π дальше).
+        let yHome = near(y0, turn.yaw)
+        let tBack = max(Gait.pivotTime(turn.yaw - yFace),
+                        Double((turn.pivot - spot).length * 1.5 / v) / stepAside)
+        let walkHome = Gait.walkTime(turn.pivot.length, speed: v)
+        // В 3/4 пёс заворачивает ещё на подходе (последняя треть пути), а не крутится дома: морда не тычется в мяч.
+        let tHome = max(turnTime(yHome - turn.yaw), min(1.2, walkHome / 3))
+        return (turn.pivot, turn.yaw, yHome, tBack, tHome, tBack + max(walkHome, tHome))
+    }
+
+    /// Разворот к дому — в ту сторону, где пёс не заденет миску и мяч, а из двух таких — где поворачивать меньше
+    /// (с доворотом дома). Если с места не выходит ни так, ни так — разворачивается, переступая от миски,
+    /// на сколько нужно.
+    static func backTurn(spot: P, yFace: Float, size: Float, chore: IdleChore) -> (yaw: Float, pivot: P) {
+        let y0 = RoomPlan.Keep.yaw3q
+        let full: Float = 2 * .pi
+        func cost(_ y: Float) -> Float {
+            let home: Float = near(y0, y)
+            return abs(y - yFace) + abs(home - y)
+        }
+        let away = spot - RoomPlan.Keep.bowlHome
+        // Сперва переступить от миски; не вышло (перебили на полпути к кухне: площадка там узкая, и боком пёс
+        // всё равно у миски) — назад к дому, где шире (волна 46 R).
+        let homeward = P(0, 0) - spot
+        var dirs = [away * (1 / max(away.length, 0.001))]
+        if homeward.length > 0.001 { dirs.append(homeward * (1 / homeward.length)) }
         var yBack = yFace
-        var pivot = spot
-        if moving {
-            let full: Float = 2 * .pi
-            func cost(_ y: Float) -> Float {
-                let home: Float = near(y0, y)
-                return abs(y - yFace) + abs(home - y)
-            }
-            let away = spot - RoomPlan.Keep.bowlHome
-            let dir = away * (1 / max(away.length, 0.001))
-            var found = false
-            for k in 0...40 where !found {
+        for (i, dir) in dirs.enumerated() {
+            for k in (i == 0 ? 0 : 1)...40 {
                 let q = RoomPlan.playArea.clamp(spot + dir * (Float(k) * 0.01), inset: reach(yFace, size: size))
                 let raw: Float = near(RoomPlan.yaw(toward: P(0, 0) - q), yFace)
                 let turns: [Float] = [raw, raw - full, raw + full].sorted { cost($0) < cost($1) }
                 if let y = turns.first(where: { clearTurn(from: spot, to: q, yaw: yFace, to: $0, size: size,
-                                                          chore: plan.chore) }) {
-                    yBack = y
-                    pivot = q
-                    found = true
-                } else if k == 0 {
+                                                          chore: chore) }) {
+                    return (y, q)
+                } else if i == 0 && k == 0 {
                     yBack = turns[0]
                 }
             }
         }
-        // Дома ровно 3/4 — с точностью до витка (обошёл миску кругом — тот же поворот на 2π дальше).
-        let yHome = near(y0, yBack)
-        let tOut = turnTime(yOut - y0)
-        let tFace = moving ? turnTime(yFace - yOut) : 0
-        let tBack = moving ? max(turnTime(yBack - yFace), Double((pivot - spot).length * 1.5 / speed) / stepAside) : 0
-        let walk = moving ? Double(1.5 * spot.length / speed) : 0
-        let walkHome = moving ? Double(1.5 * pivot.length / speed) : 0
-        // В 3/4 пёс заворачивает ещё на подходе (последняя треть пути), а не крутится дома: морда не тычется в мяч.
-        let tHome = moving ? max(turnTime(yHome - yBack), min(1.2, walkHome / 3)) : turnTime(yHome - yFace)
-        return IdleRoute(spot: spot, pivot: pivot, y0: y0, yOut: yOut, yFace: yFace, yBack: yBack, yHome: yHome,
-                         turnOut: tOut, turnFace: tFace, turnBack: tBack, turnHome: tHome,
-                         go: max(walk, tOut + tFace), act: max(0, act), back: tBack + max(walkHome, tHome), size: size)
+        return (yBack, spot)
+    }
+
+    /// Тот же путь, но обратный отрезок (разворот и шаг) длится total секунд — целое число циклов клипа walk.
+    /// Запас уходит в разворот (не больше чем вдвое медленнее, но хотя бы 0,3 с), остальное — в шаг.
+    func fitted(back total: Double) -> IdleRoute {
+        var r = self
+        let slack = total - back
+        guard slack > 1e-9 else { return r }
+        let walk = back - turnBack
+        if walk <= turnHome + 1e-9 {
+            // Только доворот (на месте): он и растягивается.
+            r.turnHome += slack
+        } else {
+            var rest = slack
+            if turnBack > 0.01 {
+                let add = min(slack, max(turnBack, 0.3))
+                r.turnBack += add
+                rest -= add
+            }
+            // Доворот в 3/4 — та же доля шага: в растянутом шаге он иначе начался бы у самого мяча.
+            r.turnHome = min(walk + rest, turnHome * (walk + rest) / walk)
+        }
+        r.back += slack
+        return r
+    }
+
+    /// Скорость лап в момент u, м/с: шаг тела или, если пёс разворачивается, дуга лап (Gait.pivotArm).
+    /// По ней сцена подгоняет темп клипа walk (Gait.rate).
+    func footSpeed(at u: Double) -> Float {
+        let h = 1.0 / 60
+        let a = pose(at: max(0, u - h)), b = pose(at: u + h)
+        let dt = Float(u + h - max(0, u - h))
+        let move = (b.p - a.p).length / dt
+        let turn = abs(b.yaw - a.yaw) / dt * RoomPlan.Keep.petHalfLength * size * Gait.pivotArm
+        return max(move, turn)
     }
 
     /// Пятно пса (с запасом pad) накрывает точку q — как RoomPlan.petCovers, но под размер.
@@ -238,16 +318,17 @@ struct IdleRoute: Equatable, Sendable {
     }
 
     /// Пёс в момент u: точка на полу и поворот. Прижат к playArea с запасом на свой поворот, как ChoreoPath.pet.
-    /// Обратно: сперва разворот на месте (turnBack), потом шаг домой; в 3/4 доворачивает на последних turnHome.
+    /// Туда и обратно — шагом с разгоном и торможением (Gait.travel: на ровном участке скорость постоянна и
+    /// совпадает с шагом клипа). Обратно: сперва разворот (turnBack), потом шаг; в 3/4 доворачивает на последних turnHome.
     func pose(at u: Double) -> (p: P, yaw: Float) {
         let p: P, yaw: Float
         if u < leaveAt {
-            p = spot * Self.ease(u, go)
+            p = spot * Gait.travel(u, go)
             yaw = y0 + (yOut - y0) * Self.ease(u, turnOut) + (yFace - yOut) * Self.ease(u - (go - turnFace), turnFace)
         } else {
             let v = u - leaveAt
             p = (spot + (pivot - spot) * Self.ease(v, turnBack * Self.stepAside))
-                * (1 - Self.ease(v - turnBack, back - turnBack))
+                * (1 - Gait.travel(v - turnBack, back - turnBack))
             yaw = yFace + (yBack - yFace) * Self.ease(v, turnBack)
                 + (yHome - yBack) * Self.ease(v - (back - turnHome), turnHome)
         }
@@ -286,7 +367,7 @@ enum DogIdle {
 
     // MARK: выбор
 
-    enum Stance { case stand, sit, lie }
+    enum Stance: Sendable { case stand, sit, lie }
 
     /// Как стоит пёс в этой позе (копия PetStance.stance для простоя: грязный сидит, устал — лежит).
     static func stance(_ p: Pose) -> Stance {
@@ -391,6 +472,13 @@ enum DogIdle {
     static let rugYaw: Float = RoomPlan.Keep.yaw3q - 0.7
 
     static func plan(_ c: IdleChore, _ s: IdleScene, stance: Stance, weather: WeatherKind, roll: Double) -> IdlePlan? {
+        guard var p = pick(c, s, stance: stance, weather: weather, roll: roll) else { return nil }
+        p.home = stance
+        return p
+    }
+
+    private static func pick(_ c: IdleChore, _ s: IdleScene, stance: Stance, weather: WeatherKind,
+                             roll: Double) -> IdlePlan? {
         let name = s.name.isEmpty ? "Пёс" : s.name
         let home = P(0, 0)
         func span(_ a: Double, _ b: Double) -> Double { a + (b - a) * roll }
@@ -453,22 +541,62 @@ enum DogIdle {
     // MARK: клипы по пути
 
     /// Реплики клипов: шаг (если идёт), дело на месте, шаг обратно, дома — свой цикл homeLoop.
+    /// Волна 46 R: заметный поворот на месте (мячик, ковёр — от Gait.pivotMin) тоже идёт клипом walk —
+    /// пёс переступает, а не едет на неподвижных лапах. Темп walk сцена подгоняет под скорость лап (Gait.rate).
     static func cues(_ plan: IdlePlan, _ r: IdleRoute, homeLoop: String, len: (String) -> Double) -> [IdleCue] {
         var out: [IdleCue] = []
-        if r.moves { out.append(IdleCue(at: 0, steps: [], loop: "walk")) }
-        if !plan.steps.isEmpty || r.moves {
-            out.append(IdleCue(at: r.arriveAt, steps: plan.steps, loop: plan.hold ?? homeLoop,
-                               back: plan.lies ? ["lie_out"] : []))
+        let turnOut = r.moves || abs(r.yFace - r.y0) >= Gait.pivotMin
+        let turnHome = r.moves || abs(r.yHome - r.yFace) >= Gait.pivotMin
+        if turnOut && r.arriveAt > 0 { out.append(IdleCue(at: 0, steps: [], loop: "walk")) }
+        if !plan.steps.isEmpty || turnOut {
+            out.append(IdleCue(at: r.arriveAt, steps: plan.steps, loop: plan.hold ?? homeLoop))
         }
-        // Конец лёжки/стойки: если уходит пешком без клипов выхода — эту роль играет шаг на leaveAt.
-        if plan.hold != nil, !plan.out.isEmpty || !r.moves {
+        // Конец лёжки/стойки: если уходит шагом без клипов выхода — эту роль играет шаг на leaveAt.
+        if plan.hold != nil, !plan.out.isEmpty || !turnHome {
             let at = r.arriveAt + plan.steps.reduce(0.0) { $0 + len($1) } + plan.holdSec
             out.append(IdleCue(at: min(at, r.leaveAt), steps: plan.out, loop: homeLoop))
         }
-        if r.moves {
+        if turnHome && r.homeAt > r.leaveAt {
             out.append(IdleCue(at: r.leaveAt, steps: [], loop: "walk"))
             out.append(IdleCue(at: r.homeAt, steps: [], loop: homeLoop))
         }
         return out
+    }
+
+    /// Как стоит пёс в момент u дела с репликами cues, начатого в положении home: клип sit_in/out, lie_in/out
+    /// засчитан, когда сыгран хотя бы наполовину (и следующая реплика не перебила его раньше).
+    static func stance(at u: Double, _ cues: [IdleCue], home: Stance, len: (String) -> Double) -> Stance {
+        var s = home
+        for (i, c) in cues.enumerated() where c.at <= u {
+            let next = i + 1 < cues.count ? cues[i + 1].at : .infinity
+            var t = c.at
+            for clip in c.steps {
+                let l = len(clip)
+                guard t + l / 2 <= min(u, next) else { break }
+                s = Gait.stance(after: clip, from: s)
+                t += l
+            }
+        }
+        return s
+    }
+
+    /// Дело перебили: как пёс из точки p (поворот yaw, положение stance) возвращается домой в положение home.
+    /// Встаёт (если сидел/лежал), разворачивается и идёт целым числом циклов walk (темп 1 — лапы в такт шагу),
+    /// дома садится/ложится, если так стоял. Совсем рядом и почти мордой в 3/4 — без шагов, только клипы положения.
+    /// steps — клипы по разу для ClipPlayer; route — путь тела в том же времени (hold — пока встаёт).
+    static func homeTrip(from p: P, yaw: Float, stance: Stance, home: Stance, size: Float, chore: IdleChore,
+                         len: (String) -> Double) -> (route: IdleRoute, steps: [String], cycles: Int) {
+        let toStand = Gait.backClips(from: stance, to: .stand)
+        let hold = toStand.reduce(0.0) { $0 + len($1) }
+        let route = IdleRoute.home(from: p, yaw: yaw, hold: hold, size: size, chore: chore)
+        let walkLen = len("walk")
+        let needWalk = route.back > 0 && (p.length >= Gait.stepMin || abs(route.yHome - yaw) >= Gait.pivotMin)
+        guard needWalk, walkLen > 0 else {
+            return (IdleRoute.home(from: p, yaw: yaw, hold: 0, size: size, chore: chore),
+                    Gait.backClips(from: stance, to: home), 0)
+        }
+        let n = max(1, Int((route.back / walkLen - 0.01).rounded(.up)))
+        let steps = toStand + Array(repeating: "walk", count: n) + Gait.backClips(from: .stand, to: home)
+        return (route.fitted(back: Double(n) * walkLen), steps, n)
     }
 }
