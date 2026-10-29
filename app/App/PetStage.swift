@@ -449,8 +449,13 @@ enum PetModel {
         // Дело простоя (волна 44 M): любое касание или новая поза его прерывает — пёс плавно домой.
         // Лежал на ковре — сперва встаёт; цикл дома снова тот, что был до дела (ниже его может сменить поза).
         // Шаги подъёма идут и в общую очередь ниже (cutSteps): иначе реакция сменила бы их рывком из лёжа.
+        // Волна 46 R: пёс идёт домой шагом (PetChoreo.cutChore → DogIdle.homeTrip), реакция — после прихода.
+        // Перебитую игру с мячом (fresh, не тап) — тоже. Уже идёт домой: тап без новой позы и поза во время
+        // реакции его не перезапускают (иначе шаг рвался бы на полуцикле).
+        let homing = PetChoreo.isHoming(pet)
+        let skipCut = reduceMotion || (homing && ((soft && !poseChanged) || (!fresh && st.clock < st.lockUntil)))
         var cutSteps: [String] = []
-        if let back = PetChoreo.cutChore(pet, clock: st.clock), !reduceMotion {
+        if !skipCut, let back = PetChoreo.cutChore(pet, clock: st.clock, play: fresh && !soft) {
             cutSteps = PetStance.pick(back, available: ClipTable.sharedNames)
             let busy = ClipPlayer.play(cutSteps, then: st.loop, on: pet,
                                        transition: 0.25, randomSpeed: false, initial: false) ?? 0
@@ -698,10 +703,9 @@ enum PetModel {
         let available = ClipTable.sharedNames
         // Свой персонаж без нужных клипов дела не делает: стоять посреди комнаты без анимации хуже, чем дома.
         guard plan.clips.allSatisfy({ available.contains($0) }) else { return false }
-        let size = Float(ChoreoPath.body.length) * PetChoreo.growth
-        let route = IdleRoute.make(plan, act: plan.act(PetChoreo.duration), size: size)
+        let route = IdleRoute.make(plan, act: plan.act(PetChoreo.duration), size: PetChoreo.size)
         let cues = DogIdle.cues(plan, route, homeLoop: st.loop, len: PetChoreo.duration)
-        PetChoreo.startChore(pet, route: route, cues: cues, clock: st.clock)
+        PetChoreo.startChore(pet, plan: plan, route: route, cues: cues, clock: st.clock)
         st.busyUntil = st.clock + route.homeAt
         st.nextFidgetAt = st.busyUntil + Double.random(in: 15...25)
         st.lastChore = plan.chore
@@ -956,6 +960,13 @@ enum ClipPlayer {
         ctl.speed = speed
         keep(ctl, for: pet)
         return busy / TimeInterval(speed)
+    }
+
+    /// Темп того, что сейчас играет (волна 46 R): цикл walk дела простоя идёт в такт скорости лап (Gait.rate),
+    /// а не на неподвижной скорости 1, пока тело разгоняется и тормозит. Нет контроллера или стоит — не трогаем.
+    static func setRate(_ pet: Entity, _ rate: Float) {
+        guard let ctl = controllers[ObjectIdentifier(pet)], ctl.isPlaying, abs(ctl.speed - rate) > 0.01 else { return }
+        ctl.speed = rate
     }
 
     /// Reduce Motion: сразу последний кадр клипа, без перехода и движения.

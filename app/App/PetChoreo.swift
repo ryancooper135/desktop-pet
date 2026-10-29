@@ -56,8 +56,12 @@ struct ChoreoState: Component {
         var route: IdleRoute
         var cues: [IdleCue]
         var cue = 0
-        /// Чем встать домой, если перебили (back последней сыгранной реплики).
-        var back: [String] = []
+        /// Как пёс стоял дома, когда затеял дело (IdlePlan.home): в это положение он и вернётся, если перебьют.
+        var home: DogIdle.Stance = .stand
+        var kind: IdleChore = .sniff
+        /// Волна 46 R: это не дело, а путь домой после перебоя (DogIdle.homeTrip) — клипы уже поставлены
+        /// одним набором (встать, шаги, сесть/лечь), реплик нет, новая реакция его не перебивает, а ждёт.
+        var homing = false
     }
 
     var feed: Feed?
@@ -122,6 +126,8 @@ enum PetChoreo {
     nonisolated static let blend: Double = 0.35
     /// Рост пса (волна 34 I, ставит PetRig.setGrowth): щенку миска поменьше и ближе — под его морду.
     static var growth: Float = 1
+    /// Длина пса в метрах сцены (для шага Gait): взрослый ChoreoPath.body.length, щенок короче.
+    static var size: Float { Float(ChoreoPath.body.length) * growth }
 
     nonisolated static func duration(_ name: String) -> Double {
         guard let c = ClipTable.shared?.clips[name] else { return 0 }
@@ -136,7 +142,8 @@ enum PetChoreo {
                       trick: Trick? = nil) -> Double? {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
         let present = bowlAtSnout(cs, clock)
-        interrupt(&cs, clock)
+        // Путь домой после перебоя (cutChore) не сворачиваем: шаги реакции уже стоят в очереди после него.
+        interrupt(&cs, clock, keepHoming: true)
         SoundKit.shared.cancelChoreo()
         if let w = cs.walk, !w.out, clock - w.start < ChoreoPath.Walk.inWalk {
             // Новое действие, пока идёт домой: находка сразу «в альбоме», Шиба плавно домой.
@@ -176,9 +183,9 @@ enum PetChoreo {
 
     /// Дело простоя (волна 44 M): пёс сам идёт по route, клипы — по cues. Только из покоя: хореография
     /// не занята и Шиба не гуляет (проверяет PetModel.tick).
-    static func startChore(_ pet: Entity, route: IdleRoute, cues: [IdleCue], clock: Double) {
+    static func startChore(_ pet: Entity, plan: IdlePlan, route: IdleRoute, cues: [IdleCue], clock: Double) {
         var cs = pet.components[ChoreoState.self] ?? ChoreoState()
-        cs.chore = .init(start: clock, route: route, cues: cues)
+        cs.chore = .init(start: clock, route: route, cues: cues, home: plan.home, kind: plan.chore)
         cs.active = true
         pet.components.set(cs)
     }
@@ -189,14 +196,51 @@ enum PetChoreo {
         return cs.active || cs.hidden
     }
 
-    /// Касание или новая поза перебили дело простоя: пёс плавно домой. Возвращает клипы, которыми встать
-    /// в стойку (лежал на ковре — lie_out), или nil, если дела не было.
+    /// Идёт домой после перебоя (cutChore): новая реакция его не перебивает, касание без клипа — тоже.
+    static func isHoming(_ pet: Entity) -> Bool {
+        pet.components[ChoreoState.self]?.chore?.homing == true
+    }
+
+    /// Касание или новая поза перебили дело простоя (или игру с мячом, если play): пёс идёт домой
+    /// (волна 46 R, DogIdle.homeTrip) — встаёт, если сидел/лежал, разворачивается, шагает целыми циклами walk
+    /// и дома садится/ложится, как стоял до дела. Возвращает эти клипы (их ставит drive первыми в очередь,
+    /// реакция идёт после прихода) или nil, если перебивать нечего.
+    /// Раньше дом наезжал за 0,35–1,2 с на неподвижных лапах, а сидевший пёс оставался стоять.
     @discardableResult
-    static func cutChore(_ pet: Entity, clock: Double) -> [String]? {
-        guard var cs = pet.components[ChoreoState.self], let c = cs.chore else { return nil }
-        interrupt(&cs, clock)
+    static func cutChore(_ pet: Entity, clock: Double, play cutPlay: Bool = false) -> [String]? {
+        guard var cs = pet.components[ChoreoState.self] else { return nil }
+        let stance: DogIdle.Stance
+        let home: DogIdle.Stance
+        let kind: IdleChore
+        if let c = cs.chore {
+            home = c.home
+            kind = c.kind
+            stance = DogIdle.stance(at: clock - c.start, c.cues, home: c.home, len: duration)
+        } else if cutPlay, let p = cs.play, clock >= p.start {
+            stance = .stand
+            home = .stand
+            kind = .toy
+        } else {
+            return nil
+        }
+        guard cs.walk == nil, !cs.hidden, duration("walk") > 0 else {
+            // Нечем шагать (заглушка без клипов) или прогулка: как раньше — плавно домой без шагов.
+            guard cs.chore != nil else { return nil }
+            interrupt(&cs, clock)
+            pet.components.set(cs)
+            return Gait.backClips(from: stance, to: home)
+        }
+        let trip = DogIdle.homeTrip(from: .init(cs.pos.x, cs.pos.z), yaw: cs.yaw, stance: stance, home: home,
+                                    size: size, chore: kind, len: duration)
+        cs.chore = .init(start: clock, route: trip.route, cues: [IdleCue(at: 0, steps: trip.steps, loop: "")],
+                         cue: 1, home: home, kind: kind, homing: true)
+        cs.play = nil
+        // Путь начинается ровно там, где пёс стоит, — переход только сглаживает излом скорости (и уводит мяч домой).
+        snapshot(&cs, clock)
+        cs.blendLen = blend
+        cs.active = true
         pet.components.set(cs)
-        return c.back
+        return trip.steps
     }
 
     /// Гладят стоя: поверх клипов реакции наклон к руке, виляние и закрытые глаза на length секунд.
@@ -261,12 +305,13 @@ enum PetChoreo {
     }
 
     /// Новая реакция перебила: игра плавно домой, миска уходит (если ещё не начала прыгать — остаётся дома).
-    static func interrupt(_ cs: inout ChoreoState, _ clock: Double) {
+    /// keepHoming — путь домой после перебоя (Chore.homing) не трогать: его клипы уже в очереди.
+    static func interrupt(_ cs: inout ChoreoState, _ clock: Double, keepHoming: Bool = false) {
         if cs.play != nil {
             cs.play = nil
             snapshot(&cs, clock)
         }
-        if cs.chore != nil {
+        if let c = cs.chore, !(keepHoming && c.homing) {
             // Дело простоя: домой из того места, где застали, тем же поворотом без лишнего витка.
             cs.chore = nil
             snapshot(&cs, clock)
@@ -350,13 +395,17 @@ enum PetChoreo {
             }
         } else if var c = cs.chore {
             // Дело простоя (волна 44 M): клипы на репликах, тело — по пути DogIdle.
+            // Путь домой (homing): клипы уже поставлены одним набором, только тело.
             let u = now - c.start
-            while c.cue < c.cues.count, u >= c.cues[c.cue].at {
+            while !c.homing, c.cue < c.cues.count, u >= c.cues[c.cue].at {
                 let q = c.cues[c.cue]
                 ClipPlayer.play(PetStance.pick(q.steps, available: availableClips()), then: q.loop, on: pet,
                                 transition: 0.25, randomSpeed: false, initial: false)
-                c.back = q.back
                 c.cue += 1
+            }
+            if !c.homing, c.cue > 0, c.cues[c.cue - 1].steps.isEmpty, c.cues[c.cue - 1].loop == "walk" {
+                // Волна 46 R: лапы в такт телу — темп цикла walk по скорости лап (разгон, торможение, поворот).
+                ClipPlayer.setRate(pet, Gait.rate(foot: c.route.footSpeed(at: u), size: c.route.size))
             }
             let p = c.route.pose(at: u)
             pose = ChoreoPath.PetPose(position: SIMD3<Float>(p.p.x, 0, p.p.z), yaw: p.yaw)
