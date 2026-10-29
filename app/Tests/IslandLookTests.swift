@@ -28,7 +28,8 @@ final class IslandLookTests: XCTestCase {
 
     func testGlyphPerEvent() {
         let map: [IslandEvent.Kind: IslandGlyph] = [.runaway: .tracks, .lastChance: .heart, .hungry: .bowl,
-                                                    .trip: .trip, .home: .home, .bank: .piggy, .levelUp: .star]
+                                                    .trip: .trip, .home: .home, .ask: .ask, .bank: .piggy,
+                                                    .levelUp: .star]
         for (k, g) in map { XCTAssertEqual(IslandGlyph(k), g, "\(k)") }
         for g in IslandGlyph.allCases { XCTAssertFalse(g.symbol.isEmpty) }
     }
@@ -175,7 +176,7 @@ final class IslandLookTests: XCTestCase {
         f.yard.stations = ["dryer": 3]
         f.yard.t = noon
         f.yard.bank = 0
-        let looks = WidgetLook.looks(f, now: noon, tzOffsetMin: 0, cfg)
+        let looks = WidgetLook.looks(f, now: noon, tzOffsetMin: 0, asks: [], cfg)
         XCTAssertEqual(looks.count, cfg.widgetEntries)
         for (a, b) in zip(looks, looks.dropFirst()) {
             XCTAssertLessThan(a.t, b.t)
@@ -195,28 +196,28 @@ final class IslandLookTests: XCTestCase {
         // Лента — 12 ч, копилка — сутки: к концу ленты кольцо заполнено на половину.
         XCTAssertEqual(looks.last?.ring ?? 0, 0.5, accuracy: 0.05, "к концу ленты копилка наполовину полна")
         // Через сутки полна: «собери!».
-        let later = WidgetLook.looks(f, now: noon + 24 * 3600, tzOffsetMin: 0, cfg)
+        let later = WidgetLook.looks(f, now: noon + 24 * 3600, tzOffsetMin: 0, asks: [], cfg)
         XCTAssertTrue(later.first?.bankFull ?? false, "за сутки копилка полна")
         XCTAssertEqual(later.first?.bankLine?.hasSuffix("собери!"), true)
         XCTAssertTrue(later.first?.canCollect ?? false)
         XCTAssertGreaterThan(WidgetLook.reloadT(looks, now: noon, cfg), looks.last?.t ?? .infinity)
 
         // Без станций — копилки нет.
-        let bare = WidgetLook.looks(file(at: noon), now: noon, tzOffsetMin: 0, cfg)
+        let bare = WidgetLook.looks(file(at: noon), now: noon, tzOffsetMin: 0, asks: [], cfg)
         XCTAssertNil(bare.first?.ring)
         XCTAssertNil(bare.first?.bankLine)
         XCTAssertEqual(bare.first?.lock, .pose)
     }
 
     func testLooksHungryAndOuting() {
-        let hungry = WidgetLook.looks(file(at: noon, 90, [.food: 10]), now: noon, tzOffsetMin: 0, cfg)
+        let hungry = WidgetLook.looks(file(at: noon, 90, [.food: 10]), now: noon, tzOffsetMin: 0, asks: [], cfg)
         XCTAssertEqual(hungry.first?.pose, .bowl)
         XCTAssertEqual(hungry.first?.main?.need, .food)
         XCTAssertGreaterThan(hungry.first?.relevance ?? 0, 0.5)
 
         var g = file(at: noon)
         g.pet.outing = Outing(from: noon - 600, until: noon + 1200, find: "cone")
-        let w = WidgetLook.looks(g, now: noon, tzOffsetMin: 0, cfg)
+        let w = WidgetLook.looks(g, now: noon, tzOffsetMin: 0, asks: [], cfg)
         XCTAssertEqual(w.first?.pose, .away)
         XCTAssertEqual(w.first?.lock, .trip)
         XCTAssertEqual(w.first?.tripUntil, noon + 1200)

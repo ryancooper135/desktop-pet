@@ -3,12 +3,15 @@
 // Островок: пёс появляется, только когда что-то происходит. Одно событие за раз (как Hush), главное — по таблице §8:
 //   1 убежал / следы → 2 последнее сердечко → 3 голоден → 4 возвращается с места, «Я дома!» → 5 копилка полна →
 //   6 новый уровень (короткая активность на 15 мин).
+// Волна 45 O: между «Я дома!» и копилкой — просьба пса (DogAsks): «Почеши за ушком?» и таймер до конца окна.
+// Только текущая (уже открытая) просьба и никогда не вид после stale — см. choose и DECISIONS «Волна 45 O».
 // «Всё хорошо» и ночь хозяина (окно сна из сейва, то же, что глушит уведомления) — островок пустой, активности нет
 // (решение 7а). Live Activity снаружи не обновить, есть одно переключение по staleDate. Поэтому при уходе в фон
 // считаем, когда картинка сменится (начало или конец события, начало ночи, утро), кладём это время в staleDate,
 // а вид после stale — событие, которое будет главным в тот момент. Дальше нужен заход в приложение.
 //
 // Виджет: 24 кадра раз в 30 мин на 12 ч вперёд, 6 поз пса (сидит, лежит, спит, ест, ждёт у миски, нет дома).
+// Волна 45 O: в окне просьбы — ещё кадры раз в 5 мин (widgetAskStepS), чтобы «ещё N мин» не врало.
 // Ядро крутится без действий, как в ForecastTools.timeline.
 //
 // Копилка двора (bankFullAt) и поход (tripBackAt) приходят параметрами: Yard и Places пишут другие агенты.
@@ -32,6 +35,8 @@ struct IslandEventsConfig: Hashable, Sendable {
     /// Шаг и число кадров виджета: 24 × 30 мин = 12 ч.
     var widgetStepS: Double = 1800
     var widgetEntries = 24
+    /// Волна 45 O: шаг кадров виджета в окне просьбы пса — «ещё N мин» обновляется так часто.
+    var widgetAskStepS: Double = 300
     /// Ниже этой бодрости пёс в виджете лежит.
     var lieEnergy: Double = 30
 
@@ -49,6 +54,7 @@ struct IslandEventsConfig: Hashable, Sendable {
         if let v = c["start_early"].bool { startEarly = v }
         if let v = c["widget_step_s"].double { widgetStepS = v }
         if let v = c["widget_entries"].double { widgetEntries = Int(v) }
+        if let v = c["widget_ask_step_s"].double { widgetAskStepS = v }
         if let v = c["lie_energy"].double { lieEnergy = v }
     }
 }
@@ -94,6 +100,16 @@ struct IslandBank: Hashable, Sendable {
 struct IslandLevelUp: Hashable, Sendable {
     var level: Int
     var at: Double
+}
+
+/// Волна 45 O: открытая просьба пса (DogAsks). kind — "feed", "pet", …; end — конец окна.
+struct IslandAsk: Hashable, Sendable {
+    var kind: String
+    var start: Double
+    var end: Double
+    var coins: Int
+
+    var ask: DogAsk { DogAsk(start: start, kind: kind, coins: coins) }
 }
 
 /// Окно сна хозяина в местных минутах (NotificationPlanner.quietHours) и пояс.
@@ -153,22 +169,26 @@ struct IslandInput: Hashable, Sendable {
     var quiet: IslandQuiet?
     /// Пояс для подписей «к 18:40».
     var tzOffsetMin = 0
+    /// Волна 45 O: просьба пса, открытая на now; nil — нет (или пёс спит, гуляет, моется, в походе).
+    var ask: IslandAsk?
 }
 
 /// Событие островка: когда идёт, что писать до начала и во время.
 struct IslandEvent: Hashable, Sendable {
     enum Kind: String, Codable, CaseIterable, Hashable, Sendable {
-        case runaway, lastChance, hungry, trip, home, bank, levelUp
+        case runaway, lastChance, hungry, trip, home, ask, bank, levelUp
 
         /// Приоритет по таблице §8: меньше — главнее. Поход и «Я дома!» — одна строка, по времени не пересекаются.
+        /// Просьба (волна 45 O) — выше копилки: она уходит через час, копилка ждёт.
         var rank: Int {
             switch self {
             case .runaway: return 1
             case .lastChance: return 2
             case .hungry: return 3
             case .trip, .home: return 4
-            case .bank: return 5
-            case .levelUp: return 6
+            case .ask: return 5
+            case .bank: return 6
+            case .levelUp: return 7
             }
         }
     }
@@ -191,6 +211,8 @@ struct IslandEvent: Hashable, Sendable {
     var progressFrom: Double?
     /// Кольцо копилки 0…1.
     var ring: Double?
+    /// Волна 45 O: что просит пёс (для кнопки на островке); только у .ask.
+    var ask: String? = nil
 
     func on(_ t: Double) -> Bool { t >= from && (until.map { t < $0 } ?? true) }
 }
@@ -223,6 +245,8 @@ struct PoseFrame: Hashable, Sendable {
     var ring: Double?
     var tripUntil: Double?
     var alive: Bool
+    /// Волна 45 O: просьба пса, открытая в момент кадра; nil — нет или пёс спит, нет дома, моется.
+    var ask: DogAsk? = nil
 
     var food: Int { bars[.food] ?? 0 }
     var bankFull: Bool { (ring ?? 0) >= 1 }
@@ -304,6 +328,15 @@ enum IslandEvents {
             }
         }
 
+        // 4½. Просьба пса (волна 45 O): только уже открытая. Будущую заранее не показываем — «Попросит в 15:10»
+        // обещал бы то, что решится по стейту на старт, и запускал бы активность ради пустяка.
+        if let a = i.ask, a.start <= now, now < a.end {
+            let line = DogAskText.line(a.kind)
+            out.append(IslandEvent(kind: .ask, from: a.start, until: a.end, title: line,
+                                   detail: DogAskText.hint(a.ask), soon: line, compact: DogAskText.emoji(a.kind),
+                                   pose: .sit, timerEnd: a.end, progressFrom: nil, ring: nil, ask: a.kind))
+        }
+
         // 5. Копилка двора полна.
         if let b = i.bank {
             out.append(IslandEvent(kind: .bank, from: b.fullAt, until: nil,
@@ -336,9 +369,13 @@ enum IslandEvents {
     static func choose(_ c: [IslandEvent], now: Double, quiet: IslandQuiet?,
                        _ cfg: IslandEventsConfig = .shared) -> IslandShow {
         let cur = top(c, at: now, quiet: quiet)
+        // Волна 45 O: просьба — только текущий вид. Вид после stale ею не бывает: второго переключения у активности
+        // нет, и таймер «ещё 0:00» висел бы до захода в приложение. Чужая просьба для расчёта stale — как не было;
+        // своя (cur) остаётся, её конец — край, на котором вид меняется.
+        let pool = c.filter { $0.kind != .ask || $0 == cur }
         let horizon = now + cfg.forecastH * 3600
         var edges: Set<Double> = []
-        for e in c {
+        for e in pool {
             edges.insert(e.from)
             if let u = e.until { edges.insert(u) }
         }
@@ -348,13 +385,16 @@ enum IslandEvents {
         }
         var show = IslandShow(current: cur)
         for b in edges.filter({ $0 > now && $0 <= horizon }).sorted() {
-            let x = top(c, at: b, quiet: quiet)
+            let x = top(pool, at: b, quiet: quiet)
             if x != cur { show.staleDate = b; show.after = x; break }
         }
         // Активность живёт до 8 ч: если до тех пор ничего не меняется — stale на 8 ч, вид тот же.
         if cur != nil {
             let cap = now + cfg.maxStaleH * 3600
-            if (show.staleDate ?? .infinity) > cap { show.staleDate = cap; show.after = top(c, at: cap, quiet: quiet) }
+            if (show.staleDate ?? .infinity) > cap {
+                show.staleDate = cap
+                show.after = top(pool, at: cap, quiet: quiet)
+            }
         }
         // Ранний старт (выключен решением 7а): заранее «Проголодается к 18:40», после stale — «Голоден!».
         if cur == nil, cfg.startEarly, !(quiet?.asleep(now) ?? false), let a = show.after, let s = show.staleDate,
@@ -467,12 +507,32 @@ enum IslandEvents {
         return .sit
     }
 
+    /// Волна 45 O: моменты кадров с просьбами — сетка плюс старт, каждые widgetAskStepS в окне и конец окна.
+    /// Не дальше последнего кадра сетки, строго по возрастанию.
+    static func frameTimes(now: Double, asks: [DogAsk], window: Double, _ cfg: IslandEventsConfig = .shared) -> [Double] {
+        var ts = frameTimes(now: now, cfg)
+        guard !asks.isEmpty, let last = ts.last else { return ts }
+        let step = max(60, cfg.widgetAskStepS)
+        var extra: [Double] = []
+        for a in asks {
+            let end = a.start + window
+            var t = a.start
+            while t < end { extra.append(t); t += step }
+            extra.append(end)
+        }
+        ts += extra.filter { $0 > now && $0 <= last }
+        return Array(Set(ts)).sorted()
+    }
+
     /// 24 кадра виджета. s0 — стейт на now; eo — хозяин ядра (пояс файла), o — пояс устройства для ночи и подписей.
     /// ateAt — когда хозяин кормил последний раз (тогда первый кадр «ест»).
+    /// asks — просьбы пса на этом отрезке (DogAsks.upcoming): в их окнах кадры чаще, и на кадре — просьба,
+    /// если пёс дома, не спит и не моется (как DogAsks.choose: спящего не будим).
     static func frames(_ s0: PetState, _ r: Rules, engine eo: Owner, local o: Owner, now: Double,
                        trip: IslandTrip? = nil, bank: IslandBank? = nil, ateAt: Double? = nil,
+                       asks: [DogAsk] = [], askWindow: Double = DogAskConfig.shared.window,
                        _ cfg: IslandEventsConfig = .shared) -> [PoseFrame] {
-        let ts = frameTimes(now: now, cfg)
+        let ts = frameTimes(now: now, asks: asks, window: askWindow, cfg)
         let step = max(60, cfg.widgetStepS)
         let span = ((ts.last ?? now) - now) / 3600
         let feeds = PetEngine.forecast(s0, r, eo, horizonH: span + step / 3600).filter { $0.kind == .autofeed }.map(\.t)
@@ -497,15 +557,20 @@ enum IslandEvents {
             }
             var bars: [Need: Int] = [:]
             for (n, v) in s.needs { bars[n] = Int(v.rounded()) }
+            var ask: DogAsk?
+            if s.alive, p != .sleep, p != .away, s.bathUntil == nil {
+                ask = asks.first { $0.open(at: t, window: askWindow) }
+            }
             out.append(PoseFrame(t: t, pose: p, note: note, bars: bars, ring: bank?.ring(at: t), tripUntil: until,
-                                 alive: s.alive))
+                                 alive: s.alive, ask: ask))
         }
         return out
     }
 
-    /// Кадры виджета из сейва. trip/bank — параметры (Places, Yard).
+    /// Кадры виджета из сейва. trip/bank — параметры (Places, Yard); asks — просьбы пса (волна 45 O).
     static func widget(_ f: SaveFile, now: Double, trip: IslandTrip? = nil, bank: IslandBank? = nil,
-                       tzOffsetMin: Int? = nil, _ cfg: IslandEventsConfig = .shared) -> [PoseFrame] {
+                       tzOffsetMin: Int? = nil, asks: [DogAsk] = [],
+                       _ cfg: IslandEventsConfig = .shared) -> [PoseFrame] {
         let r = ItemPerks.rules(f)
         var eo = f.owner
         if let tzOffsetMin { eo.tzOffsetMin = tzOffsetMin }
@@ -513,6 +578,6 @@ enum IslandEvents {
         o.tzOffsetMin = tzOffsetMin ?? Clock.tzOffsetMin(at: now)
         let s = now > f.pet.t ? PetEngine.advance(f.pet, r, eo, now) : f.pet
         let fed = f.lastAction.flatMap { la in la.ok && (la.kind == "feed" || la.kind == "cook") ? la.t : nil }
-        return frames(s, r, engine: eo, local: o, now: now, trip: trip, bank: bank, ateAt: fed, cfg)
+        return frames(s, r, engine: eo, local: o, now: now, trip: trip, bank: bank, ateAt: fed, asks: asks, cfg)
     }
 }
