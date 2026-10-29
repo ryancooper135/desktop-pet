@@ -69,11 +69,15 @@ final class EconomyTests: XCTestCase {
 
     func testCareIncomeThroughRunner() throws {
         // Ищем час, когда «погладить» проходит (днём, не во сне): монета приходит вместе с действием.
-        let base = SaveFile.fresh(now: eT0)
+        // petId фиксирован, а часы с открытой просьбой пса пропускаем: иначе к монете добавится награда за просьбу.
+        var base = SaveFile.fresh(now: eT0)
+        base.petId = "care-income"
         var found = false
         for h in 0..<48 {
             var f = base
-            let out = PetRunner.apply(.pet, source: .widget, to: &f, now: eT0 + Double(h) * 3600)
+            let t = eT0 + Double(h) * 3600
+            if DogAsks.current(f, now: t) != nil { continue }
+            let out = PetRunner.apply(.pet, source: .widget, to: &f, now: t)
             guard out.ok else {
                 XCTAssertEqual(out.coins, 0, "отказ не оплачивается")
                 XCTAssertEqual(f.econ.wallet.coins, 20)
