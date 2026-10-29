@@ -207,6 +207,7 @@ let package = Package(
                 "Wave45AskWidgetTests.swift",
                 "Wave46SeamTests.swift",
                 "Wave47SeamTests.swift",
+                "Wave48SeamTests.swift",
                 "AutonomyTests.swift",
                 "GaitTests.swift",
                 "IslandEventsTests.swift",

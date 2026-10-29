@@ -630,4 +630,12 @@ enum DogIdle {
         }
         return (Array(rest), c.loop.isEmpty ? homeLoop : c.loop)
     }
+
+    /// Волна 48 U: идёт ли пёс домой шагом, когда касание или новая поза перебивает дело (PetChoreo.cutChore).
+    /// Не идёт: на прогулке, под обложкой, без клипа walk — и когда поза «убежал» (dying): смерть сразу,
+    /// как в walk(instant:). Раньше он вставал, шёл домой 2–5 с, тело съезжало вбок (deathShift),
+    /// а после обложки замирал стоя.
+    static func walksHome(dying: Bool, walking: Bool, hidden: Bool, walkClip: Bool) -> Bool {
+        !dying && !walking && !hidden && walkClip
+    }
 }

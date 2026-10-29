@@ -207,7 +207,9 @@ enum PetChoreo {
     /// реакция идёт после прихода) или nil, если перебивать нечего.
     /// Раньше дом наезжал за 0,35–1,2 с на неподвижных лапах, а сидевший пёс оставался стоять.
     @discardableResult
-    static func cutChore(_ pet: Entity, clock: Double, play cutPlay: Bool = false) -> [String]? {
+    /// Волна 48 U: dying — новая поза «убежал»: пути домой нет (DogIdle.walksHome), дело снимается сразу,
+    /// клипов подъёма нет — drive сыграет death из той стойки, где застал.
+    static func cutChore(_ pet: Entity, clock: Double, play cutPlay: Bool = false, dying: Bool = false) -> [String]? {
         guard var cs = pet.components[ChoreoState.self] else { return nil }
         let stance: DogIdle.Stance
         let home: DogIdle.Stance
@@ -223,12 +225,13 @@ enum PetChoreo {
         } else {
             return nil
         }
-        guard cs.walk == nil, !cs.hidden, duration("walk") > 0 else {
-            // Нечем шагать (заглушка без клипов) или прогулка: как раньше — плавно домой без шагов.
+        guard DogIdle.walksHome(dying: dying, walking: cs.walk != nil, hidden: cs.hidden,
+                                walkClip: duration("walk") > 0) else {
+            // Нечем шагать (заглушка без клипов), прогулка или смерть: как раньше — плавно домой без шагов.
             guard cs.chore != nil else { return nil }
             interrupt(&cs, clock)
             pet.components.set(cs)
-            return Gait.backClips(from: stance, to: home)
+            return dying ? [] : Gait.backClips(from: stance, to: home)
         }
         let trip = DogIdle.homeTrip(from: .init(cs.pos.x, cs.pos.z), yaw: cs.yaw, stance: stance, home: home,
                                     size: size, chore: kind, len: duration)

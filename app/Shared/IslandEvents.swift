@@ -529,6 +529,42 @@ enum IslandEvents {
         return Array(Set(ts)).sorted()
     }
 
+    /// Просьба на кадре — если пёс дома, не спит и не моется (как DogAsks.choose: спящего не будим).
+    static func askVisible(_ s: PetState, _ p: DogPose) -> Bool {
+        s.alive && p != .sleep && p != .away && s.bathUntil == nil
+    }
+
+    /// Волна 48 U: минуты, когда просьба пропадает с кадра посреди своего окна (пёс задремал, настала ночь,
+    /// ушёл, убежал) — по целым минутам, как DogAsks.hiddenAt у островка. Кадры в окне идут через
+    /// widgetAskStepS, и без этих моментов виджет держал «просьбу» до 5 мин дольше островка.
+    /// Не дальше last (последний кадр сетки), строго после now.
+    static func askHides(_ s0: PetState, _ r: Rules, engine eo: Owner, local o: Owner, now: Double, last: Double,
+                         trip: IslandTrip?, asks: [DogAsk], window: Double,
+                         _ cfg: IslandEventsConfig = .shared) -> [Double] {
+        var out: [Double] = []
+        func shown(_ s: PetState, at t: Double) -> Bool {
+            var c = s
+            c.t = t
+            return askVisible(c, pose(c, r, o, trip: trip, ate: false, cfg))
+        }
+        for a in asks {
+            let end = a.start + window
+            var t = max(now, a.start)
+            guard t <= last, a.open(at: t, window: window) else { continue }
+            var s = t > s0.t ? PetEngine.advance(s0, r, eo, t) : s0
+            var was = shown(s, at: t)
+            while true {
+                t = (t / 60).rounded(.down) * 60 + 60
+                guard t < end, t <= last else { break }
+                if t > s.t { s = PetEngine.advance(s, r, eo, t) }
+                let v = shown(s, at: t)
+                if was && !v { out.append(t) }
+                was = v
+            }
+        }
+        return out
+    }
+
     /// 24 кадра виджета. s0 — стейт на now; eo — хозяин ядра (пояс файла), o — пояс устройства для ночи и подписей.
     /// ateAt — когда хозяин кормил последний раз (тогда первый кадр «ест»).
     /// asks — просьбы пса на этом отрезке (DogAsks.upcoming): в их окнах кадры чаще, и на кадре — просьба,
@@ -537,7 +573,10 @@ enum IslandEvents {
                        trip: IslandTrip? = nil, bank: IslandBank? = nil, ateAt: Double? = nil,
                        asks: [DogAsk] = [], askWindow: Double = DogAskConfig.shared.window,
                        _ cfg: IslandEventsConfig = .shared) -> [PoseFrame] {
-        let ts = frameTimes(now: now, asks: asks, window: askWindow, cfg)
+        let grid = frameTimes(now: now, asks: asks, window: askWindow, cfg)
+        let hides = askHides(s0, r, engine: eo, local: o, now: now, last: grid.last ?? now, trip: trip,
+                             asks: asks, window: askWindow, cfg)
+        let ts = hides.isEmpty ? grid : Array(Set(grid + hides)).sorted()
         let step = max(60, cfg.widgetStepS)
         let span = ((ts.last ?? now) - now) / 3600
         let feeds = PetEngine.forecast(s0, r, eo, horizonH: span + step / 3600).filter { $0.kind == .autofeed }.map(\.t)
@@ -563,7 +602,7 @@ enum IslandEvents {
             var bars: [Need: Int] = [:]
             for (n, v) in s.needs { bars[n] = Int(v.rounded()) }
             var ask: DogAsk?
-            if s.alive, p != .sleep, p != .away, s.bathUntil == nil {
+            if askVisible(cur, p) {
                 ask = asks.first { $0.open(at: t, window: askWindow) }
             }
             out.append(PoseFrame(t: t, pose: p, note: note, bars: bars, ring: bank?.ring(at: t), tripUntil: until,

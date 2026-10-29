@@ -455,7 +455,8 @@ enum PetModel {
         let homing = PetChoreo.isHoming(pet)
         let skipCut = reduceMotion || (homing && ((soft && !poseChanged) || (!fresh && st.clock < st.lockUntil)))
         var cutSteps: [String] = []
-        if !skipCut, let back = PetChoreo.cutChore(pet, clock: st.clock, play: fresh && !soft) {
+        if !skipCut, let back = PetChoreo.cutChore(pet, clock: st.clock, play: fresh && !soft,
+                                                            dying: target == .dead) {
             cutSteps = PetStance.pick(back, available: ClipTable.sharedNames)
             let busy = ClipPlayer.play(cutSteps, then: st.loop, on: pet,
                                        transition: 0.25, randomSpeed: false, initial: false) ?? 0
