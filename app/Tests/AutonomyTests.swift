@@ -330,7 +330,12 @@ final class AutonomyTests: XCTestCase {
                 XCTAssertEqual(c.first?.at, 0)
             }
             // Лёжа перебили — встать.
-            if p.lies { XCTAssertTrue(c.contains { $0.back == ["lie_out"] }, "\(p.chore)") }
+            if p.lies {
+                let mid = r.arriveAt + p.steps.reduce(0.0) { $0 + len($1) } + p.holdSec / 2
+                let s = DogIdle.stance(at: mid, c, home: p.home, len: len)
+                XCTAssertEqual(s, .lie, "\(p.chore)")
+                XCTAssertEqual(Gait.backClips(from: s, to: p.home).first, "lie_out", "\(p.chore)")
+            }
             // Шаг кончается тогда же, когда дело на месте.
             if p.hold != nil, !p.out.isEmpty {
                 let out = c.first { $0.steps == p.out }
