@@ -90,9 +90,11 @@ final class AccessibilityUITests: XCTestCase {
     /// замечания — цвета палитры, вопрос вкуса: список из прогона 39510200240 — в RESEARCH/17-a11y.md и PROGRESS.
     static let audited: XCUIAccessibilityAuditType = XCUIAccessibilityAuditType.all.subtracting(.contrast)
 
-    // Четыре теста по 1–4 экрана: перезапуск с аудитом — 20–120 с на экран, а CI даёт тесту 180 с
+    // Пять тестов по 1–3 экрана: перезапуск с аудитом — 20–120 с на экран, а CI даёт тесту 180 с
     // (-default-test-execution-time-allowance), свой потолок — executionTimeAllowance ниже. Отчёт — после каждого
     // экрана, чтобы и при убийстве по времени было видно, что успели.
+    // Волна 45 P: «Кухня, лавка, автомат, дом» одним тестом шли 233 с на обычном раннере и вылетели за 400 с на
+    // перегруженном (прогон 40792335518, дом не успел) — разбиты на два по два экрана, экраны и проверки те же.
 
     /// Главный экран: 3D-комната, панель, стеклянные кнопки — отдельно, он самый долгий.
     @MainActor
@@ -106,10 +108,16 @@ final class AccessibilityUITests: XCTestCase {
         try audit(["needs", "tricks", "album"])
     }
 
-    /// Кухня, лавка, автомат, дом.
+    /// Кухня и лавка.
     @MainActor
     func testAccessibilityAudit3Shops() throws {
-        try audit(["kitchen", "shop", "capsule", "house"])
+        try audit(["kitchen", "shop"])
+    }
+
+    /// Автомат и дом.
+    @MainActor
+    func testAccessibilityAudit3bCapsuleHouse() throws {
+        try audit(["capsule", "house"])
     }
 
     /// Заставки «Зомби» и «Блок Дуо».

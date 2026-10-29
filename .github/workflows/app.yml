@@ -11,9 +11,11 @@
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
 #            + AccessibilityUITests без testAccessibilityAudit4Games (волна 31: шард 2 уже ≈ 30 мин)
+#              и без testAccessibilityAudit3bCapsuleHouse (волна 45 P: он в шарде 3)
 #   шард 2 — остальные PetUITests (-skip-testing шардов 1 и 3: новый класс UI-тестов попадает сюда сам)
 #   шард 3 — двор 3D и замеры: YardScreenUITests + PerfUITests + SinksUITests + LevelUITests (27.10)
 #            + YardDemoUITests: районы, ярусы и облик станций (волна 45 P: шард 1 подходил к 60 мин job)
+#            + аудит доступности автомата и дома (testAccessibilityAudit3bCapsuleHouse, волна 45 P)
 #   Волна 45 P: каждый шард начинает с A0WarmUpUITests (прогрев: установка, RealityKit, шейдеры), чтобы холодный
 #   старт не съедал 3 мин первого настоящего теста. Время тестов — шаг «Test times» (.github/scripts/test_times.py).
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
@@ -88,7 +90,10 @@ jobs:
           # Волна 45 P: шард 3 шёл 31–35 мин (UI 22–25) — забрал из шарда 1 облик станций и ярусы.
           yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests",
                      "YardDemoUITests/testYard1cLooks", "YardDemoUITests/testYard2Tiers",
-                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight"]
+                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight",
+                     # волна 45 P: автомат и дом из аудита доступности — шард 1 тяжелее (юнит-тесты + 39 мин),
+                     # аудит «магазинов» одним тестом вылетел за 7 мин в прогоне 40792335518
+                     "AccessibilityUITests/testAccessibilityAudit3bCapsuleHouse"]
           # Волна 45 P: прогрев первым в каждом шарде. В -skip-testing его нет — шард 2 берёт его сам.
           warm_ui = ["A0WarmUpUITests"]
           only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in warm_ui + long_ui)
