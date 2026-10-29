@@ -36,9 +36,10 @@ extension AppModel {
     }
 
     /// Открытая просьба пса на время снимка (на копии, без записи). nil — нет просьбы или пёс не дома/не жив.
+    /// Волна 46 Q: DogAsks.shown — как островок и виджет (раньше только «жив»: плашка висела, пока пёс гулял).
     var dogAsk: DogAsk? {
         guard DogAsks.enabled, snap.alive, let f = file else { return nil }
-        return DogAsks.current(f, now: snap.t)
+        return DogAsks.shown(f, now: snap.t)
     }
 
     /// Нажатие на плашку: подсказка, какую кнопку нажать и сколько монет.

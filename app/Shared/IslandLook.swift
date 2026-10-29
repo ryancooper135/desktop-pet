@@ -42,10 +42,8 @@ enum IslandFeed {
     /// Волна 45 O: просьба пса, открытая на now (та же, что плашка дома, — DogAsks.current).
     /// nil, если пёс спит, гуляет, моется или в походе: островок его не будит и не зовёт туда, где его нет.
     static func ask(_ f: SaveFile, now: Double, _ cfg: DogAskConfig = .shared) -> IslandAsk? {
-        guard let a = DogAsks.current(f, now: now, cfg), let k = a.kind else { return nil }
-        if let tr = f.trip.active, now < tr.until { return nil }
-        let s = PetRunner.peek(f, at: now)
-        guard s.alive, s.napUntil == nil, s.outing == nil, s.bathUntil == nil else { return nil }
+        // Волна 46 Q: те же условия, что у плашки дома (DogAsks.shown) — ещё и ночь пса, как в кадре виджета.
+        guard let a = DogAsks.shown(f, now: now, cfg), let k = a.kind else { return nil }
         return IslandAsk(kind: k, start: a.start, end: a.start + cfg.window, coins: a.coins)
     }
 
