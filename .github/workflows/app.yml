@@ -11,8 +11,13 @@
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
 #            + AccessibilityUITests без testAccessibilityAudit4Games (волна 31: шард 2 уже ≈ 30 мин)
+#              и без testAccessibilityAudit3bCapsuleHouse (волна 45 P: он в шарде 3)
 #   шард 2 — остальные PetUITests (-skip-testing шардов 1 и 3: новый класс UI-тестов попадает сюда сам)
 #   шард 3 — двор 3D и замеры: YardScreenUITests + PerfUITests + SinksUITests + LevelUITests (27.10)
+#            + YardDemoUITests: районы, ярусы и облик станций (волна 45 P: шард 1 подходил к 60 мин job)
+#            + аудит доступности автомата и дома (testAccessibilityAudit3bCapsuleHouse, волна 45 P)
+#   Волна 45 P: каждый шард начинает с A0WarmUpUITests (прогрев: установка, RealityKit, шейдеры), чтобы холодный
+#   старт не съедал 3 мин первого настоящего теста. Время тестов — шаг «Test times» (.github/scripts/test_times.py).
 # merge собирает части в прежние артефакты Pet-screens и Pet-xcresult (Pet-anim и Pet-ipa кладутся сразу целиком).
 # Подробно — RESEARCH/11-ci-testing.md.
 name: app
@@ -76,15 +81,23 @@ jobs:
                      # в шард 1: шард 2 и без него шёл 40–43 мин из 45 и с ним падал по таймауту
                      # волна 41 H: ожидания «выбор принят» и «кадр нарисован» вместо пауз дороже при 3D — шард 1 упёрся
                      # в 45 мин (прогон 40718623848); районы днём и ночью уехали в шард 3 (он шёл 19 мин)
+                     # волна 45 P: облик станций и ярусы — в шард 3: шард 1 шёл 45–56 мин из 60 (прогон 40771420002),
+                     # а в прогоне 40765117525 job отменили по 60 мин посреди UI-тестов
                      "YardDemoUITests/testYard1Stations", "YardDemoUITests/testYard1bStations",
-                     "YardDemoUITests/testYard1cLooks", "YardDemoUITests/testYard2Tiers",
                      "YardDemoUITests/testYard5WeatherChips"]
           # Шард 3 (27.10, волна 38): шард 2 дошёл до 44 м 42 с из 45 — двор 3D (YardScreenUITests 11,9 мин),
           # замеры (3,2) и мелкие экраны двора уехали на свой раннер. Замер 27.10: шард 1 ≈ 35, 2 ≈ 25, 3 ≈ 17 мин.
+          # Волна 45 P: шард 3 шёл 31–35 мин (UI 22–25) — забрал из шарда 1 облик станций и ярусы.
           yard_ui = ["YardScreenUITests", "PerfUITests", "SinksUITests", "LevelUITests",
-                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight"]
-          only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in long_ui)
-          only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in yard_ui)
+                     "YardDemoUITests/testYard1cLooks", "YardDemoUITests/testYard2Tiers",
+                     "YardDemoUITests/testYard3Districts", "YardDemoUITests/testYard4DistrictsNight",
+                     # волна 45 P: автомат и дом из аудита доступности — шард 1 тяжелее (юнит-тесты + 39 мин),
+                     # аудит «магазинов» одним тестом вылетел за 7 мин в прогоне 40792335518
+                     "AccessibilityUITests/testAccessibilityAudit3bCapsuleHouse"]
+          # Волна 45 P: прогрев первым в каждом шарде. В -skip-testing его нет — шард 2 берёт его сам.
+          warm_ui = ["A0WarmUpUITests"]
+          only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in warm_ui + long_ui)
+          only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in warm_ui + yard_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui + yard_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
           shards = []
@@ -270,6 +283,19 @@ jobs:
           xcrun xcresulttool get test-results metrics --path "$R" > "$OUT/perf-$SHARD.json" || { echo "метрик нет"; exit 0; }
           python3 ../.github/scripts/perf.py print "$OUT/perf-$SHARD.json"
 
+      - name: Test times
+        # Волна 45 P: время каждого теста и сумма по классам (с -quiet в логе его нет) — для балансировки шардов
+        # и чтобы видеть тесты у потолка 3 мин. Только печать, шаг не падает.
+        if: ${{ !cancelled() }}
+        run: |
+          for R in "$OUT"/*.xcresult; do
+            [ -d "$R" ] || continue
+            N=$(basename "$R" .xcresult)
+            echo "== $N"
+            xcrun xcresulttool get test-results tests --path "$R" > "$OUT/times-$N.json" \
+              && python3 ../.github/scripts/test_times.py "$OUT/times-$N.json" 20 || echo "времени нет: $N"
+          done
+
       - name: Export screenshots
         # Вложения из каждого xcresult (Xcode 16+): файлы с UUID-именами + manifest.json с читаемыми именами.
         # Всё — в screens/, контактные листы анимации anim-* ещё и отдельно в anim/.
@@ -335,6 +361,7 @@ jobs:
             app/out/*.xcresult
             app/out/coverage.txt
             app/out/perf-*.json
+            app/out/times-*.json
           if-no-files-found: ignore
           retention-days: 1
 

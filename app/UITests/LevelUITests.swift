@@ -59,9 +59,16 @@ final class LevelUITests: XCTestCase {
 
         // Сцена идёт сама: refresh видит оплаченный, но не показанный уровень. Тост «Уровень 3!» живёт 2.6 с, потом
         // его сменяет «Открылось: …» — пока тест закрывает системные окна, первый можно пропустить. Годится любой из двух.
+        // Волна 45 P: тост живёт 2,5 с, а один запрос к дереву под 3D на CI — до десятков секунд, и
+        // waitForExistence мог проспать оба тоста (прогон 40794999478, шард 3: «нет тоста нового уровня»). Как в ui-78:
+        // годится сам тост или след «toast=…|» в значении pet.stage (последние 4 тоста, только в UI-тестах, волна 41 H).
         let toast = any.matching(identifier: "toast")
             .matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "Уровень 3", "Открылось")).firstMatch
-        XCTAssertTrue(toast.waitForExistence(timeout: 15), "нет тоста нового уровня")
+        let stage = any["pet.stage"].firstMatch
+        let shown = eventually(timeout: 60) {
+            toast.exists || (valueNow(stage).map { $0.contains("toast=Уровень 3") || $0.contains("toast=Открылось") } ?? false)
+        }
+        XCTAssertTrue(shown, "нет тоста нового уровня (\(valueNow(stage) ?? "нет pet.stage"))")
         // Тост въезжает снизу с прозрачности (~0,35 с): без паузы снимок ловил пустое место.
         settle(0.6)
         snap("ui-34-level-up")
@@ -102,24 +109,24 @@ final class LevelUITests: XCTestCase {
         XCTAssertTrue(chip.waitForExistence(timeout: 15), "нет значка уровня в шапке")
         let level = any["level.sheet"].firstMatch
         XCTAssertTrue(open(chip, level, name: "ui-39-achieve-chip"), "лист «Уровень» не открылся")
+        // Волна 45 P: каждое ожидание + чтение .label — отдельные запросы к дереву, а под нагрузкой CI каждый стоит
+        // десятки секунд (прогон 40765117525: тест упёрся в 3 мин). Ждём и читаем одним снимком элемента.
         let entry = any["level.achievements"].firstMatch
-        XCTAssertTrue(entry.waitForExistence(timeout: 5), "нет входа в достижения")
-        XCTAssertTrue(entry.label.contains("Достижения"), "вход: \(entry.label)")
+        let entryNow = waitSnapshot(entry, timeout: 15) { $0.label.contains("Достижения") }
+        XCTAssertTrue(entryNow.ok, "нет входа в достижения: \(entryNow.last?.label ?? "нет")")
         settle(1)
         snap("ui-39-achieve-entry")
 
         let sheet = any["achieve.sheet"].firstMatch
         XCTAssertTrue(open(entry, sheet, name: "ui-39-achieve-entry-tap"), "лист «Достижения» не открылся")
-        let summary = any["achieve.summary"].firstMatch
-        XCTAssertTrue(summary.waitForExistence(timeout: 5), "нет сводки")
-        XCTAssertTrue(summary.label.contains("Получено"), "сводка: \(summary.label)")
-        XCTAssertFalse(summary.label.contains("Получено 0 "), "ничего не получено: \(summary.label)")
-        let got = any["achieve.level_10"].firstMatch
-        XCTAssertTrue(got.waitForExistence(timeout: 5), "нет карточки «Ур. 10»")
-        XCTAssertTrue(got.label.contains("Получено"), "ур. 10 не получен: \(got.label)")
-        let todo = any["achieve.challenge_10"].firstMatch
-        XCTAssertTrue(todo.exists, "нет карточки «Десять челленджей»")
-        XCTAssertTrue(todo.label.contains("4 из 10"), "прогресс челленджей: \(todo.label)")
+        let summary = waitSnapshot(any["achieve.summary"].firstMatch, timeout: 15) { $0.label.contains("Получено") }
+        let summaryText = summary.last?.label ?? "нет сводки"
+        XCTAssertTrue(summary.ok, "сводка: \(summaryText)")
+        XCTAssertFalse(summaryText.contains("Получено 0 "), "ничего не получено: \(summaryText)")
+        let got = waitSnapshot(any["achieve.level_10"].firstMatch, timeout: 15) { $0.label.contains("Получено") }
+        XCTAssertTrue(got.ok, "ур. 10 не получен: \(got.last?.label ?? "нет карточки «Ур. 10»")")
+        let todo = waitSnapshot(any["achieve.challenge_10"].firstMatch, timeout: 5) { $0.label.contains("4 из 10") }
+        XCTAssertTrue(todo.ok, "прогресс челленджей: \(todo.last?.label ?? "нет карточки «Десять челленджей»")")
         settle(1)
         snap("ui-39-achieve-sheet")
 

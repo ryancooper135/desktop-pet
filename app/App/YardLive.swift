@@ -362,17 +362,18 @@ struct YardFrameProbe: ViewModifier {
     let probe: String
     let key: String
     var tag: String = ""
-    @State private var ready = false
+    /// Ключ, для которого кадр нарисован. Волна 45 P: не флаг — между новым ключом и перезапуском .task значение
+    /// успевало показать новый tag со старым «frame=ready», и тест снимал прошлый мир.
+    @State private var readyKey: String?
 
     func body(content: Content) -> some View {
         if Env.isUITest {
             content
-                .accessibilityValue(Text(tag + "frame=" + (ready ? "ready" : "wait")))
+                .accessibilityValue(Text(tag + "frame=" + (readyKey == key ? "ready" : "wait")))
                 .task(id: key) {
-                    ready = false
                     while !Task.isCancelled {
-                        let now = YardFrame.ready(probe, key: key)
-                        if now != ready { ready = now }
+                        let now = YardFrame.ready(probe, key: key) ? key : nil
+                        if now != readyKey { readyKey = now }
                         try? await Task.sleep(for: .milliseconds(300))
                     }
                 }

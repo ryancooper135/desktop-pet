@@ -63,16 +63,19 @@ final class YardDemoUITests: XCTestCase {
     /// Котелок на трёх уровнях и мельница ночью.
     @MainActor
     func testYard1cLooks() throws {
+        // Волна 45 P: было «тап + пауза 1,2–1,6 с» без проверки, что чип принят, — на медленном CI снимок ловил
+        // прошлый вид, а потерянный тап проходил молча. Теперь как у соседей: выбор принят + кадр нарисован,
+        // и запас 420 с как у них (каждый опрос при 3D на CI — десятки секунд).
+        executionTimeAllowance = 420
         let app = try openDemo()
-        tapWhenReady(el(app, "yard.st.3"))
+        choose(app, "yard.st.3", shows: "shot=st.3,")
         for l in [1, 3, 5] {
-            tapWhenReady(el(app, "yard.lv.\(l)"))
-            settle(1.2)
+            choose(app, "yard.lv.\(l)", shows: "shot=st.3,lv=\(l),", snap: "ui-98-yard-look-\(l)")
             snap("ui-98-yard-look-\(l)")
         }
-        tapWhenReady(el(app, "yard.st.8"))
-        tapWhenReady(el(app, "yard.night"))
-        settle(1.6)
+        choose(app, "yard.st.8", shows: "shot=st.8,")
+        // «ночь» — переключатель: повторный тап выключил бы её обратно, поэтому без перетапа, ждём дольше.
+        choose(app, "yard.night", shows: "night=1,", snap: "ui-98-yard-mill-night", retap: false)
         snap("ui-98-yard-mill-night")
         app.terminate()
     }
@@ -96,23 +99,63 @@ final class YardDemoUITests: XCTestCase {
     /// Пять ярусов накопительно и стройка дворика по плитам.
     @MainActor
     func testYard2Tiers() throws {
+        // Волна 45 P: упирался в 3 мин (прогон 40765117525): 16 тапов через tapWhenReady — по три запроса к дереву
+        // на тап (есть? нажимаемо? тап), при 3D на CI каждый 20–40 с, плюс паузы без проверки результата.
+        // Теперь чипы ярусов — choose (выбор принят + кадр), плиты — счёт в значении сцены («plates=N,») и
+        // дешёвые тапы по запомненной рамке. Запас 420 с как у соседей по классу — под честное ожидание кадра.
+        executionTimeAllowance = 420
         let app = try openDemo()
-        tapWhenReady(el(app, "yard.lv.3"))
+        choose(app, "yard.lv.3", shows: "lv=3,")
         for n in 0..<5 {
-            tapWhenReady(el(app, "yard.tier.\(n)"))
-            settle(1.6)
+            choose(app, "yard.tier.\(n)", shows: "shot=tier.\(n),", snap: "ui-98-yard-tier-\(n)")
             snap("ui-98-yard-tier-\(n)")
         }
-        tapWhenReady(el(app, "yard.tier.1"))
-        let minus = el(app, "yard.plate.minus")
-        for _ in 0..<6 { tapWhenReady(minus) }
-        settle(1.2)
+        choose(app, "yard.tier.1", shows: "shot=tier.1,")
+        plates(app, 0, snap: "ui-98-yard-tier-1-0")
         snap("ui-98-yard-tier-1-0")
-        let plus = el(app, "yard.plate.plus")
-        for _ in 0..<3 { tapWhenReady(plus) }
-        settle(1.2)
+        plates(app, 3, snap: "ui-98-yard-tier-1-3")
         snap("ui-98-yard-tier-1-3")
         app.terminate()
+    }
+
+    /// Довести число плит яруса до want кнопками «− плита» / «+ плита» и дождаться кадра. Сколько плит сейчас —
+    /// из значения сцены («plates=N,»), сколько нажать — разница. Первый тап по чипу — tapWhenReady (докрутит,
+    /// проверит), остальные — по запомненной рамке: без трёх запросов к дереву на каждый. Тап потерялся — счёт
+    /// в значении это покажет, следующий круг дожмёт разницу (до трёх кругов). Кнопки упираются в 0 и в размер
+    /// яруса, так что лишний тап не проскочит дальше цели.
+    @MainActor
+    private func plates(_ app: XCUIApplication, _ want: Int, snap: String) {
+        let scene = el(app, "yard.scene")
+        let mark = "plates=\(want),"
+        // Сначала один снимок: что сейчас (опрос со сроком смотрел бы минимум дважды, а снимок при 3D — десятки секунд).
+        var w: (accepted: Bool, ready: Bool, last: String?) = (false, false, valueNow(scene))
+        if let v = w.last, v.contains(mark) { w = (true, v.contains("frame=ready"), v) }
+        for _ in 0..<3 where !w.accepted {
+            guard let have = w.last.flatMap(Self.plateCount) else {
+                w = poll(scene, mark, frame: true, timeout: 30)
+                continue
+            }
+            let chip = el(app, have > want ? "yard.plate.minus" : "yard.plate.plus")
+            guard tapWhenReady(chip, timeout: 30) else { break }
+            let f = chip.frame
+            let at = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: f.midX, dy: f.midY))
+            for _ in 0..<max(0, abs(have - want) - 1) { at.tap() }
+            w = poll(scene, mark, frame: true, timeout: 30)
+        }
+        XCTAssertTrue(w.accepted, "плит не стало \(want) (\(w.last ?? "нет сцены"))")
+        if w.accepted && !w.ready { w = poll(scene, mark, frame: true, timeout: 30) }
+        if !w.ready {
+            let note = XCTAttachment(string: "\(snap): нет \(mark) frame=ready; value=\(w.last ?? "нет элемента")")
+            note.name = "\(snap)-not-ready"
+            note.lifetime = .keepAlways
+            add(note)
+        }
+    }
+
+    /// «…,plates=6,…» → 6.
+    private static func plateCount(_ value: String) -> Int? {
+        guard let r = value.range(of: "plates=") else { return nil }
+        return Int(value[r.upperBound...].prefix { $0.isNumber })
     }
 
     /// Волна 36 Q: четыре района двора на ярусе 4 (ui-36-district-*) и сцена переезда (ui-36-move-van).
@@ -142,7 +185,8 @@ final class YardDemoUITests: XCTestCase {
         let caption = el(app, "yard.move.caption")
         XCTAssertTrue(tap(el(app, "yard.move"), expecting: caption, timeout: 30, name: "ui-36-move-open"),
                       "сцена переезда не открылась")
-        XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
+        // Подпись из снимка в опросе: прямой caption.label при 3D на CI мог упереться в таймаут запроса (волна 45 P).
+        XCTAssertEqual(waitSnapshot(caption, timeout: 30) { _ in true }.last?.label, "Переезжаем: Улица → Зимний квартал")
         let van = el(app, "yard.move.scene")
         XCTAssertTrue(waitExists(van, timeout: 60), "нет сцены фургона")
         // Вместо паузы 4 с — фургон уже нарисован (YardFrame).
@@ -160,7 +204,8 @@ final class YardDemoUITests: XCTestCase {
         let app = try openDemo()
         choose(app, "yard.lv.3", shows: "lv=3,")
         choose(app, "yard.tier.4", shows: "shot=tier.4,")
-        tapWhenReady(el(app, "yard.night"), timeout: 30)
+        // Волна 45 P: раньше тап без проверки — потерянный тап давал «ночные» снимки днём.
+        choose(app, "yard.night", shows: "night=1,", retap: false)
         for d in ["winter", "river", "roof", "street"] {
             choose(app, "yard.district.\(d)", shows: "district=\(d),", snap: "ui-37-district-\(d)-night")
             snap("ui-37-district-\(d)-night")
@@ -205,13 +250,15 @@ final class YardDemoUITests: XCTestCase {
     /// snap — дальше будет снимок: тем же опросом ждём и «frame=ready» (мир нарисован, YardFrame). Один запрос к
     /// дереву на попытку: при 3D на CI каждый стоит десятки секунд, отдельные ожидания «выбор» и «кадр» удваивали
     /// время (первый прогон волны 41 H упёрся в 45 мин шарда). Кадр не дождались — не провал, заметка <snap>-not-ready.
+    /// retap: false — для переключателей («ночь»): второй тап вернул бы прежнее, поэтому одно нажатие и срок 60 с.
     @MainActor
-    private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String, snap: String? = nil) {
+    private func choose(_ app: XCUIApplication, _ chip: String, shows mark: String, snap: String? = nil,
+                        retap: Bool = true) {
         let scene = el(app, "yard.scene")
         let frame = snap != nil
         tapWhenReady(el(app, chip), timeout: 30)
-        var w = poll(scene, mark, frame: frame, timeout: 30)
-        if !w.accepted {
+        var w = poll(scene, mark, frame: frame, timeout: retap ? 30 : 60)
+        if !w.accepted && retap {
             tapWhenReady(el(app, chip), timeout: 30)
             w = poll(scene, mark, frame: frame, timeout: 30)
         }

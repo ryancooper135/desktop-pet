@@ -145,7 +145,10 @@ final class Wave5SeamTests: XCTestCase {
             XCTAssertTrue(Economy.settle(&f).isEmpty)
         }
         XCTAssertGreaterThan(oks, 0)
-        XCTAssertEqual(f.econ.wallet.coins, EconomyConfig.shared.coinsStart + paid + DogLevel.coinsPaid(f.level), "капсула за билетик монет не тратит")
+        // Просьба пса (если её окно совпало с действием) платит отдельной записью ask.done — её монеты тоже считаем,
+        // чтобы тест не зависел от расписания просьб в config/economy.json.
+        let asked = f.journal.filter { $0.kind == DogAsks.doneKind }.reduce(0) { $0 + ($1.value ?? 0) }
+        XCTAssertEqual(f.econ.wallet.coins, EconomyConfig.shared.coinsStart + paid + asked + DogLevel.coinsPaid(f.level), "капсула за билетик монет не тратит")
         XCTAssertEqual(f.econ.paidSeq, f.seq, "оплачено всё до последней записи")
     }
 

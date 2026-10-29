@@ -241,9 +241,11 @@ struct YardArtDemoScreen: View {
                              : district.skyColor(night: night)).overlay(WeatherVeil(kind: weather)))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 // UI-тест (волна 41 H): что показано и нарисован ли уже этот мир — «shot=st.3,lv=2,district=street,frame=ready».
+                // Волна 45 P: ещё плиты и ночь — тест ждёт, что «− плита»/«+ плита»/«ночь» приняты, а не паузу после тапа.
                 .accessibilityElement(children: .ignore)
                 .modifier(YardFrameProbe(probe: "yard.demo", key: key,
-                                         tag: "shot=\(Self.tag(shot)),lv=\(level),district=\(district.rawValue),"))
+                                         tag: "shot=\(Self.tag(shot)),lv=\(level),district=\(district.rawValue),"
+                                            + "plates=\(progress),night=\(night ? 1 : 0),"))
                 .accessibilityIdentifier("yard.scene")
 
                 caption(worst: worst)

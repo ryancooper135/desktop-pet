@@ -1130,6 +1130,23 @@ extension XCTestCase {
         return s.value as? String
     }
 
+    /// Опрашивать снимок элемента, пока check не выйдет; вернуть последний снимок (подпись и значение из ОДНОГО
+    /// состояния). Волна 45 P: прямое scene.label / scene.value — отдельный запрос к дереву, и при 3D на CI он сам
+    /// упирался в таймаут запроса: тест падал со спиндампом, хотя проверяемое давно было на экране (testDogAtStation,
+    /// джобы 122926946641, 123043578333). Снимок через try? — неудача запроса значит «ещё раз», а не провал.
+    @MainActor
+    @discardableResult
+    func waitSnapshot(_ e: XCUIElement, timeout: TimeInterval = 60,
+                      _ check: (XCUIElementSnapshot) -> Bool) -> (ok: Bool, last: XCUIElementSnapshot?) {
+        var last: XCUIElementSnapshot?
+        let ok = eventually(timeout: timeout) {
+            guard let s = try? e.snapshot() else { return false }
+            last = s
+            return check(s)
+        }
+        return (ok, last)
+    }
+
     /// Дождаться, пока в значении элемента есть все подстроки (сцены двора: «frame=ready», «dog3d=on»…).
     @MainActor
     @discardableResult

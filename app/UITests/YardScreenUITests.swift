@@ -42,13 +42,13 @@ final class YardScreenUITests: XCTestCase {
         let any = app.descendants(matching: .any)
         let scene = any["yard.screen.scene"]
         XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
-        XCTAssertTrue(wait(scene, valueHas: "plates=0"), "сид yard_empty: двор пустой (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "plates=0"), "сид yard_empty: двор пустой (\(valueNow(scene) ?? "нет сцены"))")
         readyForSnap(scene, has: "frame=ready", name: "ui-34-yard-empty")
         snap("ui-34-yard-empty")
 
         let buy = any["yard.screen.plate.buy"]
         XCTAssertTrue(tapWhenReady(buy), "нет кнопки «Купить»")
-        XCTAssertTrue(wait(scene, valueHas: "plates=1"), "плита не встала (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "plates=1"), "плита не встала (\(valueNow(scene) ?? "нет сцены"))")
         app.terminate()
     }
 
@@ -59,7 +59,7 @@ final class YardScreenUITests: XCTestCase {
         let any = app.descendants(matching: .any)
         let scene = any["yard.screen.scene"]
         XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
-        XCTAssertTrue(wait(scene, valueHas: "dryer=2"), "сид yard_plates: сушилка ур. 2 (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "dryer=2"), "сид yard_plates: сушилка ур. 2 (\(valueNow(scene) ?? "нет сцены"))")
         XCTAssertTrue(waitExists(any["yard.screen.plate.more"], timeout: 30), "нет строки «ещё N 🪙»")
         readyForSnap(scene, has: "frame=ready", name: "ui-34-yard-plates")
         snap("ui-34-yard-plates")
@@ -80,7 +80,7 @@ final class YardScreenUITests: XCTestCase {
         let screen = any["yard.screen"]
         let scene = any["yard.screen.scene"]
         XCTAssertTrue(scene.waitForExistence(timeout: 20), "экран «Двор» не открылся")
-        XCTAssertTrue(wait(scene, valueHas: "dryer=3"), "сид yard_rich: сушилка ур. 3 (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "dryer=3"), "сид yard_rich: сушилка ур. 3 (\(valueNow(scene) ?? "нет сцены"))")
 
         // Сначала копилка — она наверху, под сценой.
         let collect = any["yard.screen.collect"]
@@ -92,7 +92,7 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(waitExists(up, timeout: 30), "нет кнопки «Улучшить» у сушилки")
         reveal(up, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(up), "«Улучшить» не нажимается")
-        XCTAssertTrue(wait(scene, valueHas: "dryer=4", timeout: 60), "сушилка не выросла (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "dryer=4", timeout: 60), "сушилка не выросла (\(valueNow(scene) ?? "нет сцены"))")
         settle(1)
         snap("ui-34-yard-station")
 
@@ -113,12 +113,15 @@ final class YardScreenUITests: XCTestCase {
         let app = launch("yard_rich", dog: "porridge")
         let scene = app.descendants(matching: .any)["yard.screen.scene"]
         XCTAssertTrue(waitExists(scene, timeout: 30), "экран «Двор» не открылся")
-        XCTAssertTrue(wait(scene, valueHas: "dog=act.porridge", timeout: 60),
-                      "пёс не у каши (\(String(describing: scene.value)))")
-        XCTAssertTrue(scene.label.contains("Шиба"), "VoiceOver не говорит, где Шиба: \(scene.label)")
+        // Волна 45 P: значение и подпись — одним снимком в опросе. Раньше scene.label читался отдельным запросом,
+        // и при 3D на CI сам запрос упирался в таймаут: тест падал со спиндампом через ~3 мин, хотя пёс сидел у каши.
+        let atPorridge = waitSnapshot(scene, timeout: 60) { ($0.value as? String)?.contains("dog=act.porridge") == true }
+        XCTAssertTrue(atPorridge.ok, "пёс не у каши (\(atPorridge.last?.value as? String ?? "нет сцены"))")
+        let voice = atPorridge.last?.label ?? ""
+        XCTAssertTrue(voice.contains("Шиба"), "VoiceOver не говорит, где Шиба: \(voice)")
         // План говорит «у каши» сразу, а модель грузится отдельно: ждём, пока пёс сядет в сцену и она отрисуется.
         XCTAssertTrue(wait(scene, valueHas: "dog3d=on", timeout: 120),
-                      "пёс не появился в сцене (\(String(describing: scene.value)))")
+                      "пёс не появился в сцене (\(valueNow(scene) ?? "нет сцены"))")
         // Вместо паузы 3 с — признак, что мир сцены уже прожил несколько кадров (YardFrame).
         readyForSnap(scene, has: "dog3d=on", "frame=ready", name: "ui-35-yard-dog")
         snap("ui-35-yard-dog")
@@ -139,8 +142,11 @@ final class YardScreenUITests: XCTestCase {
         let screen = any["yard.screen"]
         let scene = any["yard.screen.scene"]
         XCTAssertTrue(waitExists(scene, timeout: 30), "экран «Двор» не открылся")
-        XCTAssertTrue(wait(scene, valueHas: "gold=bones"), "сид yard_rich: косточки золотые (\(String(describing: scene.value)))")
-        XCTAssertTrue(scene.label.contains("/ч"), "VoiceOver не читает доход станций: \(scene.label)")
+        // Волна 45 P: значение и подпись одним снимком (см. testDogAtStation).
+        let seeded = waitSnapshot(scene, timeout: 30) { ($0.value as? String)?.contains("gold=bones") == true }
+        XCTAssertTrue(seeded.ok, "сид yard_rich: косточки золотые (\(seeded.last?.value as? String ?? "нет сцены"))")
+        let voice = seeded.last?.label ?? ""
+        XCTAssertTrue(voice.contains("/ч"), "VoiceOver не читает доход станций: \(voice)")
         readyForSnap(scene, has: "dog3d=on", "frame=ready", timeout: 90, name: "ui-35-yard-plate")
         snap("ui-35-yard-plate")
 
@@ -149,7 +155,7 @@ final class YardScreenUITests: XCTestCase {
         reveal(gold, in: screen, app: app)
         XCTAssertTrue(tapWhenReady(gold), "золотая табличка не нажимается")
         XCTAssertTrue(wait(scene, valueHas: "gold=bones,dryer", timeout: 60),
-                      "сушилка не стала золотой (\(String(describing: scene.value)))")
+                      "сушилка не стала золотой (\(valueNow(scene) ?? "нет сцены"))")
         XCTAssertTrue(waitExists(any["yard.screen.station.dryer.goldOwned"], timeout: 30), "нет строки «Золотая табличка»")
         // Наверх до шапки: сцена видна целиком.
         toTop(screen, app: app)
@@ -173,7 +179,7 @@ final class YardScreenUITests: XCTestCase {
         let scene = any["yard.screen.scene"]
         XCTAssertTrue(waitExists(scene, timeout: 30), "экран «Двор» не открылся")
         XCTAssertTrue(wait(scene, valueHas: "moves=0", timeout: 60),
-                      "сид yard_full: переездов не было (\(String(describing: scene.value)))")
+                      "сид yard_full: переездов не было (\(valueNow(scene) ?? "нет сцены"))")
         XCTAssertFalse(any["yard.screen.glory"].exists, "до переезда звёзд славы нет")
 
         let move = any["yard.screen.move"]
@@ -194,7 +200,7 @@ final class YardScreenUITests: XCTestCase {
         // «Остаться» — ничего не меняется.
         XCTAssertTrue(tapWhenReady(cancel), "«Остаться» не нажимается")
         XCTAssertTrue(waitGone(confirm, timeout: 30), "подтверждение не закрылось")
-        XCTAssertTrue(wait(scene, valueHas: "moves=0"), "«Остаться» переселило двор (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "moves=0"), "«Остаться» переселило двор (\(valueNow(scene) ?? "нет сцены"))")
 
         // Теперь всерьёз.
         XCTAssertTrue(tap(move, expecting: confirm, timeout: 30, name: "ui-36-yard-move-miss2"),
@@ -202,15 +208,17 @@ final class YardScreenUITests: XCTestCase {
         XCTAssertTrue(tapWhenReady(confirm), "«Переехать» не нажимается")
         // Сразу после переезда — экран фургона поверх двора; «Готово» возвращает к пустому двору.
         let caption = any["yard.move.caption"]
-        XCTAssertTrue(waitExists(caption, timeout: 60), "после переезда нет экрана фургона")
-        XCTAssertEqual(caption.label, "Переезжаем: Улица → Зимний квартал")
+        // Подпись — из снимка в опросе (под фургоном 3D, прямой caption.label мог упереться в таймаут запроса).
+        let trip = waitSnapshot(caption, timeout: 60) { _ in true }
+        XCTAssertTrue(trip.ok, "после переезда нет экрана фургона")
+        XCTAssertEqual(trip.last?.label, "Переезжаем: Улица → Зимний квартал")
         // Вместо паузы 2,5 с — фургон уже нарисован (YardFrame, «frame=ready» у yard.move.scene).
         readyForSnap(any["yard.move.scene"], has: "frame=ready", timeout: 90, name: "ui-36-yard-trip")
         snap("ui-36-yard-trip")
         XCTAssertTrue(tapWhenReady(any["yard.move.close"], timeout: 30), "«Готово» на экране фургона не нажимается")
         XCTAssertTrue(waitGone(caption, timeout: 60), "экран фургона не закрылся")
-        XCTAssertTrue(wait(scene, valueHas: "moves=1", timeout: 60), "переезд не случился (\(String(describing: scene.value)))")
-        XCTAssertTrue(wait(scene, valueHas: "plates=0"), "после переезда плиты остались (\(String(describing: scene.value)))")
+        XCTAssertTrue(wait(scene, valueHas: "moves=1", timeout: 60), "переезд не случился (\(valueNow(scene) ?? "нет сцены"))")
+        XCTAssertTrue(wait(scene, valueHas: "plates=0"), "после переезда плиты остались (\(valueNow(scene) ?? "нет сцены"))")
         XCTAssertTrue(waitGone(move, timeout: 30), "карточка переезда не ушла с пустого двора")
         // Волна 37 A: вместо кнопки — тусклая карточка «почему закрыт и сколько осталось».
         let locked = any["yard.screen.move.locked"]
