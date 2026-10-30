@@ -253,7 +253,7 @@ struct CatchGameScreen: View {
         model.refresh()
         Task { await AppActions.shared.afterChange() }
         phase = .done(r)
-        Feel.success(r.isRecord && r.score > 0 ? .hearts : .ok)
+        Feel.success(CoinChime.cue(.miniGame(coins: r.coins, record: r.isRecord && r.score > 0)))
     }
 
     /// PET_CATCH=play|done — детерминированные снимки (сид 7, автопилот).

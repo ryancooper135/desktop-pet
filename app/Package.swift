@@ -143,6 +143,7 @@ let package = Package(
                 "LineRotationTests.swift",
                 "SoundTests.swift",
                 "FeelTests.swift",
+                "SoundEventTests.swift",
                 "PrefsTests.swift",
                 "WalkTests.swift",
                 "TastesTests.swift",

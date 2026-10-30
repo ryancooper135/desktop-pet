@@ -430,8 +430,8 @@ struct ZombieRunScreen: View {
         Task { await AppActions.shared.afterChange() }
         dragFrom = nil
         phase = .done(r)
-        let cue: SoundCue = r.isRecord && r.score > 0 ? .hearts : .ok
-        if felt { Feel.sound(cue) } else { Feel.success(cue) }
+        let cue = CoinChime.cue(.miniGame(coins: r.coins, record: r.isRecord && r.score > 0))
+        if felt { if let cue { Feel.sound(cue) } } else { Feel.success(cue) }
     }
 
     /// Закрыть экран. Посреди раунда с очками — сначала засчитать его; после раунда Шиба в комнате радуется.

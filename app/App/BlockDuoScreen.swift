@@ -460,7 +460,7 @@ struct BlockDuoScreen: View {
         busy = false
         drag = nil
         phase = .done(r)
-        Feel.success(r.isRecord && r.score > 0 ? .hearts : .ok)
+        Feel.success(CoinChime.cue(.miniGame(coins: r.coins, record: r.isRecord && r.score > 0)))
     }
 
     /// Закрыть экран. Посреди партии с очками — сначала засчитать её; после партии Шиба в комнате радуется.

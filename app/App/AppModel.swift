@@ -651,6 +651,8 @@ final class AppModel {
         taskToastT = w.t
         taskShownAt = ProcessInfo.processInfo.systemUptime
         show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
+        // Волна 49: монеты пришли — звенит (фоновый: после возврата из фона догон молчит).
+        Feel.ambient(nil, CoinChime.cue(.dailyTask(coins: w.coins + w.allCoins)))
     }
 
     /// Волна 43 K: «Просьба выполнена! Покормить · +10 🪙» — один раз, только свежее (до 10 с). Если то же действие
@@ -661,6 +663,7 @@ final class AppModel {
         if ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 { return }
         askShownAt = ProcessInfo.processInfo.systemUptime
         show(DogAskText.toast(w), emoji: DogAskText.emoji(w.kind))
+        Feel.ambient(nil, CoinChime.cue(.dogAsk(coins: w.coins)))
     }
 
     /// Волна 39 C: «Достижение: Ур. 10 · +3 ✂️» — один раз на получение, только свежее (до 10 с). Из refresh

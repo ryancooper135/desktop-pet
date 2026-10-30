@@ -21,7 +21,7 @@ extension AppModel {
         yardWrite { f, now in Yard.buyPlate(id, in: &f, now: now, dogLevel: DogLevel.level(f)) }
             .map { r in
                 switch r {
-                case .ok: Feel.success(.coins)
+                case .ok: Feel.success(CoinChime.cue(.yardPlate))
                 default: refuseYard(r)
                 }
                 return r
@@ -34,7 +34,7 @@ extension AppModel {
         yardWrite { f, now in Yard.upgrade(id, in: &f, now: now, dogLevel: DogLevel.level(f)) }
             .map { r in
                 switch r {
-                case .upgraded: Feel.success(.coins)
+                case .upgraded: Feel.success(CoinChime.cue(.yardUpgrade))
                 default: refuseYard(r)
                 }
                 return r
@@ -48,7 +48,7 @@ extension AppModel {
         guard let r else { return nil }
         switch r {
         case .ok:
-            Feel.success(.coins)
+            Feel.success(CoinChime.cue(.yardGild))
             show("Табличка теперь золотая: +\(YardConfig.shared.goldPct) %", emoji: "🏅")
         case .noShards(let need): refuse("Не хватает: ещё \(EconText.shards(need))")
         case .owned: refuse("Табличка уже золотая")
@@ -82,7 +82,7 @@ extension AppModel {
         if h.isEmpty {
             refuse(YardText.harvest(h))
         } else {
-            Feel.success(.coins)
+            Feel.success(CoinChime.cue(.yardCollect(coins: h.coins)))
             show(YardText.harvest(h), emoji: "🐷")
         }
         return h
