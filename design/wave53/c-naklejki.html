@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>C · Наклейки</title>
+<link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="base.css">
+<style>
+/* Направление C — «Наклейки»: всё как стикеры — жирный контур, жёсткая тень, сочные плоские цвета */
+:root { --ink:#2B2135; --sun:#FFD23F; --coral:#FF6B5B; --pink:#FF8FB8; --mint:#4FD1A5; --sky:#5BC0EB; --lil:#B79CED; --paper:#FFF8E7; }
+.C { font-family: 'Google Sans', 'Segoe UI', sans-serif; }
+.C .phone { background: var(--paper); color: var(--ink); }
+.st { border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.U { font-family: 'Unbounded', sans-serif; }
+
+.wall { position:absolute; left:0; right:0; top:0; height:560px; background: #A8E6CF;
+  background-image: radial-gradient(circle, rgba(255,255,255,.55) 3px, transparent 3.5px); background-size: 34px 34px; }
+.flr { position:absolute; left:0; right:0; top:560px; height:200px; background: repeating-linear-gradient(90deg,#FFB86B 0 46px,#FFA94D 46px 92px); border-top:3px solid var(--ink); }
+.rug { position:absolute; left:80px; top:586px; width:260px; height:60px; border-radius:50%; background:var(--pink); border:3px solid var(--ink); }
+.frame { position:absolute; right:30px; top:312px; width:84px; height:96px; background:#fff; transform:rotate(5deg); padding:8px; }
+.frame div { width:100%; height:100%; background: linear-gradient(#7FD4FF 0 60%, #6BD08A 60%); border:2px solid var(--ink); }
+
+.top { position:absolute; top:58px; left:14px; right:14px; display:flex; gap:8px; align-items:center; z-index:5; }
+.chip { height:42px; border-radius:21px; background:#fff; display:flex; align-items:center; gap:6px; padding:0 12px; font-weight:700; font-size:17px; }
+.lvl { font-size:12px; background:var(--lil); border:2px solid var(--ink); border-radius:10px; padding:0 6px; height:22px; display:grid; place-items:center; }
+.hr { color:var(--coral); font-size:13px; letter-spacing:1px; }
+
+.quest { position:absolute; top:120px; left:16px; right:24px; height:86px; border-radius:22px; background:var(--sun); transform:rotate(-1.5deg); z-index:5; padding:10px 14px; }
+.quest .t { font-size:12px; font-weight:800; letter-spacing:.6px; }
+.quest .d { font-size:20px; font-weight:700; margin-top:2px; display:flex; align-items:center; gap:8px; }
+.segs { display:flex; gap:5px; margin-top:6px; width:190px; }
+.segs i { flex:1; height:12px; border-radius:6px; border:2px solid var(--ink); background:#fff; }
+.segs i.f { background:var(--coral); }
+.burst, .burstb { clip-path: polygon(50% 0,61% 13%,77% 6%,79% 23%,95% 25%,88% 40%,100% 50%,88% 60%,95% 75%,79% 77%,77% 94%,61% 87%,50% 100%,39% 87%,23% 94%,21% 77%,5% 75%,12% 60%,0 50%,12% 40%,5% 25%,21% 23%,23% 6%,39% 13%); }
+.burst { position:absolute; right:-14px; top:-14px; width:96px; height:96px; background:var(--coral); color:#fff; display:grid; place-items:center; text-align:center;
+  clip-path: polygon(50% 0,61% 13%,77% 6%,79% 23%,95% 25%,88% 40%,100% 50%,88% 60%,95% 75%,79% 77%,77% 94%,61% 87%,50% 100%,39% 87%,23% 94%,21% 77%,5% 75%,12% 60%,0 50%,12% 40%,5% 25%,21% 23%,23% 6%,39% 13%);
+  font-family:'Unbounded'; font-weight:800; font-size:17px; line-height:1.05; transform:rotate(8deg); }
+.burstb { position:absolute; right:-18px; top:-10px; transform:rotate(8deg); width:96px; height:96px; background:var(--ink); }
+
+.needs { position:absolute; top:226px; left:16px; right:16px; display:flex; gap:8px; z-index:5; }
+.nd { flex:1; height:40px; border-radius:14px; background:#fff; display:flex; align-items:center; gap:5px; padding:0 7px; font-size:18px; }
+.nd .s { flex:1; display:flex; gap:2px; }
+.nd .s i { flex:1; height:12px; border-radius:3px; background:#EFE6D2; }
+.nd .s i.f { background:var(--c); }
+
+.pet { left:90px; top:408px; width:240px; height:192px; color:#F08A3C; }
+.pet svg { filter: drop-shadow(4px 4px 0 var(--ink)); }
+.ask { position:absolute; left:84px; top:350px; height:46px; border-radius:23px 23px 23px 6px; background:#fff; display:flex; align-items:center; gap:4px; padding:0 12px; font-size:22px; z-index:4; }
+.ask b { font-family:'Unbounded'; font-size:16px; }
+
+.toast { position:absolute; left:206px; top:330px; z-index:9; transform:rotate(-6deg); }
+.toast .in { background:#fff; border-radius:18px; padding:8px 14px; display:flex; align-items:center; gap:8px; font-weight:800; font-size:20px; }
+.toast .pl { background:var(--sun); border:2px solid var(--ink); border-radius:12px; padding:1px 8px; font-size:16px; }
+
+.acts { position:absolute; left:14px; right:16px; top:666px; display:flex; gap:9px; z-index:5; }
+.tile { flex:1; height:110px; border-radius:22px; background:var(--c); text-align:center; padding-top:10px; }
+.tile .ic { font-size:32px; line-height:1; }
+.tile .w { font-weight:800; font-size:15px; margin-top:5px; }
+.tile .r { display:inline-block; margin-top:5px; background:#fff; border:2px solid var(--ink); border-radius:10px; padding:0 7px; font-size:13px; font-weight:700; }
+
+.tabs { position:absolute; left:14px; right:16px; bottom:22px; height:70px; border-radius:35px; background:var(--ink); display:flex; align-items:center; justify-content:space-around; z-index:6;
+  box-shadow: 4px 4px 0 rgba(43,33,53,.25); }
+.tab { width:62px; text-align:center; color:#CFC6DD; font-size:11px; font-weight:700; }
+.tab b { display:block; font-size:24px; line-height:30px; margin-bottom:1px; }
+.tab.on { color:#fff; }
+.tab.on b { background:var(--sun); border-radius:15px; width:48px; margin:0 auto 1px; border:2px solid #fff; }
+.tab.dot { position:relative; }
+.tab.dot:after { content:''; position:absolute; top:-2px; right:10px; width:11px; height:11px; border-radius:50%; background:var(--coral); border:2px solid var(--ink); }
+
+/* ===== Двор ===== */
+.ytitle { position:absolute; top:58px; left:16px; right:16px; display:flex; align-items:center; gap:8px; }
+.ytitle h2 { font-family:'Unbounded'; font-weight:800; font-size:28px; }
+.scene { position:absolute; top:112px; left:16px; right:18px; height:292px; border-radius:26px; overflow:hidden; background:#9BE1FF; }
+.grass { position:absolute; left:-3px; right:-3px; bottom:-3px; height:150px; background:#7ED957; border-top:3px solid var(--ink); }
+.fence { position:absolute; left:0; right:0; bottom:130px; height:30px; background: repeating-linear-gradient(90deg, #fff 0 12px, transparent 12px 30px); border-bottom: 6px solid #fff; }
+.obj { position:absolute; font-size:46px; }
+.inc { position:absolute; background:#fff; border:2px solid var(--ink); border-radius:12px; padding:1px 8px; font-weight:800; font-size:14px; box-shadow:2px 2px 0 var(--ink); }
+.bank { position:absolute; top:424px; left:16px; right:18px; height:150px; border-radius:24px; background:#fff; padding:14px; }
+.bank .r1 { display:flex; align-items:center; gap:12px; }
+.pig { width:58px; height:58px; border-radius:18px; background:var(--pink); border:3px solid var(--ink); display:grid; place-items:center; font-size:32px; }
+.bank .n { font-family:'Unbounded'; font-weight:800; font-size:24px; }
+.bank .s2 { font-size:14px; font-weight:700; color:#6E6380; }
+.bigbtn { margin-top:12px; height:50px; border-radius:18px; background:var(--sun); display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800; font-size:19px; }
+.next { position:absolute; top:594px; left:16px; right:18px; height:96px; border-radius:24px; background:#fff; padding:12px; display:flex; align-items:center; gap:12px; }
+.next .ic { width:64px; height:64px; border-radius:18px; background:#DDF7C8; border:3px solid var(--ink); display:grid; place-items:center; font-size:36px; }
+.next h3 { font-size:19px; font-weight:800; }
+.next .tg { display:inline-block; margin-top:4px; font-size:13px; font-weight:700; background:var(--lil); border:2px solid var(--ink); border-radius:10px; padding:0 7px; }
+.buy { margin-left:auto; height:50px; border-radius:16px; background:var(--mint); padding:0 14px; display:flex; align-items:center; gap:6px; font-weight:800; font-size:17px; }
+.stations { position:absolute; top:708px; left:16px; right:18px; display:flex; gap:8px; }
+.stn { flex:1; height:56px; border-radius:16px; background:#fff; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:800; font-size:14px; }
+.stn b { font-size:24px; }
+</style></head>
+<body class="C">
+<div class="head">
+  <h1 style="font-family:'Unbounded';font-weight:800;font-size:42px"><small style="font-size:42px">C</small>Наклейки</h1>
+  <div class="idea">Весь интерфейс — как стикеры: жирный контур, жёсткая тень, сочные плоские цвета. Самый игровой и заметный, задание дня — ярким баннером.</div>
+  <div class="meta">
+    <div class="sw"><i style="background:#FFF8E7"></i><i style="background:#FFD23F"></i><i style="background:#FF6B5B"></i><i style="background:#4FD1A5"></i><i style="background:#5BC0EB"></i><i style="background:#2B2135"></i></div>
+    <span>Шрифт: заголовки Unbounded (~30 КБ), текст SF Pro Rounded</span>
+  </div>
+</div>
+
+<div class="phones">
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="sbar"><span>9:41</span><span style="display:flex;gap:6px;align-items:center">
+    <svg width="18" height="12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg width="26" height="12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.5" y="2.5" width="16" height="7" rx="2"/><rect x="23.5" y="4" width="2" height="4" rx="1" opacity=".4"/></svg></span></div>
+  <div class="wall"></div><div class="flr"></div><div class="rug"></div><div class="frame st"><div></div></div>
+
+  <div class="top">
+    <div class="chip st">Шиба <span class="lvl">7</span> <span class="hr">♥♥♥♥♥</span></div>
+    <div class="chip st" style="margin-left:auto">🪙 20</div><div class="chip st">✂️ 2</div><div class="chip st" style="width:42px;padding:0;justify-content:center">⚙️</div>
+  </div>
+
+  <div class="quest st"><div class="t U">ЗАДАНИЕ ДНЯ</div>
+    <div class="d">🤲 Погладить</div>
+    <div class="segs"><i class="f"></i><i></i><i></i></div>
+    <div class="burstb"></div><div class="burst">+45<br>🪙</div></div>
+
+  <div class="needs">
+    <div class="nd st" style="--c:#FF6B5B">🍖<div class="s"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i></div></div>
+    <div class="nd st" style="--c:#FF8FB8">❤️<div class="s"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div></div>
+    <div class="nd st" style="--c:#4FD1A5">🎾<div class="s"><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div></div>
+    <div class="nd st" style="--c:#5BC0EB">🫧<div class="s"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></div></div>
+  </div>
+
+  <div class="ask st">🤲<b>?</b></div>
+  <div class="toast"><div class="in st">Ням! <span class="pl">+🍖</span><span class="pl">+2 🪙</span></div></div>
+  <div class="pet"><svg viewBox="0 0 300 240" width="240" height="192" fill="currentColor">
+    <path d="M232 112c34-6 46-40 26-58-16-14-40-4-38 14 1 12 16 14 18 6" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round"/>
+    <ellipse cx="160" cy="138" rx="86" ry="48"/><circle cx="80" cy="92" r="46"/><ellipse cx="34" cy="108" rx="36" ry="19"/>
+    <path d="M50 66 60 18 92 54Z M88 52 116 16 122 66Z"/>
+    <rect x="92" y="150" width="24" height="70" rx="11"/><rect x="124" y="156" width="24" height="64" rx="11"/><rect x="186" y="156" width="24" height="64" rx="11"/><rect x="214" y="150" width="24" height="70" rx="11"/>
+  </svg><span class="tag">3D-пёс</span></div>
+
+  <div class="acts">
+    <div class="tile st" style="--c:#FF6B5B"><div class="ic">🍖</div><div class="w">Кормить</div><div class="r">+сытость</div></div>
+    <div class="tile st" style="--c:#FF8FB8"><div class="ic">🤲</div><div class="w">Гладить</div><div class="r">+❤️</div></div>
+    <div class="tile st" style="--c:#4FD1A5"><div class="ic">🎾</div><div class="w">Играть</div><div class="r">+😊</div></div>
+    <div class="tile st" style="--c:#5BC0EB"><div class="ic">🛁</div><div class="w">Мыть</div><div class="r">+🫧</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on"><b>🏠</b>Дом</div><div class="tab dot"><b>🌳</b>Двор</div><div class="tab"><b>🎮</b>Игры</div><div class="tab"><b>👕</b>Шкаф</div><div class="tab"><b>🚪</b>Гулять</div>
+  </div>
+  <div class="homebar" style="background:#2B2135"></div>
+</div>
+<div class="cap">Главный · тост-наклейка «Ням!»</div>
+</div>
+
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="sbar"><span>9:41</span><span style="display:flex;gap:6px;align-items:center">
+    <svg width="18" height="12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg width="26" height="12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.5" y="2.5" width="16" height="7" rx="2"/><rect x="23.5" y="4" width="2" height="4" rx="1" opacity=".4"/></svg></span></div>
+  <div class="ytitle"><h2>Двор</h2><div class="chip st" style="margin-left:auto">🪙 5 630</div></div>
+
+  <div class="scene st">
+    <div class="fence"></div><div class="grass"></div>
+    <div class="obj" style="left:24px;top:40px;font-size:40px">☁️</div>
+    <div class="obj" style="left:150px;top:62px;font-size:70px">🏡</div>
+    <div class="obj" style="left:30px;top:168px">🌻</div>
+    <div class="obj" style="left:120px;top:186px">🥖</div>
+    <div class="obj" style="left:220px;top:176px">🍲</div>
+    <div class="obj" style="left:300px;top:160px">📬</div>
+    <div class="obj" style="left:170px;top:214px;font-size:34px">🐕</div>
+    <div class="inc" style="left:22px;top:150px">+9/ч</div>
+    <div class="inc" style="left:112px;top:168px">+8/ч</div>
+    <div class="inc" style="left:212px;top:158px">+9/ч</div>
+  </div>
+
+  <div class="bank st">
+    <div class="r1"><div class="pig">🐷</div><div><div class="n">520 / 630</div><div class="s2">полная в 11:59 · +26/ч</div></div></div>
+    <div class="bigbtn st">Забрать +520 🪙</div>
+  </div>
+
+  <div class="next st"><div class="ic">🍎</div><div><h3>Яблоня</h3><span class="tg">уют +6</span></div><div class="buy st">500 🪙</div></div>
+
+  <div class="stations">
+    <div class="stn st"><b>🥖</b>ур. 3</div><div class="stn st"><b>🍲</b>ур. 2</div><div class="stn st"><b>🌻</b>ур. 4</div><div class="stn st" style="background:#EFE6D2">＋</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab"><b>🏠</b>Дом</div><div class="tab on"><b>🌳</b>Двор</div><div class="tab"><b>🎮</b>Игры</div><div class="tab"><b>👕</b>Шкаф</div><div class="tab"><b>🚪</b>Гулять</div>
+  </div>
+  <div class="homebar" style="background:#2B2135"></div>
+</div>
+<div class="cap">Двор: копилка — одна большая кнопка</div>
+</div>
+</div>
+</body></html>

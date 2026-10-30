@@ -1,0 +1,28 @@
+/* Общая разметка листа: шапка направления + два телефона iPhone Air (420×912 pt) */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 960px; height: 1240px; overflow: hidden; }
+body { background: #F4F1EC; color: #1d1b20; font-family: 'Onest', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+
+.head { height: 248px; padding: 30px 40px 0; }
+.head h1 { font-size: 46px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.05; }
+.head h1 small { font-size: 46px; opacity: .35; margin-right: 10px; }
+.head .idea { font-size: 23px; line-height: 1.32; margin-top: 10px; color: #3d3a40; max-width: 880px; }
+.head .meta { display: flex; align-items: center; gap: 22px; margin-top: 16px; font-size: 19px; color: #55525a; }
+.sw { display: flex; gap: 6px; }
+.sw i { width: 34px; height: 34px; border-radius: 10px; display: block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+
+.phones { display: flex; gap: 40px; padding: 0 40px; }
+.cap { text-align: center; font-size: 22px; font-weight: 700; margin-top: 12px; color: #3d3a40; }
+
+.phone { width: 420px; height: 912px; border-radius: 58px; position: relative; overflow: hidden;
+  box-shadow: 0 0 0 5px #1b1b1f, 0 0 0 7px #8d8b92, 0 22px 40px rgba(0,0,0,.18); }
+.island { position: absolute; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px; border-radius: 20px; background: #000; z-index: 50; }
+.sbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 34px 0 46px; font: 600 17px 'Onest', sans-serif; z-index: 40; }
+.sbar svg { display: block; }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 140px; margin-left: -70px; height: 5px; border-radius: 3px; background: #111; z-index: 50; }
+
+/* Плейсхолдер 3D-пса */
+.pet { position: absolute; }
+.pet .tag { position: absolute; left: 50%; transform: translateX(-50%); bottom: -6px; font: 600 12px 'Onest', sans-serif;
+  padding: 3px 9px; border-radius: 10px; background: rgba(0,0,0,.45); color: #fff; white-space: nowrap; letter-spacing: .3px; }
