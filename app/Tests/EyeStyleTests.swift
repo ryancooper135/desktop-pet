@@ -12,7 +12,7 @@ final class EyeStyleTests: XCTestCase {
     private let sceneUp = SIMD3<Float>(0, -1, 0)
 
     func testDefaultVariantAndSpots() {
-        XCTAssertEqual(EyeStyle.variant, .a)
+        XCTAssertEqual(EyeStyle.variant, .b)
         XCTAssertEqual(EyeStyle.spots(.a).count, 1)
         XCTAssertEqual(EyeStyle.spots(.b).count, 2)
         for v in EyeStyle.Variant.allCases {

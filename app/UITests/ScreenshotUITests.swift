@@ -526,7 +526,7 @@ final class ScreenshotUITests: XCTestCase {
     // MARK: - Волна 50: живые глаза (ui-50-eyes-a/b)
 
     /// Морда крупно (PET_CAMERA=face, полдень): тёплая карая радужка и белый блик. A — один крупный блик
-    /// (по умолчанию), B — два маленьких. Вариант в приложении — одна константа EyeStyle.variant.
+    /// B — два маленьких (по умолчанию). Вариант в приложении — одна константа EyeStyle.variant.
     @MainActor
     func testStates50EyesA() throws { try shootEyes("a") }
 

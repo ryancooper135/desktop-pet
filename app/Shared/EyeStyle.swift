@@ -8,14 +8,14 @@ import Foundation
 
 enum EyeStyle {
     enum Variant: String, CaseIterable, Sendable {
-        /// Один крупный блик сверху слева (по умолчанию).
+        /// Один крупный блик сверху слева.
         case a
-        /// Два маленьких: крупнее сверху слева, совсем маленький снизу справа.
+        /// Два маленьких: крупнее сверху слева, совсем маленький снизу справа (по умолчанию: выбор Вадима 30.10).
         case b
     }
 
     /// Какой вариант в приложении. Переключать здесь.
-    static let variant: Variant = .a
+    static let variant: Variant = .b
 
     /// Вариант для этого запуска: в UI-тестах можно PET_EYES=a|b (снимки обоих для Вадима), иначе — variant.
     static var current: Variant {
