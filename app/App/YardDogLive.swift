@@ -111,6 +111,8 @@ enum YardDogLive {
             let body = model ?? StubDog.make()
             // Глаза держатся головы (как в комнате). Свой персонаж в комнате — кости под его именами, тогда не трогаем.
             if model != nil, PetModel.boneAlias.isEmpty { PetRig.pinEyes(body) }
+            // Живые глаза (волна 50) — как в комнате.
+            if model != nil { PetRig.styleEyes(body) }
             let b = body.visualBounds(relativeTo: nil)
             if model != nil, b.extents.y > 0 {
                 let k = PetModel.height / b.extents.y

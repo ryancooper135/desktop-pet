@@ -571,6 +571,34 @@ final class ScreenshotUITests: XCTestCase {
         app.terminate()
     }
 
+    // MARK: - Волна 50: живые глаза (ui-50-eyes-a/b)
+
+    /// Морда крупно (PET_CAMERA=face, полдень): тёплая карая радужка и белый блик. A — один крупный блик
+    /// (по умолчанию), B — два маленьких. Вариант в приложении — одна константа EyeStyle.variant.
+    @MainActor
+    func testStates50EyesA() throws { try shootEyes("a") }
+
+    @MainActor
+    func testStates50EyesB() throws { try shootEyes("b") }
+
+    @MainActor
+    private func shootEyes(_ v: String) throws {
+        let app = Self.makeApp()
+        for (k, val) in ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_CAMERA": "face", "PET_EYES": v] {
+            app.launchEnvironment[k] = val
+        }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        waitForMain(app)
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
+        let found = stage.waitForExistence(timeout: 10)
+        settle(2)
+        snap("ui-50-eyes-\(v)")
+        app.terminate()
+        if !found { throw XCTSkip("ui-50-eyes-\(v): нет pet.stage") }
+    }
+
     // MARK: - Волна 18: подсказки и жесты (ui-88/89)
 
     /// Хочет гулять, а чистоты мало: плашка ведёт к ванне, на «Гулять» замок. Тап по «Гулять» — подсветка.

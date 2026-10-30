@@ -29,6 +29,8 @@ struct HomeScreen: View {
         let rescue = snap.level >= 3 && snap.alive
         ZStack {
             PetPalette.bg.ignoresSafeArea()
+            // Волна 50: проба глаз для UI-тестов (EyeProbe) — под сценой, не видна и не ловит касания.
+            if Env.isUITest { EyeProbeLabel() }
 
             GeometryReader { geo in
                 PetStage(pose: snap.pose,
@@ -555,5 +557,18 @@ private struct RunawayPanel: View {
                 .accessibilityIdentifier("act.startOver")
             }
         }
+    }
+}
+
+/// Проба глаз (волна 50): EyeProbe.text раз в 0,2 с в подписи «pet.eyes». Только в UI-тестах.
+private struct EyeProbeLabel: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.2)) { _ in
+            Text(EyeProbe.text)
+                .font(.system(size: 2))
+                .opacity(0.02)
+                .accessibilityIdentifier("pet.eyes")
+        }
+        .allowsHitTesting(false)
     }
 }

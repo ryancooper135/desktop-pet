@@ -127,4 +127,38 @@ enum EyePin {
         }
         return changed ? out : nil
     }
+
+    // MARK: любая модель (волна 50)
+
+    /// Похоже ли на пару глаз, по одной геометрии (без цвета): два центра, глаз мелкий по сравнению с моделью,
+    /// глаза не слиплись и не разнесены на полмодели. extent — наибольшая сторона рамки всей модели.
+    /// Нужно, когда цвет не подсказывает (свой окрас глаз, другая модель волны 58): закрепить глаза всё равно надо.
+    static func plausible(_ eyes: Eyes, extent: Float) -> Bool {
+        guard eyes.centers.count == 2, extent > 0, extent.isFinite, eyes.size > 0 else { return false }
+        let d = eyes.centers[1] - eyes.centers[0]
+        let gap = (d * d).sum().squareRoot()
+        return eyes.size <= 0.1 * extent && gap >= eyes.size && gap <= 0.5 * extent
+    }
+
+    /// Какие кости тянут глаз с головы: уши (любое имя, начинающееся с «ear») и всё прочее под головой, кроме
+    /// челюсти, языка, рта, век, бровей и самих глаз — они либо лицо, либо двигаются вместе с глазом намеренно.
+    /// Имена — пути костей «…/Neck3/Head/Ear1_L». nil — головы нет или тянуть некому.
+    static func movingBones(_ names: [String], head: Int) -> Set<Int>? {
+        guard names.indices.contains(head) else { return nil }
+        let face = ["jaw", "tongue", "mouth", "lip", "eye", "lid", "brow", "teeth", "nose"]
+        var out = Set<Int>()
+        for i in BoneName.descendants(names, of: head) {
+            let leaf = BoneName.normalized(BoneName.leaf(names[i]))
+            if leaf.hasPrefix("ear") { out.insert(i); continue }
+            if face.contains(where: { leaf.contains($0) }) { continue }
+            // Под ухом всё — ухо (кончик, серёжка).
+            out.insert(i)
+        }
+        // Уши не под головой (бывает: прицеплены к шее).
+        for (i, n) in names.enumerated() where BoneName.normalized(BoneName.leaf(n)).hasPrefix("ear") {
+            out.insert(i)
+        }
+        out.remove(head)
+        return out.isEmpty ? nil : out
+    }
 }

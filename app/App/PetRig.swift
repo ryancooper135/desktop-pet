@@ -48,6 +48,9 @@ final class PetRig {
     private var lids: ModelEntity?
     private var eyesClosed = false
     static let lidsName = "petEyeLids"
+    /// Блики (волна 50, EyeStyle): копии диска глаза на тех же костях, видны, пока глаз открыт.
+    private var glints: ModelEntity?
+    static let glintsName = "petEyeGlints"
 
     /// Рост (волна 34 I, Growth.look): голова крупнее, уши висят, хвост не завит. nil или взрослый — как было.
     /// Один на все риги (пёс один): кэш ригов сбрасывается, а рост не должен теряться до следующего update сцены.
@@ -99,6 +102,7 @@ final class PetRig {
         for (leaf, share) in ears {
             if let j = find(leaf), !joints.contains(j) { joints.append(j); roles.append(.ear(share)) }
         }
+        if Env.isUITest { EyeProbe.ears = roles.filter { if case .ear = $0 { return true } else { return false } }.count }
         for (k, leaf) in ["Tail1", "Tail2", "Tail3"].enumerated() {
             if let j = find(leaf), !joints.contains(j) { joints.append(j); roles.append(.tail(k)) }
         }
@@ -175,29 +179,178 @@ final class PetRig {
     /// что 4 и 5 темнее шерсти, а 3 на шерсть не похож; не сошлось — не моргаем. С волны 16 «белок» у Шибы
     /// тёмно-карий (style_a: белые серпы по бокам радужки читались как закатанные глаза), поэтому 3 может быть
     /// и светлее шерсти (свои персонажи Quaternius), и темнее.
+    /// Волна 50: цвет — не единственный признак. Тёмный окрас темнее карей радужки (EyeStyle.iris), и по цвету
+    /// глаза «не глаза» — без век и бликов. Поэтому глаза узнаём и по форме (EyePin.plausible): пара мелких дисков.
     /// Веко — шерсть плоским цветом (PetRoom.eyeLid): у текстурной шерсти tint почти белый, и глаз
     /// закрывался белым пятном (ui-55, ui-63 волны 15).
     private func setUpEyes(_ m: ModelEntity, _ mats: [any Material]) {
         guard let lid = PetRoom.eyeLid(m, mats) else { return }
         let light = mats.map(Self.brightness)
-        guard let fur = Self.brightness(lid), let white = light[3], let pupil = light[4], let black = light[5],
-              Self.looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black),
-              let mesh = Self.lidMesh(m) else { return }
-        let e = ModelEntity(mesh: mesh, materials: [lid])
-        guard e.jointNames == m.jointNames else { return }
-        e.name = Self.lidsName
-        e.isEnabled = false
-        m.addChild(e)
+        let byColor = Self.brightness(lid).flatMap { fur -> Bool? in
+            guard let white = light[3], let pupil = light[4], let black = light[5] else { return nil }
+            return Self.looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black)
+        } ?? false
+        guard byColor || Self.eyesByShape(m) else { return }
+        if let mesh = Self.lidMesh(m) {
+            let e = ModelEntity(mesh: mesh, materials: [lid, Self.creaseMaterial])
+            if e.jointNames == m.jointNames {
+                e.name = Self.lidsName
+                e.isEnabled = false
+                m.addChild(e)
+                lids = e
+            }
+        }
+        if let mesh = Self.glintMesh(m, spots: EyeStyle.spots(EyeStyle.current)) {
+            let g = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: PetRoom.color(EyeStyle.glint))])
+            if g.jointNames == m.jointNames {
+                g.name = Self.glintsName
+                g.jointTransforms = m.jointTransforms
+                m.addChild(g)
+                glints = g
+            }
+        }
+        guard lids != nil || glints != nil else { return }
         eyes = m
-        lids = e
+        if Env.isUITest {
+            EyeProbe.eyes = true
+            EyeProbe.glints = glints == nil ? 0 : 1
+        }
+    }
+
+    /// Шов закрытого глаза (EyeStyle.crease): второй материал век.
+    private static var creaseMaterial: any Material {
+        SimpleMaterial(color: PetRoom.color(EyeStyle.crease), roughness: 0.9, isMetallic: false)
+    }
+
+    /// Пара глаз по форме: вершины подмножеств 3…5 — два мелких диска рядом (EyePin.plausible), без цвета.
+    private static func eyesByShape(_ m: ModelEntity) -> Bool {
+        guard let mesh = m.model?.mesh else { return false }
+        var points: [SIMD3<Float>] = []
+        for mm in mesh.contents.models {
+            for part in mm.parts where (3...5).contains(part.materialIndex) { points += part.positions.elements }
+        }
+        let ext = mesh.bounds.extents
+        guard let eyes = EyePin.eyes(points) else { return false }
+        return EyePin.plausible(eyes, extent: max(ext.x, ext.y, ext.z))
+    }
+
+    /// Рамка глаза в системе меша: центр, нормаль наружу, «вверх» и «влево по экрану», насколько самая выпуклая
+    /// точка впереди центра (top), и диск-источник (Eyes_Black, иначе 4, иначе 3): его центр и размер у этого глаза.
+    private struct EyeFrame {
+        var center: SIMD3<Float>
+        var normal: SIMD3<Float>
+        var up: SIMD3<Float>
+        var left: SIMD3<Float>
+        var top: Float
+        var source: SIMD3<Float>
+        var sourceSize: Float
+    }
+
+    /// Рамки глаз одной модели меша и диск-источник. nil — глаз нет, нет нормалей или глаз смотрит вверх.
+    private static func eyeFrames(_ parts: [MeshResource.Part], sceneUp: SIMD3<Float>)
+        -> (frames: [EyeFrame], size: Float, source: MeshResource.Part)? {
+        let eyeParts = parts.filter { (3...5).contains($0.materialIndex) && $0.jointInfluences != nil }
+        guard let eyes = EyePin.eyes(eyeParts.flatMap { $0.positions.elements }),
+              let src = [5, 4, 3].lazy.compactMap({ i in eyeParts.first { $0.materialIndex == i } }).first
+        else { return nil }
+        let n = eyes.centers.count
+        var sum = [SIMD3<Float>](repeating: .zero, count: n)
+        for part in eyeParts {
+            guard let normals = part.normals?.elements, normals.count == part.positions.elements.count else { continue }
+            for (p, nv) in zip(part.positions.elements, normals) { sum[nearest(p, eyes.centers)] += nv }
+        }
+        var normal = [SIMD3<Float>](repeating: .zero, count: n)
+        for k in 0..<n {
+            let l = simd_length(sum[k])
+            guard l > 1e-6, l.isFinite else { return nil }
+            normal[k] = sum[k] / l
+        }
+        var top = [Float](repeating: 0, count: n)
+        for part in eyeParts {
+            for p in part.positions.elements {
+                let k = nearest(p, eyes.centers)
+                top[k] = max(top[k], simd_dot(p - eyes.centers[k], normal[k]))
+            }
+        }
+        var lo = [SIMD3<Float>](repeating: SIMD3(repeating: .greatestFiniteMagnitude), count: n)
+        var hi = [SIMD3<Float>](repeating: SIMD3(repeating: -.greatestFiniteMagnitude), count: n)
+        for p in src.positions.elements {
+            let k = nearest(p, eyes.centers)
+            lo[k] = simd_min(lo[k], p)
+            hi[k] = simd_max(hi[k], p)
+        }
+        var frames: [EyeFrame] = []
+        for k in 0..<n {
+            guard lo[k].x <= hi[k].x, let ax = EyeStyle.axes(normal: normal[k], sceneUp: sceneUp) else { return nil }
+            let e = hi[k] - lo[k]
+            let size = max(e.x, e.y, e.z)
+            guard size > 0 else { return nil }
+            frames.append(EyeFrame(center: eyes.centers[k], normal: normal[k], up: ax.up, left: ax.left,
+                                   top: top[k], source: (lo[k] + hi[k]) / 2, sourceSize: size))
+        }
+        return (frames, eyes.size, src)
+    }
+
+    private static func nearest(_ p: SIMD3<Float>, _ centers: [SIMD3<Float>]) -> Int {
+        var best = 0
+        var d = Float.greatestFiniteMagnitude
+        for (i, c) in centers.enumerated() {
+            let v = simd_length_squared(p - c)
+            if v < d { d = v; best = i }
+        }
+        return best
+    }
+
+    /// Копия диска-источника, каждая вершина которой встала по map (кадр её глаза). Веса костей — те же.
+    private static func copy(_ src: MeshResource.Part, id: String, material: Int, frames: [EyeFrame],
+                             map: (SIMD3<Float>, EyeFrame) -> SIMD3<Float>) -> MeshResource.Part {
+        var part = src
+        part.id = src.id + id
+        part.materialIndex = material
+        let centers = frames.map(\.center)
+        part.positions = MeshBuffers.Positions(src.positions.elements.map { p in map(p, frames[nearest(p, centers)]) })
+        if let normals = src.normals?.elements, normals.count == src.positions.elements.count {
+            part.normals = MeshBuffers.Normals(src.positions.elements.map { frames[nearest($0, centers)].normal })
+        }
+        return part
+    }
+
+    /// Меш бликов (волна 50): на каждый глаз и каждое пятно варианта — уменьшенная копия диска глаза поверх
+    /// зрачка, сдвинутая вверх-влево (EyeStyle.place). Из геометрии самой модели — работает на любой модели
+    /// с глазами-дисками, не нужен ни ассет, ни правка shiba.usdz.
+    private static func glintMesh(_ m: ModelEntity, spots: [EyeStyle.Spot]) -> MeshResource? {
+        guard let contents = m.model?.mesh.contents, !spots.isEmpty else { return nil }
+        let up = simd_normalize(m.convert(direction: ChoreoPath.up, from: nil))
+        var models: [MeshResource.Model] = []
+        for var mm in contents.models {
+            guard let f = eyeFrames(Array(mm.parts), sceneUp: up) else { continue }
+            var parts: [MeshResource.Part] = []
+            for (s, spot) in spots.enumerated() {
+                parts.append(copy(f.source, id: "-glint\(s)", material: 0, frames: f.frames) { p, e in
+                    EyeStyle.place(p, source: e.source, sourceSize: e.sourceSize, center: e.center, normal: e.normal,
+                                   up: e.up, left: e.left, size: f.size, top: e.top, spot: spot)
+                })
+            }
+            mm.parts = MeshPartCollection(parts)
+            models.append(mm)
+        }
+        guard !models.isEmpty else { return nil }
+        let ids = Set(models.map(\.id))
+        var next = contents
+        next.models = MeshModelCollection(models)
+        next.instances = MeshInstanceCollection(contents.instances.filter { ids.contains($0.model) })
+        return try? MeshResource.generate(from: next)
     }
 
     /// Меш век: части глаз (3…5) с теми же весами костей, сдвинутые по нормалям наружу на 3% размера глаз —
-    /// поверх глаза без мерцания, кайма (Black) вокруг остаётся видна. nil — глаз нет или меш не собрался.
+    /// поверх глаза без мерцания, кайма (Black) вокруг остаётся видна. Волна 50: плюс шов (материал 1) — тёмная
+    /// дуга поверх века, чтобы закрытый глаз читался закрытым, а не пропавшим. nil — глаз нет или меш не собрался.
     private static func lidMesh(_ m: ModelEntity) -> MeshResource? {
         guard let contents = m.model?.mesh.contents else { return nil }
+        let up = simd_normalize(m.convert(direction: ChoreoPath.up, from: nil))
         var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude), hi = -lo
         var models: [MeshResource.Model] = []
+        var frames: [String: (frames: [EyeFrame], size: Float, source: MeshResource.Part)] = [:]
         for var mm in contents.models {
             let parts = mm.parts.filter {
                 (3...5).contains($0.materialIndex) && $0.jointInfluences != nil
@@ -210,6 +363,7 @@ final class PetRig {
                     hi = simd_max(hi, p)
                 }
             }
+            frames[mm.id] = eyeFrames(parts, sceneUp: up)
             mm.parts = MeshPartCollection(parts)
             models.append(mm)
         }
@@ -227,6 +381,13 @@ final class PetRig {
                 part.materialIndex = 0
                 parts.append(part)
             }
+            if let f = frames[models[k].id] {
+                parts.append(copy(f.source, id: "-crease", material: 1, frames: f.frames) { p, e in
+                    EyeStyle.creasePoint(p, source: e.source, sourceSize: e.sourceSize, center: e.center,
+                                         normal: e.normal, up: e.up, left: e.left, size: f.size,
+                                         front: e.top + push + 0.05 * f.size)
+                })
+            }
             models[k].parts = MeshPartCollection(parts)
         }
         let ids = Set(models.map(\.id))
@@ -234,6 +395,25 @@ final class PetRig {
         next.models = MeshModelCollection(models)
         next.instances = MeshInstanceCollection(contents.instances.filter { ids.contains($0.model) })
         return try? MeshResource.generate(from: next)
+    }
+
+    /// Живые глаза (волна 50, EyeStyle): ободок, карая радужка, зрачок — на Шибе из usdz (подмножества 3…5).
+    /// Звать при загрузке модели, после pinEyes; свои персонажи (character.json) — не трогаем, у них свои глаза.
+    /// Окрас (PetRoom.applyCoat) перекрашивает только шерсть 0 и 1 — глаза остаются.
+    static func styleEyes(_ body: Entity) {
+        var queue: [Entity] = [body]
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            queue += Array(e.children)
+            guard let m = e as? ModelEntity, var model = m.model,
+                  PetRoom.shibaMaterials.contains(model.materials.count), eyesByShape(m) else { continue }
+            for (i, hex) in [(3, EyeStyle.rim), (4, EyeStyle.iris), (5, EyeStyle.pupil)] {
+                guard var p = model.materials[i] as? PhysicallyBasedMaterial else { continue }
+                p.baseColor = .init(tint: PetRoom.color(hex), texture: nil)
+                model.materials[i] = p
+            }
+            m.model = model
+        }
     }
 
     /// Глаза держатся головы (волна 32, EyePin): у вершин глаз и шерсти рядом вес ушей отходит Head — глаз больше
@@ -247,8 +427,12 @@ final class PetRig {
             guard let m = e as? ModelEntity, !m.jointNames.isEmpty, let mats = m.model?.materials,
                   PetRoom.shibaMaterials.contains(mats.count) else { continue }
             let light = mats.map(Self.brightness)
-            guard let fur = light[0], let white = light[3], let pupil = light[4], let black = light[5],
-                  looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black) else { continue }
+            let byColor = light[0].flatMap { fur -> Bool? in
+                guard let white = light[3], let pupil = light[4], let black = light[5] else { return nil }
+                return looksLikeEyes(fur: fur, white: white, pupil: pupil, black: black)
+            } ?? false
+            // Волна 50: и по форме — окрас или своя раскраска глаз не должны оставлять глаз на ушах.
+            guard byColor || eyesByShape(m) else { continue }
             pinEyes(m)
         }
     }
@@ -264,17 +448,11 @@ final class PetRig {
             }
             return m.jointNames
         }
+        // Кто тянет глаз с головы — EyePin.movingBones: уши под любым именем и прочее под головой, кроме лица.
         func bones(_ names: [String]) -> (moving: Set<Int>, head: Int)? {
-            guard let head = PetModel.boneIndex(names, "Head") else { return nil }
-            var moving = Set<Int>()
-            for (i, n) in names.enumerated() where (n.split(separator: "/").last ?? "").hasPrefix("Ear") {
-                moving.insert(i)
-            }
-            for leaf in ["Ear1.L", "Ear1.R", "Ear2.L", "Ear2.R"] {
-                if let j = PetModel.boneIndex(names, leaf) { moving.insert(j) }
-            }
-            moving.remove(head)
-            return moving.isEmpty ? nil : (moving, head)
+            guard let head = PetModel.boneIndex(names, "Head"),
+                  let moving = EyePin.movingBones(names, head: head) else { return nil }
+            return (moving, head)
         }
         func weights(_ part: MeshResource.Part) -> [BoneWeight] {
             (part.jointInfluences?.influences.elements ?? []).map { BoneWeight(joint: $0.jointIndex, weight: $0.weight) }
@@ -313,6 +491,7 @@ final class PetRig {
             models.append(mm)
         }
         guard changed else { return }
+        if Env.isUITest { EyeProbe.pinned = true }
         var next = contents
         next.models = MeshModelCollection(models)
         let joints = m.jointNames.count
@@ -421,11 +600,16 @@ final class PetRig {
     func recolor(_ m: ModelEntity, _ mats: [any Material]) {
         guard let e = eyes, e === m, let l = lids, let mesh = l.model?.mesh,
               let lid = PetRoom.eyeLid(m, mats) else { return }
-        l.components.set(ModelComponent(mesh: mesh, materials: [lid]))
+        l.components.set(ModelComponent(mesh: mesh, materials: [lid, Self.creaseMaterial]))
     }
 
     /// Каждый кадр после взгляда и челюсти: веки включены, пока глаз закрыт, и повторяют позу скелета.
+    /// Блики — наоборот: видны, пока глаз открыт, и тогда же повторяют позу.
     func setEyes(closed shut: Bool) {
+        if let e = eyes, let g = glints {
+            if !shut { g.jointTransforms = e.jointTransforms }
+            if g.isEnabled == shut { g.isEnabled = !shut }
+        }
         guard let e = eyes, let l = lids else { return }
         if shut { l.jointTransforms = e.jointTransforms }
         guard shut != eyesClosed else { return }
@@ -491,11 +675,13 @@ final class PetRig {
         if face.still { face.wiggle = TapWiggle() }
         let wiggle = face.still ? TapWiggle.Pose.zero : face.wiggle.step(dt: dt)
         var shut = false
+        var blinked = false
+        let smiling = !face.still && face.time < face.smileUntil
         let st = pet.components[ClipState.self]
         if let st, st.stance == .sleep, st.clock >= st.busyUntil - 0.4 {
             shut = true
-        } else if face.bliss {
-            // Гладят — жмурится от удовольствия.
+        } else if face.bliss || smiling {
+            // Гладят — жмурится от удовольствия; в ванне — довольная морда (волна 50, HappyFace).
             shut = true
         } else if !face.still {
             if face.time >= face.nextBlink {
@@ -504,12 +690,14 @@ final class PetRig {
                 face.nextBlink = face.time + (Double.random(in: 0..<1) < 0.2 ? 0.3 : Double.random(in: 2.5...6))
             }
             shut = face.time < face.blinkUntil
+            blinked = shut
         }
         // Говорит, пока на экране реплика (моргание не мешает); во сне и при Reduce Motion — молчит.
         var jawGoal: Float = 0
         if let line = face.talk, !face.still, st?.stance != .sleep {
             jawGoal = JawTalk.angle(line, at: face.time - face.talkFrom)
         }
+        if smiling { jawGoal = max(jawGoal, HappyFace.jaw) }
         if face.still {
             face.jaw = 0
             face.jawSpeed = 0
@@ -519,8 +707,48 @@ final class PetRig {
         }
         pet.components.set(face)
         guard let rig = rig(for: pet) else { return }
+        if Env.isUITest { EyeProbe.frame(touched: face.time < face.touchUntil, shut: shut, blinked: blinked) }
         rig.look(face.angle, wiggle: wiggle)
         rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
+    }
+}
+
+// MARK: - Проба глаз для UI-тестов (волна 50)
+
+/// Что видно на глазах: UI-тест «10 тапов подряд» читает это из скрытой подписи pet.eyes (HomeScreen).
+/// Пишется только в UI-тестах (Env.isUITest).
+@MainActor
+enum EyeProbe {
+    /// Глаза найдены (веки или блики собраны).
+    static var eyes = false
+    /// Сколько ушных костей взял отклик на тап (BoneName: «Ear1.L» → «Ear1_L»).
+    static var ears = 0
+    /// Веса глаз перевешены на голову (EyePin) в этом запуске.
+    static var pinned = false
+    /// Блики собраны (1) или нет (0).
+    static var glints = 0
+    /// Кадров всего и кадров «под пальцем» (EyeBlink.touchHold после касания).
+    static var frames = 0
+    static var touched = 0
+    /// Кадров под пальцем, когда глаз закрыт обычным морганием — должно быть 0.
+    static var blinkShut = 0
+    /// Сколько раз под пальцем глаз закрылся-открылся (по любой причине, в том числе ласка).
+    static var flips = 0
+    private static var lastShut = false
+
+    static func frame(touched t: Bool, shut: Bool, blinked: Bool) {
+        frames += 1
+        if t {
+            touched += 1
+            if blinked { blinkShut += 1 }
+            if shut != lastShut { flips += 1 }
+        }
+        lastShut = shut
+    }
+
+    static var text: String {
+        "eyes=\(eyes ? 1 : 0) ears=\(ears) pin=\(pinned ? 1 : 0) glints=\(glints) variant=\(EyeStyle.current.rawValue) "
+            + "frames=\(frames) touched=\(touched) blinkShut=\(blinkShut) flips=\(flips)"
     }
 }
