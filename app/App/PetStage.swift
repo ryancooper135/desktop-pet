@@ -223,10 +223,10 @@ enum PetModel {
     /// У Шибы и без color — nil, пучки рыжие. Ставит load.
     static var furColor: UInt32?
 
-    /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head».
+    /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head». Сначала точно,
+    /// потом без разницы «Ear1.L» / «Ear1_L» / регистр (волна 50, BoneName: уши Шибы раньше не находились).
     static func boneIndex(_ names: [String], _ leaf: String) -> Int? {
-        let leaf = boneAlias[leaf] ?? leaf
-        return names.firstIndex { $0 == leaf || $0.hasSuffix("/" + leaf) }
+        BoneName.index(names, boneAlias[leaf] ?? leaf)
     }
 
     /// Как поставить модель: у Шибы — константы, у своего персонажа — из character.json.
@@ -290,6 +290,8 @@ enum PetModel {
         if let rgb = look.color { PetRoom.recolorFur(body, rgb) }
         // Глаза держатся головы, а не ушей (волна 32, EyePin) — до PetRig и prepareCoat.
         if model != nil { PetRig.pinEyes(body) }
+        // Живые глаза (волна 50, EyeStyle): у Шибы ободок, карая радужка, зрачок. Свой персонаж — его цвета.
+        if model != nil, !look.custom { PetRig.styleEyes(body) }
         let bounds = body.visualBounds(relativeTo: nil)
         if model != nil, bounds.extents.y > 0 {
             let k = look.height / bounds.extents.y
@@ -388,6 +390,20 @@ enum PetModel {
             let asleep = pose == .sleep || pose == .nap
             face.wiggle.trigger(kind, sideHint: lookX, earsOnly: asleep)
         }
+        if let r = reaction, r.id != c.lastReactionId, !reduceMotion, pose != .dead,
+           TapWiggle.kind(of: r.kind) != nil || r.kind == "pet" {
+            // Волна 50: под пальцем не моргает (EyeBlink) — частые тапы больше не «гасят» глаза.
+            (face.nextBlink, face.blinkUntil) = EyeBlink.touched(time: face.time, nextBlink: face.nextBlink,
+                                                                 blinkUntil: face.blinkUntil)
+            face.touchUntil = face.time + EyeBlink.touchHold
+            if r.kind == "pet", pose == .bath {
+                // Гладят в ванне — помогает мыть: пена, довольная морда, ушами повёл. И отказ по откату
+                // (ядро ласку в ванне не запрещает, только откат) — тоже пена: мыть можно сколько угодно.
+                face.smileUntil = face.time + HappyFace.hold
+                face.wiggle.trigger(.tickle, sideHint: lookX)
+                BathFoamFx.burst(on: pet, seed: r.id, side: lookX ?? 0)
+            }
+        }
         pet.components.set(face)
         c.still = reduceMotion
         if reduceMotion { c.amount = 0; c.targetAmount = 0 }
@@ -442,6 +458,15 @@ enum PetModel {
             // (грязный → в ванне — оба сидят): запоминаем её, чтобы после ванны отряхнуться.
             st.pendingPose = nil
             st.pose = pose
+            pet.components.set(st)
+            return
+        }
+
+        // Повторная ласка, пока идёт прошлая (волна 50): продлеваем её, а не начинаем с нуля. Раньше begin снимал
+        // ласку (глаза открыты), новая закрывала их через 0,25 с — при частых тапах в беде глаза мигали
+        // «пропал — вернулся». Отказ по откату посреди ласки — ласка просто доигрывает, без наклона «нельзя».
+        if fresh, !poseChanged, !reduceMotion, let r = reaction, r.kind == "pet", st.stance == .stand,
+           target == .stand, PetChoreo.continuePetting(pet, clock: st.clock, add: r.ok ? PettingSpan.add : 0) {
             pet.components.set(st)
             return
         }
@@ -504,6 +529,10 @@ enum PetModel {
         if fresh, let r = reaction {
             trick = r.ok ? Trick(kind: r.kind) : nil
             var rc = PetStance.reaction(kind: r.kind, ok: r.ok, stance: target, lookX: lookX, available: available)
+            if r.kind == "pet", pose == .bath, target == .sit {
+                // Гладят в ванне (волна 50): повёл ухом и в откат тоже — без «нельзя» наклоном головы.
+                rc = PetStance.pick(ReactBeat.bathSitting, available: available)
+            }
             if soft {
                 let choreo = pet.components[ChoreoState.self]?.active ?? false
                 if choreo || st.clock < st.busyUntil || st.stance != target { rc = [] }

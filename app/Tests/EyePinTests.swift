@@ -157,4 +157,35 @@ final class EyePinTests: XCTestCase {
             }
         }
     }
+
+    // MARK: любая модель (волна 50)
+
+    func testPlausibleByShape() {
+        // Шиба: глаза 0,0012 в 0,0044 друг от друга, модель ~0,05.
+        let shiba = EyePin.Eyes(centers: [SIMD3(-0.0022, -0.0271, -0.0203), SIMD3(0.0022, -0.0271, -0.0203)],
+                                size: 0.0012)
+        XCTAssertTrue(EyePin.plausible(shiba, extent: 0.05))
+        // Один «глаз», огромный, слипшиеся, разнесённые на всю модель — не глаза.
+        XCTAssertFalse(EyePin.plausible(EyePin.Eyes(centers: [.zero], size: 0.001), extent: 0.05))
+        XCTAssertFalse(EyePin.plausible(EyePin.Eyes(centers: shiba.centers, size: 0.02), extent: 0.05))
+        XCTAssertFalse(EyePin.plausible(EyePin.Eyes(centers: [.zero, SIMD3(0.0005, 0, 0)], size: 0.001), extent: 0.05))
+        XCTAssertFalse(EyePin.plausible(EyePin.Eyes(centers: [.zero, SIMD3(0.04, 0, 0)], size: 0.001), extent: 0.05))
+        XCTAssertFalse(EyePin.plausible(shiba, extent: 0))
+    }
+
+    func testMovingBonesShibaAndOthers() throws {
+        // Шиба: уши под Neck3, под Head — только челюсть и язык (лицо, не трогаем).
+        let shiba = [
+            "Body/Neck3", "Body/Neck3/Head", "Body/Neck3/Head/Jaw", "Body/Neck3/Head/Jaw/Tongue",
+            "Body/Neck3/Head/Jaw/Tongue/TongueTip", "Body/Neck3/Ear1_L", "Body/Neck3/Ear1_L/Ear2_L",
+            "Body/Neck3/Ear1_R", "Body/Neck3/Ear1_R/Ear2_R", "Body/Tail1",
+        ]
+        XCTAssertEqual(EyePin.movingBones(shiba, head: 1), [5, 6, 7, 8])
+        // Другая модель: уши под головой с другим регистром и кончиком, рог, глаз-кость.
+        let other = ["Root", "Root/head", "Root/head/EarLeft", "Root/head/EarLeft/tip", "Root/head/horn",
+                     "Root/head/eye.L", "Root/head/jaw_lower"]
+        XCTAssertEqual(EyePin.movingBones(other, head: 1), [2, 3, 4])
+        XCTAssertNil(EyePin.movingBones(["Root", "Root/Head"], head: 1))
+        XCTAssertNil(EyePin.movingBones(shiba, head: 99))
+    }
 }

@@ -117,6 +117,10 @@ struct PetFace: Component {
     var jawSpeed: Float = 0
     /// Отклик на тап и щекотку поверх клипа (волна 18): запускает PetModel.apply, шагает PetRig.step.
     var wiggle = TapWiggle()
+    /// До какого time трогали (волна 50, EyeBlink): пока трогают, не моргает — глаз не «пропадает» под пальцем.
+    var touchUntil: Double = 0
+    /// До какого time довольная морда (HappyFace: гладят в ванне) — жмурится и приоткрыл пасть.
+    var smileUntil: Double = 0
 }
 
 // MARK: - Хореография
@@ -263,6 +267,19 @@ enum PetChoreo {
         cs.petting = .init(start: clock, length: max(length, ChoreoPath.Petting.minLength), side: side)
         cs.active = true
         pet.components.set(cs)
+    }
+
+    /// Повторная ласка, пока идёт прошлая (волна 50, PettingSpan): не начинаем с нуля (begin снял бы её и открыл
+    /// глаза, а новая закрыла бы их через 0,25 с — «глаза пропадают и возвращаются»), а продлеваем идущую на add.
+    /// false — ласки нет или она кончилась: тогда обычный путь (begin + petting).
+    @discardableResult
+    static func continuePetting(_ pet: Entity, clock: Double, add: Double) -> Bool {
+        guard var cs = pet.components[ChoreoState.self], cs.active, var g = cs.petting,
+              PettingSpan.active(start: g.start, length: g.length, now: clock) else { return false }
+        g.length = PettingSpan.extended(start: g.start, length: g.length, now: clock, add: add)
+        cs.petting = g
+        pet.components.set(cs)
+        return true
     }
 
     /// Снять ласку: наклон и виляние к нулю (пружиной), глаза снова моргают.

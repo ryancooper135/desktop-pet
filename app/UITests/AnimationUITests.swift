@@ -146,6 +146,69 @@ final class AnimationUITests: XCTestCase {
         attachSheet(frames, name: "anim-tap")
     }
 
+    /// Волна 50: 10 тапов подряд по псу, который просит ласки (ур. 4 — тап = «Погладить»), морда крупно.
+    /// Глаза видны на всех кадрах: найдены и с бликом, под пальцем ни разу не закрылись морганием, ласка
+    /// не перезапускается каждым тапом (глаз не мигает закрыт-открыт на каждый тап). Проба — скрытая подпись pet.eyes.
+    @MainActor
+    func testTenTapsEyesVisible() throws {
+        let app = Self.makeApp(seed: "wants_pet_lv", noon: true)
+        app.launchEnvironment["PET_CAMERA"] = "face"
+        let stage = try launch(app)
+        let probe = app.descendants(matching: .any)["pet.eyes"].firstMatch
+        guard probe.waitForExistence(timeout: 5) else {
+            throw XCTSkip("нет pet.eyes: сборка без пробы глаз")
+        }
+        let crop = stage.frame
+        let start = Date()
+        var frames: [Frame] = []
+        let points = [CGVector(dx: 0.42, dy: 0.45), CGVector(dx: 0.58, dy: 0.42)]
+        for i in 0..<10 {
+            stage.coordinate(withNormalizedOffset: points[i % 2]).tap()
+            frames += capture(app, crop: crop, count: 1, step: 0, since: start)
+        }
+        frames += capture(app, crop: crop, count: 6, step: 0.25, since: start)
+        attachSheet(frames, name: "anim-tap10")
+        let p = Self.probe(probe.label)
+        let text = probe.label
+        XCTAssertEqual(p["eyes"], 1, "глаза не найдены: \(text)")
+        XCTAssertGreaterThanOrEqual(p["glints"] ?? 0, 1, "нет бликов: \(text)")
+        XCTAssertGreaterThan(p["touched"] ?? 0, 0, "тапы не дошли до морды: \(text)")
+        XCTAssertEqual(p["blinkShut"], 0, "под пальцем глаз закрылся морганием: \(text)")
+        XCTAssertLessThanOrEqual(p["flips"] ?? 99, 6, "глаза мигают на каждый тап: \(text)")
+        XCTAssertGreaterThan(p["ears"] ?? 0, 0, "уши не нашлись: \(text)")
+    }
+
+    /// Волна 50: гладят в ванне — пена, довольная морда и сердечко. Сид bath, 4 мазка, кадры после каждого.
+    @MainActor
+    func testBathPetFrames() throws {
+        let app = Self.makeApp(seed: "bath", noon: true)
+        let stage = try launch(app)
+        let crop = stage.frame
+        let start = Date()
+        var frames: [Frame] = []
+        for i in 0..<4 {
+            let left = stage.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.45))
+            let right = stage.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.45))
+            if i % 2 == 0 {
+                left.press(forDuration: 0.1, thenDragTo: right)
+            } else {
+                right.press(forDuration: 0.1, thenDragTo: left)
+            }
+            frames += capture(app, crop: crop, count: 4, step: 0.2, since: start)
+        }
+        attachSheet(frames, name: "anim-bath-pet")
+    }
+
+    /// «eyes=1 glints=1 …» → словарь чисел (variant — буква, пропускается).
+    static func probe(_ text: String) -> [String: Int] {
+        var out: [String: Int] = [:]
+        for part in text.split(separator: " ") {
+            let kv = part.split(separator: "=", maxSplits: 1)
+            if kv.count == 2, let v = Int(kv[1]) { out[String(kv[0])] = v }
+        }
+        return out
+    }
+
     /// Покой без действий: 16 кадров раз в 2 с (полминуты жизни на сцене).
     @MainActor
     func testIdleFrames() throws {
