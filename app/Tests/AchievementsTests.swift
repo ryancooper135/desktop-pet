@@ -49,7 +49,6 @@ private func allDone() -> SaveFile {
     }
     f.catchBest = 3
     f.blockduoBest = 4
-    f.zombieBest = 5
     f.challenge.count = 10
     f.cards.album = (0..<10).map { card(20_000 + $0) }
     return f
@@ -259,7 +258,6 @@ final class AchievementsTests: XCTestCase {
         for x in Finds.all { f.pet.finds[x.id] = 2 }
         f.catchBest = 10
         f.blockduoBest = 10
-        f.zombieBest = 10
         f.challenge.count = 6
         f.cards.album = (0..<6).map { card(20_000 + $0) }
         let gains = Shards.settle(&f, now: aT0).filter { $0.reason.hasPrefix("ach.") }

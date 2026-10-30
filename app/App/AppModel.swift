@@ -45,8 +45,6 @@ final class AppModel {
     var showCatch = false
     /// Мини-игра «Блок Дуо» (волна 12, BlockDuoScreen), на весь экран.
     var showBlockDuo = false
-    /// Мини-игра «Щенок против зомби» (волна 13, ZombieRunScreen), на весь экран.
-    var showZombie = false
     /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
     var showHabits = false
     /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
@@ -539,23 +537,6 @@ final class AppModel {
             if r.free == nil { self.speak(BlockDuo.shibaLine(r)) }
             if toast, let text = BlockDuo.toastText(r) {
                 self.show(text, emoji: "🧩")
-            }
-        }
-    }
-
-    /// После «Щенок против зомби» (волна 13): так же, как после «Блок Дуо» — прыжок, виляние и фраза про раунд.
-    func cheerZombie(_ r: ZombieResult, toast: Bool) {
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(0.6))
-            guard let self, !Task.isCancelled else { return }
-            if r.played {
-                self.react(ZombieRun.reactKind)
-                Feel.success(.yip)
-            }
-            // Волна 32: «просто так» (спал, гулял, мылся…) — пёс не играл с нами, фразы в комнате нет.
-            if r.free == nil { self.speak(ZombieRun.shibaLine(r)) }
-            if toast, let reward = ZombieRun.rewardText(r) {
-                self.show("Зомби: \(EconText.points(r.score)), \(reward)", emoji: "🧟")
             }
         }
     }
@@ -1075,7 +1056,7 @@ final class AppModel {
     }
 
     /// pet://home, pet://needs, pet://settings, pet://album, pet://capsule, pet://shop, pet://house, pet://tricks, pet://catch,
-    /// pet://blockduo, pet://zombie, pet://brush, pet://habits, pet://kitchen, pet://characters, pet://map
+    /// pet://blockduo, pet://brush, pet://habits, pet://kitchen, pet://characters, pet://map
     func open(_ url: URL) {
         guard url.scheme == "pet" else { return }
         // Волна 25: поверх открытого листа второй SwiftUI молча не покажет, а флаг останется true — и кнопка
@@ -1105,7 +1086,7 @@ final class AppModel {
             (showYard, "yard"),
             (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
-            (showBlockDuo, "blockduo"), (showZombie, "zombie"), (showHabits, "habits"), (showKitchen, "kitchen"),
+            (showBlockDuo, "blockduo"), (showHabits, "habits"), (showKitchen, "kitchen"),
             (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
             // Волна 35 N: лист уровня тоже лист — без него pet://map поверх «Уровня» терял карту, флаг оставался true.
             (showLevel, "level"),
@@ -1129,7 +1110,6 @@ final class AppModel {
         case "tricks": showTricks = true
         case "catch": showCatch = true
         case "blockduo": showBlockDuo = true
-        case "zombie": showZombie = true
         case "brush": startBrush()
         case "habits": showHabits = true
         case "map": showMap = true
@@ -1175,7 +1155,6 @@ final class AppModel {
         showTricks = false
         showCatch = false
         showBlockDuo = false
-        showZombie = false
         showHabits = false
         showKitchen = false
         showCharacters = false
@@ -1583,7 +1562,7 @@ final class AppModel {
     var anyCover: Bool {
         brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
-            || showBlockDuo || showZombie || showHabits || showKitchen || showMap || showLevel
+            || showBlockDuo || showHabits || showKitchen || showMap || showLevel
     }
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.

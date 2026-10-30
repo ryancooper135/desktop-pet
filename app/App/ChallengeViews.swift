@@ -55,7 +55,7 @@ struct ChallengeBadge: View {
         }
     }
 
-    /// Компактная капсула: цветная точка-обводка и текст. Фон карточки — читается и на ночном фоне «Зомби».
+    /// Компактная капсула: цветная точка-обводка и текст. Фон карточки — читается и на тёмном фоне игры.
     private func pill(_ text: String, a11y: String, tint: Color, strong: Bool) -> some View {
         Text(text)
             .font(.system(size: 14, weight: strong ? .bold : .semibold, design: .rounded))

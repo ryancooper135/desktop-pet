@@ -137,11 +137,10 @@ final class GuideTests: XCTestCase {
     }
 
     /// Склонение по числу одно на всё приложение (EconText.plural): слова в Memories, Cooking, Habits,
-    /// Postcards и ZombieRun отвечают так же на любых числах, и на отрицательных тоже.
+    /// и Postcards отвечают так же на любых числах, и на отрицательных тоже.
     func testPluralHelpersAgreeWithEconText() {
         for n in -130...230 {
             XCTAssertEqual(Memories.dayWord(n), EconText.plural(n, "день", "дня", "дней"), "Memories \(n)")
-            XCTAssertEqual(ZombieRun.friendsText(n), "\(n) " + EconText.plural(n, "друг", "друга", "друзей"), "Zombie \(n)")
             XCTAssertEqual(Cooking.dishes(n), EconText.plural(n, "блюдо", "блюда", "блюд"), "Cooking \(n)")
             XCTAssertEqual(Habits.times(n), EconText.plural(n, "раз", "раза", "раз"), "Habits \(n)")
             XCTAssertEqual(Postcards.daysWord(n), EconText.plural(n, "день", "дня", "дней"), "Postcards \(n)")

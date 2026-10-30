@@ -238,14 +238,17 @@ struct BlockDuoScreen: View {
             ForEach(0..<3, id: \.self) { slot in
                 TraySlot(piece: shownTray[slot], cell: min(cellSize * 0.5, 19), gap: 2,
                          lifted: drag?.slot == slot || pinned?.slot == slot,
-                         fits: shownTray[slot].map { game.fitsAnywhere($0) } ?? true)
+                         fits: shownTray[slot].map { game.fitsAnywhere($0) } ?? true,
+                         stuck: game.isOver && game.stuck == slot && shownTray[slot] != nil)
                     .frame(maxWidth: .infinity)
                     .frame(height: 118)
                     .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
                     .contentShape(Rectangle())
                     .gesture(dragGesture(slot))
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text(shownTray[slot] == nil ? "Пусто" : "Фигура \(slot + 1)"))
+                    .accessibilityLabel(Text(shownTray[slot] == nil ? "Пусто"
+                        : game.isOver && game.stuck == slot ? "Фигура \(slot + 1), ей не хватит места"
+                        : "Фигура \(slot + 1)"))
                     .accessibilityIdentifier("blockduo.slot.\(slot)")
             }
         }
@@ -393,10 +396,13 @@ struct BlockDuoScreen: View {
             shown = after.board
             busy = false
             if after.isOver {
-                status = "Места больше нет"
-                // Мягкое «всё»: через 0,8 с карточка итога даст свой success со звуком.
+                // Волна 55: конец наперёд — отдельные фигуры могут ещё куда-то встать, но все вместе уже нет.
+                // Фигура, которой не хватит места, подсвечена (TraySlot.stuck); дадим её разглядеть.
+                let early = after.anyFits
+                status = early ? "Этой фигуре места уже не хватит" : "Места больше нет"
+                // Мягкое «всё»: через 0,8 с (1,2 с при раннем конце) карточка итога даст свой success со звуком.
                 Feel.nudge()
-                try? await Task.sleep(for: .milliseconds(800))
+                try? await Task.sleep(for: .milliseconds(early ? 1200 : 800))
                 guard !Task.isCancelled else { return }
                 finish()
             }
@@ -636,15 +642,26 @@ private struct TraySlot: View {
     let gap: CGFloat
     let lifted: Bool
     let fits: Bool
+    /// Волна 55: партия кончилась, потому что этой фигуре не хватит места, — красная рамка.
+    var stuck = false
 
     var body: some View {
         ZStack {
             if let piece {
                 PieceView(form: piece.form, color: piece.color, cell: cell, gap: gap)
-                    .opacity(lifted ? 0.2 : (fits ? 1 : 0.35))
+                    .opacity(lifted ? 0.2 : (stuck || fits ? 1 : 0.35))
                     .transition(Motion.pop(.scale(scale: 0.4).combined(with: .opacity)))
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if stuck {
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(PetPalette.red, lineWidth: 3)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.calm(.easeOut(duration: 0.25)), value: stuck)
     }
 }
 

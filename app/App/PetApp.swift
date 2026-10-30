@@ -88,7 +88,7 @@ struct RootView: View {
 }
 
 /// Крючки только для UI-тестов (Env.isUITest); в обычном запуске всё nil.
-/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|blockduo|zombie|brush|habits|kitchen|characters|yard — открыть экран после запуска; PET_THEN — второй экран поверх через 4 с.
+/// PET_SCHEME=dark|light — тема интерфейса; PET_OPEN=needs|settings|album|capsule|house|tricks|catch|blockduo|brush|habits|kitchen|characters|yard — открыть экран после запуска; PET_THEN — второй экран поверх через 4 с.
 enum UITestHooks {
     static var scheme: ColorScheme? {
         guard Env.isUITest else { return nil }
@@ -100,7 +100,7 @@ enum UITestHooks {
     }
 
     static var openURL: URL? {
-        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "zombie", "brush", "habits", "kitchen", "characters", "yard"].contains(v) else { return nil }
+        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "brush", "habits", "kitchen", "characters", "yard"].contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
 

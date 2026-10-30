@@ -53,8 +53,8 @@ final class SoundEventTests: XCTestCase {
             XCTAssertEqual(direct.numberOfMatches(in: src, range: range), 0, "\(f): .coins мимо CoinChime")
             chimes += src.components(separatedBy: "CoinChime.cue(").count - 1
         }
-        // Двор (4), три мини-игры, задание дня, просьба.
-        XCTAssertGreaterThanOrEqual(chimes, 9)
+        // Двор (4), две мини-игры (зомби убраны в волне 55), задание дня, просьба.
+        XCTAssertGreaterThanOrEqual(chimes, 8)
     }
 
     // MARK: еда

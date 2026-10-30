@@ -120,7 +120,7 @@ extension AppModel {
 
     /// Поверх чего сцену не играем: отчёт «Пока тебя не было», игры и листы. Ушёл гулять — тоже ждём.
     var levelSceneBlocked: Bool {
-        away != nil || showCatch || showBlockDuo || showZombie || showTricks || showCapsule || showShop || showHouse
+        away != nil || showCatch || showBlockDuo || showTricks || showCapsule || showShop || showHouse
             || showSettings || showAlbum || showNeeds || showKitchen || showHabits || showLevel || postcard != nil
             || showYard || showMap
             || snap.pose == .away

@@ -11,8 +11,8 @@ enum StagePause {
     static let settle: TimeInterval = 0.8
 
     /// Закрыта ли комната целиком.
-    static func covered(catchGame: Bool, blockDuo: Bool, zombie: Bool, away: Bool) -> Bool {
-        catchGame || blockDuo || zombie || away
+    static func covered(catchGame: Bool, blockDuo: Bool, away: Bool) -> Bool {
+        catchGame || blockDuo || away
     }
 
     /// Через сколько секунд сцена принимает состояние covered. Гасим не сразу (въезд обложки), включаем сразу:
@@ -22,7 +22,7 @@ enum StagePause {
     }
 }
 
-/// Часы кадров мини-игры (CatchGameScreen, ZombieRunScreen). Время раунда — сумма шагов, а не настенные часы:
+/// Часы кадров мини-игры (CatchGameScreen). Время раунда — сумма шагов, а не настенные часы:
 /// шаг не больше maxStep (подвисание не прыгает раунд вперёд). Пока приложение не активно (Пункт управления,
 /// переключатель приложений, звонок), шаг 0 — раунд стоит, а цикл просыпается реже (idleMs вместо frameMs).
 struct FrameClock {

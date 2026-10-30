@@ -4,11 +4,10 @@ import XCTest
 /// Волна 16: пауза комнаты под обложками и часы кадров мини-игр.
 final class RenderPauseTests: XCTestCase {
     func testCoveredByAnyFullScreenCover() {
-        XCTAssertFalse(StagePause.covered(catchGame: false, blockDuo: false, zombie: false, away: false))
-        XCTAssertTrue(StagePause.covered(catchGame: true, blockDuo: false, zombie: false, away: false))
-        XCTAssertTrue(StagePause.covered(catchGame: false, blockDuo: true, zombie: false, away: false))
-        XCTAssertTrue(StagePause.covered(catchGame: false, blockDuo: false, zombie: true, away: false))
-        XCTAssertTrue(StagePause.covered(catchGame: false, blockDuo: false, zombie: false, away: true))
+        XCTAssertFalse(StagePause.covered(catchGame: false, blockDuo: false, away: false))
+        XCTAssertTrue(StagePause.covered(catchGame: true, blockDuo: false, away: false))
+        XCTAssertTrue(StagePause.covered(catchGame: false, blockDuo: true, away: false))
+        XCTAssertTrue(StagePause.covered(catchGame: false, blockDuo: false, away: true))
     }
 
     func testHideLateWakeAtOnce() {

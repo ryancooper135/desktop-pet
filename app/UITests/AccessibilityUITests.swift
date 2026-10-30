@@ -35,7 +35,6 @@ final class AccessibilityUITests: XCTestCase {
         Screen(name: "house", env: ["PET_OPEN": "house"], marker: "house.screen"),
         Screen(name: "tricks", env: ["PET_OPEN": "tricks"], marker: "tricks.screen"),
         Screen(name: "album", env: ["PET_SEED": "memories", "PET_OPEN": "album"], marker: "album.sheet"),
-        Screen(name: "zombie", env: ["PET_SEED": "zombie", "PET_OPEN": "zombie"], marker: "zombie.play", fixed: true),
         Screen(name: "blockduo", env: ["PET_SEED": "blockduo", "PET_OPEN": "blockduo"], marker: "blockduo.screen",
                fixed: true),
     ]
@@ -55,7 +54,7 @@ final class AccessibilityUITests: XCTestCase {
     /// clipStrict — обрезку текста считать замечанием (крупный шрифт); на обычном размере она только в отчёте.
     static func excuse(_ f: Found, fixed: Bool, clipStrict: Bool = false) -> String? {
         // 3D-сцена: SceneKit/RealityKit-кадр аудит видит картинкой, контраст и «текст» в нём не про нас.
-        if f.id == "pet.stage" || f.id == "zombie.view" || f.id == "blockduo.board" {
+        if f.id == "pet.stage" || f.id == "blockduo.board" {
             return "3D-сцена или игровое поле: картинка, озвучено подписью и значением"
         }
         // Главный экран, панель, HUD и игры фиксированы (волна 15): растёт только реплика.
@@ -120,10 +119,10 @@ final class AccessibilityUITests: XCTestCase {
         try audit(["capsule", "house"])
     }
 
-    /// Заставки «Зомби» и «Блок Дуо».
+    /// Заставка «Блок Дуо» («Зомби» убран в волне 55).
     @MainActor
     func testAccessibilityAudit4Games() throws {
-        try audit(["zombie", "blockduo"])
+        try audit(["blockduo"])
     }
 
     /// VoiceOver-подписи, контраст, зоны касания, обрезка текста, трейты — на каждом экране из списка.

@@ -217,7 +217,7 @@ final class DogLevelTests: XCTestCase {
         XCTAssertEqual(DogLevel.settle(&f, now: lT0 + 10).xp, 3 * 5 + 5)
         XCTAssertEqual(DogLevel.settle(&f, now: lT0 + 20).xp, 0, "те же партии второй раз не платят")
         catchGames(&f, 1, at: lT0 + 30)
-        f.zombieDay = DayKey.of(lT0); f.zombieGames = 5
+        f.blockduoDay = DayKey.of(lT0); f.blockduoGames = 5
         XCTAssertEqual(DogLevel.settle(&f, now: lT0 + 40).xp, 3 * 5, "6 партий в сутки на все игры: из 9 платят 6")
         // Новые сутки: счётчик игры с нуля.
         catchGames(&f, 2, at: noon(1))
@@ -360,7 +360,8 @@ final class DogLevelTests: XCTestCase {
         XCTAssertTrue(DogLevel.unlocks(41).isEmpty)
         XCTAssertEqual(DogLevel.unlocks(1).map(\.id), ["yard.0", "game.catch", "capsule"])
         XCTAssertEqual(DogLevel.needLevel("game.blockduo"), 3)
-        XCTAssertEqual(DogLevel.needLevel("game.zombie"), 6)
+        XCTAssertEqual(DogLevel.needLevel("game.runner"), 6, "волна 55: место зомби держит раннер (скоро)")
+        XCTAssertNil(DogLevel.needLevel("game.zombie"))
         XCTAssertEqual(DogLevel.needLevel("spinner"), 10)
         XCTAssertNil(DogLevel.needLevel("nope"))
         XCTAssertTrue(DogLevel.isOpen("nope", level: 1), "чего нет в таблице — уровень не держит")
@@ -381,9 +382,9 @@ final class DogLevelTests: XCTestCase {
         var f = lFile()
         XCTAssertTrue(DogLevel.gameOpen("catch", f))
         XCTAssertFalse(DogLevel.gameOpen("blockduo", f))
-        XCTAssertFalse(DogLevel.gameOpen("zombie", f))
-        f.zombieBest = 120
-        XCTAssertTrue(DogLevel.gameOpen("zombie", f))
+        f.blockduoBest = 120
+        XCTAssertTrue(DogLevel.gameOpen("blockduo", f), "уже играли — открыто и до ур. 3")
+        f.blockduoBest = 0
         f.level.xp = DogLevel.xpTo(3)
         XCTAssertTrue(DogLevel.gameOpen("blockduo", f))
     }

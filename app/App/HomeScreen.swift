@@ -341,14 +341,6 @@ struct HomeScreen: View {
                 .environment(model)
                 .petMusic(.play)
         }
-        .fullScreenCover(isPresented: $model.showZombie) {
-            // Как мячик — на весь экран: палец ведёт Шибу по всему полю.
-            ZombieRunScreen()
-                .environment(model)
-                .petMusic(.play)
-                // Экран ночной: без этого часы и значки сверху чёрные на тёмном.
-                .preferredColorScheme(.dark)
-        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)

@@ -29,7 +29,7 @@ enum DeepLink {
 
     /// Цели, которые что-то открывают. Остальное (pet://home и незнакомое) — «закрыть всё», это и так .go.
     static let routes: Set<String> = ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch",
-                                      "blockduo", "zombie", "brush", "habits", "kitchen", "characters", "yard",
+                                      "blockduo", "brush", "habits", "kitchen", "characters", "yard",
                                       "map"]  // волна 34 H: карта мест
 
     /// open — что показано сейчас (имена как у хостов; открытка — "postcard").

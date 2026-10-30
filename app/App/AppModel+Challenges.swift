@@ -1,5 +1,5 @@
 // Волна 35 K: челлендж дня в мини-играх — что показать на плашке экрана игры. Логика и награда — Challenges.swift;
-// засчитывает его сам finish экрана (Challenges.play вокруг CatchGame/BlockDuo/ZombieRun.finish), здесь только чтение.
+// засчитывает его сам finish экрана (Challenges.play вокруг CatchGame/BlockDuo.finish), здесь только чтение.
 
 import Foundation
 @preconcurrency import PetCore
