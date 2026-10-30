@@ -23,7 +23,38 @@ final class IslandLookSnapshotTests: XCTestCase {
             ("asleep", PreviewFixtures.widgetLook("asleep", bank: 0.8, tier: 2), t),
             // Волна 45 O: просьба пса — плашка «Почеши за ушком? · ещё 40 мин» вместо подписи.
             ("ask", PreviewFixtures.widgetLook("fed", bank: 0.6, tier: 1, ask: "pet"), t),
+            // Волна 51: «что сейчас» — занятие с таймером без кнопки, нужда с кнопкой «Помыть».
+            ("status-bath", statusLook { f, t in f.pet.bathUntil = t + 180 }, t),
+            ("status-nap", statusLook { f, t in f.pet.needs[.energy] = 30; f.pet.napUntil = t + 1500 }, t),
+            ("status-need", statusLook { f, _ in f.pet.needs[.clean] = 10 }, t),
         ]
+    }
+
+    /// Волна 51: сейв «сыт и доволен» с правкой → сейв на «сейчас» (PetStatusLogic внутри WidgetLook.looks).
+    static func statusFile(_ edit: (inout SaveFile, Double) -> Void) -> (file: SaveFile, t: Double) {
+        let r = PreviewFixtures.file("fed")
+        var f = r.file
+        edit(&f, r.t)
+        return (f, r.t)
+    }
+
+    @MainActor
+    static func statusLook(_ edit: (inout SaveFile, Double) -> Void) -> WidgetLook {
+        let (f, t) = statusFile(edit)
+        return WidgetLook.looks(f, now: t, tzOffsetMin: 0, asks: []).first ?? WidgetLook.empty(t: t)
+    }
+
+    /// Волна 51: карточки острова «что сейчас» (IslandLook.statusCard) — моется, дремлет, нужда с кнопкой.
+    static func statusCards() -> [(name: String, card: IslandCard)] {
+        let edits: [(String, (inout SaveFile, Double) -> Void)] = [
+            ("status-bath", { f, t in f.pet.bathUntil = t + 180 }),
+            ("status-nap", { f, t in f.pet.needs[.energy] = 30; f.pet.napUntil = t + 1500 }),
+            ("status-need", { f, _ in f.pet.needs[.clean] = 10 }),
+        ]
+        return edits.map { name, edit in
+            let (f, t) = statusFile(edit)
+            return (name, IslandLook.statusCard(PetStatusLogic.of(f, now: t, tzOffsetMin: 0), at: t))
+        }
     }
 
     /// Карточки острова по одной на событие §8 — из настоящей логики (IslandEvents.candidates → IslandLook.card).
@@ -81,7 +112,7 @@ final class IslandLookSnapshotTests: XCTestCase {
             add("ui-34-widget-inline-\(name)", .inline, .dark, t: t, WidgetLockInlineView(look: look))
         }
         let t = PreviewFixtures.dayT
-        for (name, card) in islandCards() {
+        for (name, card) in islandCards() + statusCards() {
             add("ui-34-island-expanded-\(name)", .islandExpanded, .dark, t: t, IslandCardExpandedPreview(card: card))
             add("ui-34-island-compact-\(name)", .islandCompact, .dark, t: t, IslandCardCompactPreview(card: card))
             add("ui-34-island-lock-\(name)", .lockActivity, .light, t: t,
@@ -95,6 +126,16 @@ final class IslandLookSnapshotTests: XCTestCase {
         for kind in IslandEvent.Kind.allCases {
             XCTAssertTrue(names.contains(kind.rawValue), "нет карточки для \(kind.rawValue)")
         }
+    }
+
+    /// Волна 51: карточки «что сейчас» — таймер у занятий, кнопка только у нужды и только доступная.
+    func testStatusCards() {
+        let cards = Dictionary(uniqueKeysWithValues: Self.statusCards().map { ($0.name, $0.card) })
+        XCTAssertEqual(cards.count, 3)
+        XCTAssertEqual(cards["status-bath"]?.act, .open, "моется — только «Открыть», действия нет")
+        XCTAssertEqual(cards["status-nap"]?.act, .open, "дремлет — только «Открыть», действия нет")
+        XCTAssertNotNil(cards["status-bath"]?.timerEnd, "моется — таймер")
+        XCTAssertEqual(cards["status-need"]?.act, .bath, "грязный — «Помыть»")
     }
 
     @MainActor

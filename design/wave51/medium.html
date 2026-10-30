@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Волна 51 · средний виджет</title>
+<link rel="stylesheet" href="w51.css"></head>
+<body>
+<h1>Средний виджет — «что сейчас»</h1>
+<p class="lead">Слева пёс в позе занятия (бежит, спит с zzz, в тазике с пеной). Справа: что делает и сколько осталось, под этим
+самые низкие шкалы (три, а с кнопкой или подписью — две). Кнопка вместо строки копилки — только если действие доступно.</p>
+
+<div class="tag rec" style="text-align:left"><b>A</b>Строка + таймер + шкалы + кнопка — реализован</div>
+<div class="row" style="margin:10px 0 26px">
+  <div><div class="w m" style="display:flex;gap:12px">
+    <div class="screen" style="width:132px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="bath" data-w="120"></span></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:7px;padding-top:4px">
+      <div class="head"><span class="ic" style="background:var(--bath)">●</span>Моется <span class="timer">2:58</span></div>
+      <div class="barrow">чистота<div class="bar"><i style="width:45%;background:var(--bath)"></i></div></div>
+      <div class="barrow">ласка<div class="bar"><i style="width:70%;background:var(--accent)"></i></div></div>
+      <div class="barrow">еда<div class="bar"><i style="width:82%;background:var(--accent)"></i></div></div>
+      <div class="sub">+38 · полная в 18:30</div>
+    </div></div><div class="cap">моется: кнопки нет, копилка на месте</div></div>
+  <div><div class="w m" style="display:flex;gap:12px">
+    <div class="screen" style="width:132px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="sit" data-w="104"></span></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:7px;padding-top:4px">
+      <div class="head"><span class="ic" style="background:var(--need)">!</span>Пора помыться</div>
+      <div class="barrow">чистота<div class="bar"><i style="width:10%;background:var(--need)"></i></div></div>
+      <div class="barrow">еда<div class="bar"><i style="width:62%;background:var(--accent)"></i></div></div>
+      <div><span class="btn" style="background:var(--bath)">Помыть</span></div>
+    </div></div><div class="cap">нужда: кнопка вместо копилки</div></div>
+</div>
+
+<div class="row">
+  <div class="col" style="align-items:flex-start">
+    <div class="tag" style="text-align:left"><b>B</b>Таймлайн дня</div>
+    <div class="w m" style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:10px;align-items:center"><span data-dog="bath" data-w="64"></span>
+        <div><div class="head">Моется <span class="timer">2:58</span></div><div class="sub">потом: хочет гулять</div></div></div>
+      <div style="display:flex;gap:4px;font-size:10px;color:var(--mute)">
+        <div style="flex:1;border-top:4px solid var(--bath);padding-top:3px">сейчас</div>
+        <div style="flex:2;border-top:4px solid #ddd5ca;padding-top:3px">прогулка</div>
+        <div style="flex:3;border-top:4px solid var(--nap);padding-top:3px">ночь 23:00</div></div>
+    </div>
+    <div class="note" style="text-align:left">Видно, что будет дальше, но без шкал и копилки. Много мелкого текста.</div>
+  </div>
+  <div class="col" style="align-items:flex-start">
+    <div class="tag" style="text-align:left"><b>C</b>Две кнопки</div>
+    <div class="w m" style="display:flex;gap:12px">
+      <div class="screen" style="width:120px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="sit" data-w="96"></span></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-top:4px">
+        <div class="head"><span class="ic" style="background:var(--need)">!</span>Пора помыться</div>
+        <div class="sub">чистота 10 %</div>
+        <div style="display:flex;gap:6px"><span class="btn" style="background:var(--bath)">Помыть</span><span class="btn" style="background:var(--accent)">Покормить</span></div>
+      </div></div>
+    <div class="note" style="text-align:left">Быстрее, но вторая кнопка часто недоступна (сыт) — пришлось бы прятать и прыгать вёрсткой.</div>
+  </div>
+</div>
+<script src="dog.js"></script>
+</body></html>

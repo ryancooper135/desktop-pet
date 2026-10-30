@@ -22,3 +22,20 @@ CC-BY — обязательно указать автора в «Настрой
 - «Lofi again» — omfgdude, CC0: https://opengameart.org/content/lofi-again
 
 Звуковые эффекты не сторонние: их синтезирует само приложение (`app/Shared/SoundRecipes.swift`).
+
+## Виджет, островок и контрол «что сейчас» (волна 51)
+
+Сторонних файлов **нет**. Пёс в позах занятия — свой `PixelDog`/3D из кода (бег, сон, тазик с пеной уже были),
+значки — системные SF Symbols (`moon.zzz.fill`, `bubbles.and.sparkles.fill`, `figure.walk` и др.), макеты
+`design/wave51/` — свой SVG-пёс в `dog.js`. Ничего не скачано.
+
+Смотрели готовое (не взято, на будущее):
+
+- «Dog Spritesheets» — Jason of GDN, CC0: https://opengameart.org/content/dog-spritesheets — бег/шаг/стойка
+  в 3 окрасах, но нет сна и купания, стиль чужой.
+- «Dog» — rmazanek, CC0: https://opengameart.org (поиск «rmazanek dog») — бег и сидит, нет сна, кадры 60×38.
+- «Emotes Pack» — Kenney, CC0: https://opengameart.org/content/emotes-pack — пузыри-эмоции; zzz и пена уже
+  есть в SF Symbols.
+- pawello2222/WidgetExamples — MIT: https://github.com/pawello2222/WidgetExamples — образец кода Live
+  Activity и таймеров, код не брали.
+- «Pixel Dogs» (Benvictus, itch.io) — есть сон, но лицензия неясна, отброшен.

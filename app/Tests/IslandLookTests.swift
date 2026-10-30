@@ -218,7 +218,7 @@ final class IslandLookTests: XCTestCase {
         var g = file(at: noon)
         g.pet.outing = Outing(from: noon - 600, until: noon + 1200, find: "cone")
         let w = WidgetLook.looks(g, now: noon, tzOffsetMin: 0, asks: [], cfg)
-        XCTAssertEqual(w.first?.pose, .away)
+        XCTAssertEqual(w.first?.pose, .run, "волна 51: на прогулке бежит, .away — только «убежал»")
         XCTAssertEqual(w.first?.lock, .trip)
         XCTAssertEqual(w.first?.tripUntil, noon + 1200)
         XCTAssertEqual(w.first?.tripFrom, noon - 600, "прогулка ядра — тоже с полоской")

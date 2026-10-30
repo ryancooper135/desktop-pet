@@ -72,6 +72,8 @@ enum IslandFeed {
 /// calm — тихий вид.
 enum IslandGlyph: String, Codable, CaseIterable, Hashable, Sendable {
     case tracks, heart, bowl, trip, home, ask, piggy, star, calm
+    /// Волна 51: занятие и потребность из PetStatus (ванна, дрёма, главная шкала).
+    case bath, nap, need
 
     init(_ k: IslandEvent.Kind) {
         switch k {
@@ -98,6 +100,9 @@ enum IslandGlyph: String, Codable, CaseIterable, Hashable, Sendable {
         case .piggy: return "dollarsign.circle.fill"
         case .star: return "star.fill"
         case .calm: return "pawprint"
+        case .bath: return "bubbles.and.sparkles.fill"
+        case .nap: return "moon.zzz.fill"
+        case .need: return "exclamationmark.circle.fill"
         }
     }
 }
@@ -123,9 +128,16 @@ struct IslandCard: Codable, Hashable, Sendable {
     var ring: Double?
     /// Кнопка развёрнутого вида: голод — «Покормить», дома — «Погладить», сердечко — спасающая, остальное — «Открыть».
     var act: IslandAct
+    /// Волна 51: карточка «что сейчас» (PetStatus): занятие (bath, nap, walk) или потребность. nil — событие.
+    /// Не в init событий и Optional — старый JSON ContentState читается.
+    var busy: PetStatusKind? = nil
+    /// Свой значок (SF Symbol) и шкала для цвета — у карточки потребности; nil — по glyph.
+    var symbol: String? = nil
+    var need: Need? = nil
 
     /// Компакт справа.
     var trailing: IslandTrailing {
+        if busy != nil { return timerEnd != nil ? .timer : .text }
         switch kind {
         case .lastChance?, .trip?, .runaway?, .ask?: return timerEnd != nil ? .timer : .text
         case .bank?: return .ring
@@ -164,13 +176,80 @@ enum IslandLook {
 
     /// Что положить в ContentState: вид сейчас и вид после staleDate.
     /// pickNow/pickAfter — что ядро примет сейчас и в момент stale (для кнопки «последнего сердечка»).
+    /// after — волна 51: «что сейчас» в момент stale; днём вместо «Всё хорошо» — главная потребность.
     static func cards(_ show: IslandShow, _ i: IslandInput, pickNow: IslandPick? = nil,
-                      pickAfter: IslandPick? = nil) -> (now: IslandCard?, next: IslandCard?) {
+                      pickAfter: IslandPick? = nil, after: PetStatus? = nil) -> (now: IslandCard?, next: IslandCard?) {
         guard let cur = show.current else { return (nil, nil) }
         let now = card(cur, pending: show.pending, pick: pickNow)
         guard let s = show.staleDate else { return (now, nil) }
         if let a = show.after { return (now, card(a, pick: pickAfter)) }
-        return (now, rest(name: i.name, night: i.quiet?.asleep(s) ?? false, at: s))
+        let night = i.quiet?.asleep(s) ?? false
+        if !night, let st = after, st.kind != .fine, st.kind != .gone { return (now, statusCard(st, at: s)) }
+        return (now, rest(name: i.name, night: night, at: s))
+    }
+
+    // MARK: - Волна 51: «что сейчас» на острове
+
+    /// События, что главнее занятия пса: побег, последнее сердечко, поход (он сам — занятие).
+    static let overStatus: Set<IslandEvent.Kind> = [.runaway, .lastChance, .trip]
+
+    /// Занятие с концом — держит остров и без события: ванна, дрёма, прогулка ядра.
+    static func timed(_ st: PetStatus) -> Bool {
+        [.bath, .nap, .walk].contains(st.kind) && st.timerEnd != nil
+    }
+
+    static func glyph(_ st: PetStatus) -> IslandGlyph {
+        switch st.kind {
+        case .gone: return .tracks
+        case .trip, .walk: return .trip
+        case .bath: return .bath
+        case .nap, .night: return .nap
+        case .eat: return .bowl
+        case .sick: return .heart
+        case .need: return st.need == .food ? .bowl : .need
+        case .fine: return .calm
+        }
+    }
+
+    /// Карточка острова из PetStatus. Кнопка — действие статуса (ядро примет), иначе «Открыть».
+    static func statusCard(_ st: PetStatus, at t: Double) -> IslandCard {
+        let timer = st.timerEnd.flatMap { $0 > t ? $0 : nil }
+        let compact: String
+        if timer != nil { compact = "" } else if st.kind == .need, let p = st.progress {
+            compact = "\(Int((p * 100).rounded())) %"
+        } else { compact = "" }
+        return IslandCard(kind: nil, glyph: glyph(st), title: st.title, detail: st.detail, compact: compact,
+                          pose: st.pose, from: st.timerFrom ?? t, until: timer, timerEnd: timer,
+                          progressFrom: st.kind == .walk || st.kind == .trip ? st.timerFrom : nil, ring: nil,
+                          act: st.act ?? .open, busy: st.kind, symbol: st.symbol, need: st.need)
+    }
+
+    /// Остров с учётом «что сейчас»: занятие с таймером (ванна, дрёма, прогулка) показываем вместо голода,
+    /// просьбы, копилки и тихого вида; побег, последнее сердечко и поход — главнее. stale — конец занятия,
+    /// после него — событие, что ещё идёт, иначе потребность на тот момент (или тихий вид).
+    /// nil — ни события, ни занятия: островок пустеет, как раньше.
+    static func plan(_ show: IslandShow, _ i: IslandInput, status: PetStatus, statusAt: (Double) -> PetStatus,
+                     pickNow: IslandPick? = nil, pickAfter: IslandPick? = nil)
+        -> (now: IslandCard, next: IslandCard?, stale: Double?)? {
+        let strong = show.current.map { overStatus.contains($0.kind) && !show.pending } ?? false
+        if timed(status), !strong, let end = status.timerEnd {
+            let now = statusCard(status, at: i.now)
+            let next: IslandCard
+            if let c = show.current, (c.until ?? .infinity) > end {
+                next = card(c, pending: c.from > end, pick: pickAfter)
+            } else {
+                let st = statusAt(end)
+                let night = i.quiet?.asleep(end) ?? false
+                next = (st.kind == .fine || st.kind == .gone) || (night && st.kind != .night)
+                    ? rest(name: i.name, night: night, at: end) : statusCard(st, at: end)
+            }
+            return (now, next, end)
+        }
+        guard show.current != nil else { return nil }
+        let after = show.staleDate.map(statusAt)
+        let c = cards(show, i, pickNow: pickNow, pickAfter: pickAfter, after: after)
+        guard let now = c.now else { return nil }
+        return (now, c.next, show.staleDate)
     }
 
     /// Что показывать: до stale — карточку, после — следующую (без неё — ту же: тихо гаснуть не умеем).
@@ -369,6 +448,64 @@ enum PixelDog {
         "....dd....dd....",
         "....dd....dd....",
     ]
+    /// Волна 51: бежит (прогулка, поход) — лапы врозь и вместе.
+    private static let runA = [
+        "................",
+        "................",
+        "..........o..o..",
+        ".........ofoofo.",
+        "oo.......offffo.",
+        "offooooooofeccco",
+        ".offffffffffccce",
+        "..offfffffffcco.",
+        "..ofo.....ofo...",
+        ".ofo.......ofo..",
+        "ofo.........ofo.",
+        "oo...........oo.",
+    ]
+    private static let runB = [
+        "................",
+        "................",
+        "................",
+        "..........o..o..",
+        ".........ofoofo.",
+        ".oo......offffo.",
+        "offooooooofeccco",
+        ".offffffffffccce",
+        "..offfffffffcco.",
+        "....ofo..ofo....",
+        "....ofo..ofo....",
+        "....oo...oo.....",
+    ]
+    /// Волна 51: моется — голова над тазиком, пузыри (z) прыгают.
+    private static let bathA = [
+        "..z.........z...",
+        "......z.........",
+        "..........o..o..",
+        ".z.......ofoofo.",
+        ".........offffo.",
+        "...z.....ofefcco",
+        ".zz.z.z..offccce",
+        "zbbbbbbbbbbbbbbz",
+        ".bbbbbbbbbbbbbb.",
+        ".bbbbbbbbbbbbbb.",
+        "..bbbbbbbbbbbb..",
+        "...o........o...",
+    ]
+    private static let bathB = [
+        "......z.........",
+        "..z.........z...",
+        "..........o..o..",
+        "....z....ofoofo.",
+        ".z.......offffo.",
+        ".........ofefcco",
+        "z.zz.zz..offccce",
+        ".bbbbbbbbbbbbbbz",
+        "zbbbbbbbbbbbbbb.",
+        ".bbbbbbbbbbbbbb.",
+        "..bbbbbbbbbbbb..",
+        "...o........o...",
+    ]
 
     /// Кадры позы по порядку.
     static func frames(_ p: DogPose) -> [[String]] {
@@ -379,6 +516,8 @@ enum PixelDog {
         case .eat: return [eatA, eatB]
         case .bowl: return [bowlA, bowlB]
         case .away: return [awayA, awayB, awayC]
+        case .run: return [runA, runB]
+        case .bath: return [bathA, bathB]
         }
     }
 
@@ -469,6 +608,40 @@ struct WidgetLook: Hashable, Sendable {
     var ask: String? = nil
     var askEmoji: String? = nil
     var askEnd: Double? = nil
+    /// Волна 51: «что сейчас» на кадре — строка статуса и кнопка (PetStatusLogic).
+    var status: PetStatus = .fine
+
+    /// Волна 51: статус ведёт подпись — пёс занят делом, убежал или болеет; иначе просьба (если есть) ведёт,
+    /// а без неё — главная потребность. Порядок: занятие → просьба → потребность. «Всё хорошо» не ведёт:
+    /// тогда прежняя подпись настроения, шкалы и копилка (как до волны 51).
+    var statusLeads: Bool {
+        guard status.kind != .fine else { return false }
+        return status.kind.busy || status.kind == .gone || status.kind == .sick || ask == nil
+    }
+
+    /// Сколько шкал в medium: просьба (две строки), кнопка или подпись статуса (по строке) — две, иначе три.
+    var mediumBars: Int { ask != nil || button != nil || subline != nil ? 2 : 3 }
+
+    /// Первая строка: «Моется», «Спит», «Хочет есть» — или плашка просьбы.
+    var headline: String { statusLeads ? status.title : caption }
+
+    /// Живой таймер строки статуса (Text(timerInterval:)) — до конца занятия; nil — таймера нет.
+    var statusTimer: (from: Double, until: Double)? {
+        guard statusLeads, let e = status.timerEnd, e > t else { return nil }
+        return (min(status.timerFrom ?? t, e), e)
+    }
+
+    /// Вторая строка без таймера: «до 07:30», «Сытость 18 %», «Ищи следы». С таймером — nil (таймер её заменяет).
+    var subline: String? {
+        guard statusLeads, statusTimer == nil else { return nil }
+        return status.detail
+    }
+
+    /// Кнопка на виджете: действие статуса, которое ядро примет на этом кадре; nil — без кнопки (тап откроет приложение).
+    var button: IslandAct? {
+        guard alive, statusLeads, let a = status.act, a.action != nil else { return nil }
+        return a
+    }
 
     /// Порядок шкал (как VisibleNeeds.all в приложении).
     static let order: [Need] = [.food, .clean, .energy, .fun, .love, .walk]
@@ -539,6 +712,7 @@ struct WidgetLook: Hashable, Sendable {
                               coinsFull: bank?.coins, bankLine: line, bankFull: full, tripFrom: from,
                               tripUntil: fr.tripUntil, sky: SkyPhase.at(fr.t, tz: tz), tier: tier, tierName: tierName,
                               lock: lock, dogScale: min(1, max(0.7, dogScale)))
+        look.status = fr.status
         // Просьба: та же плашка, что дома (DogAskText.plate), минуты — на момент кадра.
         if let a = fr.ask, let k = a.kind {
             look.caption = DogAskText.plate(a, now: fr.t)

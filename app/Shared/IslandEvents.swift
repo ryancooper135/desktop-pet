@@ -59,9 +59,10 @@ struct IslandEventsConfig: Hashable, Sendable {
     }
 }
 
-/// Поза пса в виджете и компакте островка (6 поз §8). Не путать с Pose из Presenter: там настроения для 3D.
+/// Поза пса в виджете и компакте островка (6 поз §8 + волна 51: бежит, моется). Не путать с Pose из Presenter:
+/// там настроения для 3D. away — только «убежал» (следы); прогулка и поход — run.
 enum DogPose: String, Codable, CaseIterable, Hashable, Sendable {
-    case sit, lie, sleep, eat, bowl, away
+    case sit, lie, sleep, eat, bowl, away, run, bath
 
     var title: String {
         switch self {
@@ -71,6 +72,8 @@ enum DogPose: String, Codable, CaseIterable, Hashable, Sendable {
         case .eat: return "Ест"
         case .bowl: return "Ждёт у миски"
         case .away: return "Нет дома"
+        case .run: return "Гуляет"
+        case .bath: return "Моется"
         }
     }
 }
@@ -252,6 +255,8 @@ struct PoseFrame: Hashable, Sendable {
     var alive: Bool
     /// Волна 45 O: просьба пса, открытая в момент кадра; nil — нет или пёс спит, нет дома, моется.
     var ask: DogAsk? = nil
+    /// Волна 51: «что сейчас» на момент кадра (PetStatusLogic) — строка статуса и кнопка виджета.
+    var status: PetStatus = .fine
 
     var food: Int { bars[.food] ?? 0 }
     var bankFull: Bool { (ring ?? 0) >= 1 }
@@ -323,7 +328,7 @@ enum IslandEvents {
             if tr.backAt > now {
                 out.append(IslandEvent(kind: .trip, from: tr.from ?? now, until: tr.backAt, title: tr.place,
                                        detail: "Вернётся в \(hm(tr.backAt))", soon: tr.place, compact: "🐾",
-                                       pose: .away, timerEnd: tr.backAt, progressFrom: tr.from, ring: nil))
+                                       pose: .run, timerEnd: tr.backAt, progressFrom: tr.from, ring: nil))
             }
             let end = tr.backAt + cfg.homeHoldS
             if end > now {
@@ -501,8 +506,11 @@ enum IslandEvents {
     static func pose(_ s: PetState, _ r: Rules, _ o: Owner, trip: IslandTrip?, ate: Bool,
                      _ cfg: IslandEventsConfig = .shared) -> DogPose {
         let t = s.t
-        if !s.alive || s.outing != nil { return .away }
-        if let tr = trip, t >= (tr.from ?? -.infinity), t < tr.backAt { return .away }
+        if !s.alive { return .away }
+        // Волна 51: на прогулке и в походе — бежит; в ванне — в тазике с пузырями.
+        if s.outing != nil { return .run }
+        if let tr = trip, t >= (tr.from ?? -.infinity), t < tr.backAt { return .run }
+        if let b = s.bathUntil, b > t { return .bath }
         if PetEngine.petNight(t, r, o) || s.napUntil != nil { return .sleep }
         if ate { return .eat }
         let v = s.needs
@@ -531,7 +539,7 @@ enum IslandEvents {
 
     /// Просьба на кадре — если пёс дома, не спит и не моется (как DogAsks.choose: спящего не будим).
     static func askVisible(_ s: PetState, _ p: DogPose) -> Bool {
-        s.alive && p != .sleep && p != .away && s.bathUntil == nil
+        s.alive && p != .sleep && p != .away && p != .run && p != .bath && s.bathUntil == nil
     }
 
     /// Волна 48 U: минуты, когда просьба пропадает с кадра посреди своего окна (пёс задремал, настала ночь,
@@ -576,7 +584,13 @@ enum IslandEvents {
         let grid = frameTimes(now: now, asks: asks, window: askWindow, cfg)
         let hides = askHides(s0, r, engine: eo, local: o, now: now, last: grid.last ?? now, trip: trip,
                              asks: asks, window: askWindow, cfg)
-        let ts = hides.isEmpty ? grid : Array(Set(grid + hides)).sorted()
+        // Волна 51: конец занятия (ванна, дрёма, прогулка, поход) — свой кадр, чтобы «Моется · 0:00» не висел
+        // до следующего кадра сетки.
+        let last = grid.last ?? now
+        let ends = [s0.bathUntil, s0.napUntil, s0.outing?.until, trip?.backAt].compactMap { $0 }
+            .filter { $0 > now && $0 <= last }
+        let extra = hides + ends
+        let ts = extra.isEmpty ? grid : Array(Set(grid + extra)).sorted()
         let step = max(60, cfg.widgetStepS)
         let span = ((ts.last ?? now) - now) / 3600
         let feeds = PetEngine.forecast(s0, r, eo, horizonH: span + step / 3600).filter { $0.kind == .autofeed }.map(\.t)
@@ -605,8 +619,9 @@ enum IslandEvents {
             if askVisible(cur, p) {
                 ask = asks.first { $0.open(at: t, window: askWindow) }
             }
+            let st = PetStatusLogic.of(cur, r, engine: eo, local: o, trip: trip, ate: ate)
             out.append(PoseFrame(t: t, pose: p, note: note, bars: bars, ring: bank?.ring(at: t), tripUntil: until,
-                                 alive: s.alive, ask: ask))
+                                 alive: s.alive, ask: ask, status: st))
         }
         return out
     }

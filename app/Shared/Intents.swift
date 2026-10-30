@@ -16,6 +16,7 @@ enum IntentBridge {
         #else
         let out = (try? PetRunner.perform(a, source: source)) ?? .storeFailed
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         return out
         #endif
     }
@@ -41,6 +42,7 @@ enum IntentBridge {
             return Habits.failed(h)
         }
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         return out
         #endif
     }
@@ -57,6 +59,7 @@ enum IntentBridge {
         await AppActions.shared.afterChange()
         #else
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         #endif
         return h
     }
@@ -173,6 +176,30 @@ struct IslandActIntent: LiveActivityIntent {
         let src = ActionSource(rawValue: source) ?? .island
         if let a = IslandAct(rawValue: act)?.action {
             _ = await IntentBridge.run(a, source: src)
+        }
+        return .result()
+    }
+}
+
+/// Волна 51: кнопка контрола «Шиба сейчас». Шаблон контрола не умеет if/else, поэтому один тип интента на оба
+/// случая: действие доступно (`act` с действием ядра) — делаем его в фоне; нет (моется, спит, всё хорошо) —
+/// просто открываем приложение (`continueInForeground`, iOS 26).
+struct ShibaNowIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Шиба сейчас"
+    static let isDiscoverable: Bool = false
+    static let supportedModes: IntentModes = [.background, .foreground(.dynamic)]
+
+    @Parameter(title: "Действие", default: "open")
+    var act: String
+
+    init() {}
+    init(_ a: IslandAct) { act = a.rawValue }
+
+    func perform() async throws -> some IntentResult {
+        if let a = IslandAct(rawValue: act)?.action {
+            _ = await IntentBridge.run(a, source: .control)
+        } else {
+            try await continueInForeground(alwaysConfirm: false)
         }
         return .result()
     }

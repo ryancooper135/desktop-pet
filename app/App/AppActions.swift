@@ -112,6 +112,8 @@ final class AppActions {
     /// Стейт изменился: перерисовать всё, что показывает питомца вне приложения.
     func afterChange() async {
         WidgetCenter.shared.reloadAllTimelines()
+        // Волна 51: контрол «Шиба сейчас» в Пункте управления — пересчитать подпись.
+        ControlCenter.shared.reloadAllControls()
         let f = PetStore.load()
         await LiveActivityController.sync(f, allowStart: false)
         await NotificationScheduler.reschedule()
@@ -121,6 +123,7 @@ final class AppActions {
     /// Приложение открыли: остров (если включён и его нет — запустить), уведомления, шаги.
     func afterActivation() async {
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         await LiveActivityController.sync(PetStore.load(), allowStart: true)
         await NotificationScheduler.reschedule()
         await syncSteps()
@@ -129,6 +132,7 @@ final class AppActions {
     /// Ушли в фон: уведомления по свежему lastSeenT (от него считается «скучаю»).
     func afterBackground() async {
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         await LiveActivityController.sync(PetStore.load(), allowStart: false)
         await NotificationScheduler.reschedule()
     }
