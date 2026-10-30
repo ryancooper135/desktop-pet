@@ -1,0 +1,30 @@
+/* Волна 52: «Пока тебя не было» 2.0 — общий стиль макетов (направление B «Стекло» из волны 53). */
+:root { --ink:#1C1B29; --mute:#6B6880; --vio:#6C5CE7; --food:#FF9446; --love:#FF5E86; --play:#22C59A; --wash:#3EA7FF; --gold:#F4B42F; --night:#5B6CD9; }
+body { font-family: 'Onest', 'Segoe UI', sans-serif; }
+.phone { color: var(--ink); background: linear-gradient(172deg, #CFE2FF 0%, #E6DCFF 46%, #FFE2D4 78%, #FFD7C6 100%); }
+.blob { position:absolute; border-radius:50%; filter: blur(30px); opacity:.7; }
+.glass { background: rgba(255,255,255,.52); backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.8); box-shadow: 0 8px 26px rgba(70,60,140,.12), inset 0 1px 0 rgba(255,255,255,.9); }
+svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; display:block; }
+.coin { width:18px; height:18px; border-radius:50%; background: radial-gradient(circle at 35% 30%, #FFE69A, #F4B42F); box-shadow: inset 0 0 0 2px #E8A21C; display:inline-block; vertical-align:-3px; }
+
+.scr { position:absolute; inset:0; padding: 60px 18px 0; z-index:5; }
+.hero { display:flex; align-items:center; gap:14px; }
+.face { width:84px; height:84px; border-radius:50%; display:grid; place-items:center; flex:none; }
+.greet { font-size:28px; font-weight:800; letter-spacing:-.4px; line-height:1.08; }
+.sub { font-size:17px; color:var(--mute); font-weight:600; margin-top:4px; }
+.sec { font-size:13px; font-weight:700; letter-spacing:.8px; color:var(--mute); text-transform:uppercase; margin:16px 4px 8px; }
+.ic { width:46px; height:46px; border-radius:15px; display:grid; place-items:center; color:#fff; flex:none; background:var(--c);
+  box-shadow: 0 5px 12px color-mix(in srgb, var(--c) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.5); }
+.ic svg { width:24px; height:24px; }
+.mom { display:flex; align-items:center; gap:12px; border-radius:22px; padding:11px 14px 11px 11px; margin-bottom:8px; }
+.mom h4 { font-size:19px; font-weight:700; line-height:1.15; }
+.mom p { font-size:15px; color:#46435a; line-height:1.25; margin-top:2px; }
+.btn { white-space:nowrap; height:54px; border-radius:27px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; font-size:18px; }
+.btn.dark { background: var(--ink); color:#fff; }
+.btn.vio { background: var(--vio); color:#fff; box-shadow: 0 8px 18px rgba(108,92,231,.35); }
+.btn.ghost { color: var(--mute); font-weight:600; height:44px; }
+.chip { display:inline-flex; align-items:center; gap:7px; height:38px; border-radius:19px; padding:0 13px 0 9px; font-size:15px; font-weight:600; }
+.chip svg { width:20px; height:20px; color:var(--c); }
+.fade { opacity:.35; transform: translateY(14px); }
+.note { position:absolute; font: 600 13px 'Onest', sans-serif; color:#fff; background: rgba(28,27,41,.78); padding:5px 10px; border-radius:10px; z-index:70; }

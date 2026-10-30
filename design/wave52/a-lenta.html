@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>A · Лента</title>
+<link rel="stylesheet" href="../wave53/fonts.css"><link rel="stylesheet" href="../wave53/base.css"><link rel="stylesheet" href="w52.css">
+<style>
+.stash { border-radius:26px; padding:14px; }
+.stash .row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.stash .big { display:flex; align-items:center; gap:10px; font-size:30px; font-weight:800; margin-bottom:10px; }
+.stash .big .coin { width:28px; height:28px; }
+.chg { display:flex; gap:8px; flex-wrap:wrap; }
+.hint { border-radius:26px; padding:12px 12px 12px 14px; display:flex; align-items:center; gap:12px; margin-top:16px; }
+.hint .t { font-size:13px; font-weight:700; letter-spacing:.6px; color:var(--vio); text-transform:uppercase; }
+.hint .d { font-size:18px; font-weight:700; line-height:1.2; }
+.hint .btn { margin-left:auto; height:48px; padding:0 14px; font-size:15px; flex:none; }
+</style></head>
+<body>
+<script src="icons.js"></script>
+<div class="head">
+  <h1><small>A</small>Лента карточек</h1>
+  <div class="idea">Экран-лента сверху вниз: что делал пёс → что накопилось → что изменилось → одна подсказка с наградой. Карточки всплывают по очереди (0,08 с). Пустые блоки не рисуются.</div>
+  <div class="meta"><span>Рекомендую</span><span>SF Symbols · Dynamic Type · VoiceOver: карточка = одна фраза</span></div>
+</div>
+<div class="phones">
+<div>
+<div class="phone">
+  <div class="blob" style="left:-60px;top:220px;width:240px;height:240px;background:#B9D4FF"></div>
+  <div class="blob" style="right:-70px;top:520px;width:260px;height:260px;background:#FFC9B5"></div>
+  <div class="island"></div>
+  <div class="scr">
+    <div class="hero"><div class="face glass"><span data-dog="sit" data-w="70"></span></div>
+      <div><div class="greet">Ты вернулся!</div><div class="sub">Тебя не было 7 ч</div></div></div>
+
+    <div class="sec">Что делал Шиба</div>
+    <div class="mom glass"><div class="ic" style="--c:var(--night)"><svg class="i"><use href="#moon"/></svg></div>
+      <div><h4>Спал 5 ч</h4><p>Свернулся калачиком и сопел.</p></div></div>
+    <div class="mom glass"><div class="ic" style="--c:var(--love)"><svg class="i"><use href="#door"/></svg></div>
+      <div><h4>Ждал у двери</h4><p>Каждый шорох — вдруг ты.</p></div></div>
+    <div class="mom glass fade"><div class="ic" style="--c:var(--play)"><svg class="i"><use href="#ball"/></svg></div>
+      <div><h4>Гонял мячик</h4><p>Сам с собой, но с азартом.</p></div></div>
+
+    <div class="sec">Накопилось</div>
+    <div class="stash glass">
+      <div class="big"><span class="coin"></span>+86 <span style="font-size:15px;color:var(--mute);font-weight:600">в копилке двора</span></div>
+      <div class="row">
+        <span class="chip glass" style="--c:var(--food)"><svg class="i"><use href="#basket"/></svg>Кладовая: 3 порции</span>
+        <span class="chip glass" style="--c:var(--vio)"><svg class="i"><use href="#ticket"/></svg>Билетик</span>
+      </div>
+      <div class="btn vio"><svg class="i" style="color:#fff"><use href="#pig"/></svg>Забрать всё</div>
+    </div>
+
+    <div class="sec">Что изменилось</div>
+    <div class="chg">
+      <span class="chip glass" style="--c:var(--wash)"><svg class="i"><use href="#rain"/></svg>Пошёл дождь</span>
+      <span class="chip glass" style="--c:var(--vio)"><svg class="i"><use href="#up"/></svg>Уровень 8</span>
+      <span class="chip glass" style="--c:var(--gold)"><svg class="i"><use href="#trophy"/></svg>«Ур. 8»</span>
+    </div>
+
+    <div class="hint glass"><div class="ic" style="--c:var(--play)"><svg class="i"><use href="#ball"/></svg></div>
+      <div><div class="t">Сейчас</div><div class="d">Шиба зовёт играть</div></div>
+      <div class="btn dark">Поиграть · <span class="coin"></span>+6</div></div>
+    <div class="btn ghost">Потом</div>
+  </div>
+  <div class="note" style="left:318px;top:368px">всплывает</div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Полный отчёт (7 ч)</div>
+</div>
+
+<div>
+<div class="phone">
+  <div class="blob" style="left:-60px;top:220px;width:240px;height:240px;background:#B9D4FF"></div>
+  <div class="blob" style="right:-70px;top:520px;width:260px;height:260px;background:#FFC9B5"></div>
+  <div class="island"></div>
+  <div class="scr">
+    <div class="hero"><div class="face glass"><span data-dog="sleep" data-w="70"></span></div>
+      <div><div class="greet">Доброе утро!</div><div class="sub">Тебя не было 9 ч</div></div></div>
+
+    <div class="sec">Что делал Шиба</div>
+    <div class="mom glass"><div class="ic" style="--c:var(--night)"><svg class="i"><use href="#moon"/></svg></div>
+      <div><h4>Спал 8 ч</h4><p>Проспал всю ночь и видел сны про косточку.</p></div></div>
+    <div class="mom glass"><div class="ic" style="--c:var(--food)"><svg class="i"><use href="#bowl"/></svg></div>
+      <div><h4>Поел сам</h4><p>Кормушка выручила.</p></div></div>
+
+    <div class="hint glass"><div class="ic" style="--c:var(--love)"><svg class="i"><use href="#heart"/></svg></div>
+      <div><div class="t">Задание дня</div><div class="d">Погладить 0/3</div></div>
+      <div class="btn dark">Погладить · <span class="coin"></span>+15</div></div>
+    <div class="btn ghost">Потом</div>
+
+    <div style="margin-top:120px;text-align:center;color:var(--mute);font-size:15px;line-height:1.4">Двор пуст, ничего не поменялось —<br>блоков «Накопилось» и «Что изменилось» нет.</div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Только сон: короткий экран</div>
+</div>
+</div>
+<script src="../wave51/dog.js"></script>
+</body></html>

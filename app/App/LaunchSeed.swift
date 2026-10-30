@@ -294,6 +294,12 @@ enum LaunchSeed {
                 f.lastSeenT = now
             case "yard_empty", "yard_plates", "yard_rich", "yard_full":
                 seedYard(&f, seed: seed ?? "", now: now)
+            case "away_yard":
+                // Волна 52 (ui-52-away-stash): двор с табличками и сушилкой, хозяина не было 9 часов —
+                // «Пока тебя не было» показывает копилку двора и кнопку «Забрать всё».
+                seedYard(&f, seed: "yard_plates", now: now)
+                f.seen?.t = now - 9 * 3600
+                f.lastSeenT = now - 9 * 3600
             case "level_up", "level_puppy", "level_adult", "level_achieve":
                 // Волна 34 I (LevelUITests, ui-34-level-*): level_up — опыта уже на ур. 3, оплачен ур. 2: первый же
                 // settle при старте платит уровень, и через пару секунд идёт сцена «★3». level_puppy — щенок
