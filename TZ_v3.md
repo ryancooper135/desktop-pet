@@ -180,7 +180,9 @@ Cloudflare Workers), ничего с доступом к компу Вадима
 - Процесс прежний (PROMPT.md): агенты в worktree, тесты в WSL, CI, push в main только после проверки jobs.
 - ipa — только по просьбе Вадима.
 
-## Инструменты для 3D (29.10, ставит Вадим)
+## Инструменты для 3D (поставлены 30.10: Blender 5.2.3 LTS, usd-core 0.26.11, gltf-transform 4.5.1)
+
+Blender не в PATH: `"C:\Program Files\Blender Foundation\Blender 5.2lender.exe"`. У usd-core нет команд `usdchecker`/`usdcat` — проверять через Python (`pxr.UsdUtils.ComplianceChecker`).
 
 Перед волнами 54 и 58 проверить, что стоит, и пользоваться:
 - **Blender** (без окна: `blender -b -P script.py`). Нужен для превью-рендеров кандидатов (кадры и GIF через ffmpeg Вадиму на телефон),
