@@ -109,7 +109,9 @@
 3. Бюджет: предмет ≤ 2 000 треугольников, текстура ≤ 512 px (или вершинные цвета), файл ≤ 300 КБ.
 4. Дальше — тот же процесс для остальных самодельных моделей, которые выглядят слабо (список составить и показать).
 
-**30.10 кандидаты найдены, отправлены Вадиму, ждём выбор** (превью и файлы: `C:\Users\ryanc\pet-assets\candidates\`, sheet_props.png, CANDIDATES.md):
+**31.10 Вадим выбрал: миска — Dog bowl (Google, чёрная, CC-BY 3.0), мячик — Tennis ball (Google, CC-BY 3.0); атрибуция «Poly by Google» в ASSETS_LICENSES.md и «Об игре». Делается вместе с волной 58.**
+
+30.10 кандидаты (превью и файлы: `C:\Users\ryanc\pet-assets\candidates\`, sheet_props.png, CANDIDATES.md):
 - Миска: Kay Lousberg Bowl — 256 треуг., CC0, светлая (рекомендуем) · Quaternius Bowl — 432, CC0, тёмная · Dog bowl (Google) — 348, CC-BY 3.0.
 - Мячик (CC0 не нашлось): Tennis ball (Google) — 440, CC-BY 3.0 · Tennis ball (jeremy) — 252, CC-BY 3.0. CC-BY → автор в ASSETS_LICENSES.md.
 
@@ -164,7 +166,9 @@
    замер FPS и памяти. Старые клипы и модель — удалить, когда новая полностью заменит.
 4. Делать до волны 57 (команды) — команды строятся на клипах новой модели. Тесты: обучение, кулдаун, недоступность по состоянию, сейв.
 
-**30.10 кандидаты найдены, отправлены Вадиму, ждём выбор** (`C:\Users\ryanc\pet-assets\candidates\`: sheet_dog.png, GIF в quaternius-*\, CANDIDATES.md, usdz\clips.json):
+**31.10 Вадим выбрал Quaternius Shiba Inu; Husky (те же 12 клипов) — попробовать вторым вариантом/окрасом («я бы ещё хаски мб затраил»).**
+
+30.10 кандидаты (`C:\Users\ryanc\pet-assets\candidates\`: sheet_dog.png, GIF в quaternius-*\, CANDIDATES.md, usdz\clips.json):
 - **Quaternius Shiba Inu** (poly.pizza/m/y4wdQpg767) — 2 030 треуг., 0,81 МБ, 46 костей, 12 клипов, CC0 — **рекомендуем**; Husky того же автора (те же клипы) — вторым окрасом.
 - Dog кубический (poly.pizza/m/2kUk0QqpCg) — 3 684 треуг., 0,29 МБ, 16 костей, 8 клипов, CC0.
 - Клипы шибы: Idle, Idle_2, Idle_2_HeadLow, Walk, Gallop, Gallop_Jump, Jump_ToIdle, Eating, Attack, Death, HitReact L/R.
