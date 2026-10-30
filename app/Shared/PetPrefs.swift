@@ -42,7 +42,7 @@ enum PetPref: String, CaseIterable, Sendable {
         switch self {
         case .sound, .haptics, .notifications: return nil
         case .voice: return "Тявк, а иногда игривое «р-р-р» в игре."
-        case .music: return "Тихий 8-бит, дома еле слышно. Ночью и во сне пса — тишина."
+        case .music: return "Тихий чилл, дома еле слышно. Ночью и во сне пса — ещё тише."
         }
     }
 
@@ -134,177 +134,57 @@ struct PetVoice: Sendable, Equatable {
 
 // MARK: - музыка
 
-/// Мягкий чиптюн: короткие лупы, у каждого места свой. Мелодия — квадрат за мягким фильтром (8-бит без
-/// писка), бас — треугольник; у лоу-фай лупов лёгкий свинг. После каждой фразы — пустые такты: музыка
-/// не тараторит без конца. На главном — тише всех и реже всех. Ночью и пока пёс спит — тишина (homeKind).
+/// Волна 49: тихая чилл-музыка из файлов (CC0, content/ASSETS_LICENSES.md) вместо синтезированного чиптюна —
+/// его высокие ноты Вадим слышал как «капающие монеты». Два лупа: спокойный для дома и лавки, лоу-фай для
+/// мини-игр. Играет SoundKit через AVAudioPlayer по кругу, громкость — отсюда. Ночью и пока пёс спит — та же
+/// музыка тише, а не тишина; пёс без сил или его нет — тишина.
 enum MusicTheme: Sendable {
     enum Kind: String, Sendable, CaseIterable {
-        /// Мини-игры: бодрее всех.
+        /// Мини-игры: свой лоу-фай луп.
         case play
-        /// Лавка и дом: спокойный лоу-фай.
+        /// Лавка, дом, капсулы.
         case shop
-        /// Пёс на прогулке: лёгкий шаг.
+        /// Пёс на прогулке (главный экран).
         case walk
-        /// Главный экран: еле слышно, с долгими паузами.
+        /// Главный экран.
         case home
+        /// Главный экран, пёс спит или дремлет: та же домашняя, но еле слышно.
+        case sleep
     }
 
-    static let stepsPerBar = 8
-    static let leadGain = 0.03
-    static let bassGain = 0.035
-    /// Главный экран тише остальных.
-    static let homeQuiet = 0.6
+    /// Файлы лупов в Resources/Music (в бандле папки нет — только имя).
+    static let homeTrack = "music_home"
+    static let playTrack = "music_play"
+    static let tracks = [homeTrack, playTrack]
+    static let fileExtension = "m4a"
 
-    /// Длина восьмой, секунды.
-    static func beat(_ k: Kind) -> Double {
-        switch k {
-        case .play: return 0.2
-        case .walk: return 0.24
-        case .shop: return 0.3
-        case .home: return 0.36
-        }
+    static func track(_ k: Kind) -> String {
+        k == .play ? playTrack : homeTrack
     }
 
-    /// Свинг: насколько (доля восьмой) запаздывает каждая вторая восьмая.
-    static func swing(_ k: Kind) -> Double {
-        switch k {
-        case .play: return 0
-        case .walk: return 0.08
-        case .shop, .home: return 0.12
-        }
-    }
-
-    /// Срез фильтра мелодии: ниже — мягче и «ламповее».
-    static func cutoff(_ k: Kind) -> Double {
-        switch k {
-        case .play: return 1500
-        case .walk: return 1300
-        case .shop: return 1100
-        case .home: return 900
-        }
-    }
-
+    /// Громкость плеера 0…1 (файлы сведены к −16…−20 LUFS): музыка — фон под звуками, не наравне с ними.
     static func volume(_ k: Kind) -> Double {
-        k == .home ? homeQuiet : 1
-    }
-
-    static func barLength(_ k: Kind) -> Double {
-        beat(k) * Double(stepsPerBar)
-    }
-
-    static func bars(_ k: Kind) -> Int {
-        sheet(k).count
-    }
-
-    static func loopLength(_ k: Kind) -> Double {
-        barLength(k) * Double(bars(k))
-    }
-
-    /// Пустой такт — пауза между фразами.
-    static func isRest(_ i: Int, _ k: Kind) -> Bool {
-        line(i, k).isEmpty
-    }
-
-    /// Ноты по тактам: ступени Scale, nil — пауза, пустой такт — тишина.
-    static func sheet(_ k: Kind) -> [[Int?]] {
         switch k {
-        case .play:
-            return [
-                [5, 7, 8, nil, 7, nil, 5, nil],
-                [3, nil, 5, 7, 8, nil, nil, nil],
-                [8, 7, 5, nil, 7, nil, 8, nil],
-                [10, nil, 8, nil, 7, nil, nil, nil],
-                [],
-                [5, 7, 8, nil, 10, nil, 8, nil],
-                [7, nil, 5, nil, 3, nil, 5, nil],
-                [7, 8, 7, 5, 4, nil, nil, nil],
-                [5, nil, nil, nil, nil, nil, nil, nil],
-                [],
-                [],
-            ]
-        case .shop:
-            return [
-                [7, nil, 8, nil, 7, nil, 5, nil],
-                [4, nil, 5, nil, nil, nil, nil, nil],
-                [3, nil, 4, nil, 5, nil, 7, nil],
-                [5, nil, nil, nil, nil, nil, nil, nil],
-                [],
-                [8, nil, 7, nil, 8, nil, 10, nil],
-                [9, nil, 8, nil, nil, nil, nil, nil],
-                [7, nil, 5, nil, 4, nil, 3, nil],
-                [5, nil, nil, nil, nil, nil, nil, nil],
-                [],
-                [],
-            ]
-        case .walk:
-            return [
-                [5, nil, 7, nil, 5, nil, 8, nil],
-                [7, nil, 5, nil, 4, nil, nil, nil],
-                [5, nil, 7, nil, 8, nil, 10, nil],
-                [8, nil, nil, nil, 7, nil, nil, nil],
-                [],
-                [4, nil, 5, nil, 7, nil, 5, nil],
-                [3, nil, 5, nil, 4, nil, nil, nil],
-                [5, 7, 8, nil, 7, nil, 5, nil],
-                [5, nil, nil, nil, nil, nil, nil, nil],
-                [],
-                [],
-            ]
-        case .home:
-            return [
-                [7, nil, nil, nil, 5, nil, nil, nil],
-                [4, nil, nil, nil, 5, nil, nil, nil],
-                [],
-                [],
-                [8, nil, nil, nil, 7, nil, nil, nil],
-                [5, nil, nil, nil, nil, nil, nil, nil],
-                [],
-                [],
-                [],
-                [],
-            ]
+        case .play: return 0.32
+        case .shop: return 0.3
+        case .walk: return 0.26
+        case .home: return 0.28
+        case .sleep: return 0.12
         }
     }
 
-    private static func line(_ i: Int, _ k: Kind) -> [Int?] {
-        let all = sheet(k)
-        return all[((i % all.count) + all.count) % all.count]
+    /// Ночью (тихие часы хозяина) — во столько раз тише, и в играх тоже.
+    static let nightScale = 0.4
+
+    /// Итоговая громкость: место × ночь.
+    static func level(_ k: Kind, quiet: Bool) -> Double {
+        volume(k) * (quiet ? nightScale : 1)
     }
 
-    /// Бас по тактам по кругу: до, ля, ре, соль.
-    static let bass = [-5, -6, -4, -7]
-
-    /// Начало восьмой j в такте, с учётом свинга.
-    static func stepStart(_ j: Int, _ k: Kind) -> Double {
-        (Double(j) + (j % 2 == 1 ? swing(k) : 0)) * beat(k)
-    }
-
-    /// Ноты такта i (по кругу), время — от начала такта. Все помечены music.
-    static func bar(_ i: Int, _ k: Kind) -> [Tone] {
-        let n = bars(k), pos = ((i % n) + n) % n
-        let notes = sheet(k)[pos]
-        guard !notes.isEmpty else { return [] }
-        let b = beat(k), v = volume(k), length = barLength(k)
-        var out: [Tone] = []
-        let root = Scale.note(bass[pos % bass.count])
-        for half in 0..<2 {
-            out.append(Tone(at: Double(half * 4) * b, .triangle, root,
-                            env: Envelope(attack: 0.01, hold: b, release: b * 2.2), gain: bassGain * v, cutoff: 600))
-        }
-        // Нота тянется через паузы за ней (не дольше двух восьмых) и гаснет до следующей:
-        // одновременно звучат максимум нота мелодии и бас.
-        let attack = 0.008, hold = 0.02
-        for (j, step) in notes.enumerated() {
-            guard let step else { continue }
-            let start = stepStart(j, k)
-            let next = notes.indices.dropFirst(j + 1).first { notes[$0] != nil }.map { stepStart($0, k) } ?? length
-            let span = min(next - start, 2 * b) - 0.012
-            out.append(Tone(at: start, .square, Scale.note(step),
-                            env: Envelope(attack: attack, hold: hold, release: span - attack - hold),
-                            gain: leadGain * v, cutoff: cutoff(k)))
-        }
-        return out.map { var t = $0; t.music = true; return t }
-    }
+    /// Плавности, секунды: вход с нуля, уход в ноль, смена громкости (ночь, сон) на том же лупе.
+    static let fadeIn = 2.0
+    static let fadeOut = 0.8
+    static let fadeChange = 1.5
 
     // MARK: где играть
 
@@ -313,11 +193,12 @@ enum MusicTheme: Sendable {
         OwnerSleep.inWindow(Int(localMin) % 1440, bedMin, wakeMin)
     }
 
-    /// Что играть на главном экране: пёс гуляет — прогулка; спит, без сил или его нет — тишина.
+    /// Что играть на главном экране: пёс гуляет — прогулка; спит — тихо; без сил или его нет — тишина.
     static func homeKind(pose: Pose, alive: Bool) -> Kind? {
         guard alive else { return nil }
         switch pose {
-        case .sleep, .nap, .dead, .critical: return nil
+        case .dead, .critical: return nil
+        case .sleep, .nap: return .sleep
         case .away: return .walk
         default: return .home
         }

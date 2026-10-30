@@ -1,5 +1,5 @@
 // Звук в приложении: AVAudioEngine + AVAudioSourceNode, ноты синтезируются на лету (SynthCore),
-// рецепты — SoundRecipes.swift. Файлов со звуками нет, лицензий тоже.
+// рецепты — SoundRecipes.swift. Файлов со звуками нет; файлы только у музыки (волна 49, ниже).
 //
 // Категория .ambient: звук смешивается с музыкой и молчит на беззвучном режиме — как у системных
 // щелчков. Движок поднимается лениво, на первом звуке; через 30 с тишины и при уходе в фон — стоп.
@@ -8,7 +8,10 @@
 // Звук-отклик на касание (кнопки, игры, отказы, сердца) идёт через Feel (App/FeelKit.swift): там кулдаун
 // и тишина после фона. Напрямую сюда — только хореография (мяч, хруст, тявк «Голоса»).
 // Волна 32: «Лай и рычание» (PetPref.voice) снимает собачьи голоса; тихая музыка (MusicTheme) — на экранах
-// с .petMusic / .homeMusic, по своему переключателю «Музыка»; молчит ночью и если на iPhone уже играет другая.
+// с .petMusic / .homeMusic, по своему переключателю «Музыка».
+// Волна 49: музыка — CC0-лупы из бандла (Resources/Music) через AVAudioPlayer в той же сессии .ambient: молчит
+// на беззвучном режиме и если на iPhone уже играет другая (secondaryAudioShouldBeSilencedHint и его уведомление);
+// ночью и пока пёс спит — тише.
 
 import AVFoundation
 import SwiftUI
@@ -89,8 +92,7 @@ final class SoundKit {
 
     func wentBackground() {
         suspended = true
-        musicTask?.cancel()
-        musicTask = nil
+        stopMusicNow()
         stop()
     }
 
@@ -99,11 +101,21 @@ final class SoundKit {
     /// Экраны с музыкой (последний — сверху): закрыли верхний — снова играет тот, что под ним.
     private var musicStack: [(token: Int, kind: MusicTheme.Kind)] = []
     private var musicToken = 0
-    private var musicTask: Task<Void, Never>?
-    /// За сколько секунд до такта класть его ноты в синтезатор.
-    private static let musicLead = 0.3
+    /// Играющий луп и его файл. Смена места на том же файле — только громкость, без перезапуска.
+    private var player: AVAudioPlayer?
+    private var playerTrack: String?
+    private var hintObserver: NSObjectProtocol?
 
     static var musicOn: Bool { PetPref.music.isOn() }
+
+    private init() {
+        // Другое приложение начало или кончило играть музыку — своя уступает или возвращается.
+        hintObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.silenceSecondaryAudioHintNotification, object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in SoundKit.shared.restartMusic() }
+        }
+    }
 
     /// Экран с музыкой появился. Вернуть токен для stopMusic.
     func startMusic(_ kind: MusicTheme.Kind) -> Int {
@@ -137,7 +149,7 @@ final class SoundKit {
         if wasTop { restartMusic() }
     }
 
-    /// Тихие часы (ночь хозяина): молчит вся музыка, и в играх тоже. Ставит главный экран.
+    /// Тихие часы (ночь хозяина): вся музыка тише (MusicTheme.nightScale), и в играх тоже. Ставит главный экран.
     var musicQuiet = false {
         didSet { if musicQuiet != oldValue { restartMusic() } }
     }
@@ -147,41 +159,51 @@ final class SoundKit {
         restartMusic()
     }
 
+    /// Привести плеер к верху стопки: тот же файл — плавно к новой громкости, другой — уход старого и вход нового.
     private func restartMusic() {
-        musicTask?.cancel()
-        musicTask = nil
-        if let engine, engine.isRunning { core.cancelMusic() }
-        guard let kind = musicStack.last?.kind, Self.musicOn, !musicQuiet, !suspended, !Env.isTesting else { return }
-        musicTask = Task { [weak self] in await self?.musicLoop(kind) }
+        guard let kind = musicStack.last?.kind, Self.musicOn, !suspended, !Env.isTesting,
+              !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint else {
+            fadeOutMusic()
+            return
+        }
+        let target = Float(MusicTheme.level(kind, quiet: musicQuiet))
+        let track = MusicTheme.track(kind)
+        if let player, playerTrack == track {
+            // Звонок или Siri могли поставить плеер на паузу — продолжить.
+            if !player.isPlaying, activateSession() { player.play() }
+            player.setVolume(target, fadeDuration: MusicTheme.fadeChange)
+            return
+        }
+        fadeOutMusic()
+        guard activateSession(),
+              let url = Bundle.main.url(forResource: track, withExtension: MusicTheme.fileExtension),
+              let p = try? AVAudioPlayer(contentsOf: url) else { return }
+        p.numberOfLoops = -1
+        p.volume = 0
+        p.prepareToPlay()
+        guard p.play() else { return }
+        p.setVolume(target, fadeDuration: MusicTheme.fadeIn)
+        player = p
+        playerTrack = track
     }
 
-    /// Такт за тактом по кругу: ноты такта кладутся за musicLead до его начала. Отстали (движок
-    /// поднимался, приложение тормозило) — следующий такт с небольшой паузы, без догоняния.
-    private func musicLoop(_ kind: MusicTheme.Kind) async {
-        let bar = MusicTheme.barLength(kind)
-        var due = ProcessInfo.processInfo.systemUptime + 0.5
-        var i = 0
-        while !Task.isCancelled {
-            let now = ProcessInfo.processInfo.systemUptime
-            if due < now + 0.02 { due = now + 0.05 }
-            // На iPhone уже играет другая музыка (Spotify, подкаст) — свою не накладываем.
-            // Пустой такт — пауза между фразами: ничего не кладём, движок может уснуть (батарея).
-            if !MusicTheme.isRest(i, kind), !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint {
-                let lead = due - now
-                guard pushMusic(MusicTheme.bar(i, kind).map { var t = $0; t.at += lead; return t }) else { return }
-            }
-            i += 1
-            due += bar
-            let wait = due - Self.musicLead - ProcessInfo.processInfo.systemUptime
-            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+    /// Плавно увести музыку в ноль и остановить.
+    private func fadeOutMusic() {
+        guard let p = player else { return }
+        player = nil
+        playerTrack = nil
+        p.setVolume(0, fadeDuration: MusicTheme.fadeOut)
+        Task {
+            try? await Task.sleep(for: .seconds(MusicTheme.fadeOut + 0.1))
+            p.stop()
         }
     }
 
-    private func pushMusic(_ tones: [Tone]) -> Bool {
-        guard Self.musicOn, !suspended, !Env.isTesting, ensureRunning() else { return false }
-        core.push(tones)
-        armIdle()
-        return true
+    /// Ушли в фон — музыка сразу стоп, без затухания.
+    private func stopMusicNow() {
+        player?.stop()
+        player = nil
+        playerTrack = nil
     }
 
     /// Остановить движок; недоигранное выбрасывается. Следующий звук поднимет движок снова.
@@ -206,21 +228,27 @@ final class SoundKit {
     /// поэтому проверка на каждом звуке, а не один раз.
     private func ensureRunning() -> Bool {
         if let engine, engine.isRunning { return true }
-        let session = AVAudioSession.sharedInstance()
-        do {
-            if session.category != .ambient {
-                try session.setCategory(.ambient, mode: .default, options: [])
-            }
-            try session.setActive(true)
-        } catch {
-            return false
-        }
+        guard activateSession() else { return false }
         // Движок был, но его остановила система (звонок, Siri) — недоигранное в очереди уже не к месту.
         if engine != nil { core.requestReset() }
         let e = engine ?? makeEngine()
         engine = e
         do {
             try e.start()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Сессия .ambient: смешивается с чужой музыкой и молчит на беззвучном режиме. Общая для звуков и музыки.
+    private func activateSession() -> Bool {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            if session.category != .ambient {
+                try session.setCategory(.ambient, mode: .default, options: [])
+            }
+            try session.setActive(true)
             return true
         } catch {
             return false
@@ -289,8 +317,8 @@ struct PetMusic: ViewModifier {
     }
 }
 
-/// Музыка главного экрана: тихая «домашняя», «прогулка», пока пёс гуляет, и тишина, пока спит.
-/// Раз в минуту сверяет тихие часы (от отбоя хозяина до подъёма) — ночью молчит вся музыка.
+/// Музыка главного экрана: тихая «домашняя», пока пёс гуляет — чуть тише, пока спит — еле слышно.
+/// Раз в минуту сверяет тихие часы (от отбоя хозяина до подъёма) — ночью вся музыка тише.
 struct HomeMusic: ViewModifier {
     let kind: MusicTheme.Kind?
     let schedule: RoomSchedule

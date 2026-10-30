@@ -55,7 +55,8 @@ struct Tone: Sendable, Equatable {
     var cutoff: Double
     /// Нота хореографии (мяч, хруст): её можно отменить, если анимацию перебили (SynthCore.cancelChoreo).
     var choreo = false
-    /// Нота музыки (MusicTheme): снимается SynthCore.cancelMusic, когда музыку выключили или ушли с экрана.
+    /// Нота музыки: снимается SynthCore.cancelMusic. С волны 49 музыка — файлы (MusicTheme, SoundKit), синтезатор
+    /// её не играет; флаг остался для движка и его тестов.
     var music = false
 
     /// Когда нота замолкает целиком.
@@ -128,7 +129,7 @@ enum SoundCue: Sendable, Hashable {
     case petTick(Int)
     /// Погладили и ядро приняло: мягкое чириканье вверх и три сердечка-капли.
     case pet
-    /// Покормили: два «плинька» корма в миску (хруст — во время еды, SoundRecipe.eat).
+    /// Покормили: мягкое «шурх» корма в миску и глухой «тук» — без звонких нот (волна 49; хруст — SoundRecipe.eat).
     case feed
     /// Тявк-тявк: радость, «Поиграть», щекотка.
     case yip
@@ -154,7 +155,8 @@ enum SoundCue: Sendable, Hashable {
     case brush
     /// Дочесали: пёс отряхивается — «фррр» и «динь» вверх.
     case brushDone
-    /// Двор (волна 34 G): сбор копилки — монетное «дзынь» с блеском вверх.
+    /// Монетное «дзынь» — только когда монеты реально пришли (волна 49, CoinChime): сбор двора, задание дня,
+    /// просьба пса, награда мини-игры. Траты и покупки звенят .ok.
     case coins
     /// Двор: восьмибитный тик станции за работой; n — номер станции, у каждой своя нота.
     case yardTick(Int)
@@ -187,12 +189,113 @@ enum SoundRecipe {
         guard !voice, cue.isVoice else { return tones(cue) }
         switch cue {
         case .yip: return tones(.ok)
-        case .hello: return arpeggio([5, 7, 8, 10])
+        case .hello: return normalized(arpeggio([5, 7, 8, 10]), to: loudness(.hello))
         default: return []
         }
     }
 
+    /// Ноты звука, приведённые к общей громкости (волна 49): слышимая громкость — loudness(cue), подъём не резче softAttack.
     static func tones(_ cue: SoundCue) -> [Tone] {
+        normalized(raw(cue), to: loudness(cue))
+    }
+
+    // MARK: громкость (волна 49)
+
+    /// Общий уровень звуков — слышимая громкость (perceived): RMS самых громких 50 мс.
+    static let level = 0.07
+    /// Хруст еды тише обычного звука: он повторяется, пока пёс ест.
+    static let crunchLevel = level * 0.6
+    /// Подъём не резче этого: без «щелчка» и звона в ушах на тихом iPhone у лица.
+    static let softAttack = 0.004
+    /// Окно слышимой громкости: так ухо оценивает короткий звук.
+    static let loudnessWindow = 0.05
+
+    /// Громкость по замыслу: кнопка и тики — фон, остальное — один уровень.
+    static func loudness(_ cue: SoundCue) -> Double {
+        switch cue {
+        case .button: return level * 0.25
+        case .yardTick: return level * 0.3
+        case .petTick: return level * 0.4
+        case .death: return level * 0.75
+        default: return level
+        }
+    }
+
+    /// RMS-множитель волны с фильтром синтезатора (SynthCore): синус 0,71, треугольник 0,58, квадрат ±0,6;
+    /// шум — равномерный (0,58) через однополюсный срез: доля мощности a/(2−a). Тон через срез — по основному тону.
+    static func waveWeight(_ t: Tone, sampleRate sr: Double = 44_100) -> Double {
+        let base: Double
+        switch t.wave {
+        case .sine: base = 0.5.squareRoot()
+        case .triangle: base = (1.0 / 3).squareRoot()
+        case .square: base = 0.6
+        case .noise: base = (1.0 / 3).squareRoot()
+        }
+        guard t.cutoff > 0, t.cutoff < sr / 2 else { return base }
+        if t.wave == .noise {
+            let a = 1 - exp(-2 * Double.pi * t.cutoff / sr)
+            return base * (a / (2 - a)).squareRoot()
+        }
+        let f = max(t.freq, t.glideTo)
+        return base / (1 + (f / t.cutoff) * (f / t.cutoff)).squareRoot()
+    }
+
+    /// Слышимая громкость: RMS суммы мощностей нот (gain × огибающая × RMS волны) в самом громком окне 50 мс.
+    static func perceived(_ tones: [Tone]) -> Double {
+        guard !tones.isEmpty else { return 0 }
+        let dt = 0.001
+        let end = tones.map { $0.at + $0.env.length }.max() ?? 0
+        let count = Int((end / dt).rounded(.up)) + 1
+        let weights = tones.map { waveWeight($0) }
+        var power = [Double](repeating: 0, count: count)
+        for (t, w) in zip(tones, weights) {
+            for i in 0..<count {
+                let a = t.gain * w * t.env.level(Double(i) * dt - t.at)
+                power[i] += a * a
+            }
+        }
+        let win = Int((loudnessWindow / dt).rounded())
+        var sum = 0.0, best = 0.0
+        for i in 0..<count {
+            sum += power[i]
+            if i >= win { sum -= power[i - win] }
+            best = max(best, sum)
+        }
+        return (best / Double(win)).squareRoot()
+    }
+
+    /// Пик суммы огибающих (gain × огибающая). Между изломами сумма линейна или выпукла — максимум в изломе.
+    static func envelopePeak(_ tones: [Tone]) -> Double {
+        var probes: [Double] = []
+        for t in tones {
+            probes += [t.at + t.env.attack, t.at + t.env.attack + t.env.hold]
+        }
+        var best = 0.0
+        for p in probes {
+            var sum = 0.0
+            for t in tones { sum += t.gain * t.env.level(p - t.at) }
+            best = max(best, sum)
+        }
+        return best
+    }
+
+    /// Резкий подъём смягчить до softAttack (за счёт полки — длина та же), затем громкость к target по perceived.
+    static func normalized(_ tones: [Tone], to target: Double) -> [Tone] {
+        let soft = tones.map { t0 -> Tone in
+            var t = t0
+            if t.env.attack < softAttack {
+                let d = softAttack - t.env.attack
+                t.env.attack = softAttack
+                t.env.hold = max(0, t.env.hold - d)
+            }
+            return t
+        }
+        let now = perceived(soft)
+        let k = now > 0 ? target / now : 1
+        return soft.map { var t = $0; t.gain *= k; return t }
+    }
+
+    private static func raw(_ cue: SoundCue) -> [Tone] {
         switch cue {
         case .button:
             return [Tone(.sine, n(10), env: Envelope(attack: 0.001, hold: 0, release: 0.03), gain: 0.05)]
@@ -217,9 +320,13 @@ enum SoundRecipe {
             return out
 
         case .feed:
+            // Волна 49: было два звонких «плинька» (до третьей октавы) — Вадиму слышались монеты. Теперь корм
+            // сыплется низким шумом через тёмный фильтр, и миска отвечает глухим «тук» вниз.
             return [
-                Tone(.triangle, n(8), env: Envelope(attack: 0.002, hold: 0.01, release: 0.12), gain: 0.16),
-                Tone(at: 0.09, .triangle, n(10), env: Envelope(attack: 0.002, hold: 0.01, release: 0.14), gain: 0.16),
+                Tone(.noise, 1000, env: Envelope(attack: 0.015, hold: 0.06, release: 0.12), gain: 0.12, cutoff: 1000),
+                Tone(at: 0.04, .noise, 750, env: Envelope(attack: 0.012, hold: 0.04, release: 0.1), gain: 0.1, cutoff: 750),
+                Tone(at: 0.05, .sine, n(0), to: n(-2), glide: 0.08,
+                     env: Envelope(attack: 0.006, hold: 0.02, release: 0.12), gain: 0.12),
             ]
 
         case .yip:
@@ -281,10 +388,11 @@ enum SoundRecipe {
             return out
 
         case .coins:
+            // Волна 49: без квадрата и на октаву ниже — «дзынь», а не писк.
             return [
-                Tone(.square, n(12), env: Envelope(attack: 0.001, hold: 0.02, release: 0.06), gain: 0.1, cutoff: 3200),
-                Tone(at: 0.05, .triangle, n(17), env: Envelope(attack: 0.002, hold: 0.01, release: 0.12), gain: 0.14),
-                Tone(at: 0.12, .triangle, n(19), env: Envelope(attack: 0.002, hold: 0.01, release: 0.2), gain: 0.12),
+                Tone(.triangle, n(8), env: Envelope(attack: 0.004, hold: 0.02, release: 0.08), gain: 0.12, cutoff: 2400),
+                Tone(at: 0.06, .triangle, n(12), env: Envelope(attack: 0.004, hold: 0.01, release: 0.14), gain: 0.13),
+                Tone(at: 0.13, .triangle, n(14), env: Envelope(attack: 0.004, hold: 0.01, release: 0.2), gain: 0.11),
             ]
 
         case .yardTick(let i):
@@ -387,21 +495,55 @@ enum SoundRecipe {
     static let maxCrunches = 10
     static let crunchEvery = 0.32
 
-    /// Хруст во время еды (окно eat от начала реакции): шумовой щелчок и тихий «плинь» над ним.
+    /// Срез шума хруста: выше — ярче. Волна 49: было 2600 Гц и «плинь» сверху — резало уши.
+    static let crunchCutoffs: [Double] = [1100, 900, 1250, 1000]
+
+    /// Хруст во время еды (окно eat от начала реакции): мягкий тёмный шум и низкое «чавк» вниз — без высоких нот.
     static func eat(from: Double, to: Double) -> [Tone] {
         var out: [Tone] = []
-        let plinks = [11, 12, 10, 13]
         var t = from
         var i = 0
         while t < to - 0.05, i < maxCrunches {
-            out.append(Tone(at: t, .noise, 2600, env: Envelope(attack: 0.002, hold: 0.015, release: 0.05),
-                            gain: 0.3, cutoff: 2600))
-            out.append(Tone(at: t + 0.01, .triangle, n(plinks[i % plinks.count]),
-                            env: Envelope(attack: 0.002, hold: 0, release: 0.06), gain: 0.04))
+            let cut = crunchCutoffs[i % crunchCutoffs.count]
+            out.append(Tone(at: t, .noise, cut, env: Envelope(attack: 0.006, hold: 0.02, release: 0.07),
+                            gain: 0.2, cutoff: cut))
+            out.append(Tone(at: t + 0.015, .sine, n(1), to: n(-1), glide: 0.05,
+                            env: Envelope(attack: 0.006, hold: 0.01, release: 0.06), gain: 0.08))
             t += crunchEvery
             i += 1
         }
-        return choreo(out)
+        return choreo(normalized(out, to: crunchLevel))
+    }
+}
+
+// MARK: - монетный звон (волна 49)
+
+/// Когда звенят монеты. Вадим слышал «капающие монеты» там, где монеты не приходили: двор звенел и на тратах
+/// (плита, улучшение, золотая табличка). Теперь .coins — только за реальную добычу, остальное — обычные звуки.
+enum CoinChime {
+    enum Event: Sendable, Equatable {
+        /// Собрали копилку двора.
+        case yardCollect(coins: Int)
+        /// Закрыли задание дня (тост «Задание дня … +N 🪙»).
+        case dailyTask(coins: Int)
+        /// Выполнили просьбу пса.
+        case dogAsk(coins: Int)
+        /// Итог мини-игры: монеты за партию и рекорд.
+        case miniGame(coins: Int, record: Bool)
+        /// Траты: плита двора, улучшение станции, золотая табличка, покупка в лавке/доме.
+        case yardPlate, yardUpgrade, yardGild, purchase
+    }
+
+    /// Звук события; nil — молчит (свой звук уже сыграл другой путь, например действие ухода).
+    static func cue(_ e: Event) -> SoundCue? {
+        switch e {
+        case .yardCollect(let c): return c > 0 ? .coins : .ok
+        case .dailyTask(let c), .dogAsk(let c): return c > 0 ? .coins : nil
+        case .miniGame(let c, let record):
+            if record { return .hearts }
+            return c > 0 ? .coins : .ok
+        case .yardPlate, .yardUpgrade, .yardGild, .purchase: return .ok
+        }
     }
 }
 #endif

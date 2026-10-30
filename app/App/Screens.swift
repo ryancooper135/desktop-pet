@@ -277,7 +277,7 @@ struct SettingsScreen: View {
                 } header: {
                     Text("Звук и отклик")
                 } footer: {
-                    Text("Тихие звуки в одной тональности. В беззвучном режиме телефона их не слышно.")
+                    Text("Тихие звуки одной громкости. В беззвучном режиме телефона их не слышно. Музыка: Alex McCulloch (Pro Sensory), omfgdude — CC0.")
                 }
 
                 Section {
