@@ -35,27 +35,22 @@ struct PetStatusControlProvider: ControlValueProvider {
 struct PetFeedControl: ControlWidget {
     static let kind = "pet.control.feed"
 
+    /// Действие на кнопке — только то, что ядро примет сейчас (PetStatusLogic уже проверил); иначе nil.
+    static func act(_ st: PetStatus) -> IslandAct? {
+        guard let a = st.act, a.action != nil else { return nil }
+        return a
+    }
+
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind, provider: PetStatusControlProvider()) { st in
-            if let a = st.act, a.action != nil {
-                // «Покормить» и т. п.: нажатие — действие без открытия приложения.
-                ControlWidgetButton(action: IslandActIntent(a, .control)) {
-                    Label {
-                        Text(st.title)
-                        Text(a.title)
-                    } icon: {
-                        Image(systemName: a.icon)
-                    }
-                }
-            } else {
-                // Занят или всё хорошо: состояние в подписи, нажатие открывает Шибу.
-                ControlWidgetButton(action: OpenShibaIntent()) {
-                    Label {
-                        Text(st.title)
-                        Text(st.detail ?? "Открыть")
-                    } icon: {
-                        Image(systemName: st.symbol)
-                    }
+            // Шаблон без if/else (ControlWidgetTemplateBuilder): одна кнопка, разница — в данных.
+            // Действие доступно — нажатие делает его без открытия приложения; нет — открывает Шибу.
+            ControlWidgetButton(action: ShibaNowIntent(Self.act(st) ?? .open)) {
+                Label {
+                    Text(st.title)
+                    Text(Self.act(st)?.title ?? st.detail ?? "Открыть")
+                } icon: {
+                    Image(systemName: Self.act(st)?.icon ?? st.symbol)
                 }
             }
         }

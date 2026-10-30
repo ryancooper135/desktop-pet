@@ -181,15 +181,28 @@ struct IslandActIntent: LiveActivityIntent {
     }
 }
 
-/// Волна 51: контрол «Шиба сейчас» без доступного действия (моется, спит, всё хорошо) — просто открыть приложение.
-struct OpenShibaIntent: AppIntent {
-    static let title: LocalizedStringResource = "Открыть Шибу"
+/// Волна 51: кнопка контрола «Шиба сейчас». Шаблон контрола не умеет if/else, поэтому один тип интента на оба
+/// случая: действие доступно (`act` с действием ядра) — делаем его в фоне; нет (моется, спит, всё хорошо) —
+/// просто открываем приложение (`continueInForeground`, iOS 26).
+struct ShibaNowIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Шиба сейчас"
     static let isDiscoverable: Bool = false
-    static let openAppWhenRun: Bool = true
+    static let supportedModes: IntentModes = [.background, .foreground(.dynamic)]
+
+    @Parameter(title: "Действие", default: "open")
+    var act: String
 
     init() {}
+    init(_ a: IslandAct) { act = a.rawValue }
 
-    func perform() async throws -> some IntentResult { .result() }
+    func perform() async throws -> some IntentResult {
+        if let a = IslandAct(rawValue: act)?.action {
+            _ = await IntentBridge.run(a, source: .control)
+        } else {
+            try await continueInForeground(alwaysConfirm: false)
+        }
+        return .result()
+    }
 }
 
 /// Волна 34 J: кнопка «Собрать» в виджете — копилка двора в кошелёк, приложение не открывается.
