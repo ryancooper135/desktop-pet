@@ -22,7 +22,6 @@ import Foundation
 /// fur_shaggy — сытый щенок с лохматой шерстью и клочками на спине (ui-71); fur_brushed — он же, расчёсанный
 /// дважды (раз два часа назад, раз только что): гладкая шерсть без клочков (ui-72);
 /// blockduo — бодрый щенок с рекордом «Блок Дуо» 1800 (ui-79/80);
-/// zombie — бодрый щенок с рекордом «Щенок против зомби» 300 (ui-83/84);
 /// charpack — свои персонажи (волна 12) из шибы бандла: «Серый Шиба» (клипы переименованы, рост 0,8, серая
 /// шерсть) активен, «Без стойки» — без клипа idle, с ошибкой в списке (ui-81/82));
 /// yard_empty|yard_plates|yard_rich|yard_full — экран «Двор» (волна 34 G, seedYard; yard_full — переезд, волна 36 P).
@@ -184,13 +183,6 @@ enum LaunchSeed {
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
                 f.blockduoBest = max(f.blockduoBest, 1800)
-                f.seen = f.pet
-                f.lastSeenT = now
-            case "zombie":
-                // «Щенок против зомби» (ui-83/84): бодрый щенок, рекорд 300 — на карточке «Играть» виден рекорд.
-                PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
-                f.zombieBest = max(f.zombieBest, 300)
                 f.seen = f.pet
                 f.lastSeenT = now
             case "fur_shaggy", "fur_brushed":

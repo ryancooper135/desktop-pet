@@ -79,7 +79,7 @@ enum Onboarding {
         IntroRow("capsule", icon: "gift.fill", "Автомат", "Капсулы с вещами и Лавка дня."),
         IntroRow("house", icon: "house.fill", "Дом", "Улучшения за монеты и кухня."),
         IntroRow("tricks", icon: "pawprint.fill", "Трюки", "Команды и расчёска."),
-        IntroRow("games", icon: "gamecontroller.fill", "Мини-игры", "Три игры, за них монеты."),
+        IntroRow("games", icon: "gamecontroller.fill", "Мини-игры", "Две игры, за них монеты."),
         IntroRow("walk", icon: "figure.walk", "Гулять", "Уходит на 1–3 часа и приносит находку."),
     ]
 

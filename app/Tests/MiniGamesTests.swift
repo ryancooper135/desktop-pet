@@ -1,6 +1,7 @@
-// Волна 32: игры всегда. Одно правило «кто занят» (MiniGames.busy) на все три игры, плашка «просто так»
+// Волна 32: игры всегда. Одно правило «кто занят» (MiniGames.busy) на все мини-игры, плашка «просто так»
 // на карточке «Играть» и раунд «просто так»: рекорд пишется, монет, «Поиграть» в ядре и убывания нет.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
+// Волна 55: «Щенок против зомби» убран — старый сейв с его полями читается (testOldZombieSaveStillLoads).
 
 import Foundation
 import XCTest
@@ -146,22 +147,6 @@ final class MiniGamesTests: XCTestCase {
         XCTAssertEqual(BlockDuo.toastText(r)?.hasSuffix("играли просто так — без монет"), true)
     }
 
-    func testZombieFreeRoundKeepsOnlyRecord() {
-        var f = napping()
-        let coins = f.econ.wallet.coins, fun = f.pet.needs[.fun]
-        let r = ZombieRun.finish(ZombieRun.autoplay(seed: 3, until: 10), in: &f, now: mT0, free: "asleep")
-        XCTAssertGreaterThan(r.score, 0)
-        XCTAssertEqual(r.totalCoins, 0)
-        XCTAssertFalse(r.capped)
-        XCTAssertFalse(r.played)
-        XCTAssertEqual(f.econ.wallet.coins, coins)
-        XCTAssertEqual(f.zombieCoins, 0)
-        XCTAssertEqual(f.zombieGames, 0)
-        XCTAssertEqual(f.pet.needs[.fun], fun)
-        XCTAssertEqual(f.zombieBest, r.score)
-        XCTAssertEqual(ZombieRun.rewardText(r), MiniGames.freeReward)
-    }
-
     func testSameScoreWhenFreePaysCoins() {
         // Контроль: без «просто так» тот же счёт даёт монеты и «Поиграть».
         var f = mFile()
@@ -189,5 +174,65 @@ final class MiniGamesTests: XCTestCase {
         XCTAssertTrue(r.capped)
         XCTAssertTrue(r.played)
         XCTAssertGreaterThan(f.pet.needs[.fun]!, fun)
+    }
+
+    // MARK: старый сейв с «Щенок против зомби» (волна 55)
+
+    /// Игру убрали, а сейвы с её полями остались: они читаются, поля не теряются при записи, в потолок монет,
+    /// опыт, рекорды и челлендж зомби больше не попадает, и ничего не падает на старых ключах "zombie".
+    func testOldZombieSaveStillLoads() throws {
+        let day = DayKey.of(mT0)
+        var old = mFile()
+        old.shardLog.best = ["zombie": 400, "catch": 12]
+        old.level.started = true
+        old.level.day = day
+        old.level.gameDay = ["zombie": day]
+        old.level.gameSeen = ["zombie": 1]
+        old.challenge.day = day - 1
+        old.challenge.count = 2
+        old.challenge.last = ChallengeWin(game: "zombie", goal: 300, score: 350, shards: 1, weekShards: 0, t: mT0 - 86400)
+        var raw = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(old)) as? [String: Any])
+        // Поля игры — как их писала старая версия.
+        raw["zombieBest"] = 412
+        raw["zombieDay"] = day
+        raw["zombieCoins"] = 45
+        raw["zombieGames"] = 3
+        let data = try JSONSerialization.data(withJSONObject: raw)
+
+        var f = try JSONDecoder().decode(SaveFile.self, from: data)
+        XCTAssertEqual(f.zombieBest, 412)
+        XCTAssertEqual(f.zombieDay, day)
+        XCTAssertEqual(f.zombieCoins, 45)
+        XCTAssertEqual(f.zombieGames, 3)
+        XCTAssertEqual(f.challenge.last?.game, "zombie", "старая запись челленджа читается как есть")
+        XCTAssertEqual(f.shardLog.best["zombie"], 400)
+        XCTAssertEqual(f.level.gameDay["zombie"], day)
+
+        // Запись не теряет поля (откат на старую версию увидит свой рекорд).
+        let again = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(f)) as? [String: Any])
+        XCTAssertEqual(again["zombieBest"] as? Int, 412)
+        XCTAssertEqual(again["zombieGames"] as? Int, 3)
+
+        // В реестре зомби нет: монеты за сутки, рекорды, челлендж — только «Мячик» и «Блок Дуо».
+        XCTAssertNil(MiniGame(rawValue: "zombie"))
+        XCTAssertEqual(MiniGame.allCases, [.ball, .blockduo])
+        XCTAssertEqual(MiniGames.coinsToday(f, now: mT0), 0, "45 монет зомби не съедают общий потолок")
+        XCTAssertEqual(Set(Shards.records(f).keys), ["catch", "blockduo"])
+        XCTAssertEqual(Shards.recordGames, ["catch", "blockduo"])
+        XCTAssertNil(DogLevel.games(f)["zombie"])
+        for d in day..<(day + 4) { XCTAssertNotEqual(Challenges.game(day: d).rawValue, "zombie") }
+
+        // Опыт и клочки: старые партии зомби ничего не дают, сейв проходит settle без ошибок.
+        let out = DogLevel.settle(&f, now: mT0)
+        XCTAssertFalse(out.gains.contains { $0.reason.contains("zombie") }, "\(out.gains)")
+        XCTAssertNil(DogLevelConfig.shared.rule("game.zombie"))
+        let shards = Shards.settle(&f, now: mT0)
+        XCTAssertFalse(shards.contains { $0.reason.contains("zombie") }, "\(shards)")
+        XCTAssertEqual(f.zombieBest, 412, "settle старые поля не трогает")
+        // Монеты мини-игр по-прежнему считаются по живым играм.
+        f.catchDay = day
+        f.catchCoins = 10
+        XCTAssertEqual(MiniGames.coinsToday(f, now: mT0), 10)
+        XCTAssertEqual(MiniGames.menuHint(), "\(CatchConfig.shared.name) или \(BlockDuoConfig.shared.name) вместе с Шибой")
     }
 }

@@ -53,15 +53,19 @@ final class ChallengesTests: XCTestCase {
 
     // MARK: ротация и цель
 
-    func testRotationGoesBallBlocksZombie() {
+    func testRotationGoesBallBlocks() {
+        // Волна 55: зомби убран — круг из игр реестра MiniGame: Мячик ↔ Блок Дуо.
         let d = dayOf(.ball)
         XCTAssertEqual(Challenges.game(day: d), .ball)
         XCTAssertEqual(Challenges.game(day: d + 1), .blockduo)
-        XCTAssertEqual(Challenges.game(day: d + 2), .zombie)
-        XCTAssertEqual(Challenges.game(day: d + 3), .ball)
+        XCTAssertEqual(Challenges.game(day: d + 2), .ball)
         // Отрицательные сутки тоже по кругу, без вылета.
-        XCTAssertEqual(Challenges.game(day: -1), Challenges.game(day: 2))
+        XCTAssertEqual(Challenges.game(day: -1), Challenges.game(day: 1))
         XCTAssertEqual(Challenges.game(day: 0), .ball)
+        // Каждая игра реестра бывает в челлендже, другой нет.
+        let seen = Set((0..<10).map { Challenges.game(day: d + $0) })
+        XCTAssertEqual(seen, Set(MiniGame.allCases))
+        XCTAssertNil(ChallengeGame(rawValue: "zombie"), "зомби больше не игра челленджа")
     }
 
     func testNiceRounding() {
@@ -81,8 +85,6 @@ final class ChallengesTests: XCTestCase {
         XCTAssertEqual(Challenges.goal(.blockduo, record: 1800, cfg), 2000, "70 % рекорда меньше базы — база")
         XCTAssertEqual(Challenges.goal(.blockduo, record: 4100, cfg), 2900, "70 % от 4100 = 2870 → 2 900")
         XCTAssertEqual(Challenges.goal(.ball, record: 50, cfg), 35)
-        XCTAssertEqual(Challenges.goal(.zombie, record: 0, cfg), 200)
-        XCTAssertEqual(Challenges.goal(.zombie, record: 420, cfg), 290)
     }
 
     func testConfigFromJSON() throws {
@@ -90,7 +92,7 @@ final class ChallengesTests: XCTestCase {
         let cfg = ChallengeConfig(json: try JSONDecoder().decode(JSONValue.self, from: Data(raw.utf8)))
         XCTAssertEqual(cfg.base(.ball), 30)
         XCTAssertEqual(cfg.base(.blockduo), 2000, "нет в конфиге — умолчание")
-        XCTAssertEqual(cfg.base(.zombie), 150)
+        XCTAssertEqual(Set(cfg.bases.keys), Set(MiniGame.allCases), "старый ключ zombie в конфиге не мешает")
         XCTAssertEqual(cfg.ratio, 0.5)
         XCTAssertEqual(cfg.shards, 2)
         XCTAssertEqual(cfg.weekNeed, 2)
@@ -117,7 +119,7 @@ final class ChallengesTests: XCTestCase {
     func testBadgeTexts() {
         XCTAssertEqual(Challenges.badgeText(.today(goal: 2000)), "Челлендж: 2\u{00A0}000 · сегодня")
         XCTAssertEqual(Challenges.badgeText(.today(goal: 25)), "Челлендж: 25 · сегодня")
-        XCTAssertEqual(Challenges.badgeText(.elsewhere(.zombie)), "Челлендж дня — в «Зомби»")
+        XCTAssertEqual(Challenges.badgeText(.elsewhere(.ball)), "Челлендж дня — в «Мячик»")
         XCTAssertEqual(Challenges.badgeText(.done), "✓ Челлендж выполнен")
         XCTAssertEqual(Challenges.number(12_345), "12\u{00A0}345")
         XCTAssertEqual(Challenges.number(999), "999")
@@ -143,7 +145,7 @@ final class ChallengesTests: XCTestCase {
         XCTAssertEqual(f.shardLog.earned, earned0 + 1)
         XCTAssertTrue(Challenges.doneToday(f, at: t))
         XCTAssertEqual(Challenges.status(f, game: .blockduo, at: t), .done)
-        XCTAssertEqual(Challenges.status(f, game: .zombie, at: t), .done, "выполнен — на всех экранах")
+        XCTAssertEqual(Challenges.status(f, game: .ball, at: t), .done, "выполнен — на всех экранах")
         // Переиграть можно, но второй раз без награды.
         XCTAssertNil(playBlocks(&f, score: 5000, at: t + 600))
         XCTAssertEqual(f.econ.wallet.shards, shards0 + 1)
@@ -151,7 +153,7 @@ final class ChallengesTests: XCTestCase {
         // Завтра — другая игра, плашка снова с целью.
         let next = t + 86400
         XCTAssertFalse(Challenges.doneToday(f, at: next))
-        XCTAssertEqual(Challenges.status(f, game: .zombie, at: next), .today(goal: 200))
+        XCTAssertEqual(Challenges.status(f, game: .ball, at: next), .today(goal: 25))
     }
 
     func testBelowGoalOrWrongGameOrClosedDoesNotCount() {
@@ -192,14 +194,6 @@ final class ChallengesTests: XCTestCase {
         var f = cFile(at: tb)
         Challenges.play(.ball, in: &f, now: tb) { CatchGame.finish(score: 25, in: &$0, now: $1) }
         XCTAssertEqual(f.challenge.last?.game, "catch")
-        let tz = noonOf(dayOf(.zombie))
-        var z = cFile(at: tz)
-        Challenges.play(.zombie, in: &z, now: tz) { f, now in
-            var r = ZombieRun.finish(ZombieRound(seed: 1), in: &f, now: now)
-            r.score = 200
-            return r
-        }
-        XCTAssertEqual(z.challenge.last?.game, "zombie")
     }
 
     func testDeadDogGetsNothing() {

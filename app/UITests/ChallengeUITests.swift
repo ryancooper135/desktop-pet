@@ -1,10 +1,10 @@
 // Волна 35 K: челлендж дня в мини-играх. Сид LaunchSeed challenge — пёс ур. 12, рекорд «Блок Дуо» 1800 (цель 2 000).
-// Игра челленджа зависит от дня (Мячик → Блок Дуо → Зомби по кругу), поэтому PET_NOW — полдень ближайшего дня,
+// Игра челленджа зависит от дня (Мячик ↔ Блок Дуо по кругу; зомби убран в волне 55), поэтому PET_NOW — полдень ближайшего дня,
 // когда челлендж в «Блок Дуо» (тот же счёт суток, что Challenges.game: местные сутки по поясу симулятора).
 //   ui-35-challenge-badge      «Блок Дуо», карточка «Играть»: плашка «Челлендж: 2 000 · сегодня»
 //   ui-35-challenge-reward     партия автопилотом (сид 7) до конца: всплывашка «+1 ✂️ · +10 опыта»
 //   ui-35-challenge-done       через 3 с плашка «✓ Челлендж выполнен»
-//   ui-35-challenge-elsewhere  «Щенок против зомби» в тот же день: «Челлендж дня — в «Блок Дуо»»
+//   ui-35-challenge-elsewhere  «Лови мячик» в тот же день: «Челлендж дня — в «Блок Дуо»»
 
 import XCTest
 
@@ -48,11 +48,11 @@ final class ChallengeUITests: XCTestCase {
     }
 
     @MainActor
-    func testElsewhereOnZombie() throws {
-        let app = launch(open: "zombie")
+    func testElsewhereOnCatch() throws {
+        let app = launch(open: "catch")
         let any = app.descendants(matching: .any)
         let badge = any["challenge.badge"].firstMatch
-        XCTAssertTrue(badge.waitForExistence(timeout: 20), "нет плашки челленджа на «Зомби»")
+        XCTAssertTrue(badge.waitForExistence(timeout: 20), "нет плашки челленджа на «Лови мячик»")
         XCTAssertTrue(badge.label.contains("Блок Дуо"), "плашка: \(badge.label)")
         settle(1.5)
         snap("ui-35-challenge-elsewhere")
@@ -76,16 +76,16 @@ final class ChallengeUITests: XCTestCase {
         return app
     }
 
-    /// Полдень ближайшего (сегодня или позже) дня, когда челлендж в «Блок Дуо»: сутки № d с d mod 3 == 1,
-    /// как Challenges.game(day:) — Мячик, Блок Дуо, Зомби.
+    /// Полдень ближайшего (сегодня или позже) дня, когда челлендж в «Блок Дуо»: сутки № d с d mod 2 == 1,
+    /// как Challenges.game(day:) по реестру MiniGame — Мячик, Блок Дуо.
     static func blockDuoNoon() -> String {
         let start = Calendar.current.startOfDay(for: Date())
-        for k in 0..<3 {
+        for k in 0..<2 {
             let noon = start.addingTimeInterval(Double(k * 86400 + 12 * 3600))
             let t = noon.timeIntervalSince1970
             let off = Double(TimeZone.current.secondsFromGMT(for: noon))
             let day = Int(((t + off) / 86400).rounded(.down))
-            if ((day % 3) + 3) % 3 == 1 { return String(Int(t)) }
+            if ((day % 2) + 2) % 2 == 1 { return String(Int(t)) }
         }
         return ScreenshotUITests.noon
     }

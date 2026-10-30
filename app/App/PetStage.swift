@@ -71,7 +71,7 @@ struct PetStage: View {
         // Рост (волна 34 I): размер, голова, уши, хвост, миска; nil — взрослый вид.
         let growth = model?.growthLook
         let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
-                                         zombie: model?.showZombie ?? false, away: model?.away != nil)
+                                         away: model?.away != nil)
         let off = self.stageOff
         // Дела простоя (волна 44 M): под обложкой и с Reduce Motion пёс сам никуда не ходит.
         let idle = covered || off || reduceMotion ? nil : model?.idleScene

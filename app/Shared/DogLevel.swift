@@ -58,8 +58,8 @@ struct DogLevelConfig: Hashable, Sendable {
     // открытия
     var unlocks: [Int: [LevelUnlock]] = DogLevelConfig.stubUnlocks
 
-    /// Мини-игры: счётчики партий за сутки в SaveFile. Опыт — по правилу game.<имя>.
-    static let games = ["catch", "blockduo", "zombie"]
+    /// Мини-игры: счётчики партий за сутки в SaveFile. Опыт — по правилу game.<имя>. Список — реестр MiniGame.
+    static let games = MiniGame.allCases.map(\.rawValue)
 
     /// Ключ — вид записи журнала (для ev.* — без хвоста: ev.back_home.<находка> → ev.back_home).
     /// yard.*, task.done, ask.done, trip.first, game.challenge пишут будущие модули (двор, задания, места).
@@ -73,7 +73,6 @@ struct DogLevelConfig: Hashable, Sendable {
         "yard.collect": XpRule(xp: 4, perDay: 2, group: "collect"),
         "game.catch": XpRule(xp: 5, perDay: 6, group: "game"),
         "game.blockduo": XpRule(xp: 5, perDay: 6, group: "game"),
-        "game.zombie": XpRule(xp: 5, perDay: 6, group: "game"),
         "game.challenge": XpRule(xp: 10, perDay: 1, group: "challenge"),
         "task.done": XpRule(xp: 5, perDay: 3, group: "task"),
         "ask.done": XpRule(xp: 5, group: "ask"),
@@ -92,7 +91,8 @@ struct DogLevelConfig: Hashable, Sendable {
             3: [u(.game, "game.blockduo", "Блок Дуо"), u(.shop, "shop.rare", "В лавке редкие вещи")],
             4: [u(.yard, "yard.1", "Дворик"), u(.station, "bones", "Косточковая грядка")],
             5: [u(.place, "laundry", "Прачечная 24/7"), u(.home, "home.2", "2-й уровень линий дома", 2)],
-            6: [u(.game, "game.zombie", "Щенок против зомби")],
+            // Волна 55: зомби убран, место держит раннер (как «Прятки (скоро)» на 17) — каждый уровень что-то открывает.
+            6: [u(.game, "game.runner", "Раннер (скоро)")],
             7: [u(.station, "porridge", "Котелок каши"), u(.feature, "tasks.3", "Третье задание дня", 3)],
             8: [u(.place, "cat_hill", "Холм-кот")],
             9: [u(.yard, "yard.2", "Сад")],
@@ -328,8 +328,9 @@ enum DogLevel {
 
     /// Мини-игра: сутки и партий с наградой за них (партии «просто так» счётчик не трогают).
     static func games(_ f: SaveFile) -> [String: (day: Int, n: Int)] {
-        ["catch": (f.catchDay, f.catchGames), "blockduo": (f.blockduoDay, f.blockduoGames),
-         "zombie": (f.zombieDay, f.zombieGames)]
+        Dictionary(uniqueKeysWithValues: MiniGame.allCases.map { g in
+            (g.rawValue, (day: f[keyPath: g.dayKey], n: f[keyPath: g.gamesKey]))
+        })
     }
 
     /// Что надо учесть: запись журнала или партии мини-игры.
@@ -477,15 +478,9 @@ enum DogLevel {
         l >= (needLevel(id, cfg) ?? 1)
     }
 
-    /// Мини-игра (catch, blockduo, zombie) открыта: по уровню или в неё уже играли — у старых сейвов не закрываем.
+    /// Мини-игра реестра (MiniGame.rawValue) открыта: по уровню или в неё уже играли — у старых сейвов не закрываем.
     static func gameOpen(_ game: String, _ f: SaveFile, _ cfg: DogLevelConfig = .shared) -> Bool {
-        let played: Int
-        switch game {
-        case "catch": played = f.catchBest + f.catchGames
-        case "blockduo": played = f.blockduoBest + f.blockduoGames
-        case "zombie": played = f.zombieBest + f.zombieGames
-        default: played = 0
-        }
+        let played = MiniGame(rawValue: game).map { f[keyPath: $0.bestKey] + f[keyPath: $0.gamesKey] } ?? 0
         return played > 0 || isOpen("game.\(game)", level: level(f, cfg), cfg)
     }
 

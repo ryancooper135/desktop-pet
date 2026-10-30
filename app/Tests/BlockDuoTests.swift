@@ -1,5 +1,5 @@
 // «Блок Дуо» (BlockDuo.swift): фигуры и раздача от сида, постановка, линии, комбо, пустое поле, ход Шибы
-// (лучшее место, пропуск), конец партии, автопилот; монеты с убыванием, своим и общим потолком мини-игр
+// (лучшее место, пропуск), конец партии наперёд (волна 55: вся тройка не встанет — конец и подсветка), автопилот; монеты с убыванием, своим и общим потолком мини-игр
 // (вместе с «Лови мячик»), рекорд, настроение ядерным play, поля сейва верхним уровнем и переход к новому щенку.
 // Гоняется и на Linux (app/Package.swift), поэтому только Shared и PetCore.
 
@@ -211,9 +211,10 @@ final class BlockDuoTests: XCTestCase {
     }
 
     func testShibaSkipsWhenNoRoomButGameGoesOn() throws {
-        // Сид, где у Шибы фигура больше клетки, а в новой тройке есть одиночка: шахматка его не пускает, тебя — да.
-        let seed = try XCTUnwrap((1...2000).map(UInt64.init).first { s in
-            BlockDuo.shibaPiece(seed: s, turn: 0).shape != 0 && BlockDuo.deal(seed: s, round: 1).contains { $0.shape == 0 }
+        // Сид, где у Шибы фигура больше клетки, а новая тройка — три одиночки: шахматка его не пускает, тебя — да.
+        // С волны 55 конец считается наперёд по всей тройке, поэтому одной одиночки в ней уже мало.
+        let seed = try XCTUnwrap((UInt64(1)...500_000).first { s in
+            BlockDuo.deal(seed: s, round: 1).allSatisfy { $0.shape == 0 } && BlockDuo.shibaPiece(seed: s, turn: 0).shape != 0
         })
         var g = BlockDuoGame(seed: seed, board: grid(checker), tray: [single(), nil, nil])
         let t = try XCTUnwrap(g.place(slot: 0, at: cell(0, 1)))
@@ -229,11 +230,118 @@ final class BlockDuoTests: XCTestCase {
         var g = BlockDuoGame(seed: 1, board: grid(checker), tray: [BlockPiece(shape: 9, color: 1), BlockPiece(shape: 1, color: 2), nil])
         XCTAssertTrue(g.isOver)
         XCTAssertFalse(g.anyFits)
+        XCTAssertEqual(g.stuck, 0, "никто не спасает — первая, которой места нет уже сейчас")
         XCTAssertNil(g.place(slot: 1, at: cell(0, 1)))
         let fresh = BlockDuoGame(seed: 1)
         XCTAssertFalse(fresh.isOver)
+        XCTAssertNil(fresh.stuck)
         XCTAssertEqual(fresh.tray, BlockDuo.deal(seed: 1, round: 0).map(Optional.some))
         XCTAssertTrue(fresh.isEmpty)
+    }
+
+    // MARK: конец наперёд (волна 55)
+
+    /// Свободный прямоугольник rows×cols в левом верхнем углу, вокруг — шахматка (ни двух пустых рядом, ни полной
+    /// линии ни до, ни после заполнения прямоугольника): вне кармана встают только одиночки.
+    private func pocket(_ rows: Int, _ cols: Int) -> [UInt8] {
+        grid((0..<8).map { r in String((0..<8).map { c in
+            r < rows && c < cols ? "." : (r + c) % 2 == 0 ? "#" : "."
+        }) })
+    }
+
+    func testEndsAtOnceWhenWholeTrayCannotFit() throws {
+        // Карман 3×4: две 2×2 и одиночка встают (две 2×2 рядом). Одиночка в середину кармана — каждой 2×2 место
+        // ещё есть, обеим вместе — нет. Старое правило («хоть одна встаёт») тянуло бы партию дальше.
+        let sq = BlockPiece(shape: 9, color: 3)
+        var g = BlockDuoGame(seed: 1, board: pocket(3, 4), tray: [single(), sq, BlockPiece(shape: 9, color: 5)])
+        XCTAssertFalse(g.isOver)
+        XCTAssertNil(g.stuck)
+        let t = try XCTUnwrap(g.place(slot: 0, at: cell(1, 1)))
+        XCTAssertTrue(t.over, "сразу конец: две 2×2 вместе уже не встанут")
+        XCTAssertTrue(g.isOver)
+        XCTAssertTrue(g.anyFits, "по отдельности фигуры ещё встают")
+        XCTAssertTrue(g.fitsAnywhere(sq))
+        XCTAssertEqual(g.stuck, 1, "без любой из двух 2×2 другая встаёт; поровну — подсвечена левая")
+        XCTAssertNil(g.place(slot: 1, at: cell(0, 2)), "после конца не ходят")
+        XCTAssertNil(BlockDuo.pilotMove(g))
+
+        // Та же тройка, одиночка в шахматку — обе 2×2 ещё встают, игра идёт.
+        var ok = BlockDuoGame(seed: 1, board: pocket(3, 4), tray: [single(), sq, BlockPiece(shape: 9, color: 5)])
+        XCTAssertEqual(ok.place(slot: 0, at: cell(7, 0))?.over, false)
+        XCTAssertNil(ok.stuck)
+    }
+
+    func testStuckIsThePieceWithoutRoom() {
+        // Карман 3×3: квадрат 3×3 встаёт только целиком в карман, 2×2 — только туда же, одиночка — куда угодно.
+        // Вместе 3×3 и 2×2 не встанут. Без любой из них остальное встаёт — подсвечена большая, 3×3.
+        let big = BlockPiece(shape: 10, color: 2)
+        let g = BlockDuoGame(seed: 1, board: pocket(3, 3), tray: [single(), BlockPiece(shape: 9, color: 4), big])
+        XCTAssertTrue(g.isOver, "партия кончается сразу, ещё до хода")
+        XCTAssertTrue(g.anyFits)
+        XCTAssertEqual(g.stuck, 2)
+        // Одна 3×3 в лотке и места ей нет — она и подсвечена.
+        let one = BlockDuoGame(seed: 1, board: pocket(2, 2), tray: [nil, nil, big])
+        XCTAssertTrue(one.isOver)
+        XCTAssertEqual(one.stuck, 2)
+        // Пустое поле — встаёт что угодно.
+        XCTAssertNil(BlockDuo.stuckSlot([big, big, big], on: grid(empty)))
+        XCTAssertNil(BlockDuo.stuckSlot([nil, nil, nil], on: grid(checker)), "пустой лоток — не конец")
+    }
+
+    func testOrderWithLineClearSavesTheGame() throws {
+        // «XXX» места нет, пока не сгорит строка 0, а сгорает она одиночкой в (0, 7). Есть порядок —
+        // это не конец, хотя «XXX» сейчас никуда не встаёт.
+        var rows = checker
+        rows[0] = "#######."
+        let bar = BlockPiece(shape: 3, color: 6)
+        var g = BlockDuoGame(seed: 1, board: grid(rows), tray: [bar, single(), nil])
+        XCTAssertFalse(g.fitsAnywhere(bar))
+        XCTAssertFalse(g.isOver, "одиночка сожжёт строку — и «XXX» встанет")
+        XCTAssertNil(g.stuck)
+        XCTAssertTrue(BlockDuo.allFit([single().form, bar.form], on: grid(rows)))
+        // Не тот порядок: одиночка в шахматку — строке не сгореть, «XXX» не встанет. Конец сразу, подсвечена она.
+        var wrong = g
+        let t = try XCTUnwrap(wrong.place(slot: 1, at: cell(2, 1)))
+        XCTAssertTrue(t.over)
+        XCTAssertEqual(wrong.stuck, 0)
+        // Правильный: строка сгорела, «XXX» встаёт.
+        let good = try XCTUnwrap(g.place(slot: 1, at: cell(0, 7)))
+        XCTAssertEqual(good.mine.rows, [0])
+        XCTAssertFalse(good.over)
+        XCTAssertTrue(g.fitsAnywhere(bar))
+    }
+
+    /// Отсечения в переборе (ход без сгорания не спасает фигуру без места; одинаковые фигуры) не меняют ответ:
+    /// сверка с полным перебором всех порядков и мест на тесных полях из реальных партий.
+    func testLookAheadMatchesFullSearch() {
+        func brute(_ shapes: [BlockShape], _ b: [UInt8]) -> Bool {
+            guard !shapes.isEmpty else { return true }
+            for i in shapes.indices {
+                var rest = shapes
+                let s = rest.remove(at: i)
+                for at in BlockDuo.spots(s, on: b) where brute(rest, BlockDuo.afterPut(s, at: at, on: b).board) {
+                    return true
+                }
+            }
+            return false
+        }
+        var over = 0, alive = 0
+        for seed in UInt64(1)...30 {
+            let end = BlockDuo.autoplay(seed: seed)
+            let mid = BlockDuo.autoplay(seed: seed, moves: max(0, end.moves - 4))
+            for (k, b) in [end.board, mid.board].enumerated() {
+                let shapes = BlockDuo.deal(seed: seed &* 31, round: k).map(\.form)
+                let fast = BlockDuo.allFit(shapes, on: b)
+                XCTAssertEqual(fast, brute(shapes, b), "сид \(seed), поле \(k)")
+                if fast { alive += 1 } else { over += 1 }
+            }
+            // Сама партия: конец ровно тогда, когда оставшиеся фигуры тройки вместе не встают.
+            XCTAssertTrue(end.isOver)
+            XCTAssertFalse(brute(end.tray.compactMap { $0?.form }, end.board), "сид \(seed)")
+            XCTAssertEqual(mid.isOver, !brute(mid.tray.compactMap { $0?.form }, mid.board))
+        }
+        XCTAssertGreaterThan(over, 1, "в выборке есть проигранные поля")
+        XCTAssertGreaterThan(alive, 3, "и живые")
     }
 
     // MARK: автопилот
@@ -242,6 +350,7 @@ final class BlockDuoTests: XCTestCase {
         let a = BlockDuo.autoplay(seed: 77)
         XCTAssertEqual(a, BlockDuo.autoplay(seed: 77), "один сид — одна партия")
         XCTAssertTrue(a.isOver)
+        XCTAssertNotNil(a.stuck, "конец партии — с фигурой, которой не хватит места")
         XCTAssertNil(BlockDuo.pilotMove(a))
         XCTAssertEqual(a.score, a.mine + a.shiba)
         XCTAssertGreaterThan(a.moves, 10)
@@ -252,6 +361,10 @@ final class BlockDuoTests: XCTestCase {
         XCTAssertEqual(mid.shibaTurns, 2, "после 6 фигур Шиба сходил дважды")
         XCTAssertFalse(mid.isOver)
         XCTAssertNotEqual(BlockDuo.autoplay(seed: 78), a)
+        // UI-снимок ui-79 (сид экрана 7, 10 ходов): партия ещё идёт и есть ход для подсказки.
+        let ui = BlockDuo.autoplay(seed: 7, moves: 10)
+        XCTAssertEqual(ui.moves, 10)
+        XCTAssertNotNil(BlockDuo.pilotMove(ui))
     }
 
     func testShibaHelpsInTypicalGames() {

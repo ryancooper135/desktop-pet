@@ -201,10 +201,9 @@ final class PremiumTests: XCTestCase {
         XCTAssertTrue(Shards.settle(&f, now: pT0 + 1).isEmpty)
         f.catchBest = 15
         XCTAssertEqual(Shards.settle(&f, now: pT0 + 2).map(\.reason), ["record"])
-        f.zombieBest = 3
         f.blockduoBest = 50
         Shards.settle(&f, now: pT0 + 3)
-        f.zombieBest = 9
+        f.blockduoBest = 60
         XCTAssertTrue(Shards.settle(&f, now: pT0 + 4).isEmpty, "раз в сутки")
         f.catchBest = 20
         XCTAssertEqual(Shards.settle(&f, now: pT0 + 86400).map(\.reason), ["record"])

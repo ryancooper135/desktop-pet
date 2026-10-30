@@ -9,7 +9,8 @@
 //   при тех же ходах (UI-снимки, тесты). Генератор — CatchRandom (SplitMix64), как у «Лови мячик»;
 // • Шиба ходит сам (простой ИИ): место, где больше всего линий исчезнет; поровну — где фигура плотнее прилегает
 //   к занятым клеткам и стенкам; дальше — первое сверху слева. Не влезла никуда — пропускает ход, это не конец игры;
-// • конец — когда ни одна фигура из тройки никуда не встаёт;
+// • конец — проверка наперёд (волна 55): ни при каком порядке не встанут все оставшиеся фигуры тройки (с учётом
+//   сгорания линий); фигура, которой не хватит места, — stuck, экран её подсвечивает;
 // • награда — как у «Лови мячик» (CatchGame.want): base…max до par_score, убывание по номеру партии за сутки,
 //   польза вещей (coinsX), свой дневной потолок и общий потолок мини-игр (minigames.daily_cap); настроение — ядерным play;
 // • рекорд и дневные счётчики — верхним уровнем SaveFile (blockduoBest, blockduoDay, blockduoCoins, blockduoGames).
@@ -172,6 +173,9 @@ struct BlockDuoGame: Hashable, Sendable {
     private(set) var shibaTurns = 0
     private(set) var shibaLines = 0
     private(set) var isOver = false
+    /// Волна 55: фигура тройки (слот), которой не хватит места ни при каком порядке. Не nil — партия кончилась,
+    /// и экран подсвечивает эту фигуру, даже если остальные ещё куда-то встают.
+    private(set) var stuck: Int? = nil
     /// Последний ход Шибы: экран подсвечивает его клетки до следующего хода.
     private(set) var lastShiba: BlockMove? = nil
 
@@ -179,7 +183,7 @@ struct BlockDuoGame: Hashable, Sendable {
         self.seed = seed
         board = Array(repeating: 0, count: BlockDuo.cells)
         tray = BlockDuo.deal(seed: seed, round: 0).map(Optional.some)
-        isOver = !anyFits
+        checkOver()
     }
 
     /// Готовое поле и тройка — для тестов: проверить линии, комбо и ход Шибы на нужной раскладке.
@@ -188,7 +192,7 @@ struct BlockDuoGame: Hashable, Sendable {
         self.seed = seed
         self.board = board
         self.tray = tray
-        isOver = !anyFits
+        checkOver()
     }
 
     var isEmpty: Bool { board.allSatisfy { $0 == 0 } }
@@ -203,8 +207,17 @@ struct BlockDuoGame: Hashable, Sendable {
         BlockDuo.spots(p.form, on: board).first != nil
     }
 
-    /// Хоть одна фигура из тройки встаёт.
+    /// Хоть одна фигура из тройки встаёт (сама по себе, без оглядки на остальные).
     var anyFits: Bool { tray.contains { $0.map(fitsAnywhere) ?? false } }
+
+    /// Конец партии — проверка наперёд (волна 55). Раньше партия кончалась, только когда ни одна фигура никуда
+    /// не вставала: можно было поставить ещё одну-две и всё равно упереться. Теперь — как только ни при каком
+    /// порядке не встанут все оставшиеся фигуры тройки (с учётом сгорания линий). Шиба ходит только после
+    /// всей тройки, поэтому на эту проверку не влияет.
+    private mutating func checkOver() {
+        stuck = BlockDuo.stuckSlot(tray, on: board)
+        isOver = stuck != nil
+    }
 
     /// Подсветка для фигуры slot в at; nil — сюда не встаёт.
     func preview(slot: Int, at: BlockCell) -> BlockPreview? {
@@ -244,7 +257,7 @@ struct BlockDuoGame: Hashable, Sendable {
             tray = BlockDuo.deal(seed: seed, round: round).map(Optional.some)
             dealt = true
         }
-        isOver = !anyFits
+        checkOver()
         return BlockTurn(mine: my, shiba: reply, shibaSkipped: skipped, dealt: dealt, over: isOver)
     }
 
@@ -440,10 +453,82 @@ enum BlockDuo {
         return top
     }
 
+    // MARK: проверка наперёд (волна 55)
+
+    /// Поле после постановки на копии: фигура легла, полные линии сгорели. cleared — сгорела ли хоть одна.
+    static func afterPut(_ s: BlockShape, at: BlockCell, on board: [UInt8]) -> (board: [UInt8], cleared: Bool) {
+        var b = board
+        for c in s.cells { b[(at.r + c.r) * size + at.c + c.c] = 1 }
+        let (rows, cols) = fullLines(b)
+        guard !rows.isEmpty || !cols.isEmpty else { return (b, false) }
+        for i in lineCells(rows: rows, cols: cols) { b[i] = 0 }
+        return (b, true)
+    }
+
+    /// Встанут ли все фигуры в каком-нибудь порядке, с учётом сгорания линий. Перебор ≤ 3! порядков × места.
+    /// Отсечение: пока линии не сгорают, поле только заполняется — фигуре, которой места нет уже сейчас, место
+    /// может дать только сгорание. Последняя фигура, у которой место есть, обязана что-то сжечь, иначе ветку не
+    /// смотрим (пока таких фигур две, первая может лечь и без сгорания — сожжёт вторая). Проигранные (поле,
+    /// остаток) запоминаются.
+    static func allFit(_ shapes: [BlockShape], on board: [UInt8]) -> Bool {
+        guard !shapes.isEmpty else { return true }
+        var dead = Set<FitKey>()
+        return allFit(shapes, mask: (1 << shapes.count) - 1, on: board.map { $0 == 0 ? 0 : 1 }, &dead)
+    }
+
+    private struct FitKey: Hashable {
+        let board: [UInt8]
+        let mask: Int
+    }
+
+    private static func allFit(_ shapes: [BlockShape], mask: Int, on b: [UInt8], _ dead: inout Set<FitKey>) -> Bool {
+        let left = shapes.indices.filter { mask & (1 << $0) != 0 }
+        guard !left.isEmpty else { return true }
+        let options = left.map { spots(shapes[$0], on: b) }
+        if left.count == 1 { return !options[0].isEmpty }
+        let key = FitKey(board: b, mask: mask)
+        if dead.contains(key) { return false }
+        // Фигуры без места есть, а с местом — одна: ей и сжигать.
+        let free = options.filter { !$0.isEmpty }.count
+        let mustClear = free < left.count && free == 1
+        for (k, i) in left.enumerated() {
+            // Две одинаковые фигуры — порядок между ними не важен.
+            if left[..<k].contains(where: { shapes[$0].cells == shapes[i].cells }) { continue }
+            for at in options[k] {
+                let (next, cleared) = afterPut(shapes[i], at: at, on: b)
+                if mustClear && !cleared { continue }
+                if allFit(shapes, mask: mask & ~(1 << i), on: next, &dead) { return true }
+            }
+        }
+        dead.insert(key)
+        return false
+    }
+
+    /// Слот фигуры, которой не хватит места; nil — все фигуры тройки встанут в каком-нибудь порядке.
+    /// Виновата та, без которой остальные встают; таких несколько — самая большая, поровну — левая. Не спасает
+    /// ни одна — первая, которой места нет уже сейчас (а если места есть всем — первая из оставшихся).
+    static func stuckSlot(_ tray: [BlockPiece?], on board: [UInt8]) -> Int? {
+        let slots = tray.indices.filter { tray[$0] != nil }
+        let shapes = slots.compactMap { tray[$0]?.form }
+        guard !slots.isEmpty, !allFit(shapes, on: board) else { return nil }
+        var pick: (slot: Int, size: Int)? = nil
+        for (k, slot) in slots.enumerated() {
+            let rest = shapes.indices.filter { $0 != k }.map { shapes[$0] }
+            guard allFit(rest, on: board) else { continue }
+            let n = shapes[k].cells.count
+            if let p = pick, p.size >= n { continue }
+            pick = (slot, n)
+        }
+        if let pick { return pick.slot }
+        return slots.first { k in tray[k].map { spots($0.form, on: board).isEmpty } ?? false } ?? slots[0]
+    }
+
     // MARK: автопилот (тесты, UI-снимки)
 
-    /// Ход хозяина так же жадно, как Шиба, по всем фигурам тройки; поровну — левая фигура. nil — ходить некуда.
+    /// Ход хозяина так же жадно, как Шиба, по всем фигурам тройки; поровну — левая фигура. nil — ходить некуда
+    /// (или партия уже кончилась: тройка целиком не встанет).
     static func pilotMove(_ g: BlockDuoGame) -> (slot: Int, at: BlockCell)? {
+        guard !g.isOver else { return nil }
         var top: (slot: Int, at: BlockCell, lines: Int, touch: Int)? = nil
         for (slot, p) in g.tray.enumerated() {
             guard let p, let b = best(p.form, on: g.board) else { continue }

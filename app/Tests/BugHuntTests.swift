@@ -20,54 +20,7 @@ private func bFile(at t: Double = bT0, level: Double = 60) -> SaveFile {
     return f
 }
 
-/// Конфиг зомби с явными цифрами — тест не зависит от правок economy.json.
-private func bZombieCfg() -> ZombieConfig {
-    var c = ZombieConfig()
-    c.roundSeconds = 50
-    c.hearts = 3
-    c.base = 5
-    c.max = 40
-    c.parScore = 500
-    c.dailyCap = 60
-    c.sharedCap = 60
-    c.diminishing = [.init(from: 1, x: 1), .init(from: 7, x: 0.5), .init(from: 13, x: 0.2)]
-    return c
-}
-
 final class BugHuntTests: XCTestCase {
-
-    // MARK: «Щенок против зомби» платил мёртвому псу
-
-    func testZombieFinishAfterDeathPaysNothing() {
-        // Волна 13 (DECISIONS «Мини-игры после смерти»): пёс умер, пока шёл раунд, — монет нет, рекорд остаётся.
-        // «Лови мячик» и «Блок Дуо» так и делают; зомби платили — монеты уходили в кошелёк, который переходит щенку.
-        let cfg = bZombieCfg()
-        let round = ZombieRun.autoplay(seed: 3, cfg)
-        XCTAssertGreaterThan(round.score, 0, "раунд с очками: иначе монет и так ноль")
-        var f = bFile()
-        f.pet.alive = false
-        let coins = f.econ.wallet.coins
-        let r = ZombieRun.finish(round, in: &f, now: bT0, cfg)
-        XCTAssertEqual(r.coins, 0)
-        XCTAssertEqual(r.totalCoins, 0)
-        XCTAssertFalse(r.capped, "не «на сегодня хватит»: просто некому")
-        XCTAssertNil(ZombieRun.rewardText(r))
-        XCTAssertEqual(f.econ.wallet.coins, coins)
-        XCTAssertEqual(f.zombieCoins, 0, "дневной потолок не съеден")
-        XCTAssertFalse(r.played)
-        XCTAssertEqual(f.zombieBest, round.score, "рекорд остаётся")
-    }
-
-    func testZombieFinishAliveStillPays() {
-        // Контроль к тесту выше: живому псу платим как раньше.
-        let cfg = bZombieCfg()
-        let round = ZombieRun.autoplay(seed: 3, cfg)
-        var f = bFile()
-        let coins = f.econ.wallet.coins
-        let r = ZombieRun.finish(round, in: &f, now: bT0, cfg)
-        XCTAssertGreaterThan(r.coins, 0)
-        XCTAssertEqual(f.econ.wallet.coins, coins + r.coins + r.careCoins)
-    }
 
     // MARK: ссылка pet://shop / pet://kitchen: второй шаг после того, как автомат или «Дом» уже закрыли
 

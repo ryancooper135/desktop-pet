@@ -585,9 +585,9 @@ private struct BowlView: View {
 }
 
 /// Кнопка «Мини-игры» в ряду над панелью, за «Трюками» (волна 12; в волне 9 тут был один мячик): только значок,
-/// по нажатию — меню «Лови мячик», «Блок Дуо» и «Щенок против зомби». Седьмой круг в ряд на iPhone Air уже не влезает,
+/// по нажатию — меню мини-игр из реестра MiniGame (волна 55; «Щенок против зомби» убран). Седьмой круг в ряд на iPhone Air уже не влезает,
 /// поэтому игры живут под одной кнопкой. Волна 32: открывается всегда — спит, гуляет, устал… — игра идёт «просто так»
-/// (MiniGames.busy), об этом говорит карточка «Играть». Id — open.games, пункты — open.catch, open.blockduo и open.zombie.
+/// (MiniGames.busy), об этом говорит карточка «Играть». Id — open.games, пункты — open.<MiniGame.rawValue>: open.catch, open.blockduo.
 struct GamesButton: View {
     @Environment(AppModel.self) private var model
     /// Время снимка: по нему MiniGames.busy.
@@ -599,32 +599,30 @@ struct GamesButton: View {
 
     var body: some View {
         Menu {
-            Button {
-                model.showCatch = true
-            } label: {
-                Label(CatchConfig.shared.name, systemImage: "tennisball.fill")
+            ForEach(MiniGame.allCases, id: \.self) { g in
+                Button {
+                    open(g)
+                } label: {
+                    Label(g.name, systemImage: g.icon)
+                }
+                .accessibilityIdentifier("open.\(g.rawValue)")
             }
-            .accessibilityIdentifier("open.catch")
-            Button {
-                model.showBlockDuo = true
-            } label: {
-                Label(BlockDuoConfig.shared.name, systemImage: "square.grid.3x3.fill")
-            }
-            .accessibilityIdentifier("open.blockduo")
-            Button {
-                model.showZombie = true
-            } label: {
-                Label(ZombieConfig.shared.name, systemImage: "teddybear.fill")
-            }
-            .accessibilityIdentifier("open.zombie")
         } label: {
             icon
         }
         .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel(Text("Мини-игры"))
         .accessibilityValue(Text(busy.map { MiniGames.noteText($0, name: model.snap.name) } ?? ""))
-        .accessibilityHint(Text(PetNames.adapt("Лови мячик, Блок Дуо или Щенок против зомби вместе с Шибой", name: model.snap.name)))
+        .accessibilityHint(Text(PetNames.adapt(MiniGames.menuHint(), name: model.snap.name)))
         .accessibilityIdentifier("open.games")
+    }
+
+    /// Открыть игру реестра на весь экран. Новая игра — новый case здесь и fullScreenCover в HomeScreen.
+    private func open(_ g: MiniGame) {
+        switch g {
+        case .ball: model.showCatch = true
+        case .blockduo: model.showBlockDuo = true
+        }
     }
 
     private var icon: some View {

@@ -99,7 +99,7 @@ final class A11yTests: XCTestCase {
             XCTAssertTrue(n.hasSuffix(".") || n.hasSuffix("!"), "\(g): «\(n)»")
         }
         XCTAssertTrue(A11y.gameNote(.blockDuo).contains("Прости"))
-        let custom = PetNames.adapt(A11y.gameNote(.zombie), name: "Серый")
+        let custom = PetNames.adapt(A11y.gameNote(.catchBall), name: "Серый")
         XCTAssertFalse(custom.contains("Шиб"), "имя своего персонажа подставляется: \(custom)")
     }
 

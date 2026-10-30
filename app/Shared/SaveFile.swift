@@ -87,7 +87,8 @@ struct SaveFile: Codable, Sendable {
     var blockduoDay = 0
     var blockduoCoins = 0
     var blockduoGames = 0
-    /// «Щенок против зомби» (ZombieRun.swift, волна 13): рекорд и счётчики суток. Нули в файл не пишутся.
+    /// «Щенок против зомби» (волна 13, убран в волне 55): поля только для совместимости со старыми сейвами —
+    /// читаются и пишутся как были, но ни одна игра их больше не трогает. Нули в файл не пишутся.
     var zombieBest = 0
     var zombieDay = 0
     var zombieCoins = 0

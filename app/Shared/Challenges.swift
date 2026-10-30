@@ -1,5 +1,5 @@
 // Волна 35 K (RESEARCH/20-tycoon-design.md §6): челлендж дня в мини-играх.
-// Каждый день — одна игра по кругу (Мячик → Блок Дуо → Зомби); цель = max(база, 70 % личного рекорда),
+// Каждый день — одна игра по кругу (Мячик → Блок Дуо; волна 55 убрала зомби); цель = max(база, 70 % личного рекорда),
 // округлённая по-человечески. Открывается с ур. 11 (DogLevel «games.challenge»). Засчитывается только
 // настоящий раунд (не «просто так»): 1 ✂️ и запись game.challenge в журнал — DogLevel.settle даёт +10 опыта.
 // Раз в день; переигрывать можно, но без награды. Три выполненных дня за неделю (с понедельника, как сундук
@@ -8,35 +8,13 @@
 import Foundation
 @preconcurrency import PetCore
 
-/// Мини-игра с рекордом — она же игра челленджа. rawValue — ключ рекордов. Это единственный список игр с рекордом:
-/// Shards.recordGames и Shards.records (и цель «Все игры») берут его отсюда (волна 40 E).
-enum ChallengeGame: String, Codable, CaseIterable, Hashable, Sendable {
-    case ball = "catch"
-    case blockduo
-    case zombie
-
-    /// Короткое имя для плашки.
-    var title: String {
-        switch self {
-        case .ball: return "Мячик"
-        case .blockduo: return "Блок Дуо"
-        case .zombie: return "Зомби"
-        }
-    }
-
-    /// Личный рекорд этой игры в сейве.
-    func record(_ f: SaveFile) -> Int {
-        switch self {
-        case .ball: return f.catchBest
-        case .blockduo: return f.blockduoBest
-        case .zombie: return f.zombieBest
-        }
-    }
-}
+/// Игра челленджа — та же, что в реестре мини-игр (MiniGame, волна 55). rawValue — ключ рекордов; Shards.recordGames
+/// и Shards.records (и цель «Все игры») берут список отсюда (волна 40 E).
+typealias ChallengeGame = MiniGame
 
 struct ChallengeConfig: Sendable {
-    /// Базовые цели в очках игры. Зомби — очки, не секунды: раунд всего 50 с (см. DECISIONS, волна 35 K).
-    var bases: [ChallengeGame: Int] = [.ball: 25, .blockduo: 2000, .zombie: 200]
+    /// Базовые цели в очках игры.
+    var bases: [ChallengeGame: Int] = [.ball: 25, .blockduo: 2000]
     /// Доля рекорда в цели.
     var ratio = 0.7
     /// Награда за день.
@@ -126,7 +104,6 @@ protocol ChallengeScored {
 
 extension CatchResult: ChallengeScored {}
 extension BlockDuoResult: ChallengeScored {}
-extension ZombieResult: ChallengeScored {}
 
 /// Что показать на плашке экрана игры.
 enum ChallengeStatus: Equatable, Sendable {
@@ -149,7 +126,7 @@ enum Challenges {
         DogLevel.isOpen(unlockId, level: DogLevel.level(f))
     }
 
-    /// Игра челленджа в сутки day: по кругу Мячик → Блок Дуо → Зомби.
+    /// Игра челленджа в сутки day: по кругу всех игр реестра (Мячик → Блок Дуо).
     static func game(day: Int) -> ChallengeGame {
         let all = ChallengeGame.allCases
         let i = day - DayKey.floorDiv(day, all.count) * all.count
