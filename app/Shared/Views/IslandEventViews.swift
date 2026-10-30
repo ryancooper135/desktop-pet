@@ -147,6 +147,9 @@ extension IslandGlyph {
         case .piggy: return Color(hex: 0xf4a6b4)
         case .star: return PetPalette.yellow
         case .calm: return PetPalette.soft
+        case .bath: return PetPalette.need(.clean)
+        case .nap: return Color(hex: 0x9fb4d8)
+        case .need: return PetPalette.accent
         }
     }
 }
@@ -155,6 +158,10 @@ extension IslandCard {
     /// Кнопка карточки: голод — «Покормить», дома — «Погладить», сердечко — спасающая; остальное — «Открыть».
     var buttonAct: IslandAct { actsInPlace ? act : .open }
     var critical: Bool { kind == .lastChance }
+    /// Цвет: у потребности — цвет её шкалы, иначе — цвет значка события.
+    var tint: Color { need.map { PetPalette.need($0) } ?? glyph.tint }
+    /// Значок: у карточки «что сейчас» — свой символ (волна 51), иначе — символ события.
+    var symbolName: String { symbol ?? glyph.symbol }
 }
 
 /// Значок события: копилка — свинья, остальное — символ.
@@ -166,9 +173,9 @@ struct IslandGlyphView: View {
         if card.glyph == .piggy {
             PixelPigView().frame(width: size * 1.3, height: size)
         } else {
-            Image(systemName: card.glyph.symbol)
+            Image(systemName: card.symbolName)
                 .font(.system(size: size, weight: .bold))
-                .foregroundStyle(card.glyph.tint)
+                .foregroundStyle(card.tint)
         }
     }
 }
@@ -193,7 +200,7 @@ struct IslandCountdown: View {
             }
                 .monospacedDigit()
                 .font(.system(size: size, weight: .semibold, design: .rounded))
-                .foregroundStyle(card.glyph.tint)
+                .foregroundStyle(card.tint)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -309,7 +316,7 @@ struct IslandCardCompactTrailing: View {
             case .text:
                 Text(card.compact)
                     .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .foregroundStyle(card.glyph.tint)
+                    .foregroundStyle(card.tint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -361,7 +368,7 @@ struct IslandCardExpandedTrailing: View {
         case .text:
             Text(card.compact)
                 .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .foregroundStyle(card.glyph.tint)
+                .foregroundStyle(card.tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }

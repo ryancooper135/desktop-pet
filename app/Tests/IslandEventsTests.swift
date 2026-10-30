@@ -329,9 +329,11 @@ final class IslandEventsTests: XCTestCase {
         // В походе — нет дома и записка, после возвращения — дома.
         let trip = IslandTrip(from: noon - 600, backAt: noon + 3600, place: "Маяк")
         let tf = IslandEvents.widget(file(at: noon), now: noon, trip: trip, tzOffsetMin: 0, cfg)
-        XCTAssertEqual(tf.first?.pose, .away)
+        // Волна 51: в походе пёс бежит (.run); .away — только «убежал».
+        XCTAssertEqual(tf.first?.pose, .run)
         XCTAssertEqual(tf.first?.note, "Маяк · вернётся в 13:00")
         XCTAssertEqual(tf.first?.tripUntil, noon + 3600)
+        XCTAssertNotEqual(tf[3].pose, .run)
         XCTAssertNotEqual(tf[3].pose, .away)
 
         // Только что покормили — ест.

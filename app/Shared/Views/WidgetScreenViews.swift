@@ -297,6 +297,78 @@ struct WidgetCaption: View {
     }
 }
 
+/// Волна 51: «что сейчас» — значок, заголовок и живой таймер или подпись («Моется 2:59», «Спит · до 07:30»).
+/// Просьба пса без занятия — прежней плашкой (WidgetCaption).
+struct WidgetStatusHead: View {
+    var look: WidgetLook
+    var size: CGFloat = 13
+    var detail = true
+
+    var body: some View {
+        if !look.statusLeads {
+            WidgetCaption(look: look, size: size)
+        } else {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Image(systemName: look.status.symbol)
+                        .font(.system(size: size - 2, weight: .bold))
+                        .foregroundStyle(tint)
+                    Text(look.headline)
+                        .font(.system(size: size, weight: .bold, design: .rounded))
+                        .foregroundStyle(PetPalette.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 0)
+                    if let tm = look.statusTimer {
+                        WidgetTripTimer(from: tm.from, until: tm.until, size: size - 1)
+                            .foregroundStyle(tint)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: size * 4, alignment: .trailing)
+                    }
+                }
+                if detail, let s = look.subline {
+                    Text(s)
+                        .font(.system(size: size - 2, weight: .medium, design: .rounded))
+                        .foregroundStyle(PetPalette.soft)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("w51.widget.status")
+        }
+    }
+
+    private var tint: Color { look.status.need.map { PetPalette.need($0) } ?? PetPalette.accent }
+}
+
+/// Волна 51: кнопка действия статуса — только если ядро его примет (WidgetLook.button). Без открытия приложения.
+struct WidgetActButton: View {
+    var act: IslandAct
+    var compact = false
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    var body: some View {
+        let tinted = renderingMode != .fullColor
+        Button(intent: IslandActIntent(act, .widget)) {
+            HStack(spacing: 4) {
+                Image(systemName: act.icon)
+                if !compact { Text(act.title).lineLimit(1).minimumScaleFactor(0.8) }
+            }
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary) : AnyShapeStyle(Color.white))
+            .frame(maxWidth: compact ? nil : .infinity)
+            .padding(.horizontal, compact ? 8 : 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(tinted ? AnyShapeStyle(HierarchicalShapeStyle.primary.opacity(0.18)) : AnyShapeStyle(act.tint)))
+        }
+        .buttonStyle(.plain)
+        .widgetAccentable()
+        .accessibilityLabel(Text(act.title))
+        .accessibilityIdentifier("w51.widget.act")
+    }
+}
+
 // MARK: - Домашний экран
 
 /// Small: экран с псом и кольцом копилки, подпись, главная шкала. Полная копилка — кнопка «Собрать» в углу.
@@ -312,10 +384,13 @@ struct WidgetScreenSmallView: View {
             .overlay(alignment: .bottomTrailing) {
                 if look.bankFull && look.canCollect { WidgetCollectButton(compact: true).padding(4) }
             }
-            WidgetCaption(look: look, size: 12)
-            if let tp = look.tripProgress {
+            // Волна 51: «что сейчас», под ним кнопка (если ядро примет) — иначе полоска похода или главная шкала.
+            WidgetStatusHead(look: look, size: 12, detail: look.button == nil && look.tripProgress == nil)
+            if let a = look.button {
+                WidgetActButton(act: a)
+            } else if let tp = look.tripProgress {
                 WidgetTripDot(progress: tp)
-            } else if look.ask == nil, let m = look.main {
+            } else if look.ask == nil, look.subline == nil, look.statusTimer == nil, let m = look.main {
                 // Просьба занимает две строки — шкалу в small тогда не показываем, места нет.
                 WidgetBarRow(bar: m)
                     .frame(height: 12)
@@ -336,16 +411,21 @@ struct WidgetScreenMediumView: View {
             .overlay(alignment: .topTrailing) { WidgetBankRing(look: look, size: 30).padding(5) }
             .frame(width: 128)
             VStack(alignment: .leading, spacing: 5) {
-                WidgetCaption(look: look, size: 14)
+                WidgetStatusHead(look: look, size: 14)
                 if let tp = look.tripProgress {
                     WidgetTripDot(progress: tp)
                 }
-                // Просьба — две строки подписи: шкал тогда две, чтобы копилка не уехала за край.
-                ForEach(look.ask != nil ? Array(look.bars.prefix(2)) : look.bars, id: \.need) { b in
+                // Просьба — две строки подписи, подпись статуса и кнопка — по строке: шкал тогда две,
+                // чтобы низ не уехал за край.
+                ForEach(Array(look.bars.prefix(look.mediumBars)), id: \.need) { b in
                     WidgetBarRow(bar: b, showName: true)
                 }
                 Spacer(minLength: 0)
-                WidgetBankRow(look: look)
+                if let a = look.button {
+                    WidgetActButton(act: a)
+                } else {
+                    WidgetBankRow(look: look)
+                }
             }
         }
     }
@@ -372,13 +452,14 @@ struct WidgetScreenLargeView: View {
                         .padding(8)
                 }
             }
-            WidgetCaption(look: look, size: 15)
+            WidgetStatusHead(look: look, size: 15)
             if let tp = look.tripProgress {
                 WidgetTripDot(progress: tp)
             }
             ForEach(look.bars, id: \.need) { b in
                 WidgetBarRow(bar: b, showName: true)
             }
+            if let a = look.button { WidgetActButton(act: a) }
             WidgetBankRow(look: look)
         }
     }
@@ -416,6 +497,16 @@ struct WidgetLockCircularView: View {
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
+            if look.lock != .trip, let tm = look.statusTimer {
+                // Волна 51: занятие с концом (моется, дремлет) — значок и таймер.
+                VStack(spacing: 1) {
+                    Image(systemName: look.status.symbol).font(.system(size: 12, weight: .bold))
+                    WidgetTripTimer(from: tm.from, until: tm.until, size: 11)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.6)
+                }
+                .padding(4)
+            } else {
             switch look.lock {
             case .trip:
                 if let until = look.tripUntil {
@@ -441,9 +532,10 @@ struct WidgetLockCircularView: View {
             case .pose:
                 PixelDogView(pose: look.pose, mono: true, animated: false).padding(6)
             }
+            }
         }
         .accessibilityElement()
-        .accessibilityLabel(Text(look.caption))
+        .accessibilityLabel(Text(look.statusLeads ? look.status.line : look.caption))
         .accessibilityIdentifier("w34j.widget.circular")
     }
 }
@@ -457,12 +549,27 @@ struct WidgetLockRectangularView: View {
             PixelDogView(pose: look.pose, mono: true, animated: false)
                 .frame(width: 44, height: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text(look.askEmoji.map { "\($0) \(look.caption)" } ?? look.caption)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-                if look.lock == .trip, let until = look.tripUntil {
+                if look.statusLeads {
+                    // Волна 51: «Моется» и таймер, «Спит · до 07:30», «Хочет есть» и шкала.
+                    Text("\(Image(systemName: look.status.symbol)) \(look.headline)")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                } else {
+                    Text(look.askEmoji.map { "\($0) \(look.caption)" } ?? look.caption)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                }
+                if let tm = look.statusTimer {
+                    WidgetTripTimer(from: tm.from, until: tm.until, size: 12)
+                } else if look.lock == .trip, let until = look.tripUntil {
                     WidgetTripTimer(from: look.tripFrom ?? look.t, until: until, size: 12)
+                } else if let sub = look.subline {
+                    Text(sub)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 } else if let line = look.bankLine {
                     Text(line)
                         .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -481,8 +588,13 @@ struct WidgetLockInlineView: View {
     var look: WidgetLook
 
     var body: some View {
-        let icon = look.ask != nil ? IslandGlyph.ask.symbol : (look.lock == .trip ? "figure.walk" : "pawprint.fill")
-        Text("\(Image(systemName: icon)) \(look.caption)")
+        if look.statusLeads {
+            // Волна 51: одна строка без живого таймера — «Моется · ещё 3 мин», «Спит · до 07:30».
+            Text("\(Image(systemName: look.status.symbol)) \(look.status.line)")
+        } else {
+            let icon = look.ask != nil ? IslandGlyph.ask.symbol : (look.lock == .trip ? "figure.walk" : "pawprint.fill")
+            Text("\(Image(systemName: icon)) \(look.caption)")
+        }
     }
 }
 
@@ -509,7 +621,7 @@ extension PreviewFixtures {
         switch mood {
         case "hungry": l.pose = .bowl
         case "asleep": l.pose = .sleep
-        case "walking": l.pose = .away
+        case "walking": l.pose = .run
         default: break
         }
         return l

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Волна 51 · экран блокировки</title>
+<link rel="stylesheet" href="w51.css"></head>
+<body>
+<h1>Экран блокировки — «что сейчас»</h1>
+<p class="lead">Виджеты блокировки одноцветные (система красит их сама), поэтому смысл держат значок и слово.
+Кнопок на экране блокировки нет — нажатие открывает приложение (Apple HIG). Строка над часами — одна фраза.</p>
+<div class="row">
+  <div class="col">
+    <div class="tag rec"><b>A</b>Значок + таймер — реализован</div>
+    <div class="lock">
+      <div class="inl">🛁 Моется · ещё 3 мин</div>
+      <div class="time">9:41</div><div class="date">четверг, 30 октября</div>
+      <div class="lk">
+        <div class="circ"><span class="sym">🛁</span>2:58</div>
+        <div class="rect"><div class="t">🛁 Моется</div><div class="timer" style="color:#dfe6f2">2:58</div></div>
+      </div>
+    </div>
+    <div class="lock" style="margin-top:12px">
+      <div class="inl">❗ Пора помыться · чистота 10 %</div>
+      <div class="time">9:41</div><div class="date">четверг, 30 октября</div>
+      <div class="lk">
+        <div class="circ" style="background:conic-gradient(#fff 10%, rgba(255,255,255,.18) 0)"><span class="sym" style="background:#2c3446;border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center">🛁</span></div>
+        <div class="rect"><div class="t">❗ Пора помыться</div><div style="opacity:.8">чистота 10 %</div></div>
+      </div>
+    </div>
+    <div class="note">Круг — значок и таймер (или кольцо нужды), прямоугольник — слово и таймер. Кнопки нет, нажатие откроет Шибу.</div>
+  </div>
+  <div class="col">
+    <div class="tag"><b>B</b>Только текст</div>
+    <div class="lock">
+      <div class="inl">Шиба моется, ещё 3 минуты</div>
+      <div class="time">9:41</div><div class="date">четверг, 30 октября</div>
+      <div class="lk"><div class="rect" style="width:240px"><div class="t">Моется</div><div>ещё 3 минуты, потом гулять</div></div></div>
+    </div>
+    <div class="note">Понятно словами, но не видно отсчёта и нет кольца — круглому виджету нечего показать.</div>
+  </div>
+  <div class="col">
+    <div class="tag"><b>C</b>Мордочка в круге</div>
+    <div class="lock">
+      <div class="inl">Шиба · ур. 14</div>
+      <div class="time">9:41</div><div class="date">четверг, 30 октября</div>
+      <div class="lk">
+        <div class="circ" style="background:#fff"><span data-dog="bath" data-w="56"></span></div>
+        <div class="rect"><div class="t">Шиба</div><div style="opacity:.8">еда 82 · чист 45</div></div>
+      </div>
+    </div>
+    <div class="note">Мило, но в одноцветном режиме рисунок сливается, а занятие не названо.</div>
+  </div>
+</div>
+<script src="dog.js"></script>
+</body></html>

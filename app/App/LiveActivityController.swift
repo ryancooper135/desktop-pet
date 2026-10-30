@@ -4,6 +4,8 @@
 // поход и «Я дома!», полная копилка, новый уровень. Всё хорошо или ночь хозяина — активности нет, закрываем.
 // Волна 45 O: и открытая просьба пса (выше копилки) — только текущим видом; отдельно ради неё активность
 // не запускается: старт, как и раньше, — при входе в приложение или переключателем острова.
+// Волна 51: занятие с концом (моется, дремлет, гуляет — PetStatusLogic) держит остров и без события, с таймером
+// до конца; побег, последний шанс и поход — поверх него (IslandLook.plan).
 // staleDate — момент, когда картинка сменится (из логики); вид после него (card.next) кладём заранее:
 // снаружи активность не обновить. Система живёт с активностью до 8 часов — через 7 часов перезапускаем при входе.
 
@@ -27,19 +29,25 @@ enum LiveActivityController {
     static func plan(_ f: SaveFile, now: Double) -> (state: PetAttributes.ContentState, staleT: Double)? {
         let input = IslandFeed.input(f, now: now)
         let show = IslandEvents.show(input)
-        guard show.current != nil else { return nil }
+        // Волна 51: «что сейчас» — занятие с концом (моется, дремлет, гуляет) держит остров и без события.
+        let status = PetStatusLogic.of(f, now: now)
+        guard show.current != nil || IslandLook.timed(status) else { return nil }
+        // Кнопка «последнего сердечка» — то, что ядро примет в тот момент.
+        // Занятие ведёт (не перебито побегом, последним сердечком или походом) — «после» на его конце.
+        let strong = show.current.map { IslandLook.overStatus.contains($0.kind) && !show.pending } ?? false
+        let afterT = IslandLook.timed(status) && !strong ? status.timerEnd : show.staleDate
+        let after = afterT.map { IslandPlan.pick(f, at: $0) }
+        guard let p = IslandLook.plan(show, input, status: status, statusAt: { PetStatusLogic.of(f, now: $0) },
+                                      pickNow: IslandPlan.pick(f, at: now), pickAfter: after) else { return nil }
         let events = ForecastTools.upcoming(f, at: now, horizonH: 12)
         var state = PetAttributes.ContentState.make(f, at: now, events: events)
-        // Кнопка «последнего сердечка» — то, что ядро примет в тот момент.
-        let after = show.staleDate.map { IslandPlan.pick(f, at: $0) }
-        let cards = IslandLook.cards(show, input, pickNow: IslandPlan.pick(f, at: now), pickAfter: after)
-        state.card = cards.now
-        state.next = cards.next
-        // Реакцию на кнопку в карточках не рисуем: stale — только смена события.
+        state.card = p.now
+        state.next = p.next
+        // Реакцию на кнопку в карточках не рисуем: stale — только смена события или конец занятия.
         state.calmPose = nil
         state.calmLine = nil
         state.reactUntil = nil
-        let staleT = show.staleDate ?? now + IslandEventsConfig.shared.maxStaleH * 3600
+        let staleT = p.stale ?? now + IslandEventsConfig.shared.maxStaleH * 3600
         return (state, staleT)
     }
 

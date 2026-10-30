@@ -16,6 +16,7 @@ enum IntentBridge {
         #else
         let out = (try? PetRunner.perform(a, source: source)) ?? .storeFailed
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         return out
         #endif
     }
@@ -41,6 +42,7 @@ enum IntentBridge {
             return Habits.failed(h)
         }
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         return out
         #endif
     }
@@ -57,6 +59,7 @@ enum IntentBridge {
         await AppActions.shared.afterChange()
         #else
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         #endif
         return h
     }
@@ -176,6 +179,17 @@ struct IslandActIntent: LiveActivityIntent {
         }
         return .result()
     }
+}
+
+/// Волна 51: контрол «Шиба сейчас» без доступного действия (моется, спит, всё хорошо) — просто открыть приложение.
+struct OpenShibaIntent: AppIntent {
+    static let title: LocalizedStringResource = "Открыть Шибу"
+    static let isDiscoverable: Bool = false
+    static let openAppWhenRun: Bool = true
+
+    init() {}
+
+    func perform() async throws -> some IntentResult { .result() }
 }
 
 /// Волна 34 J: кнопка «Собрать» в виджете — копилка двора в кошелёк, приложение не открывается.

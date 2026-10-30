@@ -1,0 +1,64 @@
+/* Волна 51: макеты «что сейчас» — общий стиль. Шрифт системный (на iPhone — SF), без внешних файлов. */
+:root {
+  --bg: #e9e4dc; --ink: #2b2622; --mute: #8a8178; --card: #fbf8f3; --plastic: #f3eee6;
+  --accent: #e0803a; --bath: #3d9be0; --nap: #7b6fd6; --need: #d9534f; --ok: #4caf6a;
+  --dark: #141210; --dark2: #26221f;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.25 -apple-system, "Segoe UI", system-ui, sans-serif;
+  padding: 28px 32px 36px; width: 1200px; }
+h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.lead { color: var(--mute); margin-bottom: 22px; max-width: 900px; }
+.row { display: flex; gap: 28px; align-items: flex-start; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.tag { font-weight: 700; font-size: 15px; align-self: stretch; text-align: center; }
+.tag b { display: inline-block; background: var(--ink); color: #fff; border-radius: 6px; padding: 1px 7px; margin-right: 6px; }
+.tag.rec b { background: var(--ok); }
+.note { color: var(--mute); font-size: 12.5px; text-align: center; max-width: 340px; }
+.states { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.cap { font-size: 11px; color: var(--mute); text-align: center; margin-top: 4px; }
+
+/* Виджет */
+.w { background: var(--plastic); border-radius: 22px; box-shadow: 0 1px 0 #fff inset, 0 6px 18px rgba(0,0,0,.12);
+  padding: 12px; position: relative; overflow: hidden; }
+.w.s { width: 158px; height: 158px; }
+.w.m { width: 338px; height: 158px; }
+.screen { background: linear-gradient(#bfe0f5, #f6efe0 70%); border-radius: 12px; position: relative; overflow: hidden; }
+.dog { display: block; image-rendering: pixelated; }
+.head { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.head .ic { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; flex: none; }
+.timer { font-variant-numeric: tabular-nums; color: var(--mute); font-weight: 600; }
+.sub { color: var(--mute); font-size: 12px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: 999px; color: #fff;
+  font-weight: 700; font-size: 13px; padding: 5px 12px; }
+.bar { height: 6px; border-radius: 3px; background: #ddd5ca; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; }
+.barrow { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--mute); }
+.barrow .bar { flex: 1; }
+
+/* Экран блокировки */
+.lock { background: linear-gradient(160deg, #3b4a63, #1e2433); border-radius: 26px; padding: 18px; width: 340px; color: #fff; }
+.lock .time { font-size: 54px; font-weight: 300; text-align: center; letter-spacing: -1px; line-height: 1; }
+.lock .date { text-align: center; font-size: 14px; opacity: .8; margin-bottom: 12px; }
+.lk { display: flex; gap: 10px; justify-content: center; align-items: center; }
+.circ { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.18); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; font-size: 11px; font-weight: 700; text-align: center; }
+.circ .sym { font-size: 18px; }
+.rect { width: 160px; height: 64px; border-radius: 14px; background: rgba(255,255,255,.18); padding: 7px 10px;
+  display: flex; flex-direction: column; justify-content: center; font-size: 12px; }
+.rect .t { font-weight: 700; font-size: 14px; }
+.inl { text-align: center; font-size: 13px; opacity: .9; margin-bottom: 6px; }
+
+/* Остров */
+.phone { background: #0b0b0c; border-radius: 30px; padding: 12px; width: 360px; }
+.isl { background: #000; border-radius: 22px; color: #fff; margin: 0 auto; display: flex; align-items: center; }
+.isl.c { height: 36px; width: 250px; justify-content: space-between; padding: 0 12px; }
+.isl.mn { height: 36px; width: 36px; justify-content: center; border-radius: 50%; }
+.isl.x { flex-direction: column; align-items: stretch; width: 336px; padding: 14px 16px; border-radius: 34px; gap: 8px; }
+.isl .row2 { display: flex; align-items: center; gap: 10px; }
+.isl .ttl { font-weight: 700; font-size: 16px; }
+.isl .tm { font-variant-numeric: tabular-nums; font-weight: 700; }
+.lbl { font-size: 11px; color: #8d8a86; text-align: center; margin: 8px 0 4px; }
+.lockcard { background: rgba(250,247,242,.96); color: var(--ink); border-radius: 22px; padding: 12px 14px; width: 336px;
+  display: flex; gap: 10px; align-items: center; margin: 6px auto 0; }

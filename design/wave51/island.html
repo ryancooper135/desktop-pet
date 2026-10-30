@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Волна 51 · остров</title>
+<link rel="stylesheet" href="w51.css"></head>
+<body>
+<h1>Остров (Live Activity) — «что сейчас»</h1>
+<p class="lead">Занятие с концом (моется, дремлет, гуляет) держит остров и без события; таймер идёт сам. По Apple HIG: компактный —
+значок слева и время справа, минимальный — один значок, развёрнутый — пёс, слово, таймер и одна кнопка, если она доступна.</p>
+<div class="row">
+  <div class="col">
+    <div class="tag rec"><b>A</b>Значок + таймер, кнопка у нужды — реализован</div>
+    <div class="phone">
+      <div class="lbl">компактный</div>
+      <div class="isl c"><span style="color:var(--bath)">🛁</span><span class="tm" style="color:var(--bath)">2:58</span></div>
+      <div class="lbl">минимальный</div>
+      <div class="isl mn" style="color:var(--bath)">🛁</div>
+      <div class="lbl">развёрнутый — моется</div>
+      <div class="isl x"><div class="row2"><span data-dog="bath" data-w="70"></span>
+        <div style="flex:1"><div class="ttl">Моется</div><div style="color:#9a958f;font-size:13px">ещё 3 мин</div></div>
+        <span class="tm" style="color:var(--bath);font-size:22px">2:58</span></div>
+        <div class="bar" style="background:#333"><i style="width:40%;background:var(--bath)"></i></div></div>
+      <div class="lbl">развёрнутый — нужда</div>
+      <div class="isl x"><div class="row2"><span data-dog="sit" data-w="60"></span>
+        <div style="flex:1"><div class="ttl" style="color:#ff8a80">Пора помыться</div><div style="color:#9a958f;font-size:13px">чистота 10 %</div></div>
+        <span class="btn" style="background:var(--bath)">Помыть</span></div></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tag"><b>B</b>Пёс в компактном</div>
+    <div class="phone">
+      <div class="lbl">компактный</div>
+      <div class="isl c"><span data-dog="bath" data-w="34"></span><span style="font-size:12px;font-weight:700">Моется</span></div>
+      <div class="lbl">минимальный</div>
+      <div class="isl mn"><span data-dog="bath" data-w="30"></span></div>
+      <div class="lbl">развёрнутый</div>
+      <div class="isl x"><div class="row2"><span data-dog="bath" data-w="90"></span>
+        <div><div class="ttl">Моется</div><div style="color:#9a958f;font-size:13px">ещё 3 мин</div></div></div></div>
+    </div>
+    <div class="note">Живее, но в 36 пикселях пёс — пятно; без таймера непонятно, сколько ждать.</div>
+  </div>
+  <div class="col">
+    <div class="tag"><b>C</b>Две строки и шкалы</div>
+    <div class="phone">
+      <div class="lbl">компактный</div>
+      <div class="isl c"><span style="font-size:12px">🛁 Моется</span><span class="tm" style="font-size:12px">2:58</span></div>
+      <div class="lbl">минимальный</div>
+      <div class="isl mn"><span class="tm" style="font-size:10px">2:58</span></div>
+      <div class="lbl">развёрнутый</div>
+      <div class="isl x"><div class="ttl">Моется · 2:58</div>
+        <div class="barrow" style="color:#9a958f">еда<div class="bar" style="background:#333"><i style="width:80%;background:var(--accent)"></i></div></div>
+        <div class="barrow" style="color:#9a958f">чист<div class="bar" style="background:#333"><i style="width:45%;background:var(--bath)"></i></div></div>
+        <div style="display:flex;gap:6px"><span class="btn" style="background:#444">Открыть</span></div></div>
+    </div>
+    <div class="note">Всё сразу, но текст в компактном обрезается на узких моделях, а шкалы дублируют приложение.</div>
+  </div>
+</div>
+<script src="dog.js"></script>
+</body></html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Волна 51 · маленький виджет</title>
+<link rel="stylesheet" href="w51.css"></head>
+<body>
+<h1>Маленький виджет — «что сейчас»</h1>
+<p class="lead">Сначала то, чем Шиба занят, потом главная нужда. Кнопка — только когда действие можно сделать прямо сейчас.
+По Apple HIG: одна мысль на виджет, крупный главный текст, таймер идёт сам (Text timer), без лишних анимаций.</p>
+<div class="row">
+  <div class="col">
+    <div class="tag rec"><b>A</b>Строка + таймер + кнопка</div>
+    <div class="states">
+      <div><div class="w s">
+        <div class="screen" style="height:88px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="bath" data-w="96"></span></div>
+        <div class="head" style="margin-top:8px"><span class="ic" style="background:var(--bath)">●</span>Моется <span class="timer">2:58</span></div>
+        <div class="bar" style="margin-top:7px"><i style="width:40%;background:var(--bath)"></i></div>
+      </div><div class="cap">моется</div></div>
+      <div><div class="w s">
+        <div class="screen" style="height:88px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="sleep" data-w="96"></span></div>
+        <div class="head" style="margin-top:8px"><span class="ic" style="background:var(--nap)">z</span>Дремлет <span class="timer">24:10</span></div>
+        <div class="bar" style="margin-top:7px"><i style="width:15%;background:var(--nap)"></i></div>
+      </div><div class="cap">дремлет</div></div>
+      <div><div class="w s">
+        <div class="screen" style="height:74px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="sit" data-w="80"></span></div>
+        <div class="head" style="margin-top:7px"><span class="ic" style="background:var(--need)">!</span>Пора помыться</div>
+        <div style="margin-top:7px;text-align:center"><span class="btn" style="background:var(--bath)">Помыть</span></div>
+      </div><div class="cap">нужда + кнопка</div></div>
+    </div>
+    <div class="note">Видно и занятие, и сколько осталось. Кнопка появляется только у нужды. Реализован.</div>
+  </div>
+</div>
+<div class="row" style="margin-top:26px">
+  <div class="col">
+    <div class="tag"><b>B</b>Крупно, без кнопок</div>
+    <div class="states">
+      <div><div class="w s" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+        <span data-dog="bath" data-w="84"></span>
+        <div style="font-weight:800;font-size:20px">Моется</div><div class="timer" style="font-size:18px">2:58</div>
+      </div><div class="cap">моется</div></div>
+      <div><div class="w s" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+        <span data-dog="sleep" data-w="84"></span>
+        <div style="font-weight:800;font-size:20px">Дремлет</div><div class="timer" style="font-size:18px">24:10</div>
+      </div><div class="cap">дремлет</div></div>
+      <div><div class="w s" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+        <span data-dog="sit" data-w="84"></span>
+        <div style="font-weight:800;font-size:18px;color:var(--need)">Пора помыться</div><div class="sub">нажми — откроется</div>
+      </div><div class="cap">нужда</div></div>
+    </div>
+    <div class="note">Читается за полсекунды, но помыть с виджета нельзя — каждый раз открывать приложение.</div>
+  </div>
+  <div class="col">
+    <div class="tag"><b>C</b>Шкалы + значок занятия</div>
+    <div class="states">
+      <div><div class="w s">
+        <div class="screen" style="height:78px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="bath" data-w="84"></span>
+          <span style="position:absolute;top:6px;right:6px;background:var(--bath);color:#fff;font-size:10px;font-weight:700;border-radius:8px;padding:1px 6px">2:58</span></div>
+        <div class="sub" style="margin:6px 0 4px">Всё хорошо</div>
+        <div class="barrow">еда<div class="bar"><i style="width:80%;background:var(--accent)"></i></div></div>
+        <div class="barrow">чист<div class="bar"><i style="width:30%;background:var(--bath)"></i></div></div>
+      </div><div class="cap">моется</div></div>
+      <div><div class="w s">
+        <div class="screen" style="height:78px;display:flex;justify-content:center;align-items:flex-end"><span data-dog="sit" data-w="70"></span>
+          <span style="position:absolute;top:6px;right:6px;background:var(--need);color:#fff;font-size:10px;font-weight:700;border-radius:8px;padding:1px 6px">!</span></div>
+        <div class="sub" style="margin:6px 0 4px">Заскучал</div>
+        <div class="barrow">еда<div class="bar"><i style="width:80%;background:var(--accent)"></i></div></div>
+        <div class="barrow">чист<div class="bar"><i style="width:10%;background:var(--need)"></i></div></div>
+      </div><div class="cap">нужда</div></div>
+    </div>
+    <div class="note">Как было раньше: что делает пёс — только мелкий значок, нужду надо вычитать по шкалам.</div>
+  </div>
+</div>
+<script src="dog.js"></script>
+</body></html>
