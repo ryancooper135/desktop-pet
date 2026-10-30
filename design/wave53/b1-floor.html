@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>B+1 · Пол и пёс ближе</title>
+<link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="base.css">
+<style>
+/* B+1, доработка: пёс крупнее и ближе, плинтус ниже, у каждого варианта свой пол */
+html, body { width: 1920px; height: 1330px; }
+.phones > div { flex: 0 0 420px; width: 420px; }
+:root { --ink:#1C1B29; --mute:#6B6880; --vio:#6C5CE7; --food:#FF9446; --love:#FF5E86; --play:#22C59A; --wash:#3EA7FF; }
+.B { font-family: 'Onest', 'Segoe UI', sans-serif; }
+.B .phone { color: var(--ink); background: #E9DDFA; }
+.blob { position:absolute; border-radius:50%; filter: blur(30px); }
+.glass { background: rgba(255,255,255,.46); backdrop-filter: blur(22px) saturate(1.6); -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.75); box-shadow: 0 8px 26px rgba(70,60,140,.12), inset 0 1px 0 rgba(255,255,255,.9); }
+svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; display:block; }
+
+.top { position:absolute; top:100px; left:14px; right:14px; display:flex; gap:8px; align-items:center; z-index:5; }
+.cap1 { height:44px; border-radius:22px; display:flex; align-items:center; gap:8px; padding:0 14px 0 5px; font-weight:600; font-size:17px; }
+.lv { width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-size:14px; font-weight:700;
+  background: conic-gradient(var(--vio) 62%, rgba(108,92,231,.15) 0); position:relative; }
+.lv:before { content:''; position:absolute; inset:3px; border-radius:50%; background:#fff; }
+.lv span { position:relative; }
+.hrt { color: var(--love); font-size:12px; letter-spacing:.5px; }
+.cur { margin-left:auto; }
+.coin { width:18px; height:18px; border-radius:50%; background: radial-gradient(circle at 35% 30%, #FFE69A, #F4B42F); box-shadow: inset 0 0 0 2px #E8A21C; display:inline-block; }
+
+.quest { position:absolute; top:154px; left:50%; transform:translateX(-50%); width:360px; height:60px; border-radius:30px; display:flex; align-items:center; gap:12px; padding:0 8px; z-index:5; }
+.ring { width:44px; height:44px; border-radius:50%; background: conic-gradient(var(--vio) 33%, rgba(108,92,231,.16) 0); display:grid; place-items:center; position:relative; color:var(--vio); }
+.ring:before { content:''; position:absolute; inset:4px; border-radius:50%; background:rgba(255,255,255,.95); }
+.ring svg { position:relative; width:20px; height:20px; }
+.quest .t { font-size:12px; color:var(--mute); font-weight:600; letter-spacing:.3px; }
+.quest .d { font-size:17px; font-weight:600; }
+.pill { margin-left:auto; height:40px; border-radius:20px; background: var(--ink); color:#fff; display:flex; align-items:center; gap:6px; padding:0 14px; font-weight:600; font-size:16px; }
+
+.needs { position:absolute; right:14px; top:236px; width:48px; border-radius:24px; padding:10px 0; display:flex; flex-direction:column; align-items:center; gap:12px; z-index:5; }
+.nd { display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--c); }
+.nd svg { width:20px; height:20px; }
+.nd i { width:6px; height:34px; border-radius:3px; background: rgba(0,0,0,.08); position:relative; overflow:hidden; display:block; }
+.nd i:after { content:''; position:absolute; left:0; right:0; bottom:0; height: calc(var(--v)*1%); background: var(--c); border-radius:3px; }
+
+.pet { color: rgba(214,130,72,.94); z-index:3; }
+.pet svg { display:block; }
+.ask { position:absolute; height:42px; border-radius:21px 21px 21px 6px; display:flex; align-items:center; gap:6px; padding:0 12px; color:var(--love); z-index:4; }
+.ask b { color:var(--mute); font-weight:600; font-size:14px; }
+.psh { position:absolute; border-radius:50%; background: radial-gradient(closest-side, rgba(90,60,130,.30), rgba(90,60,130,.10) 60%, transparent); z-index:2; }
+
+.isl { position:absolute; top:11px; left:14px; right:14px; height:76px; border-radius:38px; background:#000; color:#fff; z-index:60; display:flex; align-items:center; gap:12px; padding:0 12px; }
+.isl .ic { width:52px; height:52px; border-radius:50%; background: linear-gradient(135deg,#FFB070,#FF9446); display:grid; place-items:center; }
+.isl .t { font-size:13px; color:#A9A6BC; }
+.isl .d { font-size:18px; font-weight:600; }
+.isl .r { margin-left:auto; display:flex; align-items:center; gap:6px; font-weight:700; font-size:20px; color:#FFD46B; padding-right:8px; }
+
+.tabbar { position:absolute; left:14px; bottom:24px; width:316px; height:66px; border-radius:33px; display:flex; align-items:center; justify-content:space-around; padding:0 6px; z-index:6; }
+.tb { text-align:center; font-size:11px; font-weight:600; color:var(--mute); width:70px; height:56px; border-radius:28px; padding-top:7px; position:relative; }
+.tb svg { margin:0 auto 2px; }
+.tb.on { color:var(--vio); background: rgba(108,92,231,.13); }
+.tb.dot:after { content:''; position:absolute; top:6px; right:18px; width:9px; height:9px; border-radius:50%; background:var(--love); }
+.walk { position:absolute; right:14px; bottom:24px; width:66px; height:66px; border-radius:50%; display:grid; place-items:center; color:var(--ink); z-index:6; }
+
+/* ===== комната B+1 ===== */
+.sc { position:absolute; }
+.wall { left:0; right:0; top:0; height:var(--sk); z-index:0;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.2) 0 18px, rgba(255,255,255,0) 18px 40px),
+              linear-gradient(180deg, #CFE0FF 0%, #DCDDFF 60%, #E9DDFA 100%); }
+.skirt { left:0; right:0; top:calc(var(--sk) - 10px); height:12px; z-index:2; background: linear-gradient(#FFFFFF, #F1ECFF); box-shadow: 0 3px 8px rgba(90,70,140,.14); }
+.contact { left:0; right:0; top:calc(var(--sk) + 2px); height:34px; z-index:1; background: linear-gradient(rgba(110,80,160,.16), rgba(110,80,160,0)); }
+.fl { left:-240px; top:var(--sk); width:900px; height:400px; z-index:0; transform-origin:50% 0; transform: perspective(600px) rotateX(55deg); }
+.fl svg { display:block; }
+.vign { left:0; right:0; top:0; bottom:0; z-index:1; background: radial-gradient(120% 70% at 50% 55%, transparent 55%, rgba(110,90,170,.10) 100%); }
+
+.win { left:222px; top:232px; width:112px; height:136px; border-radius:56px 56px 14px 14px; z-index:1; overflow:hidden;
+  border:7px solid #FFFFFF; box-shadow: 0 0 0 2px #E4DCFF, 0 10px 24px rgba(90,80,170,.16), inset 0 0 0 2px rgba(190,178,240,.6);
+  background: linear-gradient(180deg, #A8C9FF 0%, #CFE1FF 55%, #FFE6D6 100%); }
+.win .sun { position:absolute; right:12px; top:20px; width:30px; height:30px; border-radius:50%; background:#FFF1C8; box-shadow:0 0 22px 10px rgba(255,236,190,.85); }
+.win .cl { position:absolute; background:#fff; border-radius:12px; opacity:.92; }
+.win .mv { position:absolute; left:50%; top:0; bottom:0; width:5px; margin-left:-2.5px; background:rgba(255,255,255,.95); }
+.win .mh { position:absolute; left:0; right:0; top:58%; height:5px; background:rgba(255,255,255,.95); }
+.win .gl { position:absolute; left:-20px; top:-10px; width:46px; height:180px; transform:rotate(28deg); background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.45), rgba(255,255,255,0)); }
+.sill { left:212px; top:364px; width:132px; height:10px; border-radius:5px; z-index:2; background:linear-gradient(#fff,#EEE9FF); box-shadow:0 4px 10px rgba(90,70,140,.14); }
+.beam { left:150px; top:374px; width:220px; height:calc(var(--sk) - 374px); z-index:1;
+  background: linear-gradient(180deg, rgba(255,247,226,.5), rgba(255,247,226,.12));
+  clip-path: polygon(34% 0, 84% 0, 100% 100%, 0 100%); filter: blur(3px); }
+.shelf { left:24px; top:302px; width:126px; height:13px; border-radius:3px; z-index:2; background:linear-gradient(#FFFFFF 0 4px, #EDE7FF 4px 100%); box-shadow:0 0 0 1px rgba(170,155,230,.35), 0 6px 10px rgba(90,70,140,.16); }
+.shelf:before, .shelf:after { content:''; position:absolute; top:13px; width:9px; height:12px; border-radius:0 0 2px 2px; background:linear-gradient(90deg,#E4DCFF 0 60%,#D2C7FA 60%); }
+.shelf:before { left:16px; } .shelf:after { right:16px; }
+.obj { position:absolute; z-index:2; display:block; }
+
+/* коврики */
+.rug { z-index:1; border-radius:50%;
+  background: radial-gradient(closest-side, #F1EBFF 0 50%, #E1D6FF 51% 68%, #EEE7FF 69% 100%);
+  box-shadow: inset 0 0 0 5px rgba(255,255,255,.75), 0 6px 14px rgba(90,70,140,.10); }
+.rug.pat { background:
+    radial-gradient(closest-side, #F6F2FF 0 30%, #FFD9C7 31% 35%, #F3EEFF 36% 52%, #DCD0FF 53% 63%, #F1EBFF 64% 80%, #E3D9FF 81% 100%); }
+.rug.pat:before { content:''; position:absolute; inset:9px 16px; border-radius:50%; border:2px dashed rgba(255,255,255,.95); }
+.rug.pat:after { content:''; position:absolute; inset:30px 74px; border-radius:50%; border:2px dotted rgba(255,160,130,.75); }
+
+/* ===== вариант 1: компактная стеклянная полоса ===== */
+.strip { position:absolute; left:10px; right:10px; top:728px; height:84px; border-radius:30px; display:flex; justify-content:space-around; align-items:center; z-index:5; padding:0 6px; }
+.a1 { text-align:center; width:76px; }
+.a1 .c { width:54px; height:54px; border-radius:50%; margin:0 auto; display:grid; place-items:center; color:#fff; background:var(--c);
+  box-shadow: 0 5px 12px color-mix(in srgb, var(--c) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.5); }
+.a1 .c svg { width:26px; height:26px; }
+.a1 .w { font-size:13px; font-weight:600; margin-top:4px; }
+
+/* ===== вариант 2: чипы на полу ===== */
+.chip { position:absolute; width:76px; margin-left:-38px; text-align:center; z-index:5; }
+.chip .g { width:60px; height:60px; border-radius:50%; margin:0 auto; display:grid; place-items:center; }
+.chip .c { width:44px; height:44px; border-radius:50%; display:grid; place-items:center; color:#fff; background:var(--c);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--c) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.5); }
+.chip .c svg { width:23px; height:23px; }
+.chip .w { display:inline-block; margin-top:5px; font-size:12px; font-weight:600; padding:2px 9px; border-radius:10px; }
+.chip:before { content:''; position:absolute; left:14px; right:14px; top:52px; height:14px; border-radius:50%; background:radial-gradient(closest-side, rgba(90,60,130,.22), transparent); z-index:-1; }
+
+/* ===== вариант 3: одна кнопка ===== */
+.care { position:absolute; left:92px; top:742px; width:236px; height:62px; border-radius:31px; display:flex; align-items:center; gap:10px; padding:0 8px; z-index:5; font-size:17px; font-weight:700; }
+.care .h { width:46px; height:46px; border-radius:50%; display:grid; place-items:center; color:#fff; background: linear-gradient(135deg, #FF8FB0, #8B7BFF);
+  box-shadow: 0 5px 12px rgba(140,110,240,.4), inset 0 1px 0 rgba(255,255,255,.5); }
+.care .need { margin-left:auto; width:32px; height:32px; border-radius:50%; display:grid; place-items:center; color:#fff; background:var(--play); position:relative; }
+.care .need svg { width:18px; height:18px; }
+.care .need:after { content:''; position:absolute; top:-2px; right:-2px; width:10px; height:10px; border-radius:50%; background:var(--love); border:2px solid #fff; }
+.scrim { position:absolute; inset:0; z-index:7; background: rgba(60,50,110,.22); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.fan { position:absolute; width:84px; margin-left:-42px; text-align:center; z-index:8; }
+.fan .c { width:60px; height:60px; border-radius:50%; margin:0 auto; display:grid; place-items:center; color:#fff; background:var(--c);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 4px rgba(255,255,255,.55); }
+.fan .c svg { width:28px; height:28px; }
+.fan .w { display:inline-block; margin-top:6px; font-size:13px; font-weight:700; padding:3px 10px; border-radius:11px; background:rgba(255,255,255,.85); }
+.close { position:absolute; left:179px; top:742px; width:62px; height:62px; border-radius:50%; display:grid; place-items:center; z-index:8; color:var(--ink); background:rgba(255,255,255,.8); }
+
+.cap { font-size:22px; }
+.src { position:absolute; left:40px; right:40px; bottom:22px; font-size:17px; color:#55525a; font-weight:500; border-top:1px solid rgba(0,0,0,.1); padding-top:14px; }
+.pm { text-align:center; font-size:15.5px; margin-top:5px; color:#55525a; font-weight:500; line-height:1.35; }
+.pm b { color:#1d9b6f; font-weight:700; } .pm s { text-decoration:none; color:#d6456a; font-weight:700; }
+</style></head>
+<body class="B">
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="bowl" viewBox="0 0 24 24"><path d="M3 12h18a9 8 0 0 1-18 0z"/><path d="M9 8c0-1.6 1.6-1.6 1.6-3.2M13.5 8c0-1.6 1.6-1.6 1.6-3.2"/></symbol>
+  <symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.1 4.1 0 0 1 12 7.3a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/></symbol>
+  <symbol id="ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M5 7.5c4 1.4 5.6 5.6 4.4 12M19 16.5c-4-1.4-5.6-5.6-4.4-12"/></symbol>
+  <symbol id="bath" viewBox="0 0 24 24"><path d="M3 12h18v1.5A5.5 5.5 0 0 1 15.5 19h-7A5.5 5.5 0 0 1 3 13.5z"/><path d="M6 12V6.5a2.2 2.2 0 0 1 4.3-.6"/><circle cx="15" cy="7" r="1.5"/><circle cx="18.5" cy="4.5" r="1"/></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4z"/></symbol>
+  <symbol id="tree" viewBox="0 0 24 24"><path d="M12 21v-5"/><path d="M12 3a5 5 0 0 1 4.6 7A4 4 0 0 1 15 17H9a4 4 0 0 1-1.6-7A5 5 0 0 1 12 3z"/></symbol>
+  <symbol id="pad" viewBox="0 0 24 24"><path d="M7 8h10a4.5 4.5 0 0 1 4.3 5.8l-.9 3a2 2 0 0 1-3.4.7L14.7 15H9.3L7 17.5a2 2 0 0 1-3.4-.7l-.9-3A4.5 4.5 0 0 1 7 8z"/><path d="M8 10.5v3M6.5 12h3"/><circle cx="16" cy="11" r=".6"/><circle cx="17.6" cy="13" r=".6"/></symbol>
+  <symbol id="shirt" viewBox="0 0 24 24"><path d="M8.5 4 3.5 7l1.8 3.6L8 9.6V20h8V9.6l2.7 1 1.8-3.6-5-3c-.7 1.6-1.9 2.4-3.5 2.4S9.2 5.6 8.5 4z"/></symbol>
+  <symbol id="walk" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2.4-6.5L15 17v4M8 11.5l3-3.2 3.4 1.2 2 3M12.4 14.5 11 8.3"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <!-- предметы в силуэтах KayKit Furniture Bits: low-poly, мягкие скосы, плоская пастель -->
+  <symbol id="kkplant" viewBox="0 0 40 50">
+    <polygon points="20,31 7,20 6,6" fill="#A6E6CC"/><polygon points="20,31 15,14 6,6" fill="#7ACFAF"/>
+    <polygon points="20,31 33,20 35,7" fill="#8ADBBD"/><polygon points="20,31 25,13 35,7" fill="#5FC29F"/>
+    <polygon points="20,31 16,10 21,1" fill="#B8EED8"/><polygon points="20,31 25,10 21,1" fill="#8ADBBD"/>
+    <polygon points="9,31 31,31 28,48 12,48" fill="#FFB892"/><polygon points="24,31 31,31 28,48 23,48" fill="#F29E7C"/>
+    <polygon points="7,28 33,28 32,33 8,33" fill="#FFD2B9"/><polygon points="8,33 32,33 31.5,34.5 8.5,34.5" fill="#EE9C7B"/>
+  </symbol>
+  <symbol id="kkbooks" viewBox="0 0 40 50">
+    <rect x="3" y="14" width="9" height="34" rx="1.6" fill="#C9BCFF"/><rect x="9" y="14" width="3" height="34" rx="1" fill="#AE9EF5"/>
+    <rect x="5" y="20" width="5" height="2.4" rx="1" fill="#fff" opacity=".8"/>
+    <rect x="13" y="20" width="8" height="28" rx="1.6" fill="#9FE3C8"/><rect x="18.5" y="20" width="2.5" height="28" rx="1" fill="#79CFAE"/>
+    <polygon points="23,48 31.5,48 39,21 31,19" fill="#FFC6AC"/><polygon points="31.5,48 34,48 41,22 39,21" fill="#F2A88A"/>
+    <rect x="2" y="12" width="20" height="2.4" rx="1.2" fill="#fff" opacity=".0"/>
+  </symbol>  <symbol id="dog" viewBox="0 0 300 240">
+    <path d="M232 112c34-6 46-40 26-58-16-14-40-4-38 14 1 12 16 14 18 6" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round"/>
+    <g fill="currentColor"><ellipse cx="160" cy="138" rx="86" ry="48"/><circle cx="80" cy="92" r="46"/><ellipse cx="34" cy="108" rx="36" ry="19"/>
+    <path d="M50 66 60 18 92 54Z M88 52 116 16 122 66Z"/>
+    <rect x="92" y="150" width="24" height="70" rx="11"/><rect x="124" y="156" width="24" height="64" rx="11"/><rect x="186" y="156" width="24" height="64" rx="11"/><rect x="214" y="150" width="24" height="70" rx="11"/></g>
+  </symbol>
+
+  <defs>
+    <!-- 1: паркет ёлочкой -->
+    <pattern id="chev" width="60" height="24" patternUnits="userSpaceOnUse" patternTransform="scale(1.35)">
+      <g stroke="rgba(190,120,95,.22)" stroke-width=".8">
+        <polygon points="0,0 30,-12 30,0 0,12" fill="#FFDCCB"/><polygon points="0,12 30,0 30,12 0,24" fill="#FFE8DC"/><polygon points="0,24 30,12 30,24 0,36" fill="#FFDCCB"/>
+        <polygon points="30,-12 60,0 60,12 30,0" fill="#FFE6D8"/><polygon points="30,0 60,12 60,24 30,12" fill="#FFD6C3"/><polygon points="30,12 60,24 60,36 30,24" fill="#FFE6D8"/>
+      </g>
+    </pattern>
+    <!-- 2: широкие доски -->
+    <pattern id="boards" width="140" height="320" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="70" height="320" fill="#FFE3D4"/><rect x="70" y="0" width="70" height="320" fill="#FFDACA"/>
+      <g stroke="rgba(200,130,105,.10)" stroke-width="1.2" fill="none">
+        <path d="M18 0v320M44 20c2 60-2 120 0 180M100 0v320M118 140c2 50-2 100 0 150"/>
+      </g>
+      <g stroke="rgba(185,115,95,.26)" stroke-width="1.6"><path d="M0 0v320M70 0v320M0 0h70M70 160h70"/></g>
+    </pattern>
+    <!-- 3: плитка-шашечка -->
+    <pattern id="check" width="120" height="120" patternUnits="userSpaceOnUse">
+      <rect width="120" height="120" fill="#FFE7DA"/><rect width="60" height="60" fill="#E6E0FF"/><rect x="60" y="60" width="60" height="60" fill="#E6E0FF"/>
+      <path d="M0 0h120M0 60h120M0 0v120M60 0v120" stroke="rgba(255,255,255,.9)" stroke-width="2.5"/>
+    </pattern>
+    <linearGradient id="farshade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7B5FC0" stop-opacity=".14"/><stop offset=".35" stop-color="#7B5FC0" stop-opacity="0"/></linearGradient>
+    <linearGradient id="lightg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8E8" stop-opacity=".85"/><stop offset="1" stop-color="#FFF8E8" stop-opacity=".25"/></linearGradient>
+    <linearGradient id="glare" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+</svg>
+
+<div class="head">
+  <h1><small>B+1</small>Пол и пёс ближе</h1>
+  <div class="idea">Пёс на треть крупнее и ближе, плинтус ниже, полоса пола короче и у каждого варианта свой пол. Окно, полка, коврик и стекло из B+1 остались. Три способа освободить место под 4 действия.</div>
+  <div class="meta">
+    <div class="sw"><i style="background:linear-gradient(#CFE0FF,#E9DDFA)"></i><i style="background:#FFE3D4"></i><i style="background:#E6E0FF"></i><i style="background:#FFD9C7"></i><i style="background:#6C5CE7"></i><i style="background:#1C1B29"></i></div>
+    <span>Шрифт: SF Pro (системный) · пёс — заглушка, на его месте 3D</span>
+  </div>
+</div>
+
+<div class="phones">
+
+<!-- ============ 1 · Ближе ============ -->
+<div>
+<div class="phone" style="--sk:600px">
+  <div class="sc fl"><svg width="900" height="400">
+    <rect width="900" height="400" fill="url(#chev)"/>
+    <g filter="url(#soft)" opacity=".9"><polygon points="455,6 585,6 560,250 360,250" fill="url(#lightg)"/></g>
+    <rect width="900" height="400" fill="url(#farshade)"/></svg></div>
+  <div class="sc rug pat" style="left:28px;top:632px;width:346px;height:96px"></div>
+  <div class="psh" style="left:70px;top:660px;width:270px;height:36px"></div>
+  <div class="sc pet" style="left:30px;top:438px;width:324px;height:259px"><svg width="324" height="259"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+  <div class="ask glass" style="left:62px;top:396px"><svg class="i" style="width:20px;height:20px"><use href="#heart"/></svg><b>?</b></div>
+
+  <div class="strip glass">
+    <div class="a1" style="--c:var(--food)"><div class="c"><svg class="i"><use href="#bowl"/></svg></div><div class="w">Кормить</div></div>
+    <div class="a1" style="--c:var(--love)"><div class="c"><svg class="i"><use href="#heart"/></svg></div><div class="w">Гладить</div></div>
+    <div class="a1" style="--c:var(--play)"><div class="c"><svg class="i"><use href="#ball"/></svg></div><div class="w">Играть</div></div>
+    <div class="a1" style="--c:var(--wash)"><div class="c"><svg class="i"><use href="#bath"/></svg></div><div class="w">Мыть</div></div>
+  </div>
+</div>
+<div class="cap">1 · Ближе</div>
+<div class="pm"><b>+</b> привычно, всё под пальцем · <s>−</s> полоса кнопок всё ещё режет пол</div>
+</div>
+
+<!-- ============ 2 · Кнопки у пса ============ -->
+<div>
+<div class="phone" style="--sk:560px">
+  <div class="sc fl"><svg width="900" height="400">
+    <rect width="900" height="400" fill="url(#boards)"/>
+    <g filter="url(#soft)"><polygon points="460,6 580,6 560,260 370,260" fill="url(#lightg)" opacity=".8"/></g>
+    <polygon points="250,0 330,0 160,400 40,400" fill="url(#glare)" opacity=".7"/>
+    <polygon points="640,0 680,0 690,400 610,400" fill="url(#glare)" opacity=".45"/>
+    <rect width="900" height="400" fill="url(#farshade)"/></svg></div>
+  <div class="sc rug" style="left:44px;top:650px;width:332px;height:88px"></div>
+  <div class="psh" style="left:84px;top:668px;width:276px;height:38px"></div>
+  <div class="sc pet" style="left:36px;top:444px;width:336px;height:269px"><svg width="336" height="269"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+  <div class="ask glass" style="left:68px;top:398px"><svg class="i" style="width:20px;height:20px"><use href="#heart"/></svg><b>?</b></div>
+
+  <div class="chip" style="left:62px;top:696px;--c:var(--food)"><div class="g glass"><div class="c"><svg class="i"><use href="#bowl"/></svg></div></div><div class="w glass">Кормить</div></div>
+  <div class="chip" style="left:162px;top:722px;--c:var(--love)"><div class="g glass"><div class="c"><svg class="i"><use href="#heart"/></svg></div></div><div class="w glass">Гладить</div></div>
+  <div class="chip" style="left:258px;top:722px;--c:var(--play)"><div class="g glass"><div class="c"><svg class="i"><use href="#ball"/></svg></div></div><div class="w glass">Играть</div></div>
+  <div class="chip" style="left:358px;top:696px;--c:var(--wash)"><div class="g glass"><div class="c"><svg class="i"><use href="#bath"/></svg></div></div><div class="w glass">Мыть</div></div>
+</div>
+<div class="cap">2 · Кнопки у пса</div>
+<div class="pm"><b>+</b> сцена цельная, пёс крупный · <s>−</s> чипы легко спутать с вещами</div>
+</div>
+
+<!-- ============ 3 · Одна кнопка ============ -->
+<div>
+<div class="phone" style="--sk:580px">
+  <div class="sc fl"><svg width="900" height="400">
+    <rect width="900" height="400" fill="url(#check)"/>
+    <g transform="translate(468 14) skewX(-16)" fill="#FFFBF0" opacity=".95" filter="url(#soft)">
+      <rect x="0" y="0" width="50" height="96" rx="4"/><rect x="58" y="0" width="50" height="96" rx="4"/>
+      <rect x="0" y="104" width="50" height="120" rx="4"/><rect x="58" y="104" width="50" height="120" rx="4"/></g>
+    <rect width="900" height="400" fill="url(#farshade)"/></svg></div>
+  <div class="sc rug" style="left:26px;top:664px;width:350px;height:92px"></div>
+  <div class="psh" style="left:60px;top:684px;width:296px;height:40px"></div>
+  <div class="sc pet" style="left:14px;top:440px;width:360px;height:288px"><svg width="360" height="288"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+  <div class="ask glass" style="left:54px;top:394px"><svg class="i" style="width:20px;height:20px"><use href="#heart"/></svg><b>?</b></div>
+
+  <div class="care glass"><div class="h"><svg class="i"><use href="#heart"/></svg></div>Позаботиться<div class="need"><svg class="i"><use href="#ball"/></svg></div></div>
+</div>
+<div class="cap">3 · Одна кнопка</div>
+<div class="pm"><b>+</b> пёс максимально крупный, тихо · <s>−</s> любое действие в 2 тапа</div>
+</div>
+
+<!-- ============ 3 · раскрыто ============ -->
+<div>
+<div class="phone" style="--sk:580px">
+  <div class="sc fl"><svg width="900" height="400">
+    <rect width="900" height="400" fill="url(#check)"/>
+    <g transform="translate(468 14) skewX(-16)" fill="#FFFBF0" opacity=".95" filter="url(#soft)">
+      <rect x="0" y="0" width="50" height="96" rx="4"/><rect x="58" y="0" width="50" height="96" rx="4"/>
+      <rect x="0" y="104" width="50" height="120" rx="4"/><rect x="58" y="104" width="50" height="120" rx="4"/></g>
+    <rect width="900" height="400" fill="url(#farshade)"/></svg></div>
+  <div class="sc rug" style="left:26px;top:664px;width:350px;height:92px"></div>
+  <div class="psh" style="left:60px;top:684px;width:296px;height:40px"></div>
+  <div class="sc pet" style="left:14px;top:440px;width:360px;height:288px"><svg width="360" height="288"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+
+  <div class="scrim"></div>
+  <div class="fan" style="left:93px;top:701px;--c:var(--food)"><div class="c"><svg class="i"><use href="#bowl"/></svg></div><div class="w">Кормить</div></div>
+  <div class="fan" style="left:148px;top:636px;--c:var(--love)"><div class="c"><svg class="i"><use href="#heart"/></svg></div><div class="w">Гладить</div></div>
+  <div class="fan" style="left:272px;top:636px;--c:var(--play)"><div class="c"><svg class="i"><use href="#ball"/></svg></div><div class="w">Играть</div></div>
+  <div class="fan" style="left:327px;top:701px;--c:var(--wash)"><div class="c"><svg class="i"><use href="#bath"/></svg></div><div class="w">Мыть</div></div>
+  <div class="close glass"><svg class="i" style="width:26px;height:26px"><use href="#x"/></svg></div>
+</div>
+<div class="cap">3 · раскрыто: веер</div>
+<div class="pm"><b>+</b> крупные цели, нужное подсвечено · <s>−</s> веер на миг закрывает лапы</div>
+</div>
+
+</div>
+<div class="src">Предметы в приложении — из KayKit Furniture Bits (CC0), пол — паркет ShareTextures (CC0), перекраска в пастель</div>
+
+<script>
+/* общее для всех телефонов: комната B+1 и интерфейс B */
+const room = `
+  <div class="sc wall"></div><div class="sc contact"></div><div class="sc skirt"></div>
+  <div class="blob" style="left:-70px;top:180px;width:220px;height:220px;background:#B9D4FF;opacity:.4;z-index:1"></div>
+  <div class="sc beam"></div>
+  <div class="sc win"><div class="sun"></div>
+    <div class="cl" style="left:12px;top:64px;width:40px;height:14px"></div><div class="cl" style="left:22px;top:56px;width:20px;height:16px;border-radius:10px"></div>
+    <div class="gl"></div><div class="mv"></div><div class="mh"></div></div>
+  <div class="sc sill"></div>
+  <div class="sc shelf"></div>
+  <svg class="obj" style="left:30px;top:248px;width:46px;height:57px"><use href="#kkplant"/></svg>
+  <svg class="obj" style="left:88px;top:252px;width:44px;height:55px"><use href="#kkbooks"/></svg>
+  <div class="sc vign"></div>`;
+const ui = `
+  <div class="isl"><div class="ic"><svg class="i" style="color:#fff;width:26px;height:26px"><use href="#bowl"/></svg></div>
+    <div><div class="t">Шиба поел</div><div class="d">Ням! Сытость +20</div></div>
+    <div class="r"><span class="coin"></span>+2</div></div>
+  <div class="top">
+    <div class="cap1 glass"><div class="lv"><span>7</span></div>Шиба <span class="hrt">♥♥♥♥♥</span></div>
+    <div class="cap1 glass cur"><span class="coin"></span>20 <span style="opacity:.3">|</span> ✂ 2</div>
+  </div>
+  <div class="quest glass"><div class="ring"><svg class="i"><use href="#heart"/></svg></div>
+    <div><div class="t">ЗАДАНИЕ ДНЯ · 1/3</div><div class="d">Погладить 3 раза</div></div>
+    <div class="pill"><span class="coin"></span>+45</div></div>
+  <div class="needs glass">
+    <div class="nd" style="--c:var(--food);--v:80"><svg class="i"><use href="#bowl"/></svg><i></i></div>
+    <div class="nd" style="--c:var(--love);--v:55"><svg class="i"><use href="#heart"/></svg><i></i></div>
+    <div class="nd" style="--c:var(--play);--v:40"><svg class="i"><use href="#ball"/></svg><i></i></div>
+    <div class="nd" style="--c:var(--wash);--v:90"><svg class="i"><use href="#bath"/></svg><i></i></div>
+  </div>
+  <div class="tabbar glass">
+    <div class="tb on"><svg class="i"><use href="#home"/></svg>Дом</div>
+    <div class="tb dot"><svg class="i"><use href="#tree"/></svg>Двор</div>
+    <div class="tb"><svg class="i"><use href="#pad"/></svg>Игры</div>
+    <div class="tb"><svg class="i"><use href="#shirt"/></svg>Шкаф</div>
+  </div>
+  <div class="walk glass"><svg class="i" style="width:28px;height:28px"><use href="#walk"/></svg></div>
+  <div class="homebar"></div>`;
+document.querySelectorAll('.phone').forEach(p => {
+  p.insertAdjacentHTML('afterbegin', room);
+  p.insertAdjacentHTML('beforeend', ui);
+});
+</script>
+</body></html>
