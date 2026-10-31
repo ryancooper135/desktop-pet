@@ -13,7 +13,7 @@ final class PetNamesTests: XCTestCase {
     // MARK: adapt
 
     func testShibaTextsUnchanged() {
-        for s in Brush.doneLines + Habits.lines.values.flatMap({ $0 }) {
+        for s in Brush.doneLines + Trick.allCases.map(\.done) {
             XCTAssertEqual(PetNames.adapt(s, name: PetNames.shiba), s)
             XCTAssertEqual(PetNames.adapt(s, name: ""), s)
             XCTAssertEqual(PetNames.adapt(s, name: "  Шиба "), s)
@@ -65,10 +65,7 @@ final class PetNamesTests: XCTestCase {
     /// Все тексты, что видит хозяин своего персонажа, — без «Шибы».
     func testNoShibaLeftForOwnCharacter() {
         var texts: [String] = []
-        for h in Habit.allCases {
-            for n in 1...6 { texts.append(PetNames.adapt(Habits.greeting(h, n: n), name: cat)) }
-            texts.append(PetNames.adapt(Habits.enoughText(h), name: cat))
-        }
+        for t in Trick.allCases { texts.append(PetNames.adapt(t.done, name: cat)) }
         for (id, list) in Cooking.lines {
             for n in 1...list.count { texts.append(PetNames.adapt(Cooking.dishLine(id, n: n), name: cat)) }
         }

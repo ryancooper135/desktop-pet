@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>A · Сетка</title>
+<link rel="stylesheet" href="../wave53/fonts.css"><link rel="stylesheet" href="../wave53/base.css"><link rel="stylesheet" href="w57.css">
+<style>
+.sheet { height:452px; }
+.grid { display:grid; grid-template-columns: repeat(4, 1fr); row-gap:18px; padding:16px 18px 0; }
+.meta2 { display:flex; gap:8px; }
+</style></head>
+<body>
+<script src="icons57.js"></script>
+<div class="head">
+  <h1><small>A</small>Сетка в шторке</h1>
+  <div class="idea">Шторка на полэкрана, пёс виден сверху. 8 круглых иконок 4×2: кольцо — прогресс обучения, звёздочка — выучено, замок с цифрой — уровень. Тап — шторка уезжает, пёс делает трюк.</div>
+  <div class="meta"><span>SF Symbols</span><span>Рекомендую — делаю в коде</span></div>
+</div>
+<div class="phones">
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room"><div class="floor"></div><div class="dogwrap"><span data-dog="sit" data-w="210"></span></div></div>
+  <div class="hud"><div class="pill"><span class="coin"></span>148</div><div class="pill" style="color:#f08a5d"><svg class="i" style="width:20px;height:20px"><use href="#paw"/></svg>2/3</div></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="shead"><h2>Команды</h2><div class="meta2"><div class="chip" style="color:#f2bf4a"><svg class="f"><use href="#star"/></svg><span style="color:#4a3b33">3</span></div><div class="x">✕</div></div></div>
+    <div class="grid">
+      <div data-cmd="sit" data-st="learned" data-l="Сидеть"></div>
+      <div data-cmd="paw" data-st="learned" data-l="Лапу"></div>
+      <div data-cmd="lie" data-st="learned" data-l="Лежать"></div>
+      <div data-cmd="speak" data-st="p0.5" data-l="Голос"></div>
+      <div data-cmd="spin" data-st="p0.25" data-l="Кружись"></div>
+      <div data-cmd="five" data-st="lock7" data-l="Дай пять"></div>
+      <div data-cmd="dead" data-st="lock9" data-l="Притворись"></div>
+      <div data-cmd="crawl" data-st="lock12" data-l="Ползи"></div>
+    </div>
+    <div class="brush"><div class="dot"><svg class="i"><use href="#brush"/></svg></div>Расчесать<span style="margin-left:auto;color:#8a7a70">›</span></div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Уровень 5: три выучено, два учатся</div>
+</div>
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room" style="background:linear-gradient(#e7e1ef,#d9d2e4)"><div class="floor" style="background:#cfc5d8"></div><div class="dogwrap"><span data-dog="sleep" data-w="230"></span></div></div>
+  <div class="hud"><div class="pill"><span class="coin"></span>148</div></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="shead"><h2>Команды</h2><div class="meta2"><div class="chip" style="color:#7b6fd6"><svg class="f"><use href="#nap"/></svg><span style="color:#4a3b33">Спит</span></div><div class="x">✕</div></div></div>
+    <div class="grid">
+      <div data-cmd="sit" data-st="grey-nap" data-l="Сидеть"></div>
+      <div data-cmd="paw" data-st="grey-nap" data-l="Лапу"></div>
+      <div data-cmd="lie" data-st="grey-nap" data-l="Лежать"></div>
+      <div data-cmd="speak" data-st="grey-nap" data-l="Голос"></div>
+      <div data-cmd="spin" data-st="grey-nap" data-l="Кружись"></div>
+      <div data-cmd="five" data-st="lock7" data-l="Дай пять"></div>
+      <div data-cmd="dead" data-st="lock9" data-l="Притворись"></div>
+      <div data-cmd="crawl" data-st="lock12" data-l="Ползи"></div>
+    </div>
+    <div class="brush" style="opacity:.5"><div class="dot"><svg class="i"><use href="#brush"/></svg></div>Расчесать</div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Пёс спит: иконки серые, значок — луна</div>
+</div>
+</div>
+<script src="../wave51/dog.js"></script>
+<script>cmds();</script>
+</body></html>

@@ -113,6 +113,7 @@ enum PetStance {
             case "lie_in", "sleep_out": s = .lie
             case "sleep_in": s = .sleep
             case "death": s = .dead
+            case "play_dead_out": s = .stand
             default: break
             }
         }
@@ -150,9 +151,17 @@ enum PetStance {
             if stance == .sleep { return [] }
             return pick(stance == .stand ? Traits.tapClips(trait) : ["ear_flick"], available: available)
         }
-        // Отметка привычки и итог «Блок Дуо» (волна 12) — одна радость: подпрыгнул и виляет.
-        if kind == Habits.reactKind || kind == BlockDuo.reactKind {
-            return habitClips(stance: stance, available: available)
+        // Итог «Блок Дуо» (волна 12) — радость: подпрыгнул и виляет.
+        if kind == BlockDuo.reactKind {
+            return joyClips(stance: stance, available: available)
+        }
+        // Новый уровень или подрос (волна 57: раньше играл трюк «Прыжок», его больше нет) — встал, прыжок, виляет.
+        if kind == levelUpKind {
+            if stance == .sleep || stance == .dead { return [] }
+            let body = pick(["hop", "happy_wag"], available: available)
+            if body.isEmpty || stance == .stand { return body }
+            return pick(path(from: stance, to: .stand), available: available) + body
+                + pick(path(from: .stand, to: stance), available: available)
         }
         if !ok {
             return stance == .sleep ? [] : pick(ReactBeat.refuse, available: available)
@@ -206,9 +215,11 @@ enum PetStance {
         return pick(out, available: available)
     }
 
-    /// Привычка из «Команд» (Habits): хозяин дома, проснулся, попил воды — стоя подпрыгнул и виляет,
-    /// сидя и лёжа — повёл ухом и не встаёт (вечером «Ложусь спать» не поднимает пса). Спящего не будим.
-    static func habitClips(stance: Stance, available: Set<String> = defaultClips) -> [String] {
+    /// Реакция на новый уровень/рост (AppModel+Level). Строка совпадает с ReactBeat (там — "levelup").
+    static let levelUpKind = "levelup"
+
+    /// Радость (итог «Блок Дуо»): стоя подпрыгнул и виляет, сидя и лёжа — повёл ухом и не встаёт. Спящего не будим.
+    static func joyClips(stance: Stance, available: Set<String> = defaultClips) -> [String] {
         switch stance {
         case .stand: return pick(["hop", "happy_wag"], available: available)
         case .sit, .lie: return pick(["ear_flick"], available: available)
@@ -253,9 +264,13 @@ enum PetStance {
     }
 
     /// Команда, которую пёс уже выполняет: короткая вставка из фиджетов этой стойки и удержание позы.
+    /// Волна 57: «Лапу» и «Дай пять» сидящий даёт не вставая, «Ползи» лежащий — не вставая.
     static let stayClips: [Trick: (stance: Stance, clips: [String])] = [
         .sit: (.sit, ["head_tilt", "sit"]),
+        .paw: (.sit, ["paw"]),
+        .five: (.sit, ["high_five"]),
         .lie: (.lie, ["ear_flick", "lie"]),
+        .crawl: (.lie, ["crawl", "crawl"]),
     ]
 
     /// Оставляет только клипы, которые есть. Нет клипа — шаг пропускается.

@@ -1,8 +1,7 @@
 // «Команды» и Siri: готовые действия без настройки. В каждой фразе обязано быть имя приложения.
 // Интенты — из Shared/Intents.swift; источник по умолчанию у них shortcut.
-// Apple пускает не больше 10 AppShortcut на приложение: 5 ухода + 5 привычек — ровно лимит.
+// Apple пускает не больше 10 AppShortcut на приложение: 5 ухода + 2 команды псу (волна 57 вместо 5 привычек).
 // Значки и фразы — литералами: их читает сборщик метаданных App Intents, не код.
-// Привычки (волна 11) удобнее всего ставить в «Командах» → «Автоматизация» (экран «Привычки» объясняет как).
 
 import AppIntents
 
@@ -23,20 +22,11 @@ struct PetShortcuts: AppShortcutsProvider {
         AppShortcut(intent: StartIslandIntent(),
                     phrases: ["Шиба на острове \(.applicationName)", "Покажи питомца в \(.applicationName)"],
                     shortTitle: "В остров", systemImageName: "capsule")
-        AppShortcut(intent: HabitHomeIntent(),
-                    phrases: ["\(.applicationName), я дома", "Я пришёл домой в \(.applicationName)"],
-                    shortTitle: "Я дома", systemImageName: "house.fill")
-        AppShortcut(intent: HabitWakeIntent(),
-                    phrases: ["\(.applicationName), я проснулся", "Доброе утро, \(.applicationName)"],
-                    shortTitle: "Я проснулся", systemImageName: "sun.horizon.fill")
-        AppShortcut(intent: HabitSleepIntent(),
-                    phrases: ["\(.applicationName), я ложусь спать", "Спокойной ночи, \(.applicationName)"],
-                    shortTitle: "Ложусь спать", systemImageName: "moon.zzz.fill")
-        AppShortcut(intent: HabitWaterIntent(),
-                    phrases: ["\(.applicationName), я выпил воды", "Выпил воды в \(.applicationName)"],
-                    shortTitle: "Выпил воды", systemImageName: "drop.fill")
-        AppShortcut(intent: HabitWorkoutIntent(),
-                    phrases: ["\(.applicationName), я сделал зарядку", "Сделал зарядку в \(.applicationName)"],
-                    shortTitle: "Зарядка", systemImageName: "figure.strengthtraining.functional")
+        AppShortcut(intent: SitIntent(),
+                    phrases: ["\(.applicationName), сидеть", "Шиба, сидеть в \(.applicationName)"],
+                    shortTitle: "Сидеть", systemImageName: "dog.fill")
+        AppShortcut(intent: PawIntent(),
+                    phrases: ["\(.applicationName), дай лапу", "Шиба, дай лапу в \(.applicationName)"],
+                    shortTitle: "Дай лапу", systemImageName: "pawprint.fill")
     }
 }

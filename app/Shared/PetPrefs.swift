@@ -213,7 +213,7 @@ enum RoundCaption {
     static let album = "Альбом"
     static let machine = "Автомат"
     static let house = "Дом"
-    static let tricks = "Трюки"
+    static let tricks = "Команды"
     static let games = "Игры"
     /// Волна 34 G: круг «Двор» справа над рядом (App/YardEntry.swift).
     static let yard = "Двор"

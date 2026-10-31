@@ -42,7 +42,7 @@ enum ReactBeat {
         if squashKinds.contains(kind) { return Accent(squash: skeleton ? skeletonSquash : stubSquash) }
         if skeleton { return .none }
         switch kind {
-        case "play", Habits.reactKind, BlockDuo.reactKind: return Accent(hop: stubHop)
+        case "play", BlockDuo.reactKind, "levelup": return Accent(hop: stubHop)
         case "tap.playful": return Accent(hop: stubHopTap)
         case let k where k.hasPrefix("trick."): return Accent(hop: stubHopTrick)
         default: return .none
@@ -123,7 +123,7 @@ enum ReactBeat {
     static func weight(of kind: String, ok: Bool = true) -> Weight {
         guard ok else { return .flash }
         switch kind {
-        case "feed", "item", "play", "wake", Cooking.reactKind, Brush.journalKind, Habits.reactKind, BlockDuo.reactKind:
+        case "feed", "item", "play", "wake", Cooking.reactKind, Brush.journalKind, BlockDuo.reactKind, "levelup":
             return .activity
         case let k where k.hasPrefix("trick."):
             return .activity

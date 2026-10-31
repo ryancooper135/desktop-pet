@@ -150,6 +150,7 @@
     "weekly_quest": { "coins": 200, "tickets": 2, "_note": "кооп-цель с друзьями (шаги/игры), бонус за участие 50 даже при провале" },
     "habits": {
       "daily_cap": 90,
+      "_wave57": "волна 57: экран «Привычки» убран, монет за home/wake/sleep/water/workout нет; daily_cap — общий потолок шагов и показа команд (Tricks.showCoinsLeft)",
       "_daily_cap": "волна 32: +~25 % (было 70; шаги 250 → 200 на монету, потолок шагов 40 → 50)",
       "steps": { "coins_per_steps": 200, "cap": 50 },
       "duolingo_open": { "coins": 10, "per_day": 1 },
@@ -1387,7 +1388,7 @@
     "coins": { "base": 25, "per_level": 3, "round": 5 },
     "all_done": { "shards": 1, "coins": 0 },
     "swaps_per_day": 1,
-    "need": { "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1 }
+    "need": { "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1, "tricks": 3 }
   },
   "asks": {
     "_about": "Волна 43 K: просьбы пса (app/Shared/DogAsks.swift). Час дня даёт просьбу с шансом chance_pct (по petId/суткам/часу), старт в минуту 0–44, между стартами не меньше min_gap_min, в сутки не больше per_day, всё окно — днём (не раньше wake_gap_min после подъёма хозяина). Выполнено за window_min — монеты base + per_level × уровень к кратному round и ask.done (опыт — dog_level.xp). Не выполнено — без наказания. below: шкала ниже порога — пёс просит именно её.",

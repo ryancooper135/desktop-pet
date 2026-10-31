@@ -121,7 +121,7 @@ extension AppModel {
     /// Поверх чего сцену не играем: отчёт «Пока тебя не было», игры и листы. Ушёл гулять — тоже ждём.
     var levelSceneBlocked: Bool {
         away != nil || showCatch || showBlockDuo || showTricks || showCapsule || showShop || showHouse
-            || showSettings || showAlbum || showNeeds || showKitchen || showHabits || showLevel || postcard != nil
+            || showSettings || showAlbum || showNeeds || showKitchen || showLevel || postcard != nil
             || showYard || showMap
             || snap.pose == .away
     }
@@ -136,7 +136,7 @@ extension AppModel {
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(LevelSeen.delay))
             guard let self, !Task.isCancelled else { return }
-            if !self.levelCalm { self.react(Trick.jump.kind) }
+            if !self.levelCalm { self.react(PetStance.levelUpKind) }
             Feel.success(.hearts)
             self.pop(LevelInfo.star(s), at: self.levelAnchor)
             self.show(LevelInfo.toast(s), emoji: "🪙")
@@ -155,7 +155,7 @@ extension AppModel {
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(LevelSeen.delay))
             guard let self, !Task.isCancelled else { return }
-            if !self.levelCalm { self.react(Trick.jump.kind) }
+            if !self.levelCalm { self.react(PetStance.levelUpKind) }
             Feel.success(.hearts)
             self.pop("📏", at: self.levelAnchor)
             self.show(LevelInfo.grewText(phase), emoji: "🐕")

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>B · Лента</title>
+<link rel="stylesheet" href="../wave53/fonts.css"><link rel="stylesheet" href="../wave53/base.css"><link rel="stylesheet" href="w57.css">
+<style>
+.room { height:640px; }
+.strip { position:absolute; left:0; right:0; top:560px; display:flex; gap:14px; padding:0 18px; overflow:hidden; z-index:8; }
+.strip .cmd .lbl { font-size:13px; }
+.panel { position:absolute; left:0; right:0; bottom:0; height:250px; background:var(--card); border-radius:34px 34px 0 0; box-shadow:0 -6px 24px rgba(74,59,51,.10); z-index:9; padding:22px 20px 0; }
+.acts { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.act { height:84px; border-radius:22px; background:#f6eee6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-weight:700; font-size:14px; }
+.act svg { width:26px; height:26px; color:var(--accent); }
+.act.on { background:var(--accent); color:#fff; } .act.on svg { color:#fff; }
+.tabhint { position:absolute; left:18px; top:526px; font-weight:800; font-size:15px; color:var(--soft); z-index:8; display:flex; align-items:center; gap:6px; }
+</style></head>
+<body>
+<script src="icons57.js"></script>
+<div class="head">
+  <h1><small>B</small>Лента над кнопками</h1>
+  <div class="idea">Без шторки: кнопка «Команды» в нижней панели раскрывает ленту круглых иконок прямо над ней. Пёс всегда на виду, трюк виден сразу. Лента листается вбок, 8 иконок не помещаются целиком.</div>
+  <div class="meta"><span>SF Symbols</span><span>Меньше места на подписи</span></div>
+</div>
+<div class="phones">
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room"><div class="floor" style="height:220px"></div><div class="dogwrap" style="bottom:150px"><span data-dog="sit" data-w="220"></span></div></div>
+  <div class="hud"><div class="pill"><span class="coin"></span>148</div><div class="pill" style="color:#f2bf4a"><svg class="f" style="width:18px;height:18px"><use href="#star"/></svg><span style="color:#4a3b33">3</span></div></div>
+  <div class="strip">
+    <div data-cmd="sit" data-st="learned" data-d="62" data-l="Сидеть"></div>
+    <div data-cmd="paw" data-st="learned" data-d="62" data-l="Лапу"></div>
+    <div data-cmd="lie" data-st="learned" data-d="62" data-l="Лежать"></div>
+    <div data-cmd="speak" data-st="p0.5" data-d="62" data-l="Голос"></div>
+    <div data-cmd="spin" data-st="p0.25" data-d="62" data-l="Кружись"></div>
+    <div data-cmd="five" data-st="lock7" data-d="62" data-l="Дай пять"></div>
+  </div>
+  <div class="panel">
+    <div class="acts">
+      <div class="act"><svg class="i"><use href="#bowl"/></svg>Кормить</div>
+      <div class="act"><svg class="i"><use href="#ball"/></svg>Играть</div>
+      <div class="act"><svg class="i"><use href="#drop"/></svg>Мыть</div>
+      <div class="act on"><svg class="i"><use href="#paw"/></svg>Команды</div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Лента открыта над кнопкой «Команды»</div>
+</div>
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room"><div class="floor" style="height:220px"></div><div class="dogwrap" style="bottom:150px"><span data-dog="run" data-w="230"></span></div></div>
+  <div class="hud"><div class="pill"><span class="coin"></span>153</div></div>
+  <div class="reward" style="left:120px;top:250px"><svg class="f" style="width:20px;height:20px;color:#f2bf4a"><use href="#star"/></svg>Голос <span class="coin"></span>+5 <svg class="f" style="width:18px;height:18px;color:#ef6a7a"><use href="#heart"/></svg></div>
+  <div class="strip">
+    <div data-cmd="sit" data-st="learned" data-d="62" data-l="Сидеть"></div>
+    <div data-cmd="paw" data-st="learned" data-d="62" data-l="Лапу"></div>
+    <div data-cmd="lie" data-st="learned" data-d="62" data-l="Лежать"></div>
+    <div data-cmd="speak" data-st="learned" data-press="1" data-d="62" data-l="Голос"></div>
+    <div data-cmd="spin" data-st="p0.25" data-d="62" data-l="Кружись"></div>
+    <div data-cmd="five" data-st="lock7" data-d="62" data-l="Дай пять"></div>
+  </div>
+  <div class="panel">
+    <div class="acts">
+      <div class="act"><svg class="i"><use href="#bowl"/></svg>Кормить</div>
+      <div class="act"><svg class="i"><use href="#ball"/></svg>Играть</div>
+      <div class="act"><svg class="i"><use href="#drop"/></svg>Мыть</div>
+      <div class="act on"><svg class="i"><use href="#paw"/></svg>Команды</div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Выучил «Голос»: звезда, монеты и сердечко один раз</div>
+</div>
+</div>
+<script src="../wave51/dog.js"></script>
+<script>cmds();</script>
+</body></html>

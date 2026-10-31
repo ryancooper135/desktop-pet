@@ -149,8 +149,8 @@ final class PetStanceTests: XCTestCase {
             XCTAssertEqual(PetStance.endStance(after: rc, from: .stand), .stand, "\(t)")
         }
         // Сидя: встал, трюк, сел обратно — тело кончает там же, без телепорта.
-        let fromSit = PetStance.reaction(kind: "trick.bow", ok: true, stance: .sit, available: all)
-        XCTAssertEqual(fromSit, ["sit_out", "play_bow", "sit_in"])
+        let fromSit = PetStance.reaction(kind: "trick.spin", ok: true, stance: .sit, available: all)
+        XCTAssertEqual(fromSit, ["sit_out", "spin", "sit_in"])
         XCTAssertEqual(PetStance.endStance(after: fromSit, from: .sit), .sit)
         let lieFromSit = PetStance.reaction(kind: "trick.lie", ok: true, stance: .sit, available: all)
         XCTAssertEqual(lieFromSit, ["sit_out", "lie_in", "lie", "lie_out", "sit_in"])
@@ -162,13 +162,25 @@ final class PetStanceTests: XCTestCase {
         let sitFromSit = PetStance.reaction(kind: "trick.sit", ok: true, stance: .sit, available: all)
         XCTAssertEqual(sitFromSit, ["head_tilt", "sit"])
         XCTAssertEqual(PetStance.endStance(after: sitFromSit, from: .sit), .sit)
+        // Волна 57: «Лапу» и «Дай пять» сидящий даёт не вставая, «Ползи» лежащий ползёт сразу.
+        XCTAssertEqual(PetStance.reaction(kind: "trick.paw", ok: true, stance: .sit, available: all), ["paw"])
+        XCTAssertEqual(PetStance.reaction(kind: "trick.five", ok: true, stance: .sit, available: all), ["high_five"])
+        let crawlFromLie = PetStance.reaction(kind: "trick.crawl", ok: true, stance: .lie, available: all)
+        XCTAssertEqual(crawlFromLie, ["crawl", "crawl"])
+        XCTAssertEqual(PetStance.endStance(after: crawlFromLie, from: .lie), .lie)
+        // «Притворись спящим»: упал и встал — кончает стоя, не «мёртвым».
+        let dead = PetStance.reaction(kind: "trick.play_dead", ok: true, stance: .stand, available: all)
+        XCTAssertEqual(dead, ["death", "play_dead_out"])
+        XCTAssertEqual(PetStance.endStance(after: dead, from: .stand), .stand)
         // Промах сидя — по-прежнему встал, «не понял», сел.
         XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: false, stance: .sit, available: all),
                        ["sit_out", "head_tilt", "sniff", "sit_in"])
         // Спит или мёртв — ничего. Нет клипов трюка — тоже ничего (не голый «встал-сел»).
         XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: true, stance: .sleep, available: all), [])
         XCTAssertEqual(PetStance.reaction(kind: "trick.sit", ok: false, stance: .dead, available: all), [])
-        XCTAssertEqual(PetStance.reaction(kind: "trick.shake", ok: true, stance: .sit, available: Set(PetClipNames.required)), [])
+        XCTAssertEqual(PetStance.reaction(kind: "trick.five", ok: true, stance: .sit, available: Set(PetClipNames.required)), [])
+        // Старые трюки волны 8 (в сейве остались) — не команды: обычная реакция по виду (пусто).
+        XCTAssertEqual(PetStance.reaction(kind: "trick.bow", ok: true, stance: .stand, available: all), [])
         // Неизвестный трюк — обычная реакция по виду (пусто).
         XCTAssertEqual(PetStance.reaction(kind: "trick.fly", ok: true, stance: .stand, available: all), [])
     }

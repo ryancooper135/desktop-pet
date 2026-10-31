@@ -102,9 +102,10 @@ enum Memories {
         if !batch.isEmpty { take(batch, into: &book, f) }
         book.seq = f.seq
 
-        // Трюки: дата выучивания живёт в f.tricks.
-        for t in Trick.allCases {
-            if let at = f.tricks[t].learned { book.add(Memory(id: "trick.\(t.rawValue)", t: at, key: t.rawValue)) }
+        // Трюки: дата выучивания живёт в f.tricks. Все записи, не только нынешние 8 команд (волна 57):
+        // выученные до неё «Поклон», «Прыжок», «Отряхнись» остаются в альбоме.
+        for k in f.tricks.items.keys.sorted() {
+            if let at = f.tricks.items[k]?.learned { book.add(Memory(id: "trick.\(k)", t: at, key: k)) }
         }
         // Любимые вкусы: открытые love.
         for (k, v) in f.tastes.opened where v.r == Taste.love.rawValue {
@@ -217,7 +218,7 @@ enum Memories {
         case "walk": return "Первая прогулка — принёс \(Finds.acc(key))"
         case "find": return "Впервые нашёл \(Finds.acc(key))"
         case "trick":
-            let title = Trick(rawValue: key)?.title ?? key
+            let title = Trick.title(raw: key) ?? key
             return m.id == firstTrick ? "Первый трюк — «\(title)»" : "Выучил «\(title)»"
         case "catch": return "Рекорд в «Лови мячик» — \(m.value ?? 0)"
         case "item": return "Первая вещь из автомата — \(itemName(key))"
@@ -286,8 +287,8 @@ enum Memories {
         case "walk": return ("memory_walk", ["item": Finds.acc(key)])
         case "find": return ("memory_find", ["item": Finds.acc(key)])
         case "trick":
-            guard let tr = Trick(rawValue: key) else { return nil }
-            return ("memory_trick", ["item": tr.title])
+            guard let title = Trick.title(raw: key) else { return nil }
+            return ("memory_trick", ["item": title])
         case "catch":
             // {count} — число («Рекорд — 12!»), {times} — с согласованием («Поймал 3 раза подряд!»), волна 17.
             let n = m.value ?? 0

@@ -317,7 +317,7 @@ final class YardDemoUITests: XCTestCase {
         app.launchEnvironment["PET_SCHEME"] = "light"
         app.launch()
         acceptSystemAlerts()
-        // settings.habits в ленивом списке без прокрутки не виден — ждём сам запуск, раздел найдёт прокрутка ниже.
+        // settings.siri в ленивом списке без прокрутки не виден — ждём сам запуск, раздел найдёт прокрутка ниже.
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         settle(1.5)
         let catalog = app.buttons["Каталог превью"]

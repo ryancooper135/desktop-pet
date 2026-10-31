@@ -39,14 +39,12 @@ final class AppModel {
     var showHouse = false
     /// Экран «Двор» (волна 34 G, YardScreen): тайкун во дворе, на весь экран.
     var showYard = false
-    /// Лист «Трюки».
+    /// Лист «Команды» (волна 57).
     var showTricks = false
     /// Мини-игра «Лови мячик» (CatchGameScreen), на весь экран.
     var showCatch = false
     /// Мини-игра «Блок Дуо» (волна 12, BlockDuoScreen), на весь экран.
     var showBlockDuo = false
-    /// Лист «Привычки» (волна 11) по pet://habits; из настроек тот же экран открывается внутри их стека.
-    var showHabits = false
     /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
     var showKitchen = false
     /// Лист «Уровень» (волна 34 I, HomeChips.LevelChip → LevelSheet).
@@ -1114,7 +1112,7 @@ final class AppModel {
             (showYard, "yard"),
             (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
-            (showBlockDuo, "blockduo"), (showHabits, "habits"), (showKitchen, "kitchen"),
+            (showBlockDuo, "blockduo"), (showKitchen, "kitchen"),
             (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
             // Волна 35 N: лист уровня тоже лист — без него pet://map поверх «Уровня» терял карту, флаг оставался true.
             (showLevel, "level"),
@@ -1139,7 +1137,8 @@ final class AppModel {
         case "catch": showCatch = true
         case "blockduo": showBlockDuo = true
         case "brush": startBrush()
-        case "habits": showHabits = true
+        // Волна 57: «Привычек» больше нет — старые ссылки pet://habits открывают «Команды».
+        case "habits": showTricks = true
         case "map": showMap = true
         case "kitchen":
             // Кухня — лист поверх «Дома», как лавка поверх автомата.
@@ -1183,7 +1182,6 @@ final class AppModel {
         showTricks = false
         showCatch = false
         showBlockDuo = false
-        showHabits = false
         showKitchen = false
         showCharacters = false
         showMap = false
@@ -1193,7 +1191,7 @@ final class AppModel {
 
     // MARK: трюки
 
-    /// Команда из листа «Трюки». Лист закрывается, пёс пробует в комнате. Ядро не зовём: исход решает
+    /// Команда из листа «Команды». Лист закрывается, пёс пробует в комнате. Ядро не зовём: исход решает
     /// Tricks.attempt (бросок, счёт, ласка, монеты за первый раз), сцена играет клипы трюка или «Не понял…».
     func doTrick(_ t: Trick) {
         showTricks = false
@@ -1590,7 +1588,7 @@ final class AppModel {
     var anyCover: Bool {
         brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
-            || showBlockDuo || showHabits || showKitchen || showMap || showLevel
+            || showBlockDuo || showKitchen || showMap || showLevel
     }
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.

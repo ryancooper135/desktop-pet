@@ -107,16 +107,15 @@ final class TimeDayTests: XCTestCase {
         XCTAssertEqual(Economy.careLeftToday(f, at: mid - 1), cap - out.coins)
     }
 
-    func testHabitsAndMiniGamesRollOverAtMidnight() {
+    /// Волна 57: вместо привычек — монеты за показ команд (своя суточная норма Tricks.showDaily).
+    func testTrickShowsAndMiniGamesRollOverAtMidnight() {
         Clock.zoneOverride = belgrade
         let mid = DayKey.nextMidnight(after: tdT0)
         var f = tdFile(at: mid - 120)
-        Habits.checkIn(.water, in: &f, now: mid - 1)
-        XCTAssertEqual(Habits.countToday(f, .water, now: mid - 1), 1)
-        XCTAssertEqual(Habits.countToday(f, .water, now: mid + 1), 0)
-        Habits.checkIn(.water, in: &f, now: mid + 1)
-        XCTAssertEqual(f.habits.day, DayKey.of(mid))
-        XCTAssertEqual(Habits.countToday(f, .water, now: mid + 1), 1)
+        f.tricks.day = DayKey.of(mid - 1)
+        f.tricks.showCoins = Tricks.showDaily
+        XCTAssertEqual(Tricks.showCoinsLeft(f, at: mid - 1), 0)
+        XCTAssertEqual(Tricks.showCoinsLeft(f, at: mid + 1), Tricks.showDaily, "после полуночи норма снова целая")
 
         // Мини-игры: потолок, выбранный за секунду до полуночи, через секунду после — снова целый.
         f.catchDay = DayKey.of(mid - 1)
@@ -134,13 +133,14 @@ final class TimeDayTests: XCTestCase {
         let noon = local(belgrade, 2026, 10, 14, 12)
         var f = tdFile(at: noon)
         tdSpendCare(&f, at: noon)
-        Habits.checkIn(.water, in: &f, now: noon + 60)
+        f.tricks.day = DayKey.of(noon + 60)
+        f.tricks.showCoins = 1
         let day = f.econ.daily.day
 
         // Часы на сутки назад: те же счётчики, не новый день.
         let back = noon - 86400
         XCTAssertEqual(Economy.careLeftToday(f, at: back), 0)
-        XCTAssertEqual(Habits.countToday(f, .water, now: back), 1)
+        XCTAssertEqual(Tricks.showCoinsLeft(f, at: back), Tricks.showDaily - 1, "показ команд: тот же счётчик")
         let out = PetRunner.apply(.feed("kibble"), source: .app, to: &f, now: back)
         XCTAssertEqual(out.coins, 0)
         XCTAssertEqual(f.econ.daily.day, day, "назад не откатываемся")

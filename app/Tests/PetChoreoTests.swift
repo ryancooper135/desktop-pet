@@ -398,13 +398,28 @@ final class PetChoreoTests: XCTestCase {
         XCTAssertEqual(PetStance.reaction(kind: "brush", ok: true, stance: .stand, available: noHop), ["shake", "happy_wag"])
     }
 
-    /// Привычка из «Команд»: стоя — подпрыгнул и виляет, сидя и лёжа — ухо, спящего не будим.
-    func testHabitReaction() {
+    /// После партии в Блок Дуо (бывшая реакция привычки, волна 57): стоя — подпрыгнул и виляет, сидя и лёжа — ухо,
+    /// спящего не будим.
+    func testJoyReaction() {
         let all = Set(PetClipNames.required).union(PetClipNames.optional)
-        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .stand, available: all), ["hop", "happy_wag"])
-        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .sit, available: all), ["ear_flick"])
+        XCTAssertEqual(PetStance.reaction(kind: BlockDuo.reactKind, ok: true, stance: .stand, available: all), ["hop", "happy_wag"])
+        XCTAssertEqual(PetStance.reaction(kind: BlockDuo.reactKind, ok: true, stance: .sit, available: all), ["ear_flick"])
         XCTAssertEqual(PetStance.endStance(after: ["ear_flick"], from: .lie), .lie, "лежащий остаётся лежать")
-        XCTAssertEqual(PetStance.reaction(kind: Habits.reactKind, ok: true, stance: .sleep, available: all), [])
+        XCTAssertEqual(PetStance.reaction(kind: BlockDuo.reactKind, ok: true, stance: .sleep, available: all), [])
+    }
+
+    /// Новый уровень или фаза роста (волна 57: свой вид вместо трюка «Прыжок»): встал, подпрыгнул, виляет и вернулся
+    /// в позу; спящего и мёртвого не трогаем.
+    func testLevelUpReaction() {
+        let all = Set(PetClipNames.required).union(PetClipNames.optional)
+        XCTAssertEqual(PetStance.reaction(kind: PetStance.levelUpKind, ok: true, stance: .stand, available: all), ["hop", "happy_wag"])
+        let fromSit = PetStance.reaction(kind: PetStance.levelUpKind, ok: true, stance: .sit, available: all)
+        XCTAssertEqual(fromSit.first, "sit_out")
+        XCTAssertTrue(fromSit.contains("hop"))
+        XCTAssertEqual(fromSit.last, "sit_in", "вернулся сидеть")
+        XCTAssertEqual(PetStance.endStance(after: fromSit, from: .sit), .sit)
+        XCTAssertEqual(PetStance.reaction(kind: PetStance.levelUpKind, ok: true, stance: .sleep, available: all), [])
+        XCTAssertEqual(PetStance.reaction(kind: PetStance.levelUpKind, ok: true, stance: .dead, available: all), [])
     }
 
     // MARK: прогулка
