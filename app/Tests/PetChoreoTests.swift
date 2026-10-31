@@ -460,7 +460,8 @@ final class PetChoreoTests: XCTestCase {
             let p = ChoreoPath.walkOut(u)
             XCTAssertLessThan(simd_distance(p.position, prev.position), 1.5 * W.speed * 0.01 * 1.05 + 1e-4, "рывок, u=\(u)")
             XCTAssertLessThan(abs(p.yaw - prev.yaw), 0.08, "крутанулся, u=\(u)")
-            if u > W.turnOut { XCTAssertGreaterThanOrEqual(p.position.x, prev.position.x - 1e-5, "попятился, u=\(u)") }
+            // Оба кадра — уже в уходе: в развороте (с волны 53 turnAt.x = -0.03) он шагает чуть влево.
+            if u - 0.01 > W.turnOut { XCTAssertGreaterThanOrEqual(p.position.x, prev.position.x - 1e-5, "попятился, u=\(u)") }
             XCTAssertGreaterThanOrEqual(p.position.z, ChoreoPath.playArea.farZ)
             XCTAssertLessThanOrEqual(p.position.z, ChoreoPath.playArea.nearZ)
             prev = p
