@@ -178,8 +178,7 @@ final class AccessibilityUITests: XCTestCase {
             // настоящее замечание (см. RESEARCH/17-a11y.md, «Аудит»).
             if attempt == 1 && !mine.isEmpty && mine.allSatisfy(Self.ghostText) {
                 report("a11y-audit-" + s.name + "-retry", ["Экран \(s.name): попытка 1, только призрачный текст — перепроверка", ""]
-                       + mine.map { $0.detail.isEmpty ? $0.line : $0.line + "
-    " + $0.detail })
+                       + mine.map { $0.detail.isEmpty ? $0.line : $0.line + "\n    " + $0.detail })
                 app.terminate()
                 continue
             }
