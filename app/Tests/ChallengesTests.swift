@@ -53,19 +53,37 @@ final class ChallengesTests: XCTestCase {
 
     // MARK: ротация и цель
 
-    func testRotationGoesBallBlocks() {
-        // Волна 55: зомби убран — круг из игр реестра MiniGame: Мячик ↔ Блок Дуо.
+    func testRotationGoesBallBlocksRunner() {
+        // Волна 55: зомби убран — круг из игр реестра MiniGame; волна 55b: Мячик → Блок Дуо → Раннер.
         let d = dayOf(.ball)
         XCTAssertEqual(Challenges.game(day: d), .ball)
         XCTAssertEqual(Challenges.game(day: d + 1), .blockduo)
-        XCTAssertEqual(Challenges.game(day: d + 2), .ball)
+        XCTAssertEqual(Challenges.game(day: d + 2), .runner)
+        XCTAssertEqual(Challenges.game(day: d + 3), .ball)
         // Отрицательные сутки тоже по кругу, без вылета.
-        XCTAssertEqual(Challenges.game(day: -1), Challenges.game(day: 1))
+        XCTAssertEqual(Challenges.game(day: -1), Challenges.game(day: 2))
         XCTAssertEqual(Challenges.game(day: 0), .ball)
         // Каждая игра реестра бывает в челлендже, другой нет.
         let seen = Set((0..<10).map { Challenges.game(day: d + $0) })
         XCTAssertEqual(seen, Set(MiniGame.allCases))
         XCTAssertNil(ChallengeGame(rawValue: "zombie"), "зомби больше не игра челленджа")
+    }
+
+    func testRunnerChallengeCountsRealRunOnly() {
+        let t = noonOf(dayOf(.runner))
+        var f = cFile(at: t)
+        XCTAssertEqual(Challenges.goal(.runner, in: f), 400)
+        // Просто так (пёс занят) — не в счёт.
+        Challenges.play(.runner, in: &f, now: t) { g, now in Runner.finish(score: 900, in: &g, now: now, free: "asleep") }
+        XCTAssertFalse(Challenges.doneToday(f, at: t))
+        // Рекорд «просто так» засчитан — цель выросла до 70 % от него.
+        let goal = Challenges.goal(.runner, in: f)
+        XCTAssertGreaterThan(goal, 400)
+        Challenges.play(.runner, in: &f, now: t + 30) { g, now in Runner.finish(score: goal - 10, in: &g, now: now) }
+        XCTAssertFalse(Challenges.doneToday(f, at: t + 30), "ниже цели")
+        Challenges.play(.runner, in: &f, now: t + 60) { g, now in Runner.finish(score: goal, in: &g, now: now) }
+        XCTAssertTrue(Challenges.doneToday(f, at: t + 60))
+        XCTAssertEqual(f.challenge.last?.game, "runner")
     }
 
     func testNiceRounding() {
@@ -150,8 +168,8 @@ final class ChallengesTests: XCTestCase {
         XCTAssertNil(playBlocks(&f, score: 5000, at: t + 600))
         XCTAssertEqual(f.econ.wallet.shards, shards0 + 1)
         XCTAssertEqual(f.challenge.count, 1)
-        // Завтра — другая игра, плашка снова с целью.
-        let next = t + 86400
+        // Послезавтра — мячик (Блок Дуо → Раннер → Мячик), плашка снова с целью.
+        let next = t + 2 * 86400
         XCTAssertFalse(Challenges.doneToday(f, at: next))
         XCTAssertEqual(Challenges.status(f, game: .ball, at: next), .today(goal: 25))
     }

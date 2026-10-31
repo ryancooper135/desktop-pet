@@ -181,12 +181,14 @@
     "energy_cost": 6,
     "fun_gain": 18,
     "daily_cap": 60,
-    "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames.swift, реестр MiniGame): «Лови мячик» и «Блок Дуо» вместе («Щенок против зомби» убран в волне 55); у каждой ещё свой daily_cap",
+    "_daily_cap": "общий потолок монет всех мини-игр в местные сутки (MiniGames.swift, реестр MiniGame): «Лови мячик», «Блок Дуо» и «Раннер» вместе («Щенок против зомби» убран в волне 55, «Раннер» добавлен в 55b); у каждой ещё свой daily_cap",
     "list": {
       "blockduo":   { "name": "Блок Дуо",            "base": 5,  "max": 40, "par_score": 3000, "daily_cap": 60,
                       "_note": "BlockDuo.swift, волна 12: своя игра вместе с Шибой вместо веб-версии в браузере. Очки как в веб-версии (клетка 1, линии 40·n·(n+1)·комбо, пустое поле +500), счёт общий с Шибой; монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × minigame_coins_x (польза вещей, ItemPerks); свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
       "catch":      { "name": "Лови мячик",          "base": 5,  "max": 30, "par_score": 40, "daily_cap": 60, "round_seconds": 30, "misses": 3,
                       "_note": "CatchGame.swift: мячик 1 очко, косточка 2; монеты = base + (max − base)·min(очки, par_score)/par_score, × diminishing по номеру раунда за сутки × minigame_coins_x (польза вещей, ItemPerks; дом с волны 36 R монет не прибавляет), округление в конце; не больше daily_cap в сутки (бафф потолок не поднимает); 0 очков — 0 монет. Настроение — ядерным play (fun_gain/energy_cost)" },
+      "runner":     { "name": "Раннер",              "base": 5,  "max": 35, "par_score": 1500, "daily_cap": 60, "lives": 3, "max_seconds": 180, "biome_m": 400, "speed_min": 7, "speed_max": 15, "coin_points": 5,
+                      "_note": "Runner.swift, волна 55b: три полосы, двор → район → парк каждые biome_m метров; очки = метры + coin_points за косточку; скорость speed_min…speed_max по сложности 1 − e^(−м/900); три сердечка, финиш на max_seconds. Монеты — та же формула, что у catch (CatchGame.want): base…max до par_score × diminishing × польза вещей; свой daily_cap и общий minigames.daily_cap. Настроение — ядерным play" },
       "fetch":      { "name": "Апорт",               "base": 10, "max": 50, "par_score": 12, "walk_gain": 15 },
       "zoomies":    { "name": "Поймай зумиз",        "base": 5,  "max": 25, "only_in_state": "zoomies", "walk_gain": 10 },
       "simon":      { "name": "Повторюшка",          "base": 8,  "max": 50, "par_score": 9 },
@@ -884,6 +886,11 @@
           "per_day": 6,
           "group": "game"
         },
+        "game.runner": {
+          "xp": 5,
+          "per_day": 6,
+          "group": "game"
+        },
         "game.challenge": {
           "xp": 10,
           "per_day": 1,
@@ -988,7 +995,7 @@
         {
           "kind": "game",
           "id": "game.runner",
-          "text": "Раннер (скоро)"
+          "text": "Раннер"
         }
       ],
       "7": [

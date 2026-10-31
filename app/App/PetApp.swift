@@ -100,7 +100,7 @@ enum UITestHooks {
     }
 
     static var openURL: URL? {
-        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "brush", "kitchen", "characters", "yard"].contains(v) else { return nil }
+        guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "runner", "brush", "kitchen", "characters", "yard"].contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
 

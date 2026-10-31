@@ -62,7 +62,7 @@ struct LevelChip<Avatar: View>: View {
     @Environment(AppModel.self) private var model
     @ViewBuilder var avatar: Avatar
 
-    private var gameOpen: Bool { model.showCatch || model.showBlockDuo }
+    private var gameOpen: Bool { model.showCatch || model.showBlockDuo || model.showRunner }
 
     var body: some View {
         @Bindable var model = model
