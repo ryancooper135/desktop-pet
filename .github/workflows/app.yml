@@ -405,7 +405,7 @@ jobs:
     # Волна 56: TEST_RUNNER_PET_PERF_LONG=1 включает testPerfIdleMinutes (3 мин покоя, ≈ 4,5 мин на сторону);
     # config=Release — те же замеры на Release-сборке (ENABLE_TESTABILITY для @testable в PetTests).
     runs-on: macos-26
-    timeout-minutes: 150
+    timeout-minutes: 180
     defaults:
       run:
         working-directory: app
@@ -438,16 +438,21 @@ jobs:
           dir: .base/app
 
       - name: Build head and base
-        timeout-minutes: 45
+        # Release с тестами собирается ≈ 27 мин на сторону (PetTests под -O): при base = эта же ветка сборка одна,
+        # base получает её копию (замер «сам против себя» — больше точек одной сборки).
+        timeout-minutes: 70
         run: |
           echo "сборка $CONFIG"
-          for D in . ../.base/app; do
+          SIDES=". ../.base/app"
+          [ "$(git rev-parse HEAD)" = "$(git -C ../.base rev-parse HEAD)" ] && SIDES="."
+          for D in $SIDES; do
             (cd "$D" && xcodebuild build-for-testing -project Pet.xcodeproj -scheme Pet \
               -configuration "$CONFIG" ENABLE_TESTABILITY=YES \
               -destination "platform=iOS Simulator,id=$SIM_UDID" \
               -derivedDataPath build-sim -enableCodeCoverage NO \
               -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)
           done
+          if [ "$SIDES" = "." ]; then echo "base = head: копия сборки"; cp -R build-sim ../.base/app/build-sim; fi
 
       - name: Simulator ready
         timeout-minutes: 10
