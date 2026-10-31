@@ -188,10 +188,10 @@ struct RoomWeatherShown: Component, Equatable {
 enum RoomWeather {
     static let nodeName = "room.weather"
 
-    /// Простое окошко, когда окна во двор ещё нет (двор и будка не куплены): меньше настоящего, в его середине,
-    /// рама цвета рамы окна. Появляется только пока идёт дождь или снег — в ясную погоду комната как была.
-    static let plainWindow = RoomPlan.WallRect(minX: -0.04, maxX: 0.19, minY: 0.25, maxY: 0.40)
-    static let plainFrame: Float = 0.016
+    /// Окна во двор ещё нет — капли в окне комнаты стиля B (PetRoom.baseWindowRect, волна 53): своё окошко
+    /// больше не строим, оно и так висит на стене.
+    static var plainWindow: RoomPlan.WallRect { PetRoom.baseWindowRect }
+    static var plainFrame: Float { PetRoom.baseWindowFrame }
 
     /// Поставить погоду в комнату (узел room.weather в корне комнаты). То же, что уже стоит, — ничего не делает.
     /// true — узел перестроен: новым каплям нужен текущий свет комнаты (RoomLighting).
@@ -214,7 +214,6 @@ enum RoomWeather {
         if plainWindow {
             rect = Self.plainWindow
             frame = plainFrame
-            node.addChild(window(rect, frame: frame))
         } else {
             rect = RoomPlan.window
             frame = RoomPlan.windowFrame
@@ -229,34 +228,6 @@ enum RoomWeather {
                                       height: height, size: size, hex: kind == .snow ? 0xffffff : 0x8fb3dc,
                                       glow: false, still: still, seed: "room", cfg: cfg))
         return true
-    }
-
-    /// Окошко без двора: небо (RoomSky — красится по фазе), рама и подоконник. Слои — как у окна RoomDecor.
-    private static func window(_ w: RoomPlan.WallRect, frame f: Float) -> Entity {
-        let g = Entity()
-        g.name = "room.weather.window"
-        let wallZ = RoomPlan.backWallZ
-        let cx = (w.minX + w.maxX) / 2, cy = (w.minY + w.maxY) / 2
-        @discardableResult
-        func part(_ size: SIMD3<Float>, _ hex: UInt32, _ at: SIMD3<Float>, shade: CGFloat = 1) -> ModelEntity {
-            let e = ModelEntity(mesh: .generateBox(size: size), materials: [PetRoom.matteMaterial(hex, shade: shade)])
-            e.position = at
-            PetRoom.noShadow(e)
-            g.addChild(e)
-            return e
-        }
-        part([w.width - 2 * f, w.height - 2 * f, 0.002], DecorColors.sky, [cx, cy, wallZ + 0.002])
-            .components.set(RoomSky())
-        let depth: Float = 0.03
-        let fz = wallZ + depth / 2
-        part([w.width, f, depth], DecorColors.frame, [cx, w.maxY - f / 2, fz])
-        part([w.width, f, depth], DecorColors.frame, [cx, w.minY + f / 2, fz])
-        part([f, w.height, depth], DecorColors.frame, [w.minX + f / 2, cy, fz])
-        part([f, w.height, depth], DecorColors.frame, [w.maxX - f / 2, cy, fz])
-        // Средник — окошко в две створки.
-        part([f * 0.6, w.height - 2 * f, depth * 0.8], DecorColors.frame, [cx, cy, wallZ + depth * 0.4])
-        part([w.width + 0.03, 0.012, 0.045], DecorColors.frame, [cx, w.minY - 0.004, wallZ + 0.022], shade: 0.92)
-        return g
     }
 }
 

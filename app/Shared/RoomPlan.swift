@@ -257,10 +257,11 @@ enum RoomPlan {
         static let walkTurnAt = P(0, -0.30)
         static let walkOffstage = P(0.95, -0.15)
         /// Игра: разворот у playTurnAt, пробежка до playRunTo, мяч дугами (квадратичные Безье) через ballFar.
-        static let playTurnAt = P(-0.04, -0.30)
-        static let playRunTo = P(0.019, -0.586)
+        /// С волны 53 камера ближе и площадка уже: разворот прижат к середине, пробежка чуть левее.
+        static let playTurnAt = P(-0.0357, -0.30)
+        static let playRunTo = P(0.0008, -0.5858)
         static let ballFar = P(0.08, -0.88)
-        static let knockTo = P(0.096, -0.958)
+        static let knockTo = P(0.0957, -0.9585)
         static let flyCurve = P(0.34, -0.10)
         static let backCurve = P(0.30, -0.35)
     }
@@ -286,8 +287,8 @@ enum RoomPlan {
         }
     }
 
-    static let playArea = Area(nearZ: 0.35, nearMinX: -0.27, nearMaxX: 0.25,
-                               farZ: -1.0, farMinX: -0.48, farMaxX: 0.37)
+    static let playArea = Area(nearZ: 0.35, nearMinX: -0.245, nearMaxX: 0.224,
+                               farZ: -1.0, farMinX: -0.441, farMaxX: 0.340)
 
     /// Где ходит питомец с этим телом и куда летает мяч — те же формулы, что в ChoreoPath, с поправкой
     /// на длину и ширину (PetBody из рамки модели). Zone(.shiba) совпадает с Keep (RoomPlanTests),
