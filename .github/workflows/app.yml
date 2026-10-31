@@ -52,6 +52,10 @@ on:
         type: choice
         options: [Debug, Release]
         default: Debug
+      dev:
+        description: "ipa для себя: с разделом «Для разработки» (PET_DEV_IPA), артефакт Pet-ipa-dev. Друзьям — false"
+        type: boolean
+        default: false
 concurrency:
   group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
@@ -134,6 +138,9 @@ jobs:
         working-directory: app
     env:
       OUT: ${{ github.workspace }}/app/out
+      # Волна 59: Release без DEBUG — ни LaunchSeed, ни PET_* из окружения, ни «Для разработки» (Shared/DevGate.swift).
+      # dev=true добавляет только раздел «Для разработки» (PET_DEV_IPA); сиды и env-читы и тогда выключены.
+      DEV_IPA: ${{ inputs.dev && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/xcodegen
@@ -144,11 +151,15 @@ jobs:
         # оставлял таблицу символов: ≈ 15 МБ после установки). Символы для крэшей — в .dSYM (артефакт Pet-dsym).
         run: |
           mkdir -p "$OUT"
+          EXTRA=()
+          if [ "$DEV_IPA" = 1 ]; then EXTRA=('OTHER_SWIFT_FLAGS=$(inherited) -DPET_DEV_IPA'); fi
+          # Волна 59: номер сборки в «Об игре» = номер прогона CI (по нему видно, какая ipa у друга).
+          EXTRA+=("CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER")
           xcodebuild -project Pet.xcodeproj -scheme Pet \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build -quiet \
             DEPLOYMENT_POSTPROCESSING=YES \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" "${EXTRA[@]}" build
 
       - name: Ad-hoc sign with entitlements
         # Без подписи в бинарнике нет entitlements, и сайдлоадер не узнает про App Group.
@@ -182,7 +193,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Pet-ipa
+          name: ${{ inputs.dev && 'Pet-ipa-dev' || 'Pet-ipa' }}
           path: app/out/Pet.ipa
           retention-days: 30
 
@@ -443,6 +454,10 @@ jobs:
         timeout-minutes: 70
         run: |
           echo "сборка $CONFIG"
+          # Волна 59 закрыла Release от PET_*/-uiTesting (DevGate); замеру они нужны — флаг PET_PERF_BUILD
+          # открывает их только в этой сборке. В ipa его нет.
+          PERF_FLAGS=()
+          [ "$CONFIG" = Release ] && PERF_FLAGS=('OTHER_SWIFT_FLAGS=$(inherited) -DPET_PERF_BUILD')
           SIDES=". ../.base/app"
           [ "$(git rev-parse HEAD)" = "$(git -C ../.base rev-parse HEAD)" ] && SIDES="."
           for D in $SIDES; do
@@ -450,7 +465,7 @@ jobs:
               -configuration "$CONFIG" ENABLE_TESTABILITY=YES \
               -destination "platform=iOS Simulator,id=$SIM_UDID" \
               -derivedDataPath build-sim -enableCodeCoverage NO \
-              -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)
+              -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual "${PERF_FLAGS[@]}")
           done
           if [ "$SIDES" = "." ]; then echo "base = head: копия сборки"; cp -R build-sim ../.base/app/build-sim; fi
 

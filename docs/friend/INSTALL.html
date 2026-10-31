@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Питомец на iPhone</title>
+<meta name="description" content="Как поставить «Питомца» на свой iPhone через SideStore, бесплатно, под своим Apple ID.">
+<style>
+:root {
+  --bg: #f7f3ec;
+  --card: #fffdf9;
+  --ink: #2b2620;
+  --soft: #6d645a;
+  --line: #e6ddd0;
+  --accent: #c8642a;
+  --accent-soft: #f6e3d5;
+  --ok: #3f7d4e;
+  --warn-bg: #fff4dc;
+  --warn-line: #e8c77a;
+  --fur: #d9893f;
+  --fur-light: #f4d8b4;
+  --screen: #fbf7f1;
+  --metal: #b9b0a5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d1a17;
+    --card: #27231f;
+    --ink: #efe8de;
+    --soft: #b3a99c;
+    --line: #3b352f;
+    --accent: #ec8a4f;
+    --accent-soft: #3d2b20;
+    --ok: #7cc08c;
+    --warn-bg: #352d1c;
+    --warn-line: #7a6430;
+    --fur: #e09a55;
+    --fur-light: #6b5138;
+    --screen: #312c27;
+    --metal: #6f665c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d1a17;
+  --card: #27231f;
+  --ink: #efe8de;
+  --soft: #b3a99c;
+  --line: #3b352f;
+  --accent: #ec8a4f;
+  --accent-soft: #3d2b20;
+  --ok: #7cc08c;
+  --warn-bg: #352d1c;
+  --warn-line: #7a6430;
+  --fur: #e09a55;
+  --fur-light: #6b5138;
+  --screen: #312c27;
+  --metal: #6f665c;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+main { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+h1 { font-size: 30px; line-height: 1.15; margin: 8px 0 10px; letter-spacing: -0.01em; }
+h2 { font-size: 21px; margin: 36px 0 12px; }
+h3 { font-size: 17px; margin: 0 0 6px; }
+p { margin: 0 0 12px; }
+.lead { color: var(--soft); font-size: 18px; }
+.hero { display: flex; gap: 18px; align-items: center; }
+.hero svg { flex: none; width: 108px; height: 108px; }
+@media (max-width: 480px) { .hero { flex-direction: column; align-items: flex-start; } .hero svg { width: 88px; height: 88px; } }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin: 0 0 12px;
+}
+ul.need { list-style: none; padding: 0; margin: 0; }
+ul.need li { padding: 8px 0 8px 30px; position: relative; border-top: 1px solid var(--line); }
+ul.need li:first-child { border-top: 0; }
+ul.need li::before {
+  content: ""; position: absolute; left: 4px; top: 15px; width: 14px; height: 14px;
+  border-radius: 50%; border: 2px solid var(--accent);
+}
+ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+ol.steps > li { counter-increment: s; position: relative; padding-left: 52px; }
+ol.steps > li::before {
+  content: counter(s);
+  position: absolute; left: 0; top: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+ol.steps > li .card { margin-bottom: 12px; }
+.where { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 8px; margin-bottom: 6px; }
+.path { font-weight: 600; }
+.note { color: var(--soft); font-size: 15px; margin: 6px 0 0; }
+.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.pic { display: block; width: 100%; max-width: 420px; height: auto; margin: 10px auto 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th, td { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--soft); font-size: 14px; border-top: 0; }
+td.num { white-space: nowrap; font-weight: 700; }
+a { color: var(--accent); }
+.fix dt { font-weight: 600; margin-top: 12px; }
+.fix dd { margin: 2px 0 0; color: var(--ink); }
+footer { margin-top: 40px; color: var(--soft); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+
+<div class="hero">
+  <!-- Шиба: нарисовано для этой страницы, CC0 -->
+  <svg viewBox="0 0 120 120" role="img" aria-label="Шиба">
+    <circle cx="60" cy="60" r="56" fill="var(--accent-soft)"/>
+    <path d="M28 52 L34 22 L52 40 Z" fill="var(--fur)"/>
+    <path d="M92 52 L86 22 L68 40 Z" fill="var(--fur)"/>
+    <path d="M33 47 L36 31 L46 41 Z" fill="var(--fur-light)"/>
+    <path d="M87 47 L84 31 L74 41 Z" fill="var(--fur-light)"/>
+    <ellipse cx="60" cy="64" rx="34" ry="30" fill="var(--fur)"/>
+    <path d="M30 70 Q40 92 60 92 Q80 92 90 70 Q78 80 60 80 Q42 80 30 70 Z" fill="var(--fur-light)"/>
+    <circle cx="47" cy="62" r="4" fill="var(--ink)"/>
+    <circle cx="73" cy="62" r="4" fill="var(--ink)"/>
+    <ellipse cx="60" cy="74" rx="5" ry="3.5" fill="var(--ink)"/>
+    <path d="M54 80 Q60 85 66 80" stroke="var(--ink)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div>
+    <h1>Как поставить «Питомца» на iPhone</h1>
+    <p class="lead">Приложения нет в App Store. Его ставят через SideStore, бесплатно, под твоим собственным Apple ID. Компьютер нужен один раз, дальше всё делается на телефоне.</p>
+  </div>
+</div>
+
+<h2>Что понадобится</h2>
+<div class="card">
+  <ul class="need">
+    <li><b>iPhone с iOS 26 или новее.</b> На более старой системе «Питомец» не запустится.</li>
+    <li><b>Компьютер, один раз:</b> Windows, Mac или Linux, и кабель, которым iPhone заряжается от компьютера.</li>
+    <li><b>Твой Apple ID</b> (обычный бесплатный, тот же, что на телефоне). Вводишь его только ты сам, в iloader и в SideStore.</li>
+    <li><b>Wi-Fi</b> на телефоне.</li>
+    <li><b>Файл <span class="path">Pet.ipa</span></b>: его пришлёт тот, кто дал тебе эту страницу.</li>
+  </ul>
+  <p class="note">Всё займёт минут 20–30. Платить ничего не нужно.</p>
+</div>
+
+<h2>Установка</h2>
+<ol class="steps">
+
+<li><div class="card">
+  <span class="where">Компьютер</span>
+  <h3>Поставь iloader</h3>
+  <p>Открой <a href="https://github.com/nab138/iloader">github.com/nab138/iloader</a>, справа выбери <span class="path">Releases</span> и скачай версию для своей системы. Это небольшая программа, которая один раз ставит SideStore на телефон.</p>
+  <p class="note">Если на Windows iloader попросит iTunes, поставь его с сайта Apple.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">Компьютер + iPhone</span>
+  <h3>Подключи телефон кабелем</h3>
+  <p>На iPhone появится вопрос «Доверять этому компьютеру?»: нажми <span class="path">Доверять</span> и введи код-пароль телефона.</p>
+  <!-- Иллюстрация: нарисовано для этой страницы, CC0 -->
+  <svg class="pic" viewBox="0 0 420 150" role="img" aria-label="Ноутбук соединён кабелем с iPhone">
+    <rect x="20" y="18" width="190" height="112" rx="10" fill="var(--screen)" stroke="var(--metal)" stroke-width="4"/>
+    <rect x="4" y="128" width="222" height="12" rx="6" fill="var(--metal)"/>
+    <rect x="44" y="44" width="120" height="14" rx="7" fill="var(--accent-soft)"/>
+    <rect x="44" y="68" width="88" height="10" rx="5" fill="var(--line)"/>
+    <rect x="44" y="90" width="66" height="22" rx="11" fill="var(--accent)"/>
+    <path d="M226 116 C 270 116, 280 70, 318 72" stroke="var(--soft)" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="316" y="10" width="76" height="132" rx="16" fill="var(--screen)" stroke="var(--ink)" stroke-width="4"/>
+    <rect x="340" y="18" width="28" height="6" rx="3" fill="var(--ink)"/>
+    <rect x="326" y="52" width="56" height="44" rx="8" fill="var(--card)" stroke="var(--line)" stroke-width="2"/>
+    <rect x="332" y="60" width="44" height="6" rx="3" fill="var(--line)"/>
+    <rect x="336" y="78" width="36" height="12" rx="6" fill="var(--accent)"/>
+  </svg>
+</div></li>
+
+<li><div class="card">
+  <span class="where">Компьютер</span>
+  <h3>Войди в iloader и поставь SideStore</h3>
+  <p>В iloader войди своим Apple ID и выбери <span class="path">Install SideStore (Stable)</span>. Подожди, пока установка закончится, и отключи кабель.</p>
+  <p class="note">Логин и пароль вводишь сам, никому их не пересылай. Если не хочешь использовать основной Apple ID, можно завести отдельный бесплатный и войти им: на телефоне и в SideStore везде нужен один и тот же.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Разреши свой профиль разработчика</h3>
+  <p><span class="path">Настройки → Основные → VPN и управление устройством</span> → нажми на свою почту → <span class="path">Доверять</span>.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Включи режим разработчика</h3>
+  <p><span class="path">Настройки → Конфиденциальность и безопасность → Режим разработчика</span> → включить. Телефон перезагрузится, после этого подтверди <span class="path">Включить</span>.</p>
+  <p class="note">Без него приложения не из App Store не открываются. Пункт появляется только после шага 3.</p>
+  <!-- Иллюстрация: нарисовано для этой страницы, CC0 -->
+  <svg class="pic" viewBox="0 0 420 70" role="img" aria-label="Переключатель «Режим разработчика» включён">
+    <rect x="2" y="6" width="416" height="58" rx="14" fill="var(--screen)" stroke="var(--line)" stroke-width="2"/>
+    <rect x="22" y="27" width="190" height="14" rx="7" fill="var(--ink)" opacity=".75"/>
+    <rect x="330" y="17" width="68" height="36" rx="18" fill="var(--ok)"/>
+    <circle cx="380" cy="35" r="15" fill="#fff"/>
+  </svg>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Поставь LocalDevVPN</h3>
+  <p>Найди в App Store бесплатное приложение <b>LocalDevVPN</b>, открой и нажми <span class="path">Connect</span>. Через него SideStore ставит и продлевает приложения прямо с телефона, без компьютера. Это не настоящий VPN: трафик никуда не уходит.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Войди в SideStore</h3>
+  <p>Открой SideStore → <span class="path">Settings</span> → войди <b>тем же</b> Apple ID, что и в iloader.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Поставь «Питомца»</h3>
+  <p>Сохрани <span class="path">Pet.ipa</span> в «Файлы» (например, из мессенджера: <span class="path">Поделиться → Сохранить в Файлы</span>). В SideStore открой <span class="path">My Apps</span> → <span class="path">+</span> → выбери <span class="path">Pet.ipa</span>. LocalDevVPN при этом должен быть подключён.</p>
+  <p class="note">Если SideStore спросит про расширения, оставь их: это виджет и «островок» с Шибой.</p>
+</div></li>
+
+<li><div class="card">
+  <span class="where">iPhone</span>
+  <h3>Знакомься с Шибой</h3>
+  <p>Открой «Питомца»: при первом запуске он сам всё покажет. Виджет добавляется как обычно: долгое нажатие на экран «Домой» → <span class="path">Изменить → Добавить виджет</span>.</p>
+</div></li>
+
+</ol>
+
+<h2>Раз в неделю: продлить подпись</h2>
+<div class="card">
+  <p>Бесплатный Apple ID подписывает приложения на <b>7 дней</b>. Чтобы «Питомец» открывался дальше, раз в неделю зайди в SideStore → <span class="path">My Apps</span> и нажми на счётчик дней у приложения (например, <span class="path">7 DAYS</span>). Нужны Wi-Fi и включённый LocalDevVPN, компьютер не нужен.</p>
+  <!-- Иллюстрация: нарисовано для этой страницы, CC0 -->
+  <svg class="pic" viewBox="0 0 420 84" role="img" aria-label="Строка приложения в SideStore с кнопкой счётчика дней">
+    <rect x="2" y="6" width="416" height="72" rx="14" fill="var(--screen)" stroke="var(--line)" stroke-width="2"/>
+    <rect x="18" y="18" width="48" height="48" rx="12" fill="var(--accent-soft)"/>
+    <path d="M28 40 L31 25 L39 33 Z M56 40 L53 25 L45 33 Z" fill="var(--fur)"/>
+    <ellipse cx="42" cy="46" rx="15" ry="13" fill="var(--fur)"/>
+    <circle cx="37" cy="44" r="2" fill="var(--ink)"/><circle cx="47" cy="44" r="2" fill="var(--ink)"/>
+    <rect x="82" y="26" width="120" height="13" rx="6" fill="var(--ink)" opacity=".8"/>
+    <rect x="82" y="47" width="84" height="10" rx="5" fill="var(--line)"/>
+    <rect x="300" y="24" width="100" height="36" rx="18" fill="var(--accent)"/>
+    <text x="350" y="47" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="-apple-system, Segoe UI, Roboto, sans-serif">7 DAYS</text>
+  </svg>
+  <p>«Питомец» сам напомнит за 2 дня и за день. Если не успел: приложение просто перестанет открываться, сохранение никуда не денется. Продли подпись в SideStore и открывай как обычно.</p>
+</div>
+
+<h2>Ограничения Apple, честно</h2>
+<div class="card">
+  <table>
+    <tr><th>Правило для бесплатного Apple ID</th><th>Что это значит</th></tr>
+    <tr><td>Не больше <b>3</b> таких приложений одновременно</td><td>SideStore — первое, «Питомец» — второе. Остаётся одно место.</td></tr>
+    <tr><td>Не больше <b>10</b> App ID за 7 дней</td><td>«Питомец» занимает <b>2</b> (само приложение и виджет), SideStore — около 2. Получается примерно 4 из 10. Через 7 дней App ID освобождаются.</td></tr>
+    <tr><td>Подпись живёт <b>7 дней</b></td><td>Раз в неделю нажать продление в SideStore.</td></tr>
+  </table>
+  <p class="note">Виджет не считается отдельным приложением из трёх, но App ID занимает.</p>
+</div>
+
+<div class="card warn">
+  <h3>Не удаляй «Питомца»</h3>
+  <p>Вместе с приложением удалится и Шиба со всем прогрессом. Новую версию ставь поверх старой тем же способом (<span class="path">My Apps → +</span>), сохранение останется.</p>
+</div>
+
+<h2>Если что-то не так</h2>
+<div class="card">
+  <dl class="fix">
+    <dt>«Питомец» не открывается или пишет, что приложение недоступно</dt>
+    <dd>Скорее всего, кончилась подпись. Продли её в SideStore.</dd>
+    <dt>SideStore не может продлить или установить</dt>
+    <dd>Проверь, что телефон в Wi-Fi и LocalDevVPN подключён (Connect).</dd>
+    <dt>После обновления iOS SideStore перестал работать</dt>
+    <dd>Иногда после обновления телефон надо заново подключить к компьютеру и ещё раз пройти iloader. Сохранение «Питомца» при этом не трогается.</dd>
+    <dt>Виджет пишет «Открой приложение»</dt>
+    <dd>Открой «Питомца» хотя бы раз: виджет покажет Шибу, когда она появится.</dd>
+    <dt>Виджет пишет «Нет связи с игрой»</dt>
+    <dd>Виджет не видит игру под этой подписью. Сама игра работает и всё сохраняет. Скажи тому, кто дал приложение.</dd>
+  </dl>
+</div>
+
+<h2>Отзыв</h2>
+<div class="card">
+  <p>Отзыв и идеи — тому, кто дал тебе приложение. Версия и номер сборки есть в «Питомце»: <span class="path">Настройки → Об игре</span>, их удобно назвать вместе с отзывом.</p>
+</div>
+
+<footer>
+  <p>Официальные сайты: <a href="https://sidestore.io">sidestore.io</a> · <a href="https://github.com/nab138/iloader">github.com/nab138/iloader</a>. Скачивай SideStore и iloader только оттуда.</p>
+  <p>Иллюстрации нарисованы для этой страницы, лицензия CC0. Текст написан своими словами, документация SideStore не копировалась.</p>
+</footer>
+
+</main>
+</body>
+</html>

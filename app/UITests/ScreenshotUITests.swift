@@ -1103,9 +1103,27 @@ extension XCTestCase {
     }
 
     func waitHittable(_ e: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        waitGlassPass()
         if e.exists && e.isHittable { return true }
         let ready = NSPredicate(format: "exists == true AND hittable == true")
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: ready, object: e)], timeout: timeout) == .completed
+    }
+
+    /// Главный экран в UI-тестах через GlassSettle.delay после сборки сцены пересоздаёт стеклянные кнопки
+    /// (glass=0 → 1). Кнопка, пойманная в этот миг, — уходящая копия: isHittable не false, а падение теста
+    /// («Activation point invalid» у act.walk, tab.wardrobe, open.games — 41231757123, 41232401166, 41232490134).
+    /// Сцена на экране, а прохода ещё не было — дождаться его. Не главный экран или проход был — сразу дальше.
+    func waitGlassPass(timeout: TimeInterval = 5) {
+        let app = XCUIApplication()
+        guard app.state == .runningForeground else { return }
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
+        guard stage.exists, let v = stage.value as? String, v.contains("glass="),
+              v.range(of: "glass=[1-9]", options: .regularExpression) == nil else { return }
+        let settled = NSPredicate(format: "value MATCHES %@", ".*glass=[1-9][0-9]*$")
+        if XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: settled, object: stage)],
+                            timeout: timeout) == .completed {
+            settle(0.4)
+        }
     }
 
     /// Нажать, когда кнопка готова. Не стала нажимаемой, но есть (SwiftUI иногда не отдаёт hittable у стекла) —
@@ -1144,7 +1162,15 @@ extension XCTestCase {
         let menu = any["tab.wardrobe"].firstMatch
         let item = any[id].firstMatch
         guard menu.waitForExistence(timeout: timeout) else { return nil }
-        return tap(menu, expecting: item, timeout: 4, name: "\(name)-wardrobe") ? item : nil
+        // Не общий tap(_:expecting:): тот при повторе спрашивает у кнопки isHittable, а пока меню раскрывается,
+        // у кнопки «Шкаф» нет точки нажатия — XCTest сам записывает провал «Failed to determine hittability»
+        // (CI 41192538561, testInteriorBuyWalls). Пункт ждём дольше (с 3D запрос к дереву идёт секундами),
+        // не дождались — снимок и одно нажатие в центр рамки, без вопроса о нажимаемости.
+        guard tapWhenReady(menu) else { return nil }
+        if item.waitForExistence(timeout: 10) { return item }
+        snap("\(name)-wardrobe-retry")
+        menu.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        return item.waitForExistence(timeout: 10) ? item : nil
     }
 
     /// Повторять проверку, пока не выйдет или не истечёт срок (волна 41 H). Пока на экране 3D, на CI-симуляторе

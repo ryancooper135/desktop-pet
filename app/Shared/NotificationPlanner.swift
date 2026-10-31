@@ -123,8 +123,8 @@ enum NotificationPlanner {
     static func buildNotes(_ f: SaveFile, now: Double) -> [PlannedNote] {
         guard let exp = f.build?.expiresT else { return [] }
         let items: [(h: Double, title: String, body: String)] = [
-            (48, "Подпись кончается", "Через 2 дня приложение перестанет открываться. Переустанови его, \(f.petName) подождёт."),
-            (24, "Остался день", PetNames.adapt("Завтра подпись кончится. Переустанови приложение, чтобы не потерять Шибу.",
+            (48, "Подпись кончается", "Через 2 дня приложение перестанет открываться. Продли подпись в SideStore или переустанови, \(f.petName) подождёт."),
+            (24, "Остался день", PetNames.adapt("Завтра подпись кончится. Продли её в SideStore или переустанови приложение, чтобы не потерять Шибу.",
                                             name: f.petName)),
         ]
         return items.compactMap { (it: (h: Double, title: String, body: String)) -> PlannedNote? in

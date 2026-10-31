@@ -6,7 +6,7 @@ import Foundation
 enum Clock {
     /// Сдвиг относительно настоящих часов, считается один раз при запуске.
     static let offset: Double = {
-        guard let raw = ProcessInfo.processInfo.environment["PET_NOW"], let t = parse(raw) else { return 0 }
+        guard let raw = Env.vars["PET_NOW"], let t = parse(raw) else { return 0 }
         return t - Date().timeIntervalSince1970
     }()
 
@@ -41,9 +41,10 @@ enum Clock {
 
 /// Признаки тестового запуска. Под тестами не просим разрешений и не стартуем остров.
 enum Env {
-    static let vars: [String: String] = ProcessInfo.processInfo.environment
+    /// В Release пусто: сборка для друзей не слушает PET_* (см. DevGate).
+    static let vars: [String: String] = DevGate.env(ProcessInfo.processInfo.environment)
     static let isUnitTest: Bool = vars["XCTestConfigurationFilePath"] != nil
-    static let isUITest: Bool = vars["PET_UI_TEST"] == "1" || ProcessInfo.processInfo.arguments.contains("-uiTesting")
+    static let isUITest: Bool = vars["PET_UI_TEST"] == "1" || DevGate.args(ProcessInfo.processInfo.arguments).contains("-uiTesting")
     static var isTesting: Bool { isUnitTest || isUITest }
 
     static func value(_ key: String) -> String? {
