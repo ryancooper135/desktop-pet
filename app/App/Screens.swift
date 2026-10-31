@@ -21,7 +21,9 @@ struct NeedsSheet: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(PetPalette.bg.ignoresSafeArea())
         // Один detent: тянуть вверх в пустоту нечего. Высоту больше экрана система сама ограничит, дальше — прокрутка.
-        .presentationDetents(contentHeight > 0 ? [.height(CGFloat(HomeText.sheetHeight(content: Double(contentHeight))))] : [.medium])
+        // UI-тест аудита (PET_SHEET_FULL) — .large: лист по высоте содержимого не раскрыть жестом.
+        .presentationDetents(UITestHooks.sheetFull ? [.large]
+            : contentHeight > 0 ? [.height(CGFloat(HomeText.sheetHeight(content: Double(contentHeight))))] : [.medium])
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("needs.sheet")
     }

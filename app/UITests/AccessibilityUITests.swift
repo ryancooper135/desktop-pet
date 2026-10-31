@@ -27,12 +27,13 @@ final class AccessibilityUITests: XCTestCase {
         /// Лист с detent .medium: перед аудитом раскрыть на весь экран. Над половинным листом виден дом, а VoiceOver
         /// под модальным листом его законно не видит — elementDetection помечает этот текст как недоступный
         /// (needs в прогонах 41207569009 и 41223159110 — в обеих попытках). На .large лист виден целиком.
+        /// Лист шкал по высоте содержимого жестом не раскрыть (41227595647: «не раскрылся») — ему PET_SHEET_FULL.
         var expand = false
     }
 
     static let screens: [Screen] = [
         Screen(name: "main", marker: ScreenshotUITests.mainMarker, fixed: true),
-        Screen(name: "needs", env: ["PET_OPEN": "needs"], marker: "needs.sheet", expand: true),
+        Screen(name: "needs", env: ["PET_OPEN": "needs", "PET_SHEET_FULL": "1"], marker: "needs.sheet"),
         Screen(name: "kitchen", env: ["PET_SEED": "kitchen", "PET_OPEN": "kitchen"], marker: "kitchen.screen"),
         Screen(name: "shop", env: ["PET_SEED": "items", "PET_OPEN": "shop"], marker: "shop.screen"),
         Screen(name: "capsule", env: ["PET_SEED": "items", "PET_OPEN": "capsule"], marker: "capsule.screen"),
