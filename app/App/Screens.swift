@@ -493,15 +493,9 @@ struct SettingsScreen: View {
 
     /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
     /// PET_DEVTOOLS=1 — показать и под UI-тестом: так YardDemoUITests доходит до «Двор 3D».
-    /// На iPhone (ipa собирается как Release) раздел открывают семь касаний по версии — devUnlockKey.
+    /// Семь касаний по версии открывают раздел только там, где он вообще есть (DevGate.devMenu):
+    /// в Debug и в ipa с флагом PET_DEV_IPA. В ipa для друзей — нет (волна 59).
     static let devUnlockKey = "pet.devtools.unlocked"
-    static var showDevTools: Bool {
-        #if DEBUG
-        return !Env.isUITest || Env.value("PET_DEVTOOLS") == "1"
-        #else
-        return false
-        #endif
-    }
 
     var body: some View {
         let name = model.snap.name
@@ -652,11 +646,23 @@ struct SettingsScreen: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .listRowBackground(PetPalette.card)
                         .accessibilityIdentifier("settings.credits")
+                    Text(AboutInfo.versionLine(Bundle.main.infoDictionary))
+                        .petFont(13)
+                        .foregroundStyle(PetPalette.ink)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier("settings.about.version")
+                    Text(AboutInfo.feedbackLine)
+                        .petFont(13)
+                        .foregroundStyle(PetPalette.soft)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier("settings.feedback")
                 } header: {
                     Text("Об игре")
                 }
 
-                if Self.showDevTools || devUnlocked {
+                if DevGate.showDevSection(uiTest: Env.isUITest, devtoolsEnv: Env.value("PET_DEVTOOLS") == "1",
+                                          unlocked: devUnlocked) {
                     Section("Для разработки") {
                         NavigationLink("Каталог превью") { PreviewCatalogScreen() }
                             .listRowBackground(PetPalette.card)
@@ -667,14 +673,17 @@ struct SettingsScreen: View {
                     Button("Начать заново", role: .destructive) { confirmStartOver = true }
                         .listRowBackground(PetPalette.card)
                 } footer: {
-                    Text("Версия \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            versionTaps += 1
-                            if versionTaps >= 7 { devUnlocked = true }
-                        }
-                        .accessibilityIdentifier("settings.version")
+                    // Версия видна в «Об игре»; здесь — только цель для семи касаний, и только где есть dev-раздел.
+                    if DevGate.devMenu {
+                        Text("Версия \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")")
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                versionTaps += 1
+                                if versionTaps >= 7 { devUnlocked = true }
+                            }
+                            .accessibilityIdentifier("settings.version")
+                    }
                 }
             }
             // Тёплая «бумага» приложения вместо системного серого фона списка.

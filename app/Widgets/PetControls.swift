@@ -23,12 +23,12 @@ struct PetIslandControl: ControlWidget {
     }
 }
 
-/// Что сейчас с псом — из сейва на «сейчас».
+/// Что сейчас с псом — из сейва на «сейчас». Сейва не видно — «Открой приложение» (волна 59).
 struct PetStatusControlProvider: ControlValueProvider {
     var previewValue: PetStatus { .fine }
 
     func currentValue() async throws -> PetStatus {
-        PetStatusLogic.of(PetStore.load(), now: Clock.now())
+        WidgetFallback.status(PetStore.loadIfAny(), now: Clock.now())
     }
 }
 

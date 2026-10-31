@@ -438,6 +438,12 @@ final class PetStore: @unchecked Sendable {
         ((try? shared.read()) ?? nil) ?? SaveFile.fresh(now: Clock.now())
     }
 
+    /// Файл, если он есть и читается; nil — сохранения нет (первый запуск или у расширения нет общей папки).
+    /// Так читают виджет и контрол (волна 59): выдуманного щенка они не рисуют, а показывают заглушку.
+    static func loadIfAny() -> SaveFile? {
+        (try? shared.read()) ?? nil
+    }
+
     /// Стейт, досчитанный до момента date. Ничего не пишет: так читают виджеты и превью.
     static func snapshot(at date: Date = Clock.date()) -> PetNow {
         let f = load()

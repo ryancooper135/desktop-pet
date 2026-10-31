@@ -22,7 +22,7 @@ enum Paths {
     }
 
     private static func resolve() -> (dir: URL, shared: Bool) {
-        let env = ProcessInfo.processInfo.environment
+        let env = Env.vars
         if let custom = env["PET_STORE_DIR"], !custom.isEmpty {
             let url = URL(fileURLWithPath: custom, isDirectory: true)
             ensureDir(url)

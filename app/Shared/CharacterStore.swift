@@ -58,7 +58,7 @@ struct CharacterStore: Sendable {
     }
 
     static var standard: CharacterStore {
-        let env = ProcessInfo.processInfo.environment
+        let env = Env.vars
         if let custom = env["PET_STORE_DIR"], !custom.isEmpty {
             return CharacterStore(root: URL(fileURLWithPath: custom, isDirectory: true).appendingPathComponent("characters"))
         }
