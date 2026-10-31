@@ -47,6 +47,9 @@ final class AccessibilityUITests: XCTestCase {
         let label: String
         let text: String
         var interactive = false
+        /// Подробное описание аудита и рамка элемента — только в отчёт у настоящих замечаний (у elementDetection
+        /// элемента нет, без снимка и подробностей непонятно, какой текст аудит увидел).
+        var detail = ""
         var line: String { "[\(screen)] \(type) · \(id.isEmpty ? "—" : id) «\(label)»: \(text)" }
     }
 
@@ -164,8 +167,16 @@ final class AccessibilityUITests: XCTestCase {
                 }
             }
             real += mine
+            if !mine.isEmpty {
+                // Снимок экрана после аудита: что было видно, когда нашлось замечание.
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "a11y-audit-" + s.name + "-shot"
+                shot.lifetime = .keepAlways
+                add(shot)
+            }
             let took = "аудит \(Int(Date().timeIntervalSince(ready))) с"
-            report("a11y-audit-" + s.name, ["Экран \(s.name): \(took)", "", "Замечания:"] + mine.map(\.line)
+            report("a11y-audit-" + s.name, ["Экран \(s.name): \(took)", "", "Замечания:"]
+                   + mine.map { $0.detail.isEmpty ? $0.line : $0.line + "\n    " + $0.detail }
                    + ["", "Исключения:"] + excused)
             app.terminate()
         }
@@ -238,7 +249,8 @@ final class AccessibilityUITests: XCTestCase {
         return Found(screen: screen, type: typeName(issue.auditType),
                      id: alive ? (e?.identifier ?? "") : "", label: alive ? (e?.label ?? "") : "",
                      text: issue.compactDescription,
-                     interactive: !alive || kinds.contains(e?.elementType ?? .any))
+                     interactive: !alive || kinds.contains(e?.elementType ?? .any),
+                     detail: issue.detailedDescription + (alive ? " · рамка \(e?.frame ?? .zero)" : ""))
     }
 
     /// Подпись — только эмодзи (с модификаторами и ZWJ), без букв и цифр.

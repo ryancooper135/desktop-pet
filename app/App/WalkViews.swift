@@ -350,7 +350,8 @@ struct AlbumSheet: View {
                         AlbumCell(find: row.find, count: row.count)
                     }
                 }
-                Text("Кнопка «Гулять» — над панелью действий. Гуляет 1–3 часа, каждая прогулка — новая находка.")
+                // Волна 53: «Гулять» — круг справа от таб-бара, а не ряд над панелью.
+                Text("Круг «Гулять» — справа от нижней панели. Гуляет 1–3 часа, каждая прогулка — новая находка.")
                     .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)

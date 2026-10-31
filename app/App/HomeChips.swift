@@ -38,6 +38,8 @@ struct WalletChip: View {
             .padding(.horizontal, 12)
             .frame(height: 44)
             .bGlass(Capsule())
+            // Стекло не ловит касания само: без формы нажималась только надпись, и аудит доступности ругался на цель.
+            .contentShape(Capsule())
             .animation(.snappy, value: coins)
             .animation(.snappy, value: tickets)
             .animation(.snappy, value: shards)

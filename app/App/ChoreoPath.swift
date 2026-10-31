@@ -197,11 +197,20 @@ enum ChoreoPath {
         static let ballRadius: Float = 0.05
         static var ballHome: SIMD3<Float> { PetRoom.ballPos }
         /// Где Шиба разворачивается за мячом: чуть назад и к середине кадра, там помещается боком.
-        static var turnAt: SIMD3<Float> { playArea.clamp(SIMD3<Float>(-0.04, 0, -0.30), inset: petReachMax) }
+        /// С волны 53 (камера ближе) — у правого края допуска: боком углы пятна выходят ближе к камере, а левый
+        /// край кадра на полу косой, и у левого края допуска хвост задевал бы рамку (testPlayStaysInFrame).
+        static var turnAt: SIMD3<Float> { playArea.clamp(SIMD3<Float>(-0.03, 0, -0.30), inset: petReachMax) }
+        /// На какой доле разворота Шиба уже дошёл до turnAt: назад — быстрее, чем поворачивается, иначе боком
+        /// оказывается ещё у дома, где площадка уже двух его «радиусов» (testPlayCentersInsideArea).
+        static let turnLead = 0.5
+        /// Запас у края для runTo сверх petReachMax: там он разворачивается домой, и углы пятна боком выходят
+        /// ближе к камере, где край кадра на полу косой.
+        static let turnPad: Float = 0.006
         /// Куда улетает мяч: вглубь, правее середины.
         static var ballFar: SIMD3<Float> { playArea.clamp(SIMD3<Float>(0.08, 0.05, -0.88), inset: ballRadius) }
         /// Опоры дуг полёта и возврата: справа, в обход зада Шибы (зазор > 0.13 м).
-        static let flyCurve = SIMD3<Float>(0.34, 0.05, -0.10)
+        /// С волны 53 вылет ближе к середине: при прежней (0.34, -0.10) мяч на узком портрете уходил за 0.95.
+        static let flyCurve = SIMD3<Float>(0.28, 0.05, -0.14)
         static let backCurve = SIMD3<Float>(0.30, 0.05, -0.35)
         /// Отскоки в полёте: длительность и высота.
         static let bounces: [(Double, Float)] = [(0.5, 0.16), (0.32, 0.07), (0.2, 0.025)]
@@ -213,7 +222,8 @@ enum ChoreoPath {
         /// Где Шиба останавливается перед мячом (там же разворачивается обратно): морда у мяча —
         /// 0,3 м от центра у Шибы, у своего персонажа — на его длину.
         static var runTo: SIMD3<Float> {
-            playArea.clamp(SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30 * Float(body.length), inset: petReachMax)
+            playArea.clamp(SIMD3<Float>(ballFar.x, 0, ballFar.z) - runDir * 0.30 * Float(body.length),
+                           inset: petReachMax + turnPad)
         }
         /// Куда мяч откатывается от прыжка.
         static var knockTo: SIMD3<Float> { playArea.clamp(ballFar + runDir * 0.08, inset: ballRadius) }
@@ -258,8 +268,8 @@ enum ChoreoPath {
         if u < P.turn0 { return PetPose(position: .zero, yaw: y0) }
         if u < P.turn1 {
             // Через «лицом к камере», не спиной; заодно отходит к turnAt, где боком влезает в кадр.
-            let s = smooth((u - P.turn0) / (P.turn1 - P.turn0))
-            return PetPose(position: P.turnAt * s, yaw: y0 + (P.yawRun - y0) * s)
+            let k = (u - P.turn0) / (P.turn1 - P.turn0)
+            return PetPose(position: P.turnAt * smooth(k / P.turnLead), yaw: y0 + (P.yawRun - y0) * smooth(k))
         }
         if u < P.run1 {
             return PetPose(position: P.turnAt + (P.runTo - P.turnAt) * smooth((u - P.turn1) / (P.run1 - P.turn1)),
@@ -384,7 +394,8 @@ extension ChoreoPath {
     enum Walk {
         /// Где разворачивается перед уходом: назад от мяча, чтобы морда при повороте его не задела.
         /// Глубже -0.3: ближе площадка уже двух «радиусов» Шибы, и поворот на месте задевал бы край кадра.
-        static let turnAt = SIMD3<Float>(0.0, 0, -0.30)
+        /// С волны 53 (камера ближе) чуть левее середины: в x = 0 боком не помещался (testWalkExitOffFrame).
+        static let turnAt = SIMD3<Float>(-0.03, 0, -0.30)
         /// Точка за правым краем кадра: Шиба там целиком за краем playArea (testWalkExitOffFrame).
         static let offstage = SIMD3<Float>(0.95, 0, -0.15)
         /// Скорость шага, м/с: под клип walk, чтобы лапы не скользили. Править по anim-walk.

@@ -365,6 +365,7 @@ final class RoomPlanTests: XCTestCase {
             out.append((K.walkOffstage * (1 - s), yawIn))
             out.append((P(0, 0), yawIn + (y0 - yawIn) * s))
             out.append((K.playTurnAt * s, y0 + (yawRun - y0) * s))
+            out.append((K.playTurnAt * RoomPlan.smooth(s / K.playTurnLead), y0 + (yawRun - y0) * RoomPlan.smooth(s)))
             out.append((K.playTurnAt + (K.playRunTo - K.playTurnAt) * s, yawRun))
             out.append((K.playRunTo, yawRun + (yawBack - yawRun) * s))
             out.append((K.playRunTo * (1 - s), yawBack))
