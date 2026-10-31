@@ -117,8 +117,7 @@ final class PetLogicTests: XCTestCase {
 
     // MARK: AwayBuilder
 
-    // AwayBuilder живёт в App/AwayReport.swift, в Linux-сборку логики (app/Package.swift) он не входит.
-    #if !SWIFT_PACKAGE
+    // Волна 52: AwayBuilder переехал в Shared — эти тесты теперь идут и на Linux.
     func testAwayShortAbsenceHasNoReport() {
         let f = freshFile()
         XCTAssertNil(AwayBuilder.make(f, prev: f.pet, now: t0 + 10 * 60), "10 минут — не повод для ленты")
@@ -147,7 +146,6 @@ final class PetLogicTests: XCTestCase {
             XCTAssertEqual(AwayBuilder.times(n), want, "\(n)")
         }
     }
-    #endif
 
     // MARK: NotificationPlanner
 

@@ -72,88 +72,383 @@ struct NeedsSheet: View {
 
 // MARK: - Пока тебя не было
 
+/// Волна 52: «Пока тебя не было» 2.0 (макет A «Лента», design/wave52). Сверху вниз: что делал пёс (2–3 момента
+/// с иконкой), что накопилось во дворе — одной кнопкой «Забрать всё» (тот же model.collectYard, что во дворе),
+/// что изменилось (погода, сезон, уровень, достижения) и одна подсказка с наградой. Пустые блоки не рисуются.
+/// Блоки проявляются по очереди; с Reduce Motion — сразу. Каждая карточка для VoiceOver — одна фраза.
 struct AwayScreen: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let report: AwayReport
+    /// Сколько блоков уже проявилось (лесенка 0,08 с).
+    @State private var shown = 0
+    /// «Забрать всё» нажато: что реально пришло (может отличаться от предпросмотра на секунды копилки).
+    @State private var collected: YardHarvest?
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 20)
-            PetFaceView(pose: model.snap.pose)
-                .frame(width: 96, height: 96)
-            VStack(spacing: 4) {
-                Text(Presenter.typeset(report.greet))
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(PetPalette.ink)
-                    .multilineTextAlignment(.center)
-                Text(report.subtitle)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(PetPalette.soft)
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(report.cards) { card in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: card.icon)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(PetPalette.accent)
-                            .frame(width: 22)
-                        Text(Presenter.typeset(card.text))
-                            .font(.system(size: 15, design: .rounded))
-                            .foregroundStyle(PetPalette.ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                hero
+                    .awayAppear(0, shown)
+                momentList
+                if report.died {
+                    Text(Presenter.typeset(report.cta))
+                        .petFont(17, .semibold)
+                        .foregroundStyle(PetPalette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 16)
+                        .awayAppear(2, shown)
+                } else {
+                    if let stash = report.stash {
+                        section("Накопилось")
+                            .awayAppear(2, shown)
+                        stashCard(stash)
+                            .awayAppear(2, shown)
                     }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(16)
-            .background(RoundedRectangle(cornerRadius: 20).fill(PetPalette.card))
-
-            Text(Presenter.typeset(report.cta))
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(PetPalette.ink)
-                .multilineTextAlignment(.center)
-
-            Spacer(minLength: 10)
-
-            if report.died {
-                Button {
-                    model.startOver()
-                } label: {
-                    Text("Начать заново").frame(maxWidth: .infinity, minHeight: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PetPalette.accent)
-                // Вторая кнопка — тихая, в тон экрана, а не системно-синяя.
-                Button("Закрыть") { model.away = nil }
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .tint(PetPalette.soft)
-                    .frame(minHeight: 44)
-            } else {
-                if let _ = model.snap.main.action {
-                    Button {
-                        model.away = nil
-                        model.doMain()
-                    } label: {
-                        Label(model.snap.main.title, systemImage: model.snap.main.icon)
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .frame(maxWidth: .infinity, minHeight: 50)
+                    if !report.changes.isEmpty {
+                        section("Что изменилось")
+                            .awayAppear(3, shown)
+                        AwayFlow(spacing: 8) {
+                            ForEach(report.changes) { c in chip(c) }
+                        }
+                        .awayAppear(3, shown)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(PetPalette.accent)
                 }
-                Button("Потом") { model.away = nil }
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .tint(PetPalette.soft)
-                    .frame(minHeight: 44)
+                buttons
+                    .padding(.top, 16)
+                    .awayAppear(4, shown)
             }
+            .padding(.horizontal, 18)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollBounceBehavior(.basedOnSize)
         .background(PetPalette.bg.ignoresSafeArea())
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("away.screen")
+        .task {
+            if reduceMotion {
+                shown = 5
+                return
+            }
+            for i in 1...5 {
+                withAnimation(.easeOut(duration: 0.35)) { shown = i }
+                try? await Task.sleep(nanoseconds: 80_000_000)
+            }
+        }
+    }
+
+    // MARK: блоки
+
+    private var hero: some View {
+        AXRow(spacing: 14) {
+            PetFaceView(pose: model.snap.pose)
+                .frame(width: 84, height: 84)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(Presenter.typeset(report.greet))
+                    .petFont(28, .heavy)
+                    .foregroundStyle(PetPalette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(report.subtitle)
+                    .petFont(17, .semibold)
+                    .foregroundStyle(PetPalette.soft)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
+    }
+
+    @ViewBuilder private var momentList: some View {
+        if !report.cards.isEmpty {
+            if !report.died {
+                section("Что делал \(model.snap.name)")
+                    .awayAppear(1, shown)
+            }
+            VStack(spacing: 8) {
+                ForEach(report.cards) { c in moment(c) }
+            }
+            .padding(.top, report.died ? 16 : 0)
+            .awayAppear(1, shown)
+        }
+    }
+
+    private func section(_ title: String) -> some View {
+        Text(title.uppercased())
+            .tracking(0.8)
+            .petFont(13, .bold)
+            .foregroundStyle(PetPalette.soft)
+            .padding(.top, 18)
+            .padding(.bottom, 8)
+            .padding(.horizontal, 4)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func moment(_ c: AwayReport.Card) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            AwayTile(icon: c.icon, tone: c.tone)
+            VStack(alignment: .leading, spacing: 2) {
+                if !c.title.isEmpty {
+                    Text(c.title)
+                        .petFont(19, .bold)
+                        .foregroundStyle(PetPalette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(Presenter.typeset(c.text))
+                    .petFont(15)
+                    .foregroundStyle(PetPalette.ink.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 11)
+        .padding(.leading, 11)
+        .padding(.trailing, 14)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(PetPalette.card))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("away.card.\(c.id)")
+    }
+
+    private func stashCard(_ stash: YardHarvest) -> some View {
+        let got = collected
+        let h = got ?? stash
+        let chips = AwayBuilder.stashChips(h)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("+\(h.coins) 🪙")
+                    .petFont(30, .heavy)
+                    .foregroundStyle(PetPalette.ink)
+                Text(got == nil ? "в копилке двора" : "в кошельке")
+                    .petFont(15, .semibold)
+                    .foregroundStyle(PetPalette.soft)
+            }
+            .accessibilityElement(children: .combine)
+            if !chips.isEmpty {
+                AwayFlow(spacing: 8) {
+                    ForEach(chips, id: \.self) { t in
+                        Text(t)
+                            .petFont(15, .semibold)
+                            .foregroundStyle(PetPalette.ink)
+                            .padding(.horizontal, 13)
+                            .frame(minHeight: 38)
+                            .background(Capsule().fill(PetPalette.bg))
+                    }
+                }
+            }
+            if let got {
+                Label(Presenter.typeset(YardText.harvest(got)), systemImage: "checkmark.circle.fill")
+                    .petFont(15, .semibold)
+                    .foregroundStyle(AwayReport.Tone.play.color)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("away.collected")
+            } else {
+                Button {
+                    // Тот же сбор, что кнопкой во дворе: Yard.collect + награды записи, звон CoinChime, тост.
+                    if let h = model.collectYard(), !h.isEmpty {
+                        withAnimation(Motion.calm(.spring(response: 0.35, dampingFraction: 0.8))) { collected = h }
+                    }
+                } label: {
+                    Label("Забрать всё", systemImage: "tray.and.arrow.down.fill")
+                        .petFont(18, .bold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background(Capsule().fill(AwayReport.Tone.vio.color))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Монеты и порции со двора — в кошелёк и кладовую")
+                .accessibilityIdentifier("away.collect")
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(PetPalette.card))
+    }
+
+    private func chip(_ c: AwayReport.Card) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: c.icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(c.tone.color)
+                .accessibilityHidden(true)
+            Text(c.title)
+                .petFont(15, .semibold)
+                .foregroundStyle(PetPalette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 13)
+        .frame(minHeight: 38)
+        .background(Capsule().fill(PetPalette.card))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(c.text)
+        .accessibilityIdentifier("away.change.\(c.id)")
+    }
+
+    @ViewBuilder private var buttons: some View {
+        if report.died {
+            Button {
+                model.startOver()
+            } label: {
+                Text("Начать заново").frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(PetPalette.accent)
+            // Вторая кнопка — тихая, в тон экрана, а не системно-синяя.
+            later("Закрыть")
+        } else {
+            if let hint = report.hint {
+                hintCard(hint)
+            } else if model.snap.main.action != nil {
+                // Подсказки нет (всё сделано) — как раньше: главная кнопка комнаты.
+                Button {
+                    model.away = nil
+                    model.doMain()
+                } label: {
+                    Label(model.snap.main.title, systemImage: model.snap.main.icon)
+                        .petFont(17, .bold)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(PetPalette.accent)
+            }
+            later("Потом")
+        }
+    }
+
+    private func later(_ title: String) -> some View {
+        Button(title) { model.away = nil }
+            .petFont(16, .semibold)
+            .tint(PetPalette.soft)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .accessibilityIdentifier("away.later")
+    }
+
+    private func hintCard(_ h: AwayReport.Hint) -> some View {
+        let title = h.reward.isEmpty ? h.button : "\(h.button) · \(h.reward)"
+        return AXRow(spacing: 12) {
+            HStack(spacing: 12) {
+                AwayTile(icon: h.icon, tone: h.tone)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(h.label.uppercased())
+                        .tracking(0.6)
+                        .petFont(13, .bold)
+                        .foregroundStyle(AwayReport.Tone.vio.color)
+                    Text(Presenter.typeset(h.title))
+                        .petFont(18, .bold)
+                        .foregroundStyle(PetPalette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+            Button {
+                model.away = nil
+                if let a = h.action { model.act(a) }
+            } label: {
+                Text(title)
+                    .petFont(15, .bold)
+                    .foregroundStyle(PetPalette.bg)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 48)
+                    .background(Capsule().fill(PetPalette.ink))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("away.hint")
+        }
+        .padding(.vertical, 12)
+        .padding(.leading, 14)
+        .padding(.trailing, 12)
+        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(PetPalette.card))
+    }
+}
+
+/// Цветная плашка с SF Symbol — иконка момента или подсказки. Растёт с Dynamic Type.
+private struct AwayTile: View {
+    @ScaledMetric(relativeTo: .body) private var side: CGFloat = 46
+    let icon: String
+    let tone: AwayReport.Tone
+
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: side * 0.48, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: side, height: side)
+            .background(RoundedRectangle(cornerRadius: side * 0.33, style: .continuous).fill(tone.color))
+            .accessibilityHidden(true)
+    }
+}
+
+extension AwayReport.Tone {
+    /// Цвета макета волны 52: одинаковые в обеих темах (иконка белая на плашке).
+    var color: Color {
+        switch self {
+        case .food: return Color(hex: 0xFF9446)
+        case .love: return Color(hex: 0xFF5E86)
+        case .play: return Color(hex: 0x22C59A)
+        case .wash: return Color(hex: 0x3EA7FF)
+        case .gold: return Color(hex: 0xF4B42F)
+        case .night: return Color(hex: 0x5B6CD9)
+        case .vio: return Color(hex: 0x6C5CE7)
+        }
+    }
+}
+
+private extension View {
+    /// Блок проявляется, когда до него дошла лесенка: прозрачность и сдвиг на 14 pt снизу.
+    func awayAppear(_ i: Int, _ shown: Int) -> some View {
+        opacity(shown > i ? 1 : 0)
+            .offset(y: shown > i ? 0 : 14)
+    }
+}
+
+/// Чипы в строку с переносом (перемены, кладовая/билетик).
+private struct AwayFlow: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(width: proposal.width ?? .infinity, subviews)
+        let w = rows.map(\.width).max() ?? 0
+        let h = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(0, rows.count - 1))
+        return CGSize(width: proposal.width ?? w, height: h)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(width: bounds.width, subviews) {
+            var x = bounds.minX
+            for (i, size) in zip(row.items, row.sizes) {
+                subviews[i].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var items: [Int] = []
+        var sizes: [CGSize] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func arrange(width: CGFloat, _ subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var row = Row()
+        for (i, v) in subviews.enumerated() {
+            var size = v.sizeThatFits(.unspecified)
+            if size.width > width { size = v.sizeThatFits(ProposedViewSize(width: width, height: nil)) }
+            if !row.items.isEmpty, row.width + spacing + size.width > width {
+                rows.append(row)
+                row = Row()
+            }
+            row.width = row.items.isEmpty ? size.width : row.width + spacing + size.width
+            row.items.append(i)
+            row.sizes.append(size)
+            row.height = max(row.height, size.height)
+        }
+        if !row.items.isEmpty { rows.append(row) }
+        return rows
     }
 }
 

@@ -146,6 +146,12 @@ final class ScreenshotUITests: XCTestCase {
         shootState("ui-43-away", env: ["PET_AWAY_H": "9"], marker: "away.screen")
     }
 
+    /// Волна 52: «Пока тебя не было» с копилкой двора — карточка «Накопилось» и кнопка «Забрать всё».
+    @MainActor
+    func testStates52AwayStash() {
+        shootState("ui-52-away-stash", env: ["PET_SEED": "away_yard"], marker: "away.collect")
+    }
+
     /// Главный экран в тёмной теме.
     @MainActor
     func testStates44MainDark() {
