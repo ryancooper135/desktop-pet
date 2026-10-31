@@ -258,6 +258,52 @@ final class ScreenshotUITests: XCTestCase {
                    marker: Self.mainMarker, settleFor: 2.5)
     }
 
+    // MARK: волна 53 — стиль «B · Стекло», вариант 1 (ui-53-b-*)
+
+    /// Главный экран B+1: «Задание дня» сверху, колечки шкал справа, полоса из четырёх действий с наградами,
+    /// таб-бар «Дом · Двор · Игры · Шкаф · Команды» и круг «Гулять». Сид tasks — пёс ур. 7, три задания дня.
+    @MainActor
+    func testStates53BHome() {
+        shootState("ui-53-b-home", env: ["PET_SEED": "tasks", "PET_NOW": Self.today(12, 0), "PET_SCHEME": "light"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// То же в тёмной теме — стекло и подписи читаются поверх тёмной комнаты.
+    @MainActor
+    func testStates53BHomeDark() {
+        shootState("ui-53-b-home-dark", env: ["PET_SEED": "tasks", "PET_NOW": Self.today(12, 0), "PET_SCHEME": "dark"],
+                   marker: Self.mainMarker, settleFor: 2.5)
+    }
+
+    /// Двор: ярус, уют и монеты числами на чипах; копилка — кольцо, «+N/ч», время, одна кнопка «Забрать».
+    @MainActor
+    func testStates53BYard() {
+        shootState("ui-53-b-yard", env: ["PET_SEED": "yard_plates", "PET_OPEN": "yard", "PET_NOW": Self.noon,
+                                         "PET_SCHEME": "light"],
+                   marker: "yard.screen.collect", settleFor: 4)
+    }
+
+    /// Лист поверх стеклянного главного: «Шкалы» (тап по колечкам справа).
+    @MainActor
+    func testStates53BSheet() {
+        shootState("ui-53-b-sheet", env: ["PET_SEED": "tasks", "PET_NOW": Self.today(12, 0), "PET_SCHEME": "light",
+                                          "PET_OPEN": "needs"],
+                   marker: "needs.sheet", settleFor: 2)
+    }
+
+    /// Меню «Шкаф» в таб-баре: «Дом и комната», «Альбом», «Автомат».
+    @MainActor
+    func testStates53BWardrobe() throws {
+        let app = try shootOptional("ui-53-b-home-menu-base", env: ["PET_SEED": "tasks", "PET_NOW": Self.today(12, 0),
+                                                                    "PET_SCHEME": "light"],
+                                    marker: "tab.wardrobe", keepRunning: true)
+        let item = wardrobeItem(app, "open.album", name: "ui-53-b-wardrobe")
+        settle(0.8)
+        snap("ui-53-b-wardrobe")
+        XCTAssertNotNil(item, "меню «Шкаф» не раскрылось")
+        app.terminate()
+    }
+
     /// Вечер (20:30, светлая тема): тёплый свет, приглушённые стены, лампа, персиковое небо в окне.
     @MainActor
     func testStates63RoomEvening() {
@@ -1088,6 +1134,17 @@ extension XCTestCase {
         snap("\(name)-retry")
         e.tap()
         return target.waitForExistence(timeout: timeout)
+    }
+
+    /// Волна 53: «Дом и комната» (open.house), «Альбом» (open.album) и «Автомат» (act.capsule) — пункты меню «Шкаф»
+    /// таб-бара (tab.wardrobe). Раскрыть меню и вернуть пункт; меню нет или не раскрылось — nil, решает вызывающий.
+    @MainActor
+    func wardrobeItem(_ app: XCUIApplication, _ id: String, timeout: TimeInterval = 10, name: String) -> XCUIElement? {
+        let any = app.descendants(matching: .any)
+        let menu = any["tab.wardrobe"].firstMatch
+        let item = any[id].firstMatch
+        guard menu.waitForExistence(timeout: timeout) else { return nil }
+        return tap(menu, expecting: item, timeout: 4, name: "\(name)-wardrobe") ? item : nil
     }
 
     /// Повторять проверку, пока не выйдет или не истечёт срок (волна 41 H). Пока на экране 3D, на CI-симуляторе

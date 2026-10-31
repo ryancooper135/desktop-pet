@@ -121,30 +121,9 @@ struct Banner: View {
     }
 }
 
+/// Тост — с волны 53 чёрная капсула у островка (IslandToast в GlassKit). Имя осталось: его ставят дом и двор.
 struct ToastView: View {
     let toast: Toast
 
-    var body: some View {
-        HStack(spacing: 6) {
-            // Волна 31: значок — украшение, VoiceOver читает только строку тоста.
-            Group {
-                if let emoji = toast.emoji {
-                    Text(emoji).font(.system(size: 15))
-                } else {
-                    Image(systemName: toast.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .foregroundStyle(toast.ok ? PetPalette.green : PetPalette.red)
-                }
-            }
-            .accessibilityHidden(true)
-            Text(toast.text)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(PetPalette.ink)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Capsule().fill(PetPalette.card).shadow(color: .black.opacity(0.12), radius: 8, y: 3))
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.updatesFrequently)
-        .accessibilityIdentifier("toast")
-    }
+    var body: some View { IslandToast(toast: toast) }
 }

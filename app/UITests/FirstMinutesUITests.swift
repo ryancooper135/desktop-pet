@@ -69,8 +69,10 @@ final class FirstMinutesUITests: XCTestCase {
     /// Открыть кнопкой, снять, вернуться. Кнопку жмём, когда она нажимаема (прошлый лист уехал, затемнение ушло);
     /// лист не открылся, а кнопка свободна — тап ушёл в анимацию, ещё один (ui-94-31 так и падал на CI).
     @MainActor
-    private func visit(_ app: XCUIApplication, button: String, sheet: String, close: String?, name: String) {
-        let b = el(app, button)
+    private func visit(_ app: XCUIApplication, button: String, inWardrobe: Bool = false,
+                       sheet: String, close: String?, name: String) {
+        // Волна 53: альбом, автомат и дом — пункты меню «Шкаф» таб-бара; сначала раскрываем меню.
+        let b = inWardrobe ? (wardrobeItem(app, button, timeout: 5, name: name) ?? el(app, button)) : el(app, button)
         guard b.waitForExistence(timeout: 5) else {
             snap("\(name)-missing")
             XCTFail("\(name): нет кнопки \(button)")
@@ -240,9 +242,9 @@ final class FirstMinutesUITests: XCTestCase {
         let app = launch()
         waitHome(app)
         snap("ui-94-30-row")
-        visit(app, button: "open.album", sheet: "album.sheet", close: "album.close", name: "ui-94-31-album")
-        visit(app, button: "act.capsule", sheet: "capsule.screen", close: "capsule.close", name: "ui-94-32-capsule")
-        visit(app, button: "open.house", sheet: "house.screen", close: "house.close", name: "ui-94-33-house")
+        visit(app, button: "open.album", inWardrobe: true, sheet: "album.sheet", close: "album.close", name: "ui-94-31-album")
+        visit(app, button: "act.capsule", inWardrobe: true, sheet: "capsule.screen", close: "capsule.close", name: "ui-94-32-capsule")
+        visit(app, button: "open.house", inWardrobe: true, sheet: "house.screen", close: "house.close", name: "ui-94-33-house")
         visit(app, button: "open.tricks", sheet: "tricks.screen", close: "tricks.close", name: "ui-94-34-tricks")
 
         // Мини-игры: меню из трёх, «Лови мячик» на весь экран, крестик.

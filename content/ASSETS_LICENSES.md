@@ -39,6 +39,22 @@ CC-BY — обязательно указать автора в «Настрой
   `style_a*.json`); исходники glb — `tools/assets/source/`. CC0 атрибуции не требует, но автор назван там же.
 - Проверяет `PetBreedTests.testAssetCreditsListed`.
 
+## Комната стиля B (волна 53)
+
+| Файл в `app/Resources/Room/` | Модель / текстура | Автор | Источник | Лицензия |
+|---|---|---|---|---|
+| `plant.usdz` | «pottedPlant» из Furniture Kit | Kenney | https://kenney.nl/assets/furniture-kit | CC0 1.0 |
+| `books.usdz` | «books» из Furniture Kit | Kenney | https://kenney.nl/assets/furniture-kit | CC0 1.0 |
+| `bear.usdz` | «bear» из Furniture Kit | Kenney | https://kenney.nl/assets/furniture-kit | CC0 1.0 |
+| `floor_herringbone.jpg` | «WoodFloor036» (паркет ёлочкой) | ambientCG | https://ambientcg.com/view?id=WoodFloor036 | CC0 1.0 |
+
+- Мебель: glb → usdz одним мешем, цвета перекрашены в пастель стиля B, высота под полку
+  (`tools/assets/furniture_usdz.py`). Пол: цвет WoodFloor036 1K осветлён и сдвинут в пастель, тайл
+  (`tools/assets/floor_pastel.py`). Скачанное лежит вне репо — `pet-assets/candidates/wave53`.
+- CC0 атрибуции не требует; авторы всё равно названы в «Об игре» (`SettingsScreen.modelCredits`).
+- Интерфейс волны 53 (стекло, таб-бар, значки) — системные SF Symbols и Liquid Glass, сторонних файлов нет.
+  Шрифт макета `design/wave53/fonts/GoogleSans-*` в приложение и в репо не попадает.
+
 ## Виджет, островок и контрол «что сейчас» (волна 51)
 
 Сторонних файлов **нет**. Пёс в позах занятия — свой `PixelDog`/3D из кода (бег, сон, тазик с пеной уже были),

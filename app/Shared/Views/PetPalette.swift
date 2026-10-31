@@ -1,4 +1,4 @@
-// Палитра стиля A (как в песочнице RESEARCH/mockups/sandbox): тёплая, мягкая, без чистого чёрного.
+// Палитра. С волны 53 — стиль B «Стекло» (design/wave53): было тёплое A из песочницы RESEARCH/mockups/sandbox.
 
 import SwiftUI
 import UIKit
@@ -24,16 +24,31 @@ extension Color {
 }
 
 enum PetPalette {
-    static let ink = Color.dynamic(light: 0x4a3b33, dark: 0xf3ece6)
-    static let soft = Color.dynamic(light: 0x8a7a70, dark: 0xb8a89e)
-    static let bg = Color.dynamic(light: 0xf3ece6, dark: 0x2a2320)
-    static let card = Color.dynamic(light: 0xfffaf5, dark: 0x3a302b)
-    static let accent = Color(hex: 0xf08a5d)
-    static let red = Color(hex: 0xe5534b)
-    static let green = Color(hex: 0x74bf78)
-    static let yellow = Color(hex: 0xf2bf4a)
+    // Волна 53: стиль B «Стекло» — холодная лаванда, чернила #1C1B29, акцент фиолетовый #6C5CE7.
+    // Имена прежние, чтобы все экраны, виджеты и островок перешли на B без правок у себя.
+    static let ink = Color.dynamic(light: 0x1c1b29, dark: 0xf2f0fa)
+    static let soft = Color.dynamic(light: 0x6b6880, dark: 0xa9a6bc)
+    static let bg = Color.dynamic(light: 0xefe8fb, dark: 0x1b1928)
+    static let card = Color.dynamic(light: 0xffffff, dark: 0x2a2740)
+    static let accent = Color(hex: 0x6c5ce7)
+    static let red = Color(hex: 0xff4f7b)
+    static let green = Color(hex: 0x22c59a)
+    static let yellow = Color(hex: 0xffc54d)
     /// Фон 3D-сцены: сцена — «комната», а не UI, поэтому одинаковый в обеих темах.
     static let stageBg = Color(hex: 0xf6efe6)
+
+    // Токены B (design/wave53/base.css): цвета действий, золото наград, тёмный островок.
+    static let vio = Color(hex: 0x6c5ce7)
+    static let food = Color(hex: 0xff9446)
+    static let love = Color(hex: 0xff5e86)
+    static let play = Color(hex: 0x22c59a)
+    static let wash = Color(hex: 0x3ea7ff)
+    static let gold = Color(hex: 0xffd46b)
+    static let island = Color(hex: 0x0b0a12)
+    static let islandMute = Color(hex: 0xa9a6bc)
+    /// Стена комнаты в макетах: сверху голубая, книзу сиреневая (фон листов и двора).
+    static let wallTop = Color.dynamic(light: 0xcfe0ff, dark: 0x1d2236)
+    static let wallBottom = Color.dynamic(light: 0xe9ddfa, dark: 0x221c33)
 
     // Шерсть и мордочка: одинаковые в обеих темах.
     static let fur = Color(hex: 0xe39a55)
@@ -46,22 +61,22 @@ enum PetPalette {
 
     static func need(_ n: Need) -> Color {
         switch n {
-        case .food: return Color(hex: 0xf0913a)
-        case .clean: return Color(hex: 0x6f9fd8)
-        case .energy: return Color(hex: 0xf2bf4a)
-        case .fun: return Color(hex: 0x74bf78)
-        case .love: return Color(hex: 0xef6a7a)
-        case .walk: return Color(hex: 0x9b7fd8)
-        case .look: return Color(hex: 0x4fb3a9)
+        case .food: return food
+        case .clean: return wash
+        case .energy: return Color(hex: 0xffb92e)
+        case .fun: return play
+        case .love: return love
+        case .walk: return Color(hex: 0x8b7cf6)
+        case .look: return Color(hex: 0x2ec4b6)
         }
     }
 
     static func level(_ l: Int) -> Color {
         switch l {
-        case 0: return Color(hex: 0x74bf78)
-        case 1: return Color(hex: 0xf2bf4a)
-        case 2: return Color(hex: 0xf0913a)
-        default: return Color(hex: 0xe5534b)
+        case 0: return Color(hex: 0x22c59a)
+        case 1: return Color(hex: 0xf2b134)
+        case 2: return Color(hex: 0xff8a3d)
+        default: return red
         }
     }
 

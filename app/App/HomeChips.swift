@@ -1,5 +1,5 @@
 // Волна 5 на главном: кошелёк, «Открытка дня» и карточка «Вкус открыт!».
-// Перенесено из HomeScreen.swift без изменений (волна 28).
+// Перенесено из HomeScreen.swift без изменений (волна 28). Волна 53: кошелёк в стекле, уровень — цифрой на аватаре.
 
 import SwiftUI
 import UIKit
@@ -9,34 +9,25 @@ import UIKit
 
 /// Кошелёк у шестерёнки: «🪙 150 · 🎟 1», а с клочками — «… ✂️ 12» (волна 32; нет клочков — ✂️ не показываем,
 /// чтобы ряд с именем не сжимался зря). Тап — автомат с капсулами.
+/// Волна 53: стеклянная капсула; уровень пса ушёл цифрой на аватар (LevelChip в NameCard), числа — коротко (1,2к).
 struct WalletChip: View {
     let coins: Int
     let tickets: Int
     var shards: Int = 0
     let action: () -> Void
 
-    // Волна 34 I: под кошельком — уровень пса той же ширины («ур. 7» и полоска опыта). Столбик, а не ряд:
-    // в ряд с кошельком карточке с именем осталось бы слишком мало места.
     var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            wallet
-            LevelChip()
-        }
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var wallet: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text("🪙").font(.system(size: 13))
-                Text("\(coins)")
+                Text(HomeLook.short(coins))
                     .contentTransition(.numericText(value: Double(coins)))
                 Text("🎟").font(.system(size: 13))
-                Text("\(tickets)")
+                Text(HomeLook.short(tickets))
                     .contentTransition(.numericText(value: Double(tickets)))
                 if shards > 0 {
                     Text("✂️").font(.system(size: 12))
-                    Text("\(shards)")
+                    Text(HomeLook.short(shards))
                         .contentTransition(.numericText(value: Double(shards)))
                 }
             }
@@ -46,7 +37,7 @@ struct WalletChip: View {
             .foregroundStyle(PetPalette.ink)
             .padding(.horizontal, 12)
             .frame(height: 44)
-            .background(Capsule().fill(PetPalette.card))
+            .bGlass(Capsule())
             .animation(.snappy, value: coins)
             .animation(.snappy, value: tickets)
             .animation(.snappy, value: shards)
@@ -61,11 +52,13 @@ struct WalletChip: View {
     }
 }
 
-/// Волна 34 I: уровень пса под кошельком — «ур. 7» и тонкая полоска опыта до следующего. Тап — лист «Уровень».
-/// Лист висит здесь, а не в HomeScreen: значок и есть его хозяин. Тут же — опыт за мини-игры: открылась игра —
-/// запомнить опыт, закрылась — начислить и показать «+5 опыта» над псом (AppModel+Level).
-struct LevelChip: View {
+/// Волна 34 I: уровень пса — тап открывает лист «Уровень». Лист висит здесь, а не в HomeScreen: значок и есть его
+/// хозяин. Тут же — опыт за мини-игры: открылась игра — запомнить опыт, закрылась — начислить и показать «+5 опыта»
+/// над псом (AppModel+Level).
+/// Волна 53: вместо «ур. 7» с полоской — аватар в кольце опыта и цифра уровня на нём (макет B, вариант 1).
+struct LevelChip<Avatar: View>: View {
     @Environment(AppModel.self) private var model
+    @ViewBuilder var avatar: Avatar
 
     private var gameOpen: Bool { model.showCatch || model.showBlockDuo }
 
@@ -76,25 +69,25 @@ struct LevelChip: View {
             Feel.tap(.button)
             model.showLevel = true
         } label: {
-            HStack(spacing: 7) {
-                Text(LevelInfo.chipText(p))
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+            RingGauge(value: p.isMax ? 1 : p.fraction, color: PetPalette.vio, size: BMetrics.levelRing, line: 3.5) {
+                avatar
+                    .frame(width: BMetrics.levelRing - 9, height: BMetrics.levelRing - 9)
+                    .clipShape(Circle())
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Text("\(p.level)")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
-                    // «ур. 12» не режем в «ур....»: ужимается полоска, а не число (снимок ui-34-level-adult).
-                    .fixedSize()
-                    .foregroundStyle(PetPalette.ink)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(.white)
                     .contentTransition(.numericText(value: Double(p.level)))
-                    // Волна 35 N: без приоритета ряд отдавал тексту половину места, и при узком кошельке («20 · 1»)
-                    // «ур. 12» резалось в «ур....». Текст целиком, полоске — остаток (не меньше 36).
-                    .layoutPriority(1)
-                XpBar(fraction: p.fraction, height: 5)
-                    .frame(minWidth: 18)
+                    .frame(minWidth: 19, minHeight: 19)
+                    .padding(.horizontal, p.level > 9 ? 2 : 0)
+                    .background(Capsule().fill(PetPalette.vio))
+                    .overlay(Capsule().stroke(.white, lineWidth: 1.5))
+                    .offset(x: 4, y: 3)
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity)
-            .frame(height: 32)
-            .background(Capsule().fill(PetPalette.card))
             .animation(.snappy, value: p)
             .modifier(HitPad())
         }

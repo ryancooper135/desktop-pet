@@ -208,13 +208,14 @@ enum ActTint {
     /// Насыщенный цвет активной кнопки панели: иконка и подпись на нём белые.
     static func color(_ kind: String) -> Color {
         switch kind {
-        case "feed": return Color(hex: 0xe8793f)
-        case "pet": return Color(hex: 0xe0607e)
-        case "play": return Color(hex: 0x4fa85a)
-        case "bath": return Color(hex: 0x4a90d9)
-        case "walk": return Color(hex: 0x8a6fd1)
-        case "wake": return Color(hex: 0xd99a1e)
-        case "bed": return Color(hex: 0x6b6fd6)
+        // Волна 53: цвета стиля B (design/wave53/base.css).
+        case "feed": return PetPalette.food
+        case "pet": return PetPalette.love
+        case "play": return PetPalette.play
+        case "bath": return PetPalette.wash
+        case "walk": return PetPalette.vio
+        case "wake": return Color(hex: 0xf2a91e)
+        case "bed": return Color(hex: 0x5b5fd6)
         default: return PetPalette.accent
         }
     }
@@ -273,23 +274,26 @@ struct NeedHintPlate: View {
 
     private func plate(_ hint: NeedHint) -> some View {
         let tint = hint.quiet ? PetPalette.soft : ActTint.color(hint.go.rawValue)
+        // Волна 22: палец уже говорит «Проведи пальцем по Шибе» — плашка не повторяет, только заголовок.
+        let detail = Hush.plateDetail(hint, tutorShown: Coach.shared.tutorShown(model, snap: snap),
+                                      tutorText: Tips.petTutorText(name: snap.name))
         return Button {
             Coach.shared.go(hint, model)
         } label: {
-            HStack(spacing: 10) {
+            // Волна 53: компактная стеклянная капсула — значок и что сделать. Пояснение «как» видно только у тихой
+            // плашки (там это «когда можно»); у остальных оно в VoiceOver — кнопка с цветным кругом и так подсвечена.
+            HStack(spacing: 9) {
                 Image(systemName: hint.quiet ? "clock.fill" : hint.icon)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                     .background(Circle().fill(tint))
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text(hint.title)
                         .font(.system(size: min(titleSize, Self.titleMax), weight: .bold, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
-                    // Волна 22: палец уже говорит «Проведи пальцем по Шибе» — плашка не повторяет, только заголовок.
-                    if let detail = Hush.plateDetail(hint, tutorShown: Coach.shared.tutorShown(model, snap: snap),
-                                                     tutorText: Tips.petTutorText(name: snap.name)) {
+                    if hint.quiet, let detail {
                         Text(detail)
                             .font(.system(size: min(detailSize, Self.detailMax), weight: .medium, design: .rounded))
                             .foregroundStyle(PetPalette.soft)
@@ -318,20 +322,22 @@ struct NeedHintPlate: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(minHeight: 50)
-            .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+            .padding(.leading, 7)
+            .padding(.trailing, 14)
+            .padding(.vertical, 6)
+            .frame(minHeight: 44)
+            .bGlass(Capsule())
             .overlay {
-                RoundedRectangle(cornerRadius: 18)
-                    .strokeBorder(hint.urgent ? PetPalette.red : tint.opacity(hint.quiet ? 0.2 : 0.55),
-                                  lineWidth: hint.urgent ? 2 : 1.5)
+                Capsule()
+                    .strokeBorder(hint.urgent ? PetPalette.red : tint.opacity(hint.quiet ? 0.15 : 0.45),
+                                  lineWidth: hint.urgent ? 2 : 1)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 18))
+            .contentShape(Capsule())
         }
         .buttonStyle(SquishStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(Self.label(hint)))
+        .accessibilityValue(Text(detail ?? ""))
         .accessibilityHint(Text(Self.a11yHint(hint)))
         .accessibilityAddTraits(hint.quiet ? [] : .isButton)
         .accessibilityIdentifier("hint.plate")
