@@ -7,6 +7,8 @@
 #   gh workflow run app.yml -f mode=perf -f base=<ref> [-f rounds=3] [-f perf_only=PerfUITests/testPerfIdle]
 #                                          # волна 27: PerfUITests этой ветки против <ref> на ОДНОМ раннере вперемешку
 #                                          # (ABBA); тесты замеров у обеих сторон — из этой ветки. RESEARCH/13-perf.md
+#                                          # волна 56: [-f config=Release] — замер на Release; плюс 3 мин покоя
+#                                          # (testPerfIdleMinutes), RESEARCH/56-lightness.md
 # Волна 24: параллельно. plan решает по mode, что запускать; ipa — своим job (Release-сборка больше не стоит
 # перед тестами); тесты — двумя шардами на своих раннерах, у каждого своя build-for-testing и свой симулятор:
 #   шард 1 — PetTests (с покрытием) + AnimationUITests + FirstMinutesUITests + GuideUITests
@@ -45,6 +47,11 @@ on:
         description: "mode=perf: класс или тест внутри PetUITests"
         type: string
         default: PerfUITests
+      config:
+        description: "mode=perf: сборка Debug (как всегда) или Release (как ipa на телефоне; волна 56)"
+        type: choice
+        options: [Debug, Release]
+        default: Debug
 concurrency:
   group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
@@ -133,11 +140,14 @@ jobs:
 
       - name: Build ipa
         timeout-minutes: 30
+        # Волна 56: DEPLOYMENT_POSTPROCESSING=YES — Release-бинари стрипаются, как при archive (`build` без него
+        # оставлял таблицу символов: ≈ 15 МБ после установки). Символы для крэшей — в .dSYM (артефакт Pet-dsym).
         run: |
           mkdir -p "$OUT"
           xcodebuild -project Pet.xcodeproj -scheme Pet \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build -quiet \
+            DEPLOYMENT_POSTPROCESSING=YES \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Ad-hoc sign with entitlements
@@ -166,10 +176,21 @@ jobs:
           cp -R build/Build/Products/Release-iphoneos/Pet.app ipa/Payload/
           cd ipa && zip -qry "$OUT/Pet.ipa" Payload
 
+      - name: Ipa size
+        # Волна 56: из чего состоит вес и бюджет 40 МБ (RESEARCH/56-lightness.md); тяжелее — job красный.
+        run: python3 ../tools/ipa_size.py "$OUT/Pet.ipa" --top 15 --budget 40
+
       - uses: actions/upload-artifact@v4
         with:
           name: Pet-ipa
           path: app/out/Pet.ipa
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pet-dsym
+          path: app/build/Build/Products/Release-iphoneos/*.dSYM
+          if-no-files-found: ignore
           retention-days: 30
 
   test:
@@ -381,8 +402,10 @@ jobs:
     # мерить одно и то же. Сводка — строки «AB …» в шаге «A/B summary», JSON — артефакт Pet-perf.
     needs: plan
     if: ${{ needs.plan.outputs.perf == '1' }}
+    # Волна 56: TEST_RUNNER_PET_PERF_LONG=1 включает testPerfIdleMinutes (3 мин покоя, ≈ 4,5 мин на сторону);
+    # config=Release — те же замеры на Release-сборке (ENABLE_TESTABILITY для @testable в PetTests).
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: app
@@ -391,6 +414,8 @@ jobs:
       BASE_REF: ${{ inputs.base }}
       ROUNDS: ${{ inputs.rounds }}
       PERF_ONLY: ${{ inputs.perf_only }}
+      CONFIG: ${{ inputs.config || 'Debug' }}
+      TEST_RUNNER_PET_PERF_LONG: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -413,10 +438,12 @@ jobs:
           dir: .base/app
 
       - name: Build head and base
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: |
+          echo "сборка $CONFIG"
           for D in . ../.base/app; do
             (cd "$D" && xcodebuild build-for-testing -project Pet.xcodeproj -scheme Pet \
+              -configuration "$CONFIG" ENABLE_TESTABILITY=YES \
               -destination "platform=iOS Simulator,id=$SIM_UDID" \
               -derivedDataPath build-sim -enableCodeCoverage NO \
               -quiet CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual)
@@ -430,13 +457,14 @@ jobs:
             --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4 || true
 
       - name: A/B rounds
-        timeout-minutes: 60
+        timeout-minutes: 90
         run: |
           run_side() {
             local side=$1 r=$2 dir=.
             [ "$side" = base ] && dir=../.base/app
             echo "раунд $r: $side"
             (cd "$dir" && xcodebuild test-without-building -project Pet.xcodeproj -scheme Pet \
+              -configuration "$CONFIG" \
               -destination "platform=iOS Simulator,id=$SIM_UDID" \
               -derivedDataPath build-sim -resultBundlePath "$OUT/$side-$r.xcresult" \
               "-only-testing:PetUITests/$PERF_ONLY" \

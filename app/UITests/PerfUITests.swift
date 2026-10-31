@@ -7,6 +7,10 @@
 //   testPerfFeedAnim    тап «Покормить» и 3 с анимации: CPU и память приложения
 //   testPerfIdle        5 с покоя на главном (Шиба дышит, ничего не трогаем): CPU — это и есть батарея.
 //                       Волна 27: 6 итераций вместо 3 (+15 с) — покой шумнее остальных замеров.
+//   testPerfIdleMinutes волна 56 «лёгкость»: 3 минуты покоя на главном (3 итерации по 60 с): CPU за минуту (доля CPU =
+//                       CPU Time / Clock — прокси батареи; батарею на симуляторе честно не померить), память и её рост.
+//                       Только в режиме perf (job perf ставит TEST_RUNNER_PET_PERF_LONG=1): в обычном шарде 3 — skip.
+//                       RESEARCH/56-lightness.md.
 
 import XCTest
 
@@ -108,6 +112,22 @@ final class PerfUITests: XCTestCase {
         measure(metrics: metrics, options: Self.options(6)) {
             settle(5)
         }
+        app.terminate()
+    }
+
+    /// Волна 56: долгий покой. Окно 60 с — чтобы в CPU попали и редкие события покоя (фиджеты режиссёра раз в несколько
+    /// секунд, свет комнаты раз в 5 с, тикер стора раз в 30 с), а память показала рост, если он есть.
+    @MainActor
+    func testPerfIdleMinutes() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["PET_PERF_LONG"] == "1",
+                          "долгий покой меряется только в режиме perf (TEST_RUNNER_PET_PERF_LONG=1)")
+        executionTimeAllowance = 600
+        let app = launchHome()
+        let metrics: [XCTMetric] = [XCTClockMetric(), XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
+        measure(metrics: metrics, options: Self.options(3)) {
+            settle(60)
+        }
+        XCTAssertEqual(app.state, .runningForeground, "приложение ушло с экрана за время покоя")
         app.terminate()
     }
 
