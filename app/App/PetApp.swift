@@ -104,6 +104,9 @@ enum UITestHooks {
         return URL(string: "pet://\(v)")
     }
 
+    /// PET_SHEET_FULL=1 — лист шкал на весь экран (detent .large): аудиту доступности не мешает дом над листом.
+    static var sheetFull: Bool { Env.isUITest && Env.value("PET_SHEET_FULL") == "1" }
+
     /// PET_THEN=<экран> — через 4 с после PET_OPEN открыть второй (ссылка поверх открытого листа).
     static var thenURL: URL? {
         guard Env.isUITest, let v = Env.value("PET_THEN"), DeepLink.routes.contains(v) else { return nil }
