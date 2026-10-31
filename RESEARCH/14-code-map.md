@@ -22,6 +22,7 @@ app/             приложение iOS 26, XcodeGen (app/project.yml), Swift 
   Resources/Pets shiba.usdz и shiba.clips.json (собирает tools/assets)
 tools/assets     конвейер 3D: Blender → glTF → usdz, клипы, проверка ассета
 tools/wsl-test.sh   юнит-тесты логики в WSL (Swift на Linux)
+tools/ipa_size.py   из чего состоит вес ipa и бюджет 40 МБ (волна 56; шаг «Ipa size» в job ipa)
 probe/           ранний зонд возможностей iOS (код AppGroup оттуда)
 .github/workflows   app.yml (сборка, тесты, ipa, перф), logic.yml, core.yml, assets.yml, probe-ipa.yml
 ```

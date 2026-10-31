@@ -6,7 +6,8 @@ import Foundation
 
 enum DevGate {
     /// Debug-сборка: env-читы (PET_NOW, PET_SEED, PET_RESET, PET_STORE_DIR…) и LaunchSeed работают.
-    #if DEBUG
+    /// PET_PERF_BUILD — Release для замеров mode=perf config=Release (волна 56): тестам нужны PET_* и -uiTesting.
+    #if DEBUG || PET_PERF_BUILD
     static let isDevBuild = true
     #else
     static let isDevBuild = false
