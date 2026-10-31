@@ -360,7 +360,7 @@ final class DogLevelTests: XCTestCase {
         XCTAssertTrue(DogLevel.unlocks(41).isEmpty)
         XCTAssertEqual(DogLevel.unlocks(1).map(\.id), ["yard.0", "game.catch", "capsule"])
         XCTAssertEqual(DogLevel.needLevel("game.blockduo"), 3)
-        XCTAssertEqual(DogLevel.needLevel("game.runner"), 6, "волна 55: место зомби держит раннер (скоро)")
+        XCTAssertEqual(DogLevel.needLevel("game.runner"), 6, "волна 55: место зомби держит раннер (волна 55b)")
         XCTAssertNil(DogLevel.needLevel("game.zombie"))
         XCTAssertEqual(DogLevel.needLevel("spinner"), 10)
         XCTAssertNil(DogLevel.needLevel("nope"))

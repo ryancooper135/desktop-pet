@@ -369,6 +369,12 @@ struct HomeScreen: View {
                 .environment(model)
                 .petMusic(.play)
         }
+        .fullScreenCover(isPresented: $model.showRunner) {
+            // Волна 55b: свайпы полос дрались бы со свайпом листа — на весь экран.
+            RunnerScreen()
+                .environment(model)
+                .petMusic(.play)
+        }
         .sheet(item: $model.postcard) { card in
             PostcardSheet(card: card)
                 .environment(model)

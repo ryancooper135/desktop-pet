@@ -587,7 +587,7 @@ private struct BowlView: View {
 /// Кнопка «Мини-игры» в ряду над панелью, за «Трюками» (волна 12; в волне 9 тут был один мячик): только значок,
 /// по нажатию — меню мини-игр из реестра MiniGame (волна 55; «Щенок против зомби» убран). Седьмой круг в ряд на iPhone Air уже не влезает,
 /// поэтому игры живут под одной кнопкой. Волна 32: открывается всегда — спит, гуляет, устал… — игра идёт «просто так»
-/// (MiniGames.busy), об этом говорит карточка «Играть». Id — open.games, пункты — open.<MiniGame.rawValue>: open.catch, open.blockduo.
+/// (MiniGames.busy), об этом говорит карточка «Играть». Id — open.games, пункты — open.<MiniGame.rawValue>: open.catch, open.blockduo, open.runner.
 struct GamesButton: View {
     @Environment(AppModel.self) private var model
     /// Время снимка: по нему MiniGames.busy.
@@ -622,6 +622,7 @@ struct GamesButton: View {
         switch g {
         case .ball: model.showCatch = true
         case .blockduo: model.showBlockDuo = true
+        case .runner: model.showRunner = true
         }
     }
 

@@ -181,6 +181,13 @@ enum LaunchSeed {
                 f.pet.needs[.look] = 0
                 f.seen = f.pet
                 f.lastSeenT = now
+            case "runner":
+                // «Раннер» (волна 55b, ui-99/100): бодрый щенок, рекорд 900 — на итоге видно «рекорд».
+                PetRunner.catchUp(&f, now: now)
+                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
+                f.runnerBest = max(f.runnerBest, 900)
+                f.seen = f.pet
+                f.lastSeenT = now
             case "blockduo":
                 // «Блок Дуо» (ui-79/80): бодрый щенок, рекорд 1800 — на карточке итога видно «рекорд», в игре — бейдж.
                 PetRunner.catchUp(&f, now: now)

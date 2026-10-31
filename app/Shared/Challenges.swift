@@ -1,5 +1,5 @@
 // Волна 35 K (RESEARCH/20-tycoon-design.md §6): челлендж дня в мини-играх.
-// Каждый день — одна игра по кругу (Мячик → Блок Дуо; волна 55 убрала зомби); цель = max(база, 70 % личного рекорда),
+// Каждый день — одна игра по кругу (Мячик → Блок Дуо → Раннер; волна 55 убрала зомби, 55b добавила раннер); цель = max(база, 70 % личного рекорда),
 // округлённая по-человечески. Открывается с ур. 11 (DogLevel «games.challenge»). Засчитывается только
 // настоящий раунд (не «просто так»): 1 ✂️ и запись game.challenge в журнал — DogLevel.settle даёт +10 опыта.
 // Раз в день; переигрывать можно, но без награды. Три выполненных дня за неделю (с понедельника, как сундук
@@ -14,7 +14,7 @@ typealias ChallengeGame = MiniGame
 
 struct ChallengeConfig: Sendable {
     /// Базовые цели в очках игры.
-    var bases: [ChallengeGame: Int] = [.ball: 25, .blockduo: 2000]
+    var bases: [ChallengeGame: Int] = [.ball: 25, .blockduo: 2000, .runner: 400]
     /// Доля рекорда в цели.
     var ratio = 0.7
     /// Награда за день.
@@ -104,6 +104,7 @@ protocol ChallengeScored {
 
 extension CatchResult: ChallengeScored {}
 extension BlockDuoResult: ChallengeScored {}
+extension RunnerResult: ChallengeScored {}
 
 /// Что показать на плашке экрана игры.
 enum ChallengeStatus: Equatable, Sendable {
@@ -126,7 +127,7 @@ enum Challenges {
         DogLevel.isOpen(unlockId, level: DogLevel.level(f))
     }
 
-    /// Игра челленджа в сутки day: по кругу всех игр реестра (Мячик → Блок Дуо).
+    /// Игра челленджа в сутки day: по кругу всех игр реестра (Мячик → Блок Дуо → Раннер).
     static func game(day: Int) -> ChallengeGame {
         let all = ChallengeGame.allCases
         let i = day - DayKey.floorDiv(day, all.count) * all.count

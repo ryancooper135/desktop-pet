@@ -57,6 +57,9 @@
 //                   тап по «Гулять»: тост «Для прогулки сначала покормить: сытость 20, нужно 30»
 //   ui-94           первые 15 минут новичка (волна 21) — FirstMinutesUITests: знакомство, плашка, панель, шкалы,
 //                   круги ряда, «Гулять», настройки → «Подсказки»; снимок на каждом шаге
+//   ui-99/100       «Раннер» (волна 55b, PET_SEED=runner, PET_RUNNER, сид 7): ui-99-runner-play — забег на 20-й секунде
+//                   (автопилот, стоит), ui-100-runner-done — итог с монетами и рекордом, ui-100-runner-room — после
+//                   «Готово» пёс в комнате радуется; живой забег из меню — RunnerUITests (ui-99-runner-live)
 //   ui-90-home      рабочий стол после выхода: видно остров, если приложение запустило Live Activity
 
 import XCTest
@@ -466,6 +469,35 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     static var blockDuoEnv: [String: String] { ["PET_SEED": "blockduo", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "blockduo"] }
+
+    // MARK: волна 55b — «Раннер» (ui-99, ui-100)
+
+    /// Забег на 20-й секунде (автопилот, сид 7), стоит: пёс на дорожке, препятствия и косточки впереди, сверху
+    /// сердечки, метры, косточки и место (двор).
+    @MainActor
+    func testStates99Runner() throws {
+        let app = try shootOptional("ui-99-runner-play", env: Self.runnerEnv.merging(["PET_RUNNER": "play"]) { $1 },
+                                    marker: "runner.track", keepRunning: true)
+        // 3D дорисовывается позже кнопок: второй кадр, когда сцена и пёс точно на месте.
+        settle(2.0)
+        snap("ui-99-runner-play-3d")
+        app.terminate()
+    }
+
+    /// Итог: забег пробежан автопилотом до конца — очки, метры, косточки, монеты. «Готово» — пёс радуется в комнате.
+    @MainActor
+    func testStates100RunnerDone() throws {
+        let app = try shootOptional("ui-100-runner-done", env: Self.runnerEnv.merging(["PET_RUNNER": "done"]) { $1 },
+                                    marker: "runner.result", keepRunning: true)
+        let done = app.descendants(matching: .any)["runner.done"].firstMatch
+        if tapWhenReady(done) {
+            settle(1.3)
+            snap("ui-100-runner-room")
+        }
+        app.terminate()
+    }
+
+    static var runnerEnv: [String: String] { ["PET_SEED": "runner", "PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "runner"] }
 
     // MARK: - Волна 12: свои персонажи (ui-81/82)
 

@@ -45,6 +45,8 @@ final class AppModel {
     var showCatch = false
     /// Мини-игра «Блок Дуо» (волна 12, BlockDuoScreen), на весь экран.
     var showBlockDuo = false
+    /// Мини-игра «Раннер» (волна 55b, RunnerScreen), на весь экран.
+    var showRunner = false
     /// Лист «Кухня» (волна 12) поверх «Дома»: угостить едой со скидкой и приготовить блюдо.
     var showKitchen = false
     /// Лист «Уровень» (волна 34 I, HomeChips.LevelChip → LevelSheet).
@@ -527,6 +529,17 @@ final class AppModel {
 
     /// После «Блок Дуо» (волна 12): экран закрылся — Шиба в комнате подпрыгивает, виляет и говорит фразу про партию.
     /// Пауза — чтобы fullScreenCover успел уехать и прыжок было видно. toast — партию бросили посреди: сказать про монеты.
+    /// После раннера (волна 55b): пёс в комнате радуется, говорит; тост — только если закрыли посреди заезда.
+    func cheerRunner(_ r: RunnerResult, toast: Bool) {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.6))
+            guard let self, !Task.isCancelled else { return }
+            if r.played { self.react(Runner.reactKind); Feel.success(.yip) }
+            if r.free == nil { self.speak(Runner.shibaLine(r)) }
+            if toast, let text = Runner.toastText(r) { self.show(text, emoji: "🏃") }
+        }
+    }
+
     func cheerBlockDuo(_ r: BlockDuoResult, toast: Bool) {
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(0.6))
@@ -1112,7 +1125,7 @@ final class AppModel {
             (showYard, "yard"),
             (showNeeds, "needs"), (showSettings, "settings"), (showAlbum, "album"), (showCapsule, "capsule"),
             (showShop, "shop"), (showHouse, "house"), (showTricks, "tricks"), (showCatch, "catch"),
-            (showBlockDuo, "blockduo"), (showKitchen, "kitchen"),
+            (showBlockDuo, "blockduo"), (showRunner, "runner"), (showKitchen, "kitchen"),
             (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
             // Волна 35 N: лист уровня тоже лист — без него pet://map поверх «Уровня» терял карту, флаг оставался true.
             (showLevel, "level"),
@@ -1136,6 +1149,7 @@ final class AppModel {
         case "tricks": showTricks = true
         case "catch": showCatch = true
         case "blockduo": showBlockDuo = true
+        case "runner": showRunner = true
         case "brush": startBrush()
         // Волна 57: «Привычек» больше нет — старые ссылки pet://habits открывают «Команды».
         case "habits": showTricks = true
@@ -1182,6 +1196,7 @@ final class AppModel {
         showTricks = false
         showCatch = false
         showBlockDuo = false
+        showRunner = false
         showKitchen = false
         showCharacters = false
         showMap = false
@@ -1588,7 +1603,7 @@ final class AppModel {
     var anyCover: Bool {
         brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
-            || showBlockDuo || showKitchen || showMap || showLevel
+            || showBlockDuo || showRunner || showKitchen || showMap || showLevel
     }
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.

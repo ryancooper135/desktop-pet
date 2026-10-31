@@ -73,6 +73,7 @@ struct DogLevelConfig: Hashable, Sendable {
         "yard.collect": XpRule(xp: 4, perDay: 2, group: "collect"),
         "game.catch": XpRule(xp: 5, perDay: 6, group: "game"),
         "game.blockduo": XpRule(xp: 5, perDay: 6, group: "game"),
+        "game.runner": XpRule(xp: 5, perDay: 6, group: "game"),
         "game.challenge": XpRule(xp: 10, perDay: 1, group: "challenge"),
         "task.done": XpRule(xp: 5, perDay: 3, group: "task"),
         "ask.done": XpRule(xp: 5, group: "ask"),
@@ -91,8 +92,8 @@ struct DogLevelConfig: Hashable, Sendable {
             3: [u(.game, "game.blockduo", "Блок Дуо"), u(.shop, "shop.rare", "В лавке редкие вещи")],
             4: [u(.yard, "yard.1", "Дворик"), u(.station, "bones", "Косточковая грядка")],
             5: [u(.place, "laundry", "Прачечная 24/7"), u(.home, "home.2", "2-й уровень линий дома", 2)],
-            // Волна 55: зомби убран, место держит раннер (как «Прятки (скоро)» на 17) — каждый уровень что-то открывает.
-            6: [u(.game, "game.runner", "Раннер (скоро)")],
+            // Волна 55: зомби убран, место занял раннер; волна 55b — раннер готов.
+            6: [u(.game, "game.runner", "Раннер")],
             7: [u(.station, "porridge", "Котелок каши"), u(.feature, "tasks.3", "Третье задание дня", 3)],
             8: [u(.place, "cat_hill", "Холм-кот")],
             9: [u(.yard, "yard.2", "Сад")],

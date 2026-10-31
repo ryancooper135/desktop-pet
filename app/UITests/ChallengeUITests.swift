@@ -1,5 +1,5 @@
 // Волна 35 K: челлендж дня в мини-играх. Сид LaunchSeed challenge — пёс ур. 12, рекорд «Блок Дуо» 1800 (цель 2 000).
-// Игра челленджа зависит от дня (Мячик ↔ Блок Дуо по кругу; зомби убран в волне 55), поэтому PET_NOW — полдень ближайшего дня,
+// Игра челленджа зависит от дня (Мячик → Блок Дуо → Раннер по кругу; зомби убран в волне 55, раннер — 55b), поэтому PET_NOW — полдень ближайшего дня,
 // когда челлендж в «Блок Дуо» (тот же счёт суток, что Challenges.game: местные сутки по поясу симулятора).
 //   ui-35-challenge-badge      «Блок Дуо», карточка «Играть»: плашка «Челлендж: 2 000 · сегодня»
 //   ui-35-challenge-reward     партия автопилотом (сид 7) до конца: всплывашка «+1 ✂️ · +10 опыта»
@@ -76,16 +76,16 @@ final class ChallengeUITests: XCTestCase {
         return app
     }
 
-    /// Полдень ближайшего (сегодня или позже) дня, когда челлендж в «Блок Дуо»: сутки № d с d mod 2 == 1,
-    /// как Challenges.game(day:) по реестру MiniGame — Мячик, Блок Дуо.
+    /// Полдень ближайшего (сегодня или позже) дня, когда челлендж в «Блок Дуо»: сутки № d с d mod 3 == 1,
+    /// как Challenges.game(day:) по реестру MiniGame — Мячик, Блок Дуо, Раннер (волна 55b).
     static func blockDuoNoon() -> String {
         let start = Calendar.current.startOfDay(for: Date())
-        for k in 0..<2 {
+        for k in 0..<3 {
             let noon = start.addingTimeInterval(Double(k * 86400 + 12 * 3600))
             let t = noon.timeIntervalSince1970
             let off = Double(TimeZone.current.secondsFromGMT(for: noon))
             let day = Int(((t + off) / 86400).rounded(.down))
-            if ((day % 2) + 2) % 2 == 1 { return String(Int(t)) }
+            if ((day % 3) + 3) % 3 == 1 { return String(Int(t)) }
         }
         return ScreenshotUITests.noon
     }

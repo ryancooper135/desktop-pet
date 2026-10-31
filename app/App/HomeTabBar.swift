@@ -74,6 +74,7 @@ struct HomeTabBar: View {
                     switch g {
                     case .ball: model.showCatch = true
                     case .blockduo: model.showBlockDuo = true
+                    case .runner: model.showRunner = true
                     }
                 } label: {
                     Label(g.name, systemImage: g.icon)

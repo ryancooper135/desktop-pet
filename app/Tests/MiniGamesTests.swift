@@ -213,12 +213,12 @@ final class MiniGamesTests: XCTestCase {
         XCTAssertEqual(again["zombieBest"] as? Int, 412)
         XCTAssertEqual(again["zombieGames"] as? Int, 3)
 
-        // В реестре зомби нет: монеты за сутки, рекорды, челлендж — только «Мячик» и «Блок Дуо».
+        // В реестре зомби нет: монеты за сутки, рекорды, челлендж — только «Мячик», «Блок Дуо» и «Раннер» (волна 55b).
         XCTAssertNil(MiniGame(rawValue: "zombie"))
-        XCTAssertEqual(MiniGame.allCases, [.ball, .blockduo])
+        XCTAssertEqual(MiniGame.allCases, [.ball, .blockduo, .runner])
         XCTAssertEqual(MiniGames.coinsToday(f, now: mT0), 0, "45 монет зомби не съедают общий потолок")
-        XCTAssertEqual(Set(Shards.records(f).keys), ["catch", "blockduo"])
-        XCTAssertEqual(Shards.recordGames, ["catch", "blockduo"])
+        XCTAssertEqual(Set(Shards.records(f).keys), ["catch", "blockduo", "runner"])
+        XCTAssertEqual(Shards.recordGames, ["catch", "blockduo", "runner"])
         XCTAssertNil(DogLevel.games(f)["zombie"])
         for d in day..<(day + 4) { XCTAssertNotEqual(Challenges.game(day: d).rawValue, "zombie") }
 
@@ -233,6 +233,6 @@ final class MiniGamesTests: XCTestCase {
         f.catchDay = day
         f.catchCoins = 10
         XCTAssertEqual(MiniGames.coinsToday(f, now: mT0), 10)
-        XCTAssertEqual(MiniGames.menuHint(), "\(CatchConfig.shared.name) или \(BlockDuoConfig.shared.name) вместе с Шибой")
+        XCTAssertEqual(MiniGames.menuHint(), "\(CatchConfig.shared.name), \(BlockDuoConfig.shared.name) или \(RunnerConfig.shared.name) вместе с Шибой")
     }
 }
