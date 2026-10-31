@@ -27,7 +27,7 @@ struct PetTimelineProvider: TimelineProvider {
             return
         }
         let now = Clock.now()
-        let look = WidgetLook.looks(PetStore.load(), now: now).first ?? WidgetLook.empty(t: now)
+        let look = WidgetFallback.looks(PetStore.loadIfAny(), now: now).first ?? WidgetLook.empty(t: now)
         completion(PetEntry(date: Date(), look: look, relevance: TimelineEntryRelevance(score: look.relevance)))
     }
 
@@ -36,8 +36,9 @@ struct PetTimelineProvider: TimelineProvider {
     }
 
     /// Сам расчёт — WidgetLook.looks (в Shared, его зовут тесты). Здесь только даты и relevance.
-    static func timeline(now: Double, file: SaveFile = PetStore.load()) -> Timeline<PetEntry> {
-        let looks = WidgetLook.looks(file, now: now)
+    /// Сейва нет (первый запуск, общая папка не подключилась под чужой подписью) — кадр-заглушка (волна 59).
+    static func timeline(now: Double, file: SaveFile? = PetStore.loadIfAny()) -> Timeline<PetEntry> {
+        let looks = WidgetFallback.looks(file, now: now)
         var entries: [PetEntry] = []
         for (i, look) in looks.enumerated() {
             // Relevance держится до следующего кадра.

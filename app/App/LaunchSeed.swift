@@ -44,6 +44,8 @@ enum LaunchSeed {
 
     @MainActor
     static func applyOnce() {
+        // Волна 59: сборка для друзей (Release) сидов не применяет — ни PET_RESET, ни PET_SEED, ни PET_AWAY_H.
+        guard DevGate.isDevBuild else { return }
         guard !done else { return }
         done = true
         if Env.value("PET_RESET") == "1" { PetStore.reset() }

@@ -45,6 +45,10 @@ on:
         description: "mode=perf: класс или тест внутри PetUITests"
         type: string
         default: PerfUITests
+      dev:
+        description: "ipa для себя: с разделом «Для разработки» (PET_DEV_IPA), артефакт Pet-ipa-dev. Друзьям — false"
+        type: boolean
+        default: false
 concurrency:
   group: app-${{ github.ref }}   # ветки собираются параллельно, повтор на той же ветке отменяет старый прогон
   cancel-in-progress: true
@@ -127,6 +131,9 @@ jobs:
         working-directory: app
     env:
       OUT: ${{ github.workspace }}/app/out
+      # Волна 59: Release без DEBUG — ни LaunchSeed, ни PET_* из окружения, ни «Для разработки» (Shared/DevGate.swift).
+      # dev=true добавляет только раздел «Для разработки» (PET_DEV_IPA); сиды и env-читы и тогда выключены.
+      DEV_IPA: ${{ inputs.dev && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/xcodegen
@@ -135,10 +142,14 @@ jobs:
         timeout-minutes: 30
         run: |
           mkdir -p "$OUT"
+          EXTRA=()
+          if [ "$DEV_IPA" = 1 ]; then EXTRA=('OTHER_SWIFT_FLAGS=$(inherited) -DPET_DEV_IPA'); fi
+          # Волна 59: номер сборки в «Об игре» = номер прогона CI (по нему видно, какая ipa у друга).
+          EXTRA+=("CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER")
           xcodebuild -project Pet.xcodeproj -scheme Pet \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build -quiet \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" "${EXTRA[@]}" build
 
       - name: Ad-hoc sign with entitlements
         # Без подписи в бинарнике нет entitlements, и сайдлоадер не узнает про App Group.
@@ -168,7 +179,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Pet-ipa
+          name: ${{ inputs.dev && 'Pet-ipa-dev' || 'Pet-ipa' }}
           path: app/out/Pet.ipa
           retention-days: 30
 

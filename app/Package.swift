@@ -27,6 +27,7 @@ let package = Package(
             exclude: ["Views", "Intents.swift", "PetAttributes.swift"],
             sources: [
                 "A11y.swift",
+                "AboutInfo.swift",
                 "AppGroup.swift",
                 "Backup.swift",
                 "Brush.swift",
@@ -41,6 +42,7 @@ let package = Package(
                 "Clock.swift",
                 "DayKey.swift",
                 "DeepLink.swift",
+                "DevGate.swift",
                 "Coat.swift",
                 "Cooking.swift",
                 "Runaway.swift",
@@ -124,6 +126,7 @@ let package = Package(
                 "Tastes.swift",
                 "Traits.swift",
                 "Tricks.swift",
+                "WidgetFallback.swift",
                 "Wear.swift",
                 "WearMesh.swift",
             ]
@@ -231,6 +234,7 @@ let package = Package(
                 "BoneNameTests.swift",
                 "EyeStyleTests.swift",
                 "PetBreedTests.swift",
+                "ReleaseGateTests.swift",
                 "TouchFaceTests.swift",
                 "ReactBeatTests.swift",
                 "RenderPauseTests.swift",
