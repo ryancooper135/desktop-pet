@@ -1144,7 +1144,15 @@ extension XCTestCase {
         let menu = any["tab.wardrobe"].firstMatch
         let item = any[id].firstMatch
         guard menu.waitForExistence(timeout: timeout) else { return nil }
-        return tap(menu, expecting: item, timeout: 4, name: "\(name)-wardrobe") ? item : nil
+        // Не общий tap(_:expecting:): тот при повторе спрашивает у кнопки isHittable, а пока меню раскрывается,
+        // у кнопки «Шкаф» нет точки нажатия — XCTest сам записывает провал «Failed to determine hittability»
+        // (CI 41192538561, testInteriorBuyWalls). Пункт ждём дольше (с 3D запрос к дереву идёт секундами),
+        // не дождались — снимок и одно нажатие в центр рамки, без вопроса о нажимаемости.
+        guard tapWhenReady(menu) else { return nil }
+        if item.waitForExistence(timeout: 10) { return item }
+        snap("\(name)-wardrobe-retry")
+        menu.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        return item.waitForExistence(timeout: 10) ? item : nil
     }
 
     /// Повторять проверку, пока не выйдет или не истечёт срок (волна 41 H). Пока на экране 3D, на CI-симуляторе
