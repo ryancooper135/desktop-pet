@@ -1591,6 +1591,13 @@ final class AppModel {
             || showBlockDuo || showKitchen || showMap || showLevel
     }
 
+    /// Над домом открыт лист (не полноэкранный): дом виден сверху, но для VoiceOver и аудита его нет —
+    /// иначе elementDetection видит текст фона без элемента (CI 41207569009, лист «Как там Шиба»).
+    var sheetOver: Bool {
+        showNeeds || showSettings || showAlbum || showCapsule || showHouse || showTricks || showMap || showLevel
+            || postcard != nil
+    }
+
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.
     var sceneClear: Bool {
         guard snap.alive, storeError == nil, tasteOpened == nil, !anyCover else { return false }
