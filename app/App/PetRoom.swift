@@ -16,11 +16,12 @@ enum PetRoom {
     // MARK: Камера
 
     /// Вертикальный угол обзора, градусы.
-    static let cameraFov: Float = 32
-    // Наклон ~14°. В портрете кадр упирается в ширину: Шиба в 3/4 (0.58 × 0.17 м) занимает ~0.45 м по ширине,
-    // поэтому камера на ~2.45 м: собака ~37% высоты и ±70% ширины кадра. Ближе — морда уходит за левый край.
-    static let cameraEye = SIMD3<Float>(0.06, 0.78, 2.4)
-    static let cameraTarget = SIMD3<Float>(-0.02, 0.2, 0)
+    static let cameraFov: Float = 29.5
+    // Волна 53 «B+1 Ближе»: камера ниже (наклон ~3°) и уже — пёс крупнее, полоса пола короче, стена с окном и полкой
+    // выше него. В портрете кадр упирается в ширину: миска (x = -0.30, z = -0.75) у края ~0.94 NDC, поэтому
+    // крупнее, чем ~+11% к прежнему кадру, не выйдет без переезда миски. Площадка игры подогнана под кадр (ChoreoPath.playArea).
+    static let cameraEye = SIMD3<Float>(0.05, 0.40, 2.4)
+    static let cameraTarget = SIMD3<Float>(-0.02, 0.28, 0)
     /// Крупный план шерсти (ui-71/72, PET_CAMERA=close): тот же наклон, но так, чтобы весь пёс от носа до хвоста
     /// влез по ширине портрета (нос ~-0.73, круп ~+0.74 в NDC) и не залезал под шапку и кнопки.
     /// Раньше (0.05, 0.7, 1.4) резало голову левым краем (волна 16).
@@ -54,6 +55,26 @@ enum PetRoom {
     /// Ширина (x) и длина (z, вдоль морды) пятна; край градиента прозрачный, поэтому длиннее собаки.
     static let blobWidth: Float = 0.34
     static let blobDepth: Float = 0.7
+    /// Плинтус стиля B: ниже прежнего (0.06), чтобы стена с окном начиналась сразу за полом.
+    static let plinthHeight: Float = 0.035
+
+    /// Паркет «ёлочкой» (Resources/Room/floor_herringbone.jpg, tools/assets/floor_pastel.py). Нет файла — клетка.
+    static let floorResource = "floor_herringbone"
+    /// Повторов тайла на сторону пола (5 м): тайл ~0.63 м — доски видно и на маленьком экране.
+    static let floorTiles: Float = 8
+    /// Повторов полоски стены по ширине (5 м): шаг полоски ~0.1 м.
+    static let wallStripes: Float = 50
+
+    /// Окно стиля B на задней стене (стекло со светом), пока своего окна во двор нет. Выше пса и левее середины кадра.
+    static let baseWindowName = "roomBaseWindow"
+    static let baseWindowRect = RoomPlan.WallRect(minX: -0.02, maxX: 0.22, minY: 0.47, maxY: 0.70)
+    static let baseWindowFrame: Float = 0.014
+    /// Полка с цветком, книжками и мишкой (Kenney Furniture Kit, CC0) слева на задней стене, пока нет кухонной полки.
+    static let baseShelfName = "roomBaseShelf"
+    static let baseShelfX: ClosedRange<Float> = -0.48 ... -0.19
+    static let baseShelfY: Float = 0.53
+    /// Пятно света из окна на полу у стены.
+    static let lightPatchName = "roomLightPatch"
 
     // MARK: Свет
 
@@ -75,49 +96,45 @@ enum PetRoom {
         let root = Entity()
         root.name = "room"
 
-        // Пол: клетка нарисована прямо в текстуре, UV у плоскости 0…1 на весь пол.
-        var floorMat = matteMaterial(RoomColors.checkerLight)
-        if let cg = checkerImage(size: 320, cells: floorCells),
-           let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
-            floorMat.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex))
-        }
-        let floor = ModelEntity(mesh: .generatePlane(width: floorSize, depth: floorSize), materials: [floorMat])
+        // Пол: пастельный паркет «ёлочкой» (волна 53, ambientCG WoodFloor036, CC0), тайл повторяется по полу.
+        let floor = ModelEntity(mesh: .generatePlane(width: floorSize, depth: floorSize), materials: [floorMaterial()])
         floor.name = "floor"
         noShadow(floor)
         root.addChild(floor)
 
-        // Задняя стена смотрит на камеру (+z), левая повёрнута лицом к +x.
+        // Задняя стена смотрит на камеру (+z), левая повёрнута лицом к +x. Лаванда в тонкую светлую полоску.
         let back = ModelEntity(mesh: .generatePlane(width: floorSize, height: wallHeight),
-                               materials: [matteMaterial(RoomColors.wall)])
+                               materials: [wallMaterial()])
         back.name = "wallBack"
         back.position = SIMD3<Float>(0, wallHeight / 2, backWallZ)
         noShadow(back)
         root.addChild(back)
 
         let left = ModelEntity(mesh: .generatePlane(width: floorSize, height: wallHeight),
-                               materials: [matteMaterial(RoomColors.wall, shade: 0.96)])
+                               materials: [wallMaterial(shade: 0.96)])
         left.name = "wallLeft"
         left.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 1, 0))
         left.position = SIMD3<Float>(leftWallX, wallHeight / 2, backWallZ + floorSize / 2)
         noShadow(left)
         root.addChild(left)
 
-        // Плинтусы
+        // Плинтусы — низкие и светлые (стиль B).
         let plinthMat = matteMaterial(RoomColors.plinth)
-        let plinthBack = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(floorSize, 0.06, 0.02)), materials: [plinthMat])
-        plinthBack.position = SIMD3<Float>(0, 0.03, backWallZ + 0.01)
+        let plinthBack = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(floorSize, plinthHeight, 0.02)), materials: [plinthMat])
+        plinthBack.position = SIMD3<Float>(0, plinthHeight / 2, backWallZ + 0.01)
         root.addChild(plinthBack)
-        let plinthLeft = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(0.02, 0.06, floorSize)), materials: [plinthMat])
-        plinthLeft.position = SIMD3<Float>(leftWallX + 0.01, 0.03, backWallZ + floorSize / 2)
+        let plinthLeft = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(0.02, plinthHeight, floorSize)), materials: [plinthMat])
+        plinthLeft.position = SIMD3<Float>(leftWallX + 0.01, plinthHeight / 2, backWallZ + floorSize / 2)
         root.addChild(plinthLeft)
 
-        // Круглый ковёр под собакой
-        let rug = ModelEntity(mesh: .generateCylinder(height: 0.004, radius: rugRadius),
-                              materials: [matteMaterial(RoomColors.rug)])
-        rug.name = "rug"
-        rug.position = SIMD3<Float>(0, 0.002, 0)
-        noShadow(rug)
-        root.addChild(rug)
+        // Круглый ковёр под собакой — с узором из колец (текстура rugImage), плоский диск.
+        root.addChild(rug())
+
+        // Окно со светом и полка с цветком и игрушкой (волна 53). Купленные окно во двор и кухонная полка
+        // встают на их место — тогда RoomDecor.apply прячет эти.
+        root.addChild(baseWindow())
+        root.addChild(baseShelf())
+        root.addChild(lightPatch())
 
         // Миска и мяч — готовые модели (волна 58, PetProps; Poly by Google, CC-BY 3.0) того же размера,
         // что прежние цилиндр и шар; не загрузились — примитивы. Миска чёрная, как выбрал Вадим (матовый графит RoomColors.bowl).
@@ -142,6 +159,194 @@ enum PetRoom {
         root.addChild(ball)
 
         return root
+    }
+
+    // MARK: Стиль B «Стекло» (волна 53)
+
+    private static var floorTexture: TextureResource?
+    private static var wallTexture: TextureResource?
+    private static var rugTexture: TextureResource?
+
+    /// Текстура повторяется по UV (пол, полоски стены).
+    private static let repeatSampler: MaterialParameters.Texture.Sampler = {
+        let d = MTLSamplerDescriptor()
+        d.sAddressMode = .repeat
+        d.tAddressMode = .repeat
+        d.minFilter = .linear
+        d.magFilter = .linear
+        d.mipFilter = .linear
+        return MaterialParameters.Texture.Sampler(d)
+    }()
+
+    /// Пол комнаты по умолчанию: ёлочка тайлами; нет файла — прежняя клетка на весь пол. Текстура грузится один раз.
+    static func floorMaterial() -> PhysicallyBasedMaterial {
+        var m = matteMaterial(RoomColors.floor)
+        if floorTexture == nil, let url = Bundle.main.url(forResource: floorResource, withExtension: "jpg"),
+           let cg = UIImage(contentsOfFile: url.path)?.cgImage {
+            floorTexture = try? TextureResource(image: cg, options: .init(semantic: .color))
+        }
+        if let tex = floorTexture {
+            m.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex, sampler: repeatSampler))
+            m.textureCoordinateTransform = .init(offset: .zero, scale: SIMD2<Float>(floorTiles, floorTiles), rotation: 0)
+        } else if let cg = checkerImage(size: 320, cells: floorCells),
+                  let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
+            m.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex))
+        }
+        return m
+    }
+
+    /// Стена по умолчанию: лаванда в тонкую светлую вертикальную полоску (повтор по ширине). shade < 1 — темнее.
+    static func wallMaterial(shade: CGFloat = 1) -> PhysicallyBasedMaterial {
+        var m = matteMaterial(RoomColors.wall, shade: shade)
+        if wallTexture == nil, let cg = stripeImage() {
+            wallTexture = try? TextureResource(image: cg, options: .init(semantic: .color))
+        }
+        if let tex = wallTexture {
+            m.baseColor = .init(tint: uiColor(0xffffff, shade: shade), texture: MaterialParameters.Texture(tex, sampler: repeatSampler))
+            m.textureCoordinateTransform = .init(offset: .zero, scale: SIMD2<Float>(wallStripes, 1), rotation: 0)
+        }
+        return m
+    }
+
+    /// Ковёр: плоский диск с кольцами (у цилиндра торцы без развёртки под круглый рисунок). Узор симметричный —
+    /// как ни ляжет развёртка, рисунок тот же.
+    static func rug() -> ModelEntity {
+        var mat = matteMaterial(RoomColors.rug)
+        if rugTexture == nil, let cg = rugImage(size: 512) {
+            rugTexture = try? TextureResource(image: cg, options: .init(semantic: .color))
+        }
+        if let tex = rugTexture { mat.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex)) }
+        let mesh = discMesh(radius: rugRadius, segments: 64) ?? .generateCylinder(height: 0.004, radius: rugRadius)
+        let rug = ModelEntity(mesh: mesh, materials: [mat])
+        rug.name = "rug"
+        rug.position = SIMD3<Float>(0, 0.004, 0)
+        noShadow(rug)
+        return rug
+    }
+
+    /// Диск лицом вверх с развёрткой u = x, v = z. Треугольники в обе стороны — не пропадёт ни при каком отсечении.
+    static func discMesh(radius: Float, segments: Int) -> MeshResource? {
+        guard segments >= 3 else { return nil }
+        var pos: [SIMD3<Float>] = [.zero]
+        var uv: [SIMD2<Float>] = [SIMD2(0.5, 0.5)]
+        for i in 0...segments {
+            let a = Float(i) / Float(segments) * 2 * .pi
+            let x = cos(a) * radius, z = sin(a) * radius
+            pos.append(SIMD3(x, 0, z))
+            uv.append(SIMD2(x / (2 * radius) + 0.5, z / (2 * radius) + 0.5))
+        }
+        var idx: [UInt32] = []
+        for i in 1...segments {
+            let a = UInt32(i), b = UInt32(i + 1)
+            idx += [0, a, b, 0, b, a]
+        }
+        var d = MeshDescriptor(name: "rugDisc")
+        d.positions = MeshBuffers.Positions(pos)
+        d.normals = MeshBuffers.Normals(Array(repeating: SIMD3<Float>(0, 1, 0), count: pos.count))
+        d.textureCoordinates = MeshBuffers.TextureCoordinates(uv)
+        d.primitives = .triangles(idx)
+        return try? MeshResource.generate(from: [d])
+    }
+
+    /// Окно стиля B: белая рама с переплётом, небо тремя полосами (RoomSky — красится по времени суток), солнце,
+    /// ночью луна (RoomNightSky), широкий подоконник.
+    static func baseWindow() -> Entity {
+        let g = Entity()
+        g.name = baseWindowName
+        let w = baseWindowRect, f = baseWindowFrame
+        let wallZ = backWallZ
+        let cx = (w.minX + w.maxX) / 2, cy = (w.minY + w.maxY) / 2
+        @discardableResult
+        func part(_ size: SIMD3<Float>, _ hex: UInt32, _ at: SIMD3<Float>, shade: CGFloat = 1) -> ModelEntity {
+            let e = ModelEntity(mesh: .generateBox(size: size), materials: [matteMaterial(hex, shade: shade)])
+            e.position = at
+            noShadow(e)
+            g.addChild(e)
+            return e
+        }
+        let inW = w.width - 2 * f
+        let lo = w.minY + f, hi = w.maxY - f
+        // Небо: сверху голубое, у горизонта светлее, внизу тёплая полоса.
+        let bands: [(UInt32, Float, Float)] = [(RoomColors.skyTop, 0.58, 1), (RoomColors.skyMid, 0.24, 0.58),
+                                               (RoomColors.skyLow, 0, 0.24)]
+        for (hex, a, b) in bands {
+            let y0 = lo + (hi - lo) * a, y1 = lo + (hi - lo) * b
+            part([inW, y1 - y0, 0.002], hex, [cx, (y0 + y1) / 2, wallZ + 0.002]).components.set(RoomSky())
+        }
+        let sun = ModelEntity(mesh: .generateCylinder(height: 0.002, radius: 0.022), materials: [matteMaterial(RoomColors.sun)])
+        sun.position = [w.maxX - f - 0.045, hi - 0.045, wallZ + 0.004]
+        sun.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(1, 0, 0))
+        sun.components.set(RoomSky())
+        noShadow(sun)
+        g.addChild(sun)
+        var moonMat = UnlitMaterial(color: uiColor(DecorColors.moon))
+        moonMat.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let moon = ModelEntity(mesh: .generateCylinder(height: 0.002, radius: 0.016), materials: [moonMat])
+        moon.position = [w.minX + f + 0.04, hi - 0.04, wallZ + 0.0045]
+        moon.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(1, 0, 0))
+        moon.components.set(RoomNightSky(hex: DecorColors.moon))
+        moon.components.set(RoomGlow())
+        moon.isEnabled = false
+        noShadow(moon)
+        g.addChild(moon)
+        // Рама глубже места капель дождя (RoomWeather: +0.032 от стены) — капли за ней, как в окне во двор.
+        let depth: Float = 0.04
+        let fz = wallZ + depth / 2
+        part([w.width, f, depth], RoomColors.frame, [cx, w.maxY - f / 2, fz])
+        part([w.width, f, depth], RoomColors.frame, [cx, w.minY + f / 2, fz])
+        part([f, w.height, depth], RoomColors.frame, [w.minX + f / 2, cy, fz])
+        part([f, w.height, depth], RoomColors.frame, [w.maxX - f / 2, cy, fz])
+        // Переплёт крестом — окно в четыре стекла.
+        part([f * 0.6, w.height - 2 * f, depth * 0.7], RoomColors.frame, [cx, cy, wallZ + depth * 0.35])
+        part([inW, f * 0.6, depth * 0.7], RoomColors.frame, [cx, lo + (hi - lo) * 0.55, wallZ + depth * 0.35])
+        part([w.width + 0.04, 0.014, 0.05], RoomColors.frame, [cx, w.minY - 0.004, wallZ + 0.025], shade: 0.95)
+        return g
+    }
+
+    /// Полка на двух кронштейнах: цветок в горшке, книжки, мишка (PetProps; не загрузились — полка пустая).
+    static func baseShelf() -> Entity {
+        let g = Entity()
+        g.name = baseShelfName
+        let wallZ = backWallZ
+        let depth: Float = 0.09
+        let board: Float = 0.014
+        let width = baseShelfX.upperBound - baseShelfX.lowerBound
+        let cx = (baseShelfX.lowerBound + baseShelfX.upperBound) / 2
+        let plank = ModelEntity(mesh: .generateBox(size: [width, board, depth]), materials: [matteMaterial(RoomColors.plinth)])
+        plank.position = [cx, baseShelfY - board / 2, wallZ + depth / 2]
+        g.addChild(plank)
+        for x in [baseShelfX.lowerBound + 0.04, baseShelfX.upperBound - 0.04] {
+            let arm = ModelEntity(mesh: .generateBox(size: [0.012, 0.045, 0.06]), materials: [matteMaterial(RoomColors.plinth, shade: 0.94)])
+            arm.position = [x, baseShelfY - board - 0.0225, wallZ + 0.03]
+            g.addChild(arm)
+        }
+        let top = baseShelfY
+        let z = wallZ + depth / 2
+        for (prop, x) in [(PetProps.plant, Float(-0.43)), (PetProps.books, -0.335), (PetProps.bear, -0.245)] {
+            guard let prop else { continue }
+            let e = ModelEntity(mesh: prop.mesh, materials: prop.materials)
+            e.position = [x, top, z]
+            g.addChild(e)
+        }
+        return g
+    }
+
+    /// Мягкое пятно света из окна на полу у стены (без освещения, полупрозрачное, тень не бросает).
+    static func lightPatch() -> ModelEntity {
+        var mat = UnlitMaterial()
+        if let cg = glowImage(size: 128, hex: RoomColors.lightPatch, alpha: 0.42),
+           let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
+            mat.color = .init(tint: .white, texture: MaterialParameters.Texture(tex))
+        } else {
+            mat.color = .init(tint: UIColor(white: 1, alpha: 0.15), texture: nil)
+        }
+        mat.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let e = ModelEntity(mesh: .generatePlane(width: 0.42, depth: 0.5), materials: [mat])
+        e.name = lightPatchName
+        e.position = [0.2, 0.003, backWallZ + 0.4]
+        e.orientation = simd_quatf(angle: -0.25, axis: SIMD3<Float>(0, 1, 0))
+        noShadow(e)
+        return e
     }
 
     static func lights() -> Entity {
@@ -532,6 +737,67 @@ enum PetRoom {
         return ctx.makeImage()
     }
 
+    /// Одна полоска стены (повторяется wallStripes раз): лаванда и светлая полоса посередине, края мягкие.
+    nonisolated static func stripeImage(width: Int = 64, height: Int = 8) -> CGImage? {
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        guard width > 0, height > 0,
+              let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.setFillColor(cgColor(RoomColors.wall))
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let stripe = CGFloat(width) * 0.3
+        let x0 = (CGFloat(width) - stripe) / 2
+        ctx.setFillColor(cgColor(RoomColors.wallStripe))
+        ctx.fill(CGRect(x: x0, y: 0, width: stripe, height: CGFloat(height)))
+        return ctx.makeImage()
+    }
+
+    /// Узор ковра: кольца пастели от края к центру, пунктир белым и точки персиком. Непрозрачный.
+    nonisolated static func rugImage(size: Int) -> CGImage? {
+        guard size > 0, let ctx = bitmap(size) else { return nil }
+        let c = CGPoint(x: CGFloat(size) / 2, y: CGFloat(size) / 2)
+        let r = CGFloat(size) / 2
+        ctx.setFillColor(cgColor(RoomColors.rugRings[0]))
+        ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        let rings: [CGFloat] = [1.0, 0.86, 0.70, 0.60, 0.44, 0.30]
+        for (i, k) in rings.enumerated() {
+            ctx.setFillColor(cgColor(RoomColors.rugRings[i % RoomColors.rugRings.count]))
+            ctx.fillEllipse(in: CGRect(x: c.x - r * k, y: c.y - r * k, width: 2 * r * k, height: 2 * r * k))
+        }
+        // Пунктир белым между внешними кольцами.
+        ctx.setStrokeColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.95))
+        ctx.setLineWidth(r * 0.025)
+        ctx.setLineDash(phase: 0, lengths: [r * 0.07, r * 0.045])
+        ctx.strokeEllipse(in: CGRect(x: c.x - r * 0.78, y: c.y - r * 0.78, width: 2 * r * 0.78, height: 2 * r * 0.78))
+        ctx.setLineDash(phase: 0, lengths: [])
+        // Точки персиком по среднему кольцу.
+        ctx.setFillColor(cgColor(RoomColors.rugDots))
+        let dots = 28
+        for i in 0..<dots {
+            let a = CGFloat(i) / CGFloat(dots) * 2 * .pi
+            let p = CGPoint(x: c.x + cos(a) * r * 0.52, y: c.y + sin(a) * r * 0.52)
+            let d = r * 0.022
+            ctx.fillEllipse(in: CGRect(x: p.x - d, y: p.y - d, width: 2 * d, height: 2 * d))
+        }
+        return ctx.makeImage()
+    }
+
+    /// Мягкое пятно цвета hex: альфа alpha в центре → 0 к краю.
+    nonisolated static func glowImage(size: Int, hex: UInt32, alpha: CGFloat) -> CGImage? {
+        guard size > 0, let ctx = bitmap(size) else { return nil }
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let r = CGFloat((hex >> 16) & 0xff) / 255, g = CGFloat((hex >> 8) & 0xff) / 255, b = CGFloat(hex & 0xff) / 255
+        let colors = [CGColor(srgbRed: r, green: g, blue: b, alpha: alpha),
+                      CGColor(srgbRed: r, green: g, blue: b, alpha: alpha * 0.6),
+                      CGColor(srgbRed: r, green: g, blue: b, alpha: 0)] as CFArray
+        let locations: [CGFloat] = [0, 0.5, 1]
+        guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: locations) else { return nil }
+        let c = CGPoint(x: CGFloat(size) / 2, y: CGFloat(size) / 2)
+        ctx.drawRadialGradient(gradient, startCenter: c, startRadius: 0, endCenter: c, endRadius: CGFloat(size) / 2,
+                               options: [])
+        return ctx.makeImage()
+    }
+
     /// Радиальный градиент чёрного: альфа 0.35 в центре → 0 к краю.
     nonisolated static func blobImage(size: Int) -> CGImage? {
         guard size > 0, let ctx = bitmap(size) else { return nil }
@@ -585,11 +851,24 @@ enum PetRoom {
 
 /// Цвета комнаты. Без актора, чтобы чистые функции текстур читали их откуда угодно.
 enum RoomColors {
+    /// Клетка пола — запасной пол, если нет текстуры ёлочки, и образец «Клетка» в интерьере.
     static let checkerBlue: UInt32 = 0xbcd3ee
     static let checkerLight: UInt32 = 0xf4f1ea
-    static let wall: UInt32 = 0xfbefe4
-    static let plinth: UInt32 = 0xe3cdb8
-    static let rug: UInt32 = 0xe9b8a8
+    // Стиль B «Стекло» (волна 53): лаванда, персик и молочный.
+    /// Средний тон ёлочки — пол плоским цветом, пока текстура не загрузилась.
+    static let floor: UInt32 = 0xffd9c7
+    static let wall: UInt32 = 0xe9ddfa
+    static let wallStripe: UInt32 = 0xf3ecfd
+    static let plinth: UInt32 = 0xf6f2ff
+    static let rug: UInt32 = 0xdcd0ff
+    static let rugRings: [UInt32] = [0xe3d9ff, 0xf6f2ff, 0xffd9c7, 0xf3eeff, 0xdcd0ff, 0xf1ebff]
+    static let rugDots: UInt32 = 0xffb89c
+    static let frame: UInt32 = 0xffffff
+    static let skyTop: UInt32 = 0xa8c9ff
+    static let skyMid: UInt32 = 0xcfe1ff
+    static let skyLow: UInt32 = 0xffe6d6
+    static let sun: UInt32 = 0xfff1c8
+    static let lightPatch: UInt32 = 0xfff6e0
     /// Чёрная миска «Dog bowl» (волна 58, выбор Вадима): не чистый чёрный — под светом комнаты он читается дырой.
     static let bowl: UInt32 = 0x34323a
     static let ball: UInt32 = 0xf2c94c

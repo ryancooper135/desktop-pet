@@ -105,10 +105,27 @@ struct YardScreen: View {
             if let f = model.file {
                 let tier = HomeShop.level(f, .yard)
                 let cozy = Yard.cozy(f.yard)
-                Text(cozy > 0 ? "Ярус «\(YardText.tierName(tier))» · уют \(cozy)" : "Ярус «\(YardText.tierName(tier))»")
-                    .petFont(14, .medium)
-                    .foregroundStyle(PetPalette.soft)
-                    .accessibilityIdentifier("yard.screen.tierName")
+                let coins = f.econ.wallet.coins
+                // Волна 53: числа на стеклянных чипах вместо строки «Ярус «Сад» · уют 29»; слова — в VoiceOver.
+                HStack(spacing: 8) {
+                    BChip(icon: "square.stack.3d.up.fill", text: "\(tier)", color: PetPalette.vio)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text("Ярус «\(YardText.tierName(tier))»"))
+                        .accessibilityIdentifier("yard.screen.tierName")
+                    if cozy > 0 {
+                        BChip(icon: "heart.fill", text: "\(cozy)", color: PetPalette.love)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text("Уют \(cozy)"))
+                            .accessibilityIdentifier("yard.screen.cozy")
+                    }
+                    BChip(icon: "🪙", text: HomeLook.short(coins), emoji: true)
+                        .contentTransition(.numericText(value: Double(coins)))
+                        .animation(.snappy, value: coins)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text(EconText.coins(coins)))
+                        .accessibilityIdentifier("yard.screen.wallet")
+                }
+                .padding(.top, 2)
                 if f.yard.moves > 0 {
                     Text("\(YardText.gloryStars(moves: f.yard.moves)) \(YardText.districtName(Yard.district(moves: f.yard.moves)))")
                         .petFont(14, .bold)
@@ -117,15 +134,6 @@ struct YardScreen: View {
                         .accessibilityLabel(Text(YardText.gloryLabel(moves: f.yard.moves)))
                         .accessibilityIdentifier("yard.screen.glory")
                 }
-                let coins = f.econ.wallet.coins
-                Text("🪙 \(coins)")
-                    .petFont(15, .semibold)
-                    .monospacedDigit()
-                    .foregroundStyle(PetPalette.soft)
-                    .contentTransition(.numericText(value: Double(coins)))
-                    .animation(.snappy, value: coins)
-                    .accessibilityLabel(Text(EconText.coins(coins)))
-                    .accessibilityIdentifier("yard.screen.wallet")
             }
         }
     }
@@ -269,61 +277,79 @@ struct YardScreen: View {
         let cap = Yard.cap(rate: rate)
         let fill = Yard.fill(f, now: now, dogLevel: dog)
         let full = !f.yard.stations.isEmpty && fill >= 1 - 1e-9
+        let fullAt = Yard.fullAt(f, now: now, dogLevel: dog)
+        // Волна 53: свинка в кольце — только шкала; числа (сколько из скольких, доход в час, когда полная)
+        // и одна кнопка «Забрать». Фраза «полная в 21:10» — в VoiceOver.
         HStack(spacing: 14) {
-            Button { collect() } label: {
-                ZStack {
-                    Circle()
-                        .stroke(PetPalette.soft.opacity(0.2), lineWidth: 6)
-                    Circle()
-                        .trim(from: 0, to: max(0.001, fill))
-                        .stroke(full ? PetPalette.green : PetPalette.accent,
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .animation(.snappy, value: fill)
-                    Text("🐷")
-                        .font(.system(size: 40))
-                        .keyframeAnimator(initialValue: 1.0, trigger: piggyTaps) { v, s in
-                            v.scaleEffect(s)
-                        } keyframes: { _ in
-                            CubicKeyframe(1.22, duration: 0.12)
-                            SpringKeyframe(1.0, duration: 0.4, spring: .bouncy)
-                        }
-                }
-                .frame(width: 84, height: 84)
-                .overlay {
-                    YardBurst(emoji: "🪙", trigger: fountain, inward: false)
-                        .opacity(reduceMotion ? 0 : 1)
-                        .allowsHitTesting(false)
-                }
-                .contentShape(Circle())
+            RingGauge(value: max(0.001, fill), color: full ? PetPalette.green : PetPalette.vio, size: 76, line: 6) {
+                Text("🐷")
+                    .font(.system(size: 34))
+                    .keyframeAnimator(initialValue: 1.0, trigger: piggyTaps) { v, s in
+                        v.scaleEffect(s)
+                    } keyframes: { _ in
+                        CubicKeyframe(1.22, duration: 0.12)
+                        SpringKeyframe(1.0, duration: 0.4, spring: .bouncy)
+                    }
             }
-            .buttonStyle(SquishStyle())
-            .accessibilityLabel(Text("Копилка: \(EconText.coins(Int(bank))). Собрать"))
-            .accessibilityIdentifier("yard.screen.collect")
+            .animation(.snappy, value: fill)
+            .overlay {
+                YardBurst(emoji: "🪙", trigger: fountain, inward: false)
+                    .opacity(reduceMotion ? 0 : 1)
+                    .allowsHitTesting(false)
+            }
+            .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(cap > 0 ? "\(Int(bank)) из \(Int(cap)) 🪙" : "0 🪙")
+            VStack(alignment: .leading, spacing: 6) {
+                Text(cap > 0 ? "\(Int(bank)) / \(Int(cap)) 🪙" : "0 🪙")
                     .petFont(20, .heavy)
                     .monospacedDigit()
                     .foregroundStyle(PetPalette.ink)
                     .contentTransition(.numericText(value: bank))
                     .animation(.snappy, value: Int(bank))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityLabel(Text(cap > 0 ? "В копилке \(EconText.coins(Int(bank))) из \(Int(cap))" : "Копилка пустая"))
                     .accessibilityIdentifier("yard.screen.bank.sum")
-                Text(YardText.bank(fill: fill, fullAt: Yard.fullAt(f, now: now, dogLevel: dog)))
-                    .petFont(14, .semibold)
-                    .foregroundStyle(full ? PetPalette.green : PetPalette.soft)
-                if rate > 0 {
-                    Text("Двор приносит \(YardText.perHour(rate))")
-                        .petFont(13, .medium)
-                        .foregroundStyle(PetPalette.soft)
+                HStack(spacing: 10) {
+                    if rate > 0 {
+                        Label(YardText.perHour(rate), systemImage: "arrow.up.right")
+                            .accessibilityLabel(Text("Двор приносит \(YardText.perHour(rate))"))
+                    }
+                    if let fullAt, !full {
+                        Label(Clock.hm(fullAt), systemImage: "clock.fill")
+                            .accessibilityLabel(Text(YardText.bank(fill: fill, fullAt: fullAt)))
+                    } else if full {
+                        Label("100 %", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(PetPalette.green)
+                            .accessibilityLabel(Text(YardText.bank(fill: fill, fullAt: fullAt)))
+                    }
                 }
+                .petFont(13, .bold)
+                .monospacedDigit()
+                .foregroundStyle(PetPalette.soft)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .accessibilityIdentifier("yard.screen.bank.when")
             }
-            .axLines(2)
-            .minimumScaleFactor(0.85)
             Spacer(minLength: 0)
+            Button { collect() } label: {
+                Text("Забрать")
+                    .petFont(16, .bold)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 44)
+                    .background(Capsule().fill(full ? PetPalette.green : PetPalette.vio))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(SquishStyle())
+            .accessibilityLabel(Text("Забрать: \(EconText.coins(Int(bank)))"))
+            .accessibilityHint(Text(fullAt == nil ? YardText.bank(fill: fill, fullAt: nil) : "Копилка двора"))
+            .accessibilityIdentifier("yard.screen.collect")
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .bGlass(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("yard.screen.bank")
     }
@@ -378,9 +404,16 @@ struct YardScreen: View {
                         ProgressView(value: YardText.progress(price: p.price, coins: coins))
                             .tint(PetPalette.accent)
                             .accessibilityHidden(true)
-                        Text(YardText.more(price: p.price, coins: coins, rate: rate))
-                            .petFont(13, .semibold)
+                        // Волна 53: числа вместо фразы — «✓ 120 🪙», когда хватает, иначе «45 / 120 🪙».
+                        // Фраза («ещё 75 🪙 · ≈ 2 сбора» / «Хватает, бери») — для VoiceOver.
+                        Label(coins >= p.price ? "\(HomeLook.short(p.price)) 🪙"
+                                               : "\(HomeLook.short(coins)) / \(HomeLook.short(p.price)) 🪙",
+                              systemImage: coins >= p.price ? "checkmark.circle.fill" : "circle.dashed")
+                            .petFont(13, .bold)
+                            .monospacedDigit()
                             .foregroundStyle(coins >= p.price ? PetPalette.green : PetPalette.soft)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(YardText.more(price: p.price, coins: coins, rate: rate)))
                             .accessibilityIdentifier("yard.screen.plate.more")
                     }
                 }
@@ -392,7 +425,7 @@ struct YardScreen: View {
                 }
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+            .bGlass(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .modifier(RefuseShake(trigger: plateShake))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("yard.screen.plate")
@@ -488,7 +521,7 @@ struct YardScreen: View {
             goldRow(st, gold: gold)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .bGlass(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .modifier(RefuseShake(trigger: shakes[st.id, default: 0]))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("yard.screen.station.\(st.id)")

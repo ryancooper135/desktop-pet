@@ -254,14 +254,18 @@ enum RoomPlan {
         static let petHalfWidth: Float = 0.09
         static var petReachMax: Float { (petHalfLength * petHalfLength + petHalfWidth * petHalfWidth).squareRoot() }
         /// Прогулка: разворот у walkTurnAt, уход за правый край к walkOffstage и обратно в начало координат.
-        static let walkTurnAt = P(0, -0.30)
+        static let walkTurnAt = P(-0.03, -0.30)
         static let walkOffstage = P(0.95, -0.15)
         /// Игра: разворот у playTurnAt, пробежка до playRunTo, мяч дугами (квадратичные Безье) через ballFar.
-        static let playTurnAt = P(-0.04, -0.30)
-        static let playRunTo = P(0.019, -0.586)
+        /// С волны 53 камера ближе и площадка уже: разворот правее (-0.03), пробежка с запасом turnPad от края,
+        /// вылет мяча ближе к середине; к turnAt пёс доходит за первую долю playTurnLead разворота.
+        static let playTurnAt = P(-0.03, -0.30)
+        static let playRunTo = P(-0.0053, -0.5853)
         static let ballFar = P(0.08, -0.88)
-        static let knockTo = P(0.096, -0.958)
-        static let flyCurve = P(0.34, -0.10)
+        static let knockTo = P(0.0949, -0.9586)
+        static let flyCurve = P(0.28, -0.14)
+        static let playTurnLead: Float = 0.5
+        static let turnPad: Float = 0.006
         static let backCurve = P(0.30, -0.35)
     }
 
@@ -286,8 +290,8 @@ enum RoomPlan {
         }
     }
 
-    static let playArea = Area(nearZ: 0.35, nearMinX: -0.27, nearMaxX: 0.25,
-                               farZ: -1.0, farMinX: -0.48, farMaxX: 0.37)
+    static let playArea = Area(nearZ: 0.35, nearMinX: -0.245, nearMaxX: 0.224,
+                               farZ: -1.0, farMinX: -0.441, farMaxX: 0.340)
 
     /// Где ходит питомец с этим телом и куда летает мяч — те же формулы, что в ChoreoPath, с поправкой
     /// на длину и ширину (PetBody из рамки модели). Zone(.shiba) совпадает с Keep (RoomPlanTests),
@@ -305,11 +309,11 @@ enum RoomPlan {
             bowlUnderSnoutLocal = P(0, 0.30 * len)
             dropLocal = P(0, 0.36 * len)
             let reach = (halfLength * halfLength + halfWidth * halfWidth).squareRoot()
-            playTurnAt = RoomPlan.playArea.clamp(P(-0.04, -0.30), inset: reach)
+            playTurnAt = RoomPlan.playArea.clamp(P(-0.03, -0.30), inset: reach)
             ballFar = RoomPlan.playArea.clamp(P(0.08, -0.88), inset: Keep.ballRadius)
             let d = ballFar - playTurnAt
             let dir = d.length > 0 ? d * (1 / d.length) : P(0, -1)
-            playRunTo = RoomPlan.playArea.clamp(ballFar - dir * (0.30 * len), inset: reach)
+            playRunTo = RoomPlan.playArea.clamp(ballFar - dir * (0.30 * len), inset: reach + Keep.turnPad)
             knockTo = RoomPlan.playArea.clamp(ballFar + dir * 0.08, inset: Keep.ballRadius)
         }
 
@@ -353,6 +357,8 @@ enum RoomPlan {
                 out.append((walkOffstage * (1 - s), yawIn))
                 out.append((P(0, 0), yawIn + (y0 - yawIn) * s))
                 out.append((playTurnAt * s, y0 + (yawRun - y0) * s))
+                // К turnAt доходит раньше, чем повернулся (ChoreoPath.Play.turnLead).
+                out.append((playTurnAt * RoomPlan.smooth(s / Keep.playTurnLead), y0 + (yawRun - y0) * RoomPlan.smooth(s)))
                 out.append((playTurnAt + (playRunTo - playTurnAt) * s, yawRun))
                 out.append((playRunTo, yawRun + (yawBack - yawRun) * s))
                 out.append((playRunTo * (1 - s), yawBack))
@@ -378,6 +384,12 @@ enum RoomPlan {
             }
             return true
         }
+    }
+
+    /// Smoothstep 0…1 — как ChoreoPath.smooth.
+    static func smooth(_ x: Float) -> Float {
+        let t = min(max(x, 0), 1)
+        return t * t * (3 - 2 * t)
     }
 
     /// Квадратичная Безье — как PetChoreo.bezier.

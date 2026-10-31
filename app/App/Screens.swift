@@ -488,7 +488,8 @@ struct SettingsScreen: View {
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
 
     /// Авторы 3D (волна 58). Проверяет PetBreedTests.testAssetCreditsListed: каждый CC-BY из ASSETS_LICENSES.md назван здесь.
-    static let modelCredits = "Шиба и Хаски — Quaternius (CC0). Миска «Dog bowl» и мячик «Tennis ball» — Poly by Google (CC-BY 3.0)."
+    static let modelCredits = "Шиба и Хаски — Quaternius (CC0). Миска «Dog bowl» и мячик «Tennis ball» — Poly by Google (CC-BY 3.0). "
+        + "Цветок, книжки и мишка — Kenney Furniture Kit (CC0). Паркет — ambientCG WoodFloor036 (CC0)."
 
     /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
     /// PET_DEVTOOLS=1 — показать и под UI-тестом: так YardDemoUITests доходит до «Двор 3D».

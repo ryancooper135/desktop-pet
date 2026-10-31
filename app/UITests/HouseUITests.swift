@@ -25,8 +25,12 @@ final class HouseUITests: XCTestCase {
         XCTAssertTrue(stage.waitForExistence(timeout: 20), "нет сцены pet.stage")
         XCTAssertTrue(wait(stage, valueHas: "bed=0"), "сид house_rich: лежанка уже стоит (\(String(describing: stage.value)))")
 
-        let open = any["open.house"]
-        XCTAssertTrue(open.waitForExistence(timeout: 10), "нет кнопки «Дом»")
+        // Волна 53: «Дом и комната» — пункт меню «Шкаф» в таб-баре.
+        guard let open = wardrobeItem(app, "open.house", timeout: 10, name: "ui-56-house") else {
+            XCTFail("нет пункта «Дом и комната» в меню «Шкаф»")
+            app.terminate()
+            return
+        }
         let screen = any["house.screen"]
         XCTAssertTrue(tap(open, expecting: screen, timeout: 10, name: "ui-56-house-open"), "лист «Дом» не открылся")
 
@@ -75,8 +79,11 @@ final class HouseUITests: XCTestCase {
         acceptSystemAlerts()
 
         let any = app.descendants(matching: .any)
-        let open = any["open.house"]
-        XCTAssertTrue(open.waitForExistence(timeout: 20), "нет кнопки «Дом»")
+        guard let open = wardrobeItem(app, "open.house", timeout: 20, name: "ui-56-interior") else {
+            XCTFail("нет пункта «Дом и комната» в меню «Шкаф»")
+            app.terminate()
+            return
+        }
         let house = any["house.screen"]
         XCTAssertTrue(tap(open, expecting: house, timeout: 10, name: "ui-56-interior-house"), "лист «Дом» не открылся")
 

@@ -101,6 +101,14 @@ struct IdleRoute: Equatable, Sendable {
     /// Поворот на ходу, рад/с, и не быстрее minTurn (на месте — Gait.pivotTime, переступая).
     static let turnRate: Float = 3.0
     static let minTurn = 0.35
+    /// Где пёс ходит сам: playArea, только у дальней стены правый край на 1,5 см шире. С волны 53 камера ближе,
+    /// и с кухни (миска под боком) взрослому негде развернуться внутри кадра с запасом 10 pt: разворот
+    /// заходит в этот запас (|NDC x| ≈ 0,97 вместо 0,95, всё ещё в кадре; допуск AutonomyTests — 3 см).
+    static let area: RoomPlan.Area = {
+        var a = RoomPlan.playArea
+        a.farMaxX += 0.015
+        return a
+    }()
 
     var spot: P
     /// Где кончается разворот назад: spot или чуть в сторону от миски (с места дела она под боком —
@@ -153,7 +161,7 @@ struct IdleRoute: Equatable, Sendable {
         }
         if spot.length > 0.001 {
             // На месте пёс стоит мордой к делу: запас у края — под этот поворот (по пути прижимает pose(at:)).
-            spot = RoomPlan.playArea.clamp(spot, inset: reach(plan.face, size: size))
+            spot = Self.area.clamp(spot, inset: reach(plan.face, size: size))
         }
         let moving = spot.length > 0.001
         let v = Gait.speed(size: size)
@@ -228,7 +236,7 @@ struct IdleRoute: Equatable, Sendable {
         var yBack = yFace
         for (i, dir) in dirs.enumerated() {
             for k in (i == 0 ? 0 : 1)...40 {
-                let q = RoomPlan.playArea.clamp(spot + dir * (Float(k) * 0.01), inset: reach(yFace, size: size))
+                let q = Self.area.clamp(spot + dir * (Float(k) * 0.01), inset: reach(yFace, size: size))
                 let raw: Float = near(RoomPlan.yaw(toward: P(0, 0) - q), yFace)
                 let turns: [Float] = [raw, raw - full, raw + full].sorted { cost($0) < cost($1) }
                 if let y = turns.first(where: { clearTurn(from: spot, to: q, yaw: yFace, to: $0, size: size,
@@ -296,7 +304,7 @@ struct IdleRoute: Equatable, Sendable {
         for i in 0...n {
             let t = Double(i) / Double(n)
             let yaw = a + (b - a) * smooth(t)
-            let p = RoomPlan.playArea.clamp(p0 + (p1 - p0) * smooth(t / stepAside), inset: reach(yaw, size: size))
+            let p = Self.area.clamp(p0 + (p1 - p0) * smooth(t / stepAside), inset: reach(yaw, size: size))
             if chore != .bowl && covers(p, yaw, size: size, RoomPlan.Keep.bowlHome, pad: RoomPlan.Keep.bowlRadius + 0.01) {
                 return false
             }
@@ -317,7 +325,7 @@ struct IdleRoute: Equatable, Sendable {
         d <= 0 ? (u >= 0 ? 1 : 0) : smooth(u / d)
     }
 
-    /// Пёс в момент u: точка на полу и поворот. Прижат к playArea с запасом на свой поворот, как ChoreoPath.pet.
+    /// Пёс в момент u: точка на полу и поворот. Прижат к area с запасом на свой поворот, как ChoreoPath.pet.
     /// Туда и обратно — шагом с разгоном и торможением (Gait.travel: на ровном участке скорость постоянна и
     /// совпадает с шагом клипа). Обратно: сперва разворот (turnBack), потом шаг; в 3/4 доворачивает на последних turnHome.
     func pose(at u: Double) -> (p: P, yaw: Float) {
@@ -333,7 +341,7 @@ struct IdleRoute: Equatable, Sendable {
                 + (yHome - yBack) * Self.ease(v - (back - turnHome), turnHome)
         }
         guard p.length > 0.0001 else { return (P(0, 0), yaw) }
-        return (RoomPlan.playArea.clamp(p, inset: Self.reach(yaw, size: size)), yaw)
+        return (Self.area.clamp(p, inset: Self.reach(yaw, size: size)), yaw)
     }
 }
 
@@ -468,8 +476,9 @@ enum DogIdle {
     static let kitchenLook = P(-0.33, -1.18)
     static let bathSpot = P(0.10, -0.88)
     static let bathLook = P(0.25, -1.18)
-    /// Валяется дома боком к камере влево: вправо морда упёрлась бы в мячик.
-    static let rugYaw: Float = RoomPlan.Keep.yaw3q - 0.7
+    /// Валяется дома, повернувшись влево: вправо морда упёрлась бы в мячик. С волны 53 камера ближе и площадка
+    /// уже — совсем боком (−0,7) хвост уходил за правый край кадра, поэтому поворот мягче (−0,33).
+    static let rugYaw: Float = RoomPlan.Keep.yaw3q - 0.33
 
     static func plan(_ c: IdleChore, _ s: IdleScene, stance: Stance, weather: WeatherKind, roll: Double) -> IdlePlan? {
         guard var p = pick(c, s, stance: stance, weather: weather, roll: roll) else { return nil }

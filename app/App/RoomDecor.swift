@@ -39,12 +39,20 @@ enum RoomDecor {
         registerOnce()
         let old = room.children.first(where: { $0.name == rootName })
         if let shown = old?.components[RoomDecorShown.self], shown.levels == levels, shown.body == body { return false }
+        // Окно и полка стиля B (PetRoom, волна 53) стоят, пока на их месте нет купленных окна во двор и кухни.
+        room.children.first(where: { $0.name == PetRoom.baseWindowName })?.isEnabled = !levels.window
+        room.children.first(where: { $0.name == PetRoom.baseShelfName })?.isEnabled = !hasKitchen(levels, body: body)
         old?.removeFromParent()
         if levels == RoomPlan.Levels() { return old != nil }
         let root = build(levels, body: body)
         root.components.set(RoomDecorShown(levels: levels, body: body))
         room.addChild(root)
         return true
+    }
+
+    /// Встаёт ли кухня (с полкой на стене) для этого тела — тогда полка стиля B уступает ей место.
+    static func hasKitchen(_ l: RoomPlan.Levels, body: PetBody) -> Bool {
+        l.kitchen > 0 && RoomPlan.floorItems(l, body: body).map(\.rect).contains(RoomPlan.kitchen)
     }
 
     static func registerOnce() {

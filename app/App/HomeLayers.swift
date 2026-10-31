@@ -33,7 +33,7 @@ final class TouchBox {
     var start: CGPoint? = nil
 }
 
-/// Аватар, имя, сердечки и уровень. Непрозрачная плашка.
+/// Аватар, имя, сердечки и уровень. Волна 53: стеклянная капсула, аватар в кольце опыта с цифрой уровня (LevelChip).
 /// Критично (уровень 3+): красная обводка и значок тревоги у подписи — видно сразу, не путается с «голоден».
 struct NameCard: View {
     @Environment(AppModel.self) private var model
@@ -50,54 +50,57 @@ struct NameCard: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Group {
-                if let img = shownAvatar {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(PetPalette.soft.opacity(0.18)))
-                        .clipShape(Circle())
-                        .overlay(Circle().strokeBorder(PetPalette.ink.opacity(0.12), lineWidth: 1))
-                } else {
-                    PetFaceView(pose: snap.pose)
+            // Волна 53: аватар в кольце опыта с цифрой уровня — это и есть кнопка листа «Уровень».
+            LevelChip {
+                Group {
+                    if let img = shownAvatar {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .background(Circle().fill(PetPalette.soft.opacity(0.18)))
+                    } else {
+                        PetFaceView(pose: snap.pose)
+                    }
                 }
+                // Настроение читает сцена («Шиба спокоен»); здесь оно дало бы «Шиба спокоен, Шиба, …».
+                .accessibilityHidden(true)
             }
-            .frame(width: 40, height: 40)
-            // Настроение читает сцена («Шиба спокоен»); здесь оно дало бы «Шиба спокоен, Шиба, …».
-            .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(snap.name)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(PetPalette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 13)
-                HStack(spacing: 4) {
-                    if critical {
+                HeartsView(hearts: snap.hearts, max: snap.heartsMax, size: 12)
+                // Звание прячем, пока всё спокойно: волна 53 «меньше текста». Критично — красная строка со значком.
+                if critical {
+                    HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .accessibilityHidden(true)
+                        Text(snap.levelTitle)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
-                    Text(snap.levelTitle)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(PetPalette.red)
                 }
-                .font(.system(size: 12, weight: critical ? .heavy : .semibold, design: .rounded))
-                .foregroundStyle(critical ? PetPalette.red : PetPalette.level(snap.level))
             }
+            .accessibilityElement(children: .combine)
+            // Звание без тревоги не видно, но VoiceOver его читает, как раньше.
+            .accessibilityValue(Text(critical ? "" : snap.levelTitle))
+            .accessibilityHint(Text("Долгое нажатие — шкалы"))
+            // Снимок видно по идентификатору (ui-86): «name.card.avatar» — в шапке картинка своего персонажа.
+            .accessibilityIdentifier(shownAvatar != nil ? "name.card.avatar" : "name.card")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
+        .padding(.leading, 6)
+        .padding(.trailing, 14)
+        .padding(.vertical, 6)
+        .bGlass(Capsule())
         .overlay {
             if critical {
-                RoundedRectangle(cornerRadius: 18).strokeBorder(PetPalette.red, lineWidth: 2)
+                Capsule().strokeBorder(PetPalette.red, lineWidth: 2)
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(Text("Долгое нажатие — шкалы"))
-        // Снимок видно по идентификатору (ui-86): «name.card.avatar» — в шапке картинка своего персонажа.
-        .accessibilityIdentifier(shownAvatar != nil ? "name.card.avatar" : "name.card")
         .task(id: avatarKey) {
             guard let entry = model.characterEntry, entry.ok, let key = avatarKey else { return }
             let img = await CharacterAvatar.image(for: entry)

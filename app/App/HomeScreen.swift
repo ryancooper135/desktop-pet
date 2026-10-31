@@ -5,6 +5,10 @@
 // Волна 5: кошелёк у шестерёнки (тап — автомат), «Открытка дня» под верхним рядом, карточка «Вкус открыт!».
 // Волна 18 (HintViews.swift): плашка «что нужно сейчас» над рядом «Гулять», ручка «Шкалы» под панелью,
 // палец-подсказка ласки поверх Шибы, пузырь-мысль нажимается (ведёт туда же, куда плашка).
+// Волна 53 «B · Стекло», вариант 1 (design/wave53/png/b1-floor.png): всё на стекле (GlassKit). Сверху аватар в кольце
+// уровня с цифрой, «Задание дня» и колечки шкал справа (HomeTop); мысль и просьба — значками. Снизу полоса из четырёх
+// цветных кругов (ActionBar) и таб-бар «Дом · Двор · Игры · Шкаф · Команды» с кругом «Гулять» (HomeTabBar).
+// Тост — сверху, у Dynamic Island. Ряд WalkRow, круг YardCorner и ручка NeedsHandle с главного убраны.
 
 import SwiftUI
 import UIKit
@@ -105,7 +109,7 @@ struct HomeScreen: View {
             }
 
             VStack(spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .center, spacing: 8) {
                     // Карточка забирает ширину первой: иначе ряд с кошельком делит место поровну и «Шиба» ломается по буквам.
                     NameCard(snap: snap)
                         .layoutPriority(1)
@@ -122,10 +126,18 @@ struct HomeScreen: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(PetPalette.ink)
                             .frame(width: 44, height: 44)
-                            .background(Circle().fill(PetPalette.card))
+                            .bGlass(Circle())
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(SquishStyle())
                     .accessibilityLabel(Text("Настройки"))
                     .accessibilityIdentifier("open.settings")
+                }
+
+                // Волна 53: «Задание дня» на главном — кольцо выполненных, что сделать и награда; тап — лист заданий.
+                if snap.alive, !rescue, let q = model.taskBoard.flatMap({ HomeLook.quest($0) }) {
+                    HomeQuestCard(quest: q)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 if let days = snap.buildDaysLeft, days <= 3 {
@@ -142,16 +154,27 @@ struct HomeScreen: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                // Мысль и реплика — сверху, на стене над питомцем: там иначе пусто, а низ остаётся кнопкам.
+                // Середина (волна 53): слева запас шириной с колечки (центр экрана остаётся центром), посередине
+                // мысль и просьба значками и реплика над псом, справа колечки шкал — всегда на виду.
+                let pill = snap.alive && model.brush == nil
+                HStack(alignment: .top, spacing: 8) {
+                    if pill { Color.clear.frame(width: NeedsPill.width, height: 1) }
                 VStack(spacing: 6) {
+                    HStack(spacing: 8) {
                     if let icon = snap.wantIcon, snap.alive {
                         // Волна 18: «Погладь меня» нажимается — покажет, как гладить; «Хочу есть» — покормит.
+                        // Волна 53: только значок; фраза — в подписи VoiceOver («Хочет: …»).
                         Button {
                             Coach.shared.tapThought(model)
                         } label: {
-                            ThoughtBubble(icon: icon, text: snap.wantText, urgent: snap.urgent)
-                                .frame(minHeight: 32)
-                                .contentShape(Capsule())
+                            IconBubble(urgent: snap.urgent) {
+                                ThoughtBubble.symbol(icon)
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(snap.urgent ? PetPalette.red : PetPalette.vio)
+                            }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(snap.wantText.map { "Хочет: \($0)" }
+                                                     ?? (snap.urgent ? "Срочно что-то нужно" : "Что-то хочет")))
                         }
                         .buttonStyle(SquishStyle())
                         .accessibilityAddTraits(.isButton)
@@ -159,26 +182,22 @@ struct HomeScreen: View {
                         .accessibilityIdentifier("pet.thought")
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
-                    // Волна 43 K: просьба пса («Почеши за ушком? · ещё 40 мин») — нажатие подскажет кнопку и награду.
+                    // Волна 43 K: просьба пса — нажатие подскажет кнопку и награду. Волна 53: значок и «?»;
+                    // текст и срок («Почеши за ушком? · ещё 40 мин») — в подписи VoiceOver.
                     if let ask = model.dogAsk {
                         Button {
                             model.tapAsk(ask)
                         } label: {
-                            HStack(spacing: 5) {
-                                Text(DogAskText.emoji(ask.kind ?? ""))
-                                    .font(.system(size: 13))
-                                Text(DogAskText.plate(ask, now: snap.t))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(PetPalette.ink)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
+                            IconBubble(accent: PetPalette.love) {
+                                HStack(spacing: 2) {
+                                    Text(DogAskText.emoji(ask.kind ?? ""))
+                                        .font(.system(size: 18))
+                                    Text("?")
+                                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                                        .foregroundStyle(PetPalette.love)
+                                }
+                                .padding(.horizontal, 6)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Capsule().fill(PetPalette.card))
-                            .overlay(Capsule().stroke(PetPalette.accent.opacity(0.45), lineWidth: 1))
-                            .frame(minHeight: 30)
-                            .contentShape(Capsule())
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel(Text("Просьба: \(DogAskText.plate(ask, now: snap.t))"))
                         }
@@ -188,6 +207,7 @@ struct HomeScreen: View {
                         .accessibilityIdentifier("pet.ask")
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
+                    }
                     Text(model.sayLine ?? snap.line)
                         .font(.system(size: min(lineSize, Self.lineMax), weight: .medium, design: .rounded))
                         .foregroundStyle(PetPalette.ink)
@@ -196,7 +216,7 @@ struct HomeScreen: View {
                         .minimumScaleFactor(0.85)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(PetPalette.card))
+                        .bGlass(RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .accessibilityIdentifier("pet.line")
                     if let t = snap.timer { CalmTimerView(timer: t) }
                     if let fact = model.tasteOpened {
@@ -208,16 +228,15 @@ struct HomeScreen: View {
                             .transition(Motion.pop(.scale(scale: 0.6).combined(with: .opacity)))
                     }
                 }
+                .frame(maxWidth: .infinity)
+                    if pill {
+                        NeedsPill(snap: snap)
+                            .transition(.opacity)
+                    }
+                }
                 .padding(.top, 2)
 
                 Spacer(minLength: 8)
-
-                // Тост — над кнопками, рядом с тем, что его вызвало; карточку имени не закрывает.
-                if let toast = model.toast {
-                    ToastView(toast: toast)
-                        .allowsHitTesting(false)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
 
                 // Волна 22 (Hush): тост главнее — подсказка жеста под ним молчит, после него возвращается.
                 if let tip = Coach.shared.gestureTip, Coach.shared.gestureTipShown(model) {
@@ -234,21 +253,21 @@ struct HomeScreen: View {
                     BrushPanel()
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if snap.alive && !rescue {
-                    // Волна 34 G: круг «Двор» справа над плашкой и рядом.
-                    YardCorner()
-                        .id(model.glassPass)
-                        .transition(.opacity)
                     NeedHintPlate(snap: snap)
-                    WalkRow(snap: snap)
-                        .id(model.glassPass)
-                        .transition(.opacity)
                 }
 
                 if snap.alive {
                     if model.brush == nil {
+                        // Волна 53, вариант 1: полоса из четырёх цветных кругов с наградой под каждым.
                         ActionBar(snap: snap)
                             .id(model.glassPass)
-                        NeedsHandle()
+                        if !rescue {
+                            // Таб-бар «Дом · Двор · Игры · Шкаф · Команды» и круг «Гулять» — вместо ряда
+                            // «Альбом · Автомат · Дом · Команды · Игры · Гулять», круга «Двор» и ручки «Шкалы».
+                            HomeTabBar(snap: snap)
+                                .id(model.glassPass)
+                                .transition(.opacity)
+                        }
                     }
                 } else {
                     // Волна 32: пёс убежал — сначала поиски, «Начать заново» остаётся запасным путём.
@@ -257,6 +276,18 @@ struct HomeScreen: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+
+            // Волна 53: тост сверху, у Dynamic Island — чёрная капсула поверх шапки на 2,5 с; касаний не ловит.
+            VStack {
+                if let toast = model.toast {
+                    ToastView(toast: toast)
+                        .padding(.horizontal, 12)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 2)
+            .allowsHitTesting(false)
         }
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)

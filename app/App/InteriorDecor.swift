@@ -2,7 +2,8 @@
 // Узоры и размеры — чистые функции InteriorArt (app/Shared/Interior.swift, тесты в WSL); здесь только сборка
 // сущностей. Стиль A: плоские матовые цвета, узор — геометрией (стены, ковёр) или пикселями цвета (пол),
 // без картинок. Свет комнаты (RoomLighting) красит новое сам: при смене сбрасываем базу тинта и отдаём true.
-// Вариант по умолчанию — ровно прежняя комната (те же цвета, тот же диск ковра).
+// Вариант по умолчанию — ровно прежняя комната: с волны 53 это комната стиля B (PetRoom.wallMaterial /
+// floorMaterial — лаванда в полоску и ёлочка, ковёр с кольцами), а не цвета образцов «по умолчанию».
 
 import UIKit
 @preconcurrency import RealityKit
@@ -33,10 +34,10 @@ extension RoomDecor {
         if before == s { return false }
         var changed = false
         if before.walls != s.walls, let st = Interior.style(s.walls), case .walls(let w) = st.look {
-            changed = applyWalls(w, in: room) || changed
+            changed = applyWalls(w, isStandard: s.walls == Interior.standard(.walls).id, in: room) || changed
         }
         if before.floor != s.floor, let st = Interior.style(s.floor), case .floor(let f) = st.look {
-            changed = applyFloor(f, in: room) || changed
+            changed = applyFloor(f, isStandard: s.floor == Interior.standard(.floor).id, in: room) || changed
         }
         if before.rug != s.rug, let st = Interior.style(s.rug), case .rug(let r) = st.look {
             changed = applyRug(r, isStandard: s.rug == Interior.standard(.rug).id, in: room) || changed
@@ -47,15 +48,17 @@ extension RoomDecor {
     // MARK: стены
 
     /// Фон обеих стен (левая чуть темнее, как была) и узор на задней — тонкой сеткой поверх, под окном и полками.
-    private static func applyWalls(_ look: WallLook, in room: Entity) -> Bool {
+    /// По умолчанию (isStandard) — стены комнаты стиля B, без узора поверх.
+    private static func applyWalls(_ look: WallLook, isStandard: Bool, in room: Entity) -> Bool {
         guard let back = room.findEntity(named: "wallBack") as? ModelEntity else { return false }
-        back.model?.materials = [PetRoom.matteMaterial(look.base)]
+        back.model?.materials = [isStandard ? PetRoom.wallMaterial() : PetRoom.matteMaterial(look.base)]
         back.components.remove(RoomTintBase.self)
         if let left = room.findEntity(named: "wallLeft") as? ModelEntity {
-            left.model?.materials = [PetRoom.matteMaterial(look.base, shade: 0.96)]
+            left.model?.materials = [isStandard ? PetRoom.wallMaterial(shade: 0.96) : PetRoom.matteMaterial(look.base, shade: 0.96)]
             left.components.remove(RoomTintBase.self)
         }
         back.children.filter { $0.name == interiorWallName }.forEach { $0.removeFromParent() }
+        if isStandard { return true }
         let shapes = InteriorArt.wallShapes(look)
         guard !shapes.isEmpty else { return true }
         let g = Entity()
@@ -94,9 +97,14 @@ extension RoomDecor {
 
     // MARK: пол
 
-    /// Пол — та же плоскость, новая текстура из пикселей узора (клетка по умолчанию — как прежняя).
-    private static func applyFloor(_ look: FloorLook, in room: Entity) -> Bool {
+    /// Пол — та же плоскость, новая текстура из пикселей узора; по умолчанию — ёлочка стиля B (PetRoom.floorMaterial).
+    private static func applyFloor(_ look: FloorLook, isStandard: Bool, in room: Entity) -> Bool {
         guard let floor = room.findEntity(named: "floor") as? ModelEntity else { return false }
+        if isStandard {
+            floor.model?.materials = [PetRoom.floorMaterial()]
+            floor.components.remove(RoomTintBase.self)
+            return true
+        }
         var mat = PetRoom.matteMaterial(look.colors.last ?? RoomColors.checkerLight)
         if let cg = floorImage(look), let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
             mat.baseColor = .init(tint: .white, texture: MaterialParameters.Texture(tex))

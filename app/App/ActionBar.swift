@@ -1,12 +1,14 @@
-// Нижняя стеклянная панель действий главного экрана: ActionBar, кнопка ActButton и бейдж ActBadge.
+// Нижняя панель действий главного экрана: ActionBar, кнопка ActButton и бейдж ActBadge.
 // Перенесено из HomeScreen.swift без изменений (волна 28).
+// Волна 53 «B · Стекло», вариант 1: полупрозрачная стеклянная полоса над таб-баром; в ней цветные круги 54 pt,
+// под кругом слово и что даёт нажатие («+сытость», HomeLook.actReward), а когда нельзя — причина значком («⏱ 2 мин»).
 
 import SwiftUI
 import UIKit
 @preconcurrency import PetCore
 
-/// Нижняя панель действий. Кнопка, которая сейчас откажет, полупрозрачная, но нажимается и объясняет причину тостом.
-/// Волна 18: активные — цветное стекло с белой иконкой (ActTint), неактивные — бесцветные с бейджем причины.
+/// Нижняя панель действий. Кнопка, которая сейчас откажет, бесцветная, но нажимается и объясняет причину тостом.
+/// Волна 18: активные — цветные, неактивные — бесцветные с причиной. Волна 53: причина — строкой под словом.
 /// Все кнопки одной ширины, подписи одним кеглем: кегль подбирается по самой длинной подписи, а не каждой отдельно.
 struct ActionBar: View {
     @Environment(AppModel.self) private var model
@@ -17,6 +19,8 @@ struct ActionBar: View {
     static let tightSpacing: CGFloat = 4
     /// Ниже этого кегля при обычном зазоре переходим на узкий.
     static let comfortLabel: CGFloat = 10
+    /// Поля стеклянной полосы вокруг ряда кругов.
+    static let stripInset: CGFloat = 8
     /// Базовый кегль подписи, растёт вместе с Dynamic Type; сверху его ограничивает ширина ячейки.
     @ScaledMetric(relativeTo: .caption) private var baseLabel: CGFloat = 13
     @State private var width: CGFloat = 0
@@ -32,60 +36,39 @@ struct ActionBar: View {
         let fit = Self.fit(titles: titles, total: width, maxSize: baseLabel)
         let cell = fit.cell
         let label = fit.label
-        // Волна 18: почему кнопка сейчас не сработает — бейдж «3 мин», «спит», «моется» прямо на кнопке.
+        // Волна 18: почему кнопка сейчас не сработает — «3 мин», «спит», «моется» прямо под кнопкой.
         let g = model.file.map { NeedHints.gates($0, at: snap.t) } ?? [:]
-        GlassEffectContainer(spacing: fit.spacing) {
-            HStack(spacing: fit.spacing) {
-                if nap {
-                    ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
-                        .frame(width: cell > 0 ? cell : nil)
-                }
-                ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing || away, gate: g["feed"] ?? .open, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
+        HStack(spacing: fit.spacing) {
+            if nap {
+                ActButton(title: "Разбудить", icon: "sun.max.fill", kind: "wake", dim: false, labelSize: label) { model.act(.wake) }
                     .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing || away, gate: g["pet"] ?? .open, labelSize: label) { model.act(.pet) }
-                    .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || away || snap.pose == .sleep, gate: g["play"] ?? .open, labelSize: label) { model.act(.play) }
-                    .frame(width: cell > 0 ? cell : nil)
-                ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing || away, gate: g["bath"] ?? .open, labelSize: label) { model.act(.bath) }
-                    .frame(width: cell > 0 ? cell : nil)
-                if lamp {
-                    ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {
-                        Feel.tap()
-                        model.setBedtime(minute: Self.minuteNow(Clock.now()))
-                    }
-                    .frame(width: cell > 0 ? cell : nil)
-                }
             }
-            .frame(maxWidth: .infinity)
-        }
-        // Волна 21: бейджи поверх контейнера, а не на самих кнопках — внутри GlassEffectContainer стекло
-        // кнопки ложилось поверх своего бейджа, и от «⏱ 2 мин» торчала только верхушка (ui-94-10).
-        // Ячейки повторяют ряд кнопок: те же зазор и ширина.
-        .overlay {
-            HStack(spacing: fit.spacing) {
-                if nap { badgeSlot(.open, dim: false, cell: cell) }
-                badgeSlot(g["feed"] ?? .open, dim: bathing || away, cell: cell)
-                badgeSlot(g["pet"] ?? .open, dim: bathing || away, cell: cell)
-                badgeSlot(g["play"] ?? .open, dim: bathing || away || snap.pose == .sleep, cell: cell)
-                badgeSlot(g["bath"] ?? .open, dim: bathing || away, cell: cell)
-                if lamp { badgeSlot(.open, dim: false, cell: cell) }
+            ActButton(title: "Покормить", icon: "fork.knife", kind: "feed", dim: bathing || away, gate: g["feed"] ?? .open, labelSize: label) { model.act(.feed(Catalog.mainFood)) }
+                .frame(width: cell > 0 ? cell : nil)
+            ActButton(title: "Погладить", icon: "hand.raised.fill", kind: "pet", dim: bathing || away, gate: g["pet"] ?? .open, labelSize: label) { model.act(.pet) }
+                .frame(width: cell > 0 ? cell : nil)
+            ActButton(title: "Поиграть", icon: "tennisball.fill", kind: "play", dim: bathing || away || snap.pose == .sleep, gate: g["play"] ?? .open, labelSize: label) { model.act(.play) }
+                .frame(width: cell > 0 ? cell : nil)
+            ActButton(title: "Помыть", icon: "bathtub.fill", kind: "bath", dim: bathing || away, gate: g["bath"] ?? .open, labelSize: label) { model.act(.bath) }
+                .frame(width: cell > 0 ? cell : nil)
+            if lamp {
+                ActButton(title: "Отбой", icon: "lamp.desk.fill", kind: "bed", dim: false, labelSize: label) {
+                    Feel.tap()
+                    model.setBedtime(minute: Self.minuteNow(Clock.now()))
+                }
+                .frame(width: cell > 0 ? cell : nil)
             }
-            .frame(maxWidth: .infinity)
-            .allowsHitTesting(false)
         }
+        .frame(maxWidth: .infinity)
         .background {
             GeometryReader { g in
                 Color.clear.onChange(of: g.size.width, initial: true) { _, w in width = w }
             }
         }
-    }
-
-    /// Место под бейдж одной кнопки — той же ширины, что кнопка.
-    private func badgeSlot(_ gate: ActGate, dim: Bool, cell: CGFloat) -> some View {
-        Color.clear
-            .frame(width: cell > 0 ? cell : nil)
-            .frame(maxWidth: cell > 0 ? nil : .infinity)
-            .overlay(alignment: .top) { ActBadge(gate: gate, dim: dim) }
+        .padding(.horizontal, Self.stripInset)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .bGlass(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }
 
     /// Подписи кнопок в порядке панели. Должны совпадать с ActButton в body.
@@ -182,40 +165,57 @@ struct ActButton: View {
     /// Бейдж причины: ядро сказало своё («3 мин», «спит») или вся панель погашена ванной/прогулкой.
     private var badge: String? { gate.badge ?? (dim ? "позже" : nil) }
 
-    /// Смещения по x за одно покачивание.
-
     var body: some View {
+        let tint = ActTint.color(kind)
+        let note = live ? HomeLook.actReward(kind) : badge
         Button {
             taps += 1
             action()
         } label: {
-            VStack(spacing: 3) {
+            VStack(spacing: 4) {
+                // Круг 54 pt: активный — цветной с белым значком, неактивный — бесцветный с приглушённым.
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .symbolEffect(.bounce, value: taps)
+                    .foregroundStyle(live ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(0.45)))
+                    .frame(width: BMetrics.actCircle, height: BMetrics.actCircle)
+                    .background {
+                        Circle().fill(live
+                            ? AnyShapeStyle(LinearGradient(colors: [tint.opacity(0.85), tint], startPoint: .top, endPoint: .bottom))
+                            : AnyShapeStyle(PetPalette.ink.opacity(0.08)))
+                    }
+                    .shadow(color: live ? tint.opacity(0.35) : .clear, radius: 6, y: 3)
+                    .frame(maxWidth: .infinity)
                 Text(title)
                     .font(.system(size: labelSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(PetPalette.ink.opacity(live ? 1 : 0.55))
                     .lineLimit(1)
                     // Запас на погрешность замера и самый узкий экран: кегль уже подобран рядом,
                     // здесь только страховка от «Покор…», если замер разошёлся с отрисовкой.
                     .minimumScaleFactor(0.75)
                     .allowsTightening(true)
+                // Что даёт нажатие или почему сейчас нельзя (значок часов/замка вместо фразы).
+                HStack(spacing: 2) {
+                    if !live, note != nil {
+                        Image(systemName: gate.reason == "cooldown" ? "clock.fill" : "lock.fill")
+                    }
+                    Text(note ?? " ")
+                }
+                .font(.system(size: max(8, labelSize - 3), weight: .bold, design: .rounded))
+                .foregroundStyle(live ? tint : PetPalette.soft)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityHidden(true)
             }
-            // Активная: белое на цветном стекле. Неактивная: приглушённые чернила на бесцветном.
-            .foregroundStyle(live ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(0.5)))
-            .shadow(color: live ? .black.opacity(0.18) : .clear, radius: 1, y: 1)
-            .padding(.horizontal, 2)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .contentShape(Capsule())
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(SquishStyle())
-        .glassEffect(live ? .regular.tint(ActTint.color(kind).opacity(0.88)).interactive() : .regular.interactive(),
-                     in: Capsule())
-        // Бейдж причины рисует ActionBar поверх всего ряда (ActBadge): внутри контейнера стекла он прятался.
         .coachHighlight(kind)
         .modifier(RefuseShake(trigger: model.refusals[kind, default: 0]))
         .accessibilityLabel(Text(title))
         .accessibilityValue(Text(live ? "" : badge.map { "недоступно, \($0)" } ?? "недоступно"))
+        .accessibilityHint(Text(live ? (HomeLook.actReward(kind) ?? "") : ""))
         .accessibilityIdentifier("act.\(kind)")
     }
 }

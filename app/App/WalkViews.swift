@@ -84,6 +84,8 @@ struct WalkButton: View {
     let gate: WalkGate
     /// Тесный ряд: только «Гулять», без строчки-причины (она в тосте по нажатию и в accessibilityValue).
     var brief = false
+    /// Волна 53: круг 66 pt справа от таб-бара (HomeTabBar) — только значок, причина в бейдже и в VoiceOver.
+    var circle = false
     @State private var taps = 0
     @State private var refusals = 0
 
@@ -97,6 +99,40 @@ struct WalkButton: View {
         return "\(p?.emoji ?? "🐾") \(p?.name ?? a.place) · \(Places.backText(a, tzOffsetMin: f.owner.tzOffsetMin, now: model.snap.t))"
     }
     private var hint: String { tripHint ?? gate.hint }
+
+    private var circleLabel: some View {
+        Image(systemName: away ? "figure.walk.motion" : "figure.walk")
+            .font(.system(size: 24, weight: .semibold))
+            .symbolEffect(.bounce, value: taps)
+            .foregroundStyle(gate.ok || away ? PetPalette.vio : PetPalette.ink.opacity(0.45))
+            .frame(width: BMetrics.tabBar, height: BMetrics.tabBar)
+            .contentShape(Circle())
+            .accessibilityHidden(true)
+    }
+
+    private var rowLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "figure.walk")
+                .font(.system(size: 20, weight: .semibold))
+                .symbolEffect(.bounce, value: taps)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(away ? "Гуляет" : "Гулять")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                if !brief && !hint.isEmpty {
+                    Text(hint)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(gate.ok ? Color.white.opacity(0.85) : PetPalette.soft)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+        }
+        .foregroundStyle(gate.ok ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(away ? 1 : 0.55)))
+        .padding(.horizontal, 14)
+        .frame(minHeight: 48)
+        .contentShape(Capsule())
+    }
 
     var body: some View {
         Button {
@@ -115,31 +151,12 @@ struct WalkButton: View {
                 if let fix = gate.fix { Coach.shared.highlightButton(fix) }
             }
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "figure.walk")
-                    .font(.system(size: 20, weight: .semibold))
-                    .symbolEffect(.bounce, value: taps)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(away ? "Гуляет" : "Гулять")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                    if !brief && !hint.isEmpty {
-                        Text(hint)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(gate.ok ? Color.white.opacity(0.85) : PetPalette.soft)
-                    }
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            }
-            .foregroundStyle(gate.ok ? AnyShapeStyle(Color.white) : AnyShapeStyle(PetPalette.ink.opacity(away ? 1 : 0.55)))
-            .padding(.horizontal, 14)
-            .frame(minHeight: 48)
-            .contentShape(Capsule())
+            if circle { circleLabel } else { rowLabel }
         }
         .buttonStyle(SquishStyle())
-        .glassEffect(gate.ok ? .regular.tint(ActTint.color("walk").opacity(0.88)).interactive() : .regular.interactive(),
-                     in: Capsule())
+        // Волна 53: круг у таб-бара — белое стекло, как в макете B; капсула (старый ряд) — цветное, когда можно.
+        .bGlass(circle ? AnyShape(Circle()) : AnyShape(Capsule()),
+                tint: gate.ok && !circle ? ActTint.color("walk").opacity(0.88) : nil, interactive: true)
         .overlay(alignment: .topTrailing) {
             if !gate.ok && !away && !map {
                 // Причина видна всегда, даже без строчки: замок и что нужно сначала (миска, ванна, мячик, рука).
@@ -152,7 +169,7 @@ struct WalkButton: View {
                 .padding(.horizontal, 5)
                 .padding(.vertical, 3)
                 .background(Capsule().fill(gate.fix.map { ActTint.color($0) } ?? PetPalette.soft))
-                .offset(x: 4, y: -6)
+                .offset(x: circle ? -2 : 4, y: circle ? 2 : -6)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
@@ -333,7 +350,8 @@ struct AlbumSheet: View {
                         AlbumCell(find: row.find, count: row.count)
                     }
                 }
-                Text("Кнопка «Гулять» — над панелью действий. Гуляет 1–3 часа, каждая прогулка — новая находка.")
+                // Волна 53: «Гулять» — круг справа от таб-бара, а не ряд над панелью.
+                Text("Круг «Гулять» — справа от нижней панели. Гуляет 1–3 часа, каждая прогулка — новая находка.")
                     .petFont(12, .medium)
                     .foregroundStyle(PetPalette.soft)
                     .fixedSize(horizontal: false, vertical: true)

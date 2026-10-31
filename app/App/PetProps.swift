@@ -4,6 +4,8 @@
 // примитивов (миска — радиус 0,09 и высота 0,05; мяч — радиус 0,05), поэтому позиции, хореография
 // (PetChoreo по имени "bowl"/"ball"), корм в миске и столкновения (RoomPlan.Keep.ballRadius) не меняются.
 // Грузим один раз до сборки комнаты (PetStage), берём только меш и материалы. Не загрузилось — примитивы как раньше.
+// Волна 53: цветок, книжки и мишка на полке комнаты стиля B — Kenney Furniture Kit (CC0), Resources/Room,
+// собраны tools/assets/furniture_usdz.py (один меш, части по материалам). Не загрузились — полка пустая.
 
 import Foundation
 @preconcurrency import RealityKit
@@ -20,6 +22,9 @@ enum PetProps {
 
     private(set) static var bowl: Prop?
     private(set) static var ball: Prop?
+    private(set) static var plant: Prop?
+    private(set) static var books: Prop?
+    private(set) static var bear: Prop?
     private static var loading: Task<Void, Never>?
 
     /// Один раз за запуск: комната пересобирается при каждом показе сцены, а файлы те же.
@@ -29,6 +34,9 @@ enum PetProps {
             loading = Task { @MainActor in
                 bowl = await prop(bowlResource)
                 ball = await prop(ballResource)
+                plant = await prop("plant")
+                books = await prop("books")
+                bear = await prop("bear")
             }
         }
         await loading?.value
