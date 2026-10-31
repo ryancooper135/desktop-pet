@@ -86,6 +86,11 @@ final class AccessibilityUITests: XCTestCase {
         return nil
     }
 
+    /// Замечание elementDetection без элемента: ни id, ни подписи — аудит не может показать, какой текст увидел.
+    static func ghostText(_ f: Found) -> Bool {
+        f.type == "elementDetection" && f.id.isEmpty && f.label.isEmpty
+    }
+
     // MARK: - аудит
 
     /// Что проверяем: всё, кроме контраста. Контраст — самая долгая проверка (снимок на каждый текст), а его
@@ -135,6 +140,7 @@ final class AccessibilityUITests: XCTestCase {
         var real: [Found] = []
         var skipped: [String] = []
         for s in Self.screens where names.contains(s.name) {
+          for attempt in 1...2 {
             let started = Date()
             let app = ScreenshotUITests.makeApp()
             app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
@@ -146,7 +152,7 @@ final class AccessibilityUITests: XCTestCase {
             guard app.descendants(matching: .any)[s.marker].firstMatch.waitForExistence(timeout: 20) else {
                 skipped.append(s.name)
                 app.terminate()
-                continue
+                break
             }
             if s.name == "main" { waitStageSettled(app) }
             settle(1.5)
@@ -166,6 +172,17 @@ final class AccessibilityUITests: XCTestCase {
                     mine.append(f)
                 }
             }
+            // «Возможно, недоступный текст» без элемента, подписи и рамки — догадка ML-распознавания по снимку,
+            // и она плавает: один и тот же лист (needs/tricks/album) в прогоне 41197598812 помечен, в 41204615972
+            // чистый, и без полки/HUD тоже чистый. Такое — перепроверить один раз с перезапуска; повторилось —
+            // настоящее замечание (см. RESEARCH/17-a11y.md, «Аудит»).
+            if attempt == 1 && !mine.isEmpty && mine.allSatisfy(Self.ghostText) {
+                report("a11y-audit-" + s.name + "-retry", ["Экран \(s.name): попытка 1, только призрачный текст — перепроверка", ""]
+                       + mine.map { $0.detail.isEmpty ? $0.line : $0.line + "
+    " + $0.detail })
+                app.terminate()
+                continue
+            }
             real += mine
             if !mine.isEmpty {
                 // Снимок экрана после аудита: что было видно, когда нашлось замечание.
@@ -179,6 +196,8 @@ final class AccessibilityUITests: XCTestCase {
                    + mine.map { $0.detail.isEmpty ? $0.line : $0.line + "\n    " + $0.detail }
                    + ["", "Исключения:"] + excused)
             app.terminate()
+            break
+          }
         }
         XCTAssertTrue(skipped.isEmpty, "аудит: не открылись \(skipped)")
         XCTAssertTrue(real.isEmpty, "аудит доступности, \(real.count) замечаний:\n" + real.map(\.line).joined(separator: "\n"))
