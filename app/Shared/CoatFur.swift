@@ -146,9 +146,15 @@ enum CoatFur {
     static func roughness(_ px: [UInt8]) -> Double {
         let n = px.count / 4
         guard n > 0 else { return 0 }
-        let v = (0..<n).map { (Double(px[$0 * 4]) + Double(px[$0 * 4 + 1]) + Double(px[$0 * 4 + 2])) / 765 }
-        let m = v.reduce(0, +) / Double(n)
-        return (v.map { ($0 - m) * ($0 - m) }.reduce(0, +) / Double(n)).squareRoot()
+        // Волна 56: выражения разбиты с явными типами — Release-сборка для симулятора падала на
+        // «unable to type-check this expression in reasonable time».
+        let v: [Double] = (0..<n).map { (i: Int) -> Double in
+            let r = Double(px[i * 4]), g = Double(px[i * 4 + 1]), b = Double(px[i * 4 + 2])
+            return (r + g + b) / 765
+        }
+        let m: Double = v.reduce(0, +) / Double(n)
+        let squares: Double = v.reduce(0) { (acc: Double, x: Double) -> Double in acc + (x - m) * (x - m) }
+        return (squares / Double(n)).squareRoot()
     }
 
     private static func simd3Clamp(_ v: SIMD3<Double>) -> SIMD3<Double> {
