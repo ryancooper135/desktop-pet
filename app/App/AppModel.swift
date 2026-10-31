@@ -966,7 +966,10 @@ final class AppModel {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(GlassSettle.delay))
             guard let self else { return }
-            self.glassPass = GlassSettle.next(self.glassPass, uiTest: Env.isUITest)
+            // Без анимации: иначе старая копия кнопок уходит .transition(.opacity) и тест ловит её без рамки.
+            var quiet = Transaction()
+            quiet.disablesAnimations = true
+            withTransaction(quiet) { self.glassPass = GlassSettle.next(self.glassPass, uiTest: Env.isUITest) }
         }
     }
 
