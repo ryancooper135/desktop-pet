@@ -29,6 +29,8 @@ enum EyeStyle {
     static let rim: UInt32 = 0x2A1D1A
     /// Радужка (Eyes_Pupil): тёплая карая.
     static let iris: UInt32 = 0x8E5A33
+    /// Радужка Хаски (волна 58, PetBreed.iris): голубая, как в style_a_husky.json.
+    static let irisBlue: UInt32 = 0x6FA3CF
     /// Зрачок (Eyes_Black).
     static let pupil: UInt32 = 0x1A1214
     /// Блик: тёплый белый, без освещения (Unlit), чтобы не гас в тени.

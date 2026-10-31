@@ -67,7 +67,10 @@ REQUIRED = ["idle", "idle_2", "idle_headlow", "walk", "gallop", "gallop_jump", "
             "sit_in", "sit", "sit_out", "lie_in", "lie", "lie_out", "sleep_in", "sleep", "sleep_out"]
 # новые короткие клипы (PetClipNames.optional в приложении)
 EXTRA = ["idle_wag", "happy_wag", "head_tilt", "shake", "hop", "play_bow", "ear_flick", "sniff",
-         "look_l", "look_r", "yawn", "bark", "pant"]
+         "look_l", "look_r", "yawn", "bark", "pant",
+         # волна 58: трюки (команды волны 57) — «дай лапу», «дай пять», «кружись», «ползи»; «притворись» = death
+         # Quaternius + подъём play_dead_out
+         "paw", "high_five", "spin", "play_dead_out", "crawl"]
 
 # посадка на пол: snap — нижняя точка всегда на полу; flight — только кадры у пола (прыжок не трогаем);
 # lift — только вытащить из-под пола (по умолчанию для всего остального)
@@ -490,9 +493,18 @@ def build_hold(rig: Rig, poses: dict, name: str, c: dict) -> list:
     return frames
 
 
+def spin_center(rig: Rig, base) -> np.ndarray:
+    """Середина между плечами и тазом в мире — вокруг неё собака кружится на месте (а не вокруг корня Body)."""
+    G = globals_from_local(rig.mats(base), rig.par)
+    pts = [G[rig.idx[b]][:3, 3] for b in ("FrontShoulder.L", "FrontShoulder.R", "BackShoulder.L", "BackShoulder.R")
+           if b in rig.idx]
+    return np.mean(pts, axis=0) if pts else G[rig.idx["Body"]][:3, 3]
+
+
 def build_overlay(rig: Rig, base, name: str, c: dict, height: float) -> list:
-    """Короткий клип поверх кадра 0 idle: поза overlay × огибающая keys + волны + подскок lift.
-    Не-loop: огибающая 0 на концах → начало и конец ровно в позе idle."""
+    """Короткий клип поверх позы over (idle — кадр 0 idle, или поза из poses: sit, lie): поза overlay × огибающая
+    keys + волны + подскок lift + разворот spin (градусы вокруг вертикали через середину корпуса, по огибающей
+    spin_keys). Не-loop: огибающая 0 на концах → начало и конец ровно в позе over (spin — целые обороты)."""
     n = frames_of(c["dur"])
     loop = bool(c.get("loop", False))
     keys = c.get("keys", [[0, 1], [1, 1]] if loop else [[0, 0], [0.25, 1], [0.75, 1], [1, 0]])
@@ -512,16 +524,74 @@ def build_overlay(rig: Rig, base, name: str, c: dict, height: float) -> list:
             raise KeyError(f"slide {nm}: нет дочерней кости")
         slide[rig.idx[nm]] = (kids[0], float(frac))
     lift_keys = c.get("lift_keys", keys)
+    spin = float(c.get("spin", 0.0))
+    spin_keys = c.get("spin_keys", [[0, 0], [1, 1]])
+    if spin and abs(spin / 360 - round(spin / 360)) > 1e-9:
+        raise ValueError(f"{name}: spin {spin}° — нужны целые обороты, иначе конец не в позе")
+    if spin and "Body" not in rig.idx:
+        raise KeyError(f"{name}: spin без кости Body")
+    center = spin_center(rig, base) if spin else None
+    body_g = globals_from_local(rig.mats(base), rig.par)[rig.idx["Body"]][:3, 3] if spin else None
     frames = []
     for k in range(n):
         x, t = k / (n - 1), k / FPS
         rot = {b: tuple(np.array(d, float) * envelope(keys, lagged(x, lag.get(b, 0.0)))) for b, d in ov.items()}
         rot = add_rot(rot, wave_rot(rig, waves, t, x, keys))
-        loc = rig.apply(base, rot, np.array([0.0, lift * envelope(lift_keys, x), 0.0]))
+        off = np.array([0.0, lift * envelope(lift_keys, x), 0.0])
+        if spin:
+            a = math.radians(spin * envelope(spin_keys, x))
+            rot = add_rot(rot, {"Body": (0.0, math.degrees(a), 0.0)})
+            d = body_g - center  # корень Body вращается вокруг центра корпуса: сдвигаем его по окружности
+            ry = np.array([[math.cos(a), 0, math.sin(a)], [0, 1, 0], [-math.sin(a), 0, math.cos(a)]])
+            off = off + (ry @ d - d) * np.array([1.0, 0.0, 1.0])
+        loc = rig.apply(base, rot, off)
         for i, (child, frac) in slide.items():  # язык наружу: кость едет вдоль своей дочерней
             loc[i][0] = loc[i][0] + rig.rest[child][0] * frac * envelope(keys, x)
         frames.append(loc)
     return frames
+
+
+def drop_tip_nodes(j: dict) -> int:
+    """Убирает узлы-кончики «…_end» (не кости скина, без меша и детей): Blender выносил их в usdz отдельными
+    Xform с ключом на каждый кадр — ~1,5 МБ из 2,6 (волна 58). Приложение их не читает. Возвращает, сколько убрано."""
+    nodes = j["nodes"]
+    joints = {i for s in j.get("skins", []) for i in s["joints"]}
+    drop = {i for i, n in enumerate(nodes)
+            if n.get("name", "").endswith("_end") and i not in joints and "mesh" not in n and not n.get("children")}
+    if not drop:
+        return 0
+    remap, k = {}, 0
+    for i in range(len(nodes)):
+        if i not in drop:
+            remap[i] = k
+            k += 1
+    new_nodes = []
+    for i, n in enumerate(nodes):
+        if i in drop:
+            continue
+        n = dict(n)
+        if "children" in n:
+            n["children"] = [remap[c] for c in n["children"] if c not in drop]
+            if not n["children"]:
+                del n["children"]
+        new_nodes.append(n)
+    j["nodes"] = new_nodes
+    for sc in j.get("scenes", []):
+        sc["nodes"] = [remap[c] for c in sc.get("nodes", []) if c not in drop]
+    for s in j.get("skins", []):
+        s["joints"] = [remap[c] for c in s["joints"]]
+        if "skeleton" in s:
+            s["skeleton"] = remap[s["skeleton"]]
+    for a in j.get("animations", []):
+        chans = [c for c in a["channels"] if c["target"].get("node") not in drop]
+        used = sorted({c["sampler"] for c in chans})
+        smap = {o: n for n, o in enumerate(used)}
+        a["samplers"] = [a["samplers"][o] for o in used]
+        for c in chans:
+            c["sampler"] = smap[c["sampler"]]
+            c["target"]["node"] = remap[c["target"]["node"]]
+        a["channels"] = chans
+    return len(drop)
 
 
 def ground_modes(poses_spec: dict | None) -> dict:
@@ -562,6 +632,8 @@ def build(args) -> None:
     ps = json.loads(Path(args.poses).read_text(encoding="utf-8")) if args.poses else None
     modes = ground_modes(ps)
     overlap_names = set()
+    over_of: dict[str, str] = {}  # оверлей не над idle → над какой позой (для проверки концов)
+    hold_first: dict[str, list] = {}  # поза → первый кадр её клипа-удержания
 
     # --- волны поверх исходных циклов (дыхание idle) ---
     if ps:
@@ -577,6 +649,8 @@ def build(args) -> None:
     if ps:
         poses = build_poses(rig, base, ps["poses"])
         named = {"idle": base, **{k: v["loc"] for k, v in poses.items()}}
+        for cname0, _, _, fr0 in clips:  # «клип@end» — последний кадр исходного клипа (death@end — лёжа на боку)
+            named[f"{cname0}@end"] = fr0[-1]
         for cname, c in ps["clips"].items():
             if "to" in c:
                 chain = c.get("overlap", True)
@@ -585,10 +659,16 @@ def build(args) -> None:
                     overlap_names.add(cname)
                 how = "procedural"
             elif "over" in c:
-                frames = build_overlay(rig, base, cname, c, height)
+                if c["over"] not in named:
+                    raise KeyError(f"{cname}: нет позы over={c['over']}")
+                # над позой — от первого кадра её удержания (там уже дыхание и хвост в фазе 0), чтобы концы совпали
+                frames = build_overlay(rig, hold_first.get(c["over"], named[c["over"]]), cname, c, height)
                 how = "overlay"
+                if c["over"] != "idle":
+                    over_of[cname] = c["over"]
             else:
                 frames = build_hold(rig, poses, cname, c)
+                hold_first.setdefault(c["pose"], cp(frames[0]))
                 how = "procedural"
             clips.append((cname, bool(c.get("loop", False)), how, frames))
 
@@ -640,6 +720,8 @@ def build(args) -> None:
         f1 = f0 + len(frames) - 1
         out_clips[name] = {"start": round(f0 / FPS, 6), "end": round(f1 / FPS, 6),
                            "frames": [f0, f1], "loop": loop, "source": how}
+        if name in over_of:
+            out_clips[name]["over"] = over_of[name]
         frame = f1 + 1 + GAP_FRAMES
 
     # --- GLB ---
@@ -677,6 +759,9 @@ def build(args) -> None:
         samplers.append({"input": t_acc, "output": o, "interpolation": "LINEAR"})
         channels.append({"sampler": len(samplers) - 1, "target": {"node": i, "path": path}})
     j["animations"] = [{"name": "Clips", "samplers": samplers, "channels": channels}]
+    dropped = drop_tip_nodes(j)
+    if dropped:
+        print(f"кончики костей убраны: {dropped}")
     if args.style:
         miss = apply_style(j, json.loads(Path(args.style).read_text(encoding="utf-8")))
         if miss:
@@ -764,7 +849,13 @@ def check(args) -> int:
             move = max(float(np.linalg.norm(gb[i][:3, 3] - ga[i][:3, 3])) for i in rig.joints) / height * 100
         ends = None
         if c.get("source") == "overlay" and not c["loop"]:
-            ends = max(rig.seam_deg(frames[0], idle0), rig.seam_deg(frames[-1], idle0))
+            ref = idle0
+            if c.get("over"):  # оверлей над позой (sit, lie): концы — в первом кадре её удержания
+                if c["over"] not in clips:
+                    problems.append(f"{name}: нет клипа позы {c['over']}")
+                else:
+                    ref = rig.locals_at(tracks, clips[c["over"]]["frames"][0] / fps)
+            ends = max(rig.seam_deg(frames[0], ref), rig.seam_deg(frames[-1], ref))
         mode = modes.get(name, "lift")
         bad = []
         if c["loop"] and seam is not None and seam > SEAM_MAX_DEG:

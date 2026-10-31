@@ -1,7 +1,7 @@
 // Волна 35 M: Шиба во дворе и тиканье монет. План (куда идёт, что делает) — YardDogPlan в Shared, тут только сцена.
-// Пёс — своя копия shiba.usdz (шаблон грузится один раз и клонируется): глобальное состояние рига главной
+// Пёс — своя копия модели породы (шаблон грузится один раз и клонируется): глобальное состояние рига главной
 // комнаты (ClipTable.shared, ClipPlayer, PetModel.boneAlias, ChoreoPath.body) не трогаем — двор открыт поверх неё.
-// Клипы — из ClipTable.shiba своим маленьким проигрывателем. Поза каждый кадр из Clock.now(): пересборка сцены
+// Клипы — из таблицы породы (ClipTable.of) своим маленьким проигрывателем. Поза каждый кадр из Clock.now(): пересборка сцены
 // (поднос копилки, покупка) не сбивает пса с маршрута. Свой персонаж во дворе не показываем — только Шиба.
 
 import RealityKit
@@ -84,6 +84,8 @@ enum YardDogLive {
     // MARK: модель
 
     private static var template: Entity?
+    /// Порода шаблона (волна 58): сменили породу в настройках — грузим заново.
+    private static var templateBreed: PetBreed?
     private static var loading: Task<Entity, Never>?
     /// Сколько раз пса сажали в сцену и до какой посадки дошёл кадр (пёс включён и сцена рисуется).
     private(set) static var attached = 0
@@ -100,19 +102,27 @@ enum YardDogLive {
         return shown >= attached ? "on" : (loading != nil ? "load" : "wait")
     }
 
-    /// Шаблон пса: shiba.usdz (или заглушка), ростом PetModel.height, низ на полу, смотрит на +z. Грузится один раз.
+    /// Шаблон пса: модель породы (PetModel.breed: shiba.usdz или husky.usdz, иначе заглушка), ростом PetModel.height,
+    /// низ на полу, смотрит на +z. Грузится один раз на породу.
     static func model() async -> Entity {
-        if let t = template { return t.clone(recursive: true) }
+        let breed = PetModel.breed
+        if let t = template, templateBreed == breed { return t.clone(recursive: true) }
+        if templateBreed != breed {
+            // Клипы кэша вырезаны из таймлайна прошлой породы — у новой свои границы.
+            template = nil
+            loading = nil
+            cache.removeAll()
+        }
         let task = loading ?? Task { @MainActor in
             var model: Entity?
-            if Bundle.main.url(forResource: "shiba", withExtension: "usdz") != nil {
-                model = try? await Entity(named: "shiba", in: Bundle.main)
+            if Bundle.main.url(forResource: breed.resource, withExtension: "usdz") != nil {
+                model = try? await Entity(named: breed.resource, in: Bundle.main)
             }
             let body = model ?? StubDog.make()
             // Глаза держатся головы (как в комнате). Свой персонаж в комнате — кости под его именами, тогда не трогаем.
             if model != nil, PetModel.boneAlias.isEmpty { PetRig.pinEyes(body) }
             // Живые глаза (волна 50) — как в комнате.
-            if model != nil { PetRig.styleEyes(body) }
+            if model != nil { PetRig.styleEyes(body, iris: breed.iris) }
             let b = body.visualBounds(relativeTo: nil)
             if model != nil, b.extents.y > 0 {
                 let k = PetModel.height / b.extents.y
@@ -122,9 +132,12 @@ enum YardDogLive {
             return body
         }
         loading = task
+        templateBreed = breed
         let t = await task.value
-        template = t
-        loading = nil
+        if templateBreed == breed {
+            template = t
+            loading = nil
+        }
         return t.clone(recursive: true)
     }
 
@@ -240,7 +253,7 @@ enum YardDogLive {
 
     /// Одноразовые клипы, потом цикл из нескольких (sniff → pant → …) по кругу.
     static func play(_ clips: YardDogClips, on body: Entity, initial: Bool) {
-        guard let table = ClipTable.shiba, let source = body.availableAnimations.first else { return }
+        guard let table = ClipTable.of(templateBreed ?? PetModel.breed), let source = body.availableAnimations.first else { return }
         var parts: [AnimationResource] = []
         if !initial {
             parts += clips.once.compactMap { clip($0, source: source, table: table) }

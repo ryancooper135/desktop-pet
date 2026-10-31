@@ -119,8 +119,9 @@ enum PetRoom {
         noShadow(rug)
         root.addChild(rug)
 
-        // Миска и мяч
-        let bowl = ModelEntity(mesh: .generateCylinder(height: 0.05, radius: bowlRadius),
+        // Миска и мяч — готовые модели (волна 58, PetProps; Poly by Google, CC-BY 3.0) того же размера,
+        // что прежние цилиндр и шар; не загрузились — примитивы. Миска чёрная, как выбрал Вадим (матовый графит RoomColors.bowl).
+        let bowl = ModelEntity(mesh: PetProps.bowl?.mesh ?? .generateCylinder(height: 0.05, radius: bowlRadius),
                                materials: [matteMaterial(RoomColors.bowl)])
         bowl.name = "bowl"
         bowl.position = bowlPos
@@ -133,7 +134,7 @@ enum PetRoom {
         bowl.addChild(food)
         root.addChild(bowl)
 
-        let ball = ModelEntity(mesh: .generateSphere(radius: 0.05), materials: [matteMaterial(RoomColors.ball)])
+        let ball = ModelEntity(mesh: PetProps.ball?.mesh ?? .generateSphere(radius: 0.05), materials: PetProps.ballMaterials())
         ball.name = "ball"
         ball.position = ballPos
         // На крупном плане шерсти мяч оказался бы у правого края под полупрозрачными кнопками — там он не нужен.
@@ -589,7 +590,8 @@ enum RoomColors {
     static let wall: UInt32 = 0xfbefe4
     static let plinth: UInt32 = 0xe3cdb8
     static let rug: UInt32 = 0xe9b8a8
-    static let bowl: UInt32 = 0xd9534f
+    /// Чёрная миска «Dog bowl» (волна 58, выбор Вадима): не чистый чёрный — под светом комнаты он читается дырой.
+    static let bowl: UInt32 = 0x34323a
     static let ball: UInt32 = 0xf2c94c
     static let food: UInt32 = 0x9c5b34
 }

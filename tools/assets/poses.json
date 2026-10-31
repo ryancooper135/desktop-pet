@@ -205,6 +205,51 @@
     {"bone": "Torso2", "deg": [1.5, 0, 0], "hz": 3},
     {"bone": "FrontShoulder.*", "deg": [-1.5, 0, 0], "hz": 3}
    ]
+  },
+
+  "paw": {
+   "over": "sit", "dur": 1.6,
+   "keys": [[0, 0], [0.28, 1], [0.72, 1], [1, 0]],
+   "overlay": {"FrontUpperLeg.R": [-112, 0, 0], "FrontLowerLeg.R": [38, 0, 0], "FrontShoulder.R": [-14, 0, 0],
+               "Back": [0, 0, -4], "Neck3": [0, 0, 8], "Ear1.*": [-6, 0, 0]},
+   "lag": {"FrontLowerLeg.R": 0.06, "Neck3": 0.08, "Ear1.*": 0.1},
+   "wave": [{"bone": "Tail1", "deg": [0, 14, 0], "hz": 3, "lag": 0.1}]
+  },
+  "high_five": {
+   "over": "sit", "dur": 1.2,
+   "keys": [[0, 0], [0.32, 1], [0.6, 1], [1, 0]],
+   "overlay": {"FrontUpperLeg.R": [-150, 0, 0], "FrontLowerLeg.R": [-12, 0, 0], "FrontShoulder.R": [-26, 0, 0],
+               "Back": [-6, 0, -5], "Neck1": [-6, 0, 0], "Ear1.*": [-10, 0, 0]},
+   "lag": {"FrontLowerLeg.R": 0.05, "Ear1.*": 0.1},
+   "wave": [{"bone": "Tail1", "deg": [0, 20, 0], "hz": 4, "lag": 0.1}]
+  },
+  "spin": {
+   "over": "idle", "dur": 1.25, "spin": 360,
+   "spin_keys": [[0, 0], [1, 1]],
+   "keys": [[0, 0], [0.15, 1], [0.85, 1], [1, 0]],
+   "overlay": {"Neck2": [0, 10, 0], "Neck3": [0, 14, 0], "Tail1": [0, -20, 0], "Ear1.*": [-8, 0, 0]},
+   "lag": {"Tail1": 0.08},
+   "wave": [
+    {"bone": "FrontUpperLeg.L", "deg": [-14, 0, 0], "hz": 4},
+    {"bone": "FrontUpperLeg.R", "deg": [14, 0, 0], "hz": 4},
+    {"bone": "BackUpperLeg.L", "deg": [10, 0, 0], "hz": 4},
+    {"bone": "BackUpperLeg.R", "deg": [-10, 0, 0], "hz": 4}
+   ]
+  },
+  "play_dead_out": {"from": "death@end", "to": "idle", "dur": 1.0},
+  "crawl": {
+   "over": "lie", "dur": 1.0, "loop": true,
+   "keys": [[0, 1], [1, 1]],
+   "overlay": {"Neck1": [6, 0, 0]},
+   "wave": [
+    {"bone": "FrontUpperLeg.L", "deg": [-16, 0, 0], "hz": 2},
+    {"bone": "FrontUpperLeg.R", "deg": [16, 0, 0], "hz": 2},
+    {"bone": "BackLeg.L", "deg": [8, 0, 0], "hz": 2, "phase": 0.5},
+    {"bone": "BackLeg.R", "deg": [-8, 0, 0], "hz": 2, "phase": 0.5},
+    {"bone": "Back", "deg": [0, 4, 0], "hz": 2},
+    {"bone": "Neck1", "deg": [0, -3, 0], "hz": 2},
+    {"bone": "Tail1", "deg": [0, 10, 0], "hz": 2, "phase": 0.25}
+   ]
   }
  }
 }

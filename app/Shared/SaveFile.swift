@@ -130,6 +130,9 @@ struct SaveFile: Codable, Sendable {
     /// character задан. Пишется при выборе и переустановке пака (виджет пак не читает: модель ему не нужна).
     /// nil в файл не пишется, переходит щенку вместе с character.
     var characterName: String?
+    /// Волна 58. Порода пса из коробки (PetBreed: "husky"), nil — Шиба (сейвы до волны 58 тоже). Свой персонаж
+    /// (character) поверх неё. nil в файл не пишется, новому щенку переходит — выбор хозяина, как character.
+    var breed: String?
     /// Волна 15. Пояс рождения (минуты к востоку от UTC). День рождения — календарная дата появления щенка
     /// там, где он родился: перелёт и смена пояса его не сдвигают. nil — сейв старше волны 15: PetStore при
     /// первой записи ставит пояс телефона на момент рождения. Новому щенку — свой, не переходит.
@@ -223,7 +226,7 @@ struct SaveFile: Codable, Sendable {
         case habits
         case cooking
         case runaway
-        case character, characterName
+        case character, characterName, breed
         case birthTz
         case tips
         case shardLog
@@ -298,6 +301,7 @@ struct SaveFile: Codable, Sendable {
         runaway = (try? c.decodeIfPresent(Runaway.Log.self, forKey: .runaway)) ?? Runaway.Log()
         character = try? c.decodeIfPresent(String.self, forKey: .character)
         characterName = try? c.decodeIfPresent(String.self, forKey: .characterName)
+        breed = try? c.decodeIfPresent(String.self, forKey: .breed)
         birthTz = try? c.decodeIfPresent(Int.self, forKey: .birthTz)
         tips = (try? c.decodeIfPresent(TipLog.self, forKey: .tips)) ?? TipLog()
         shardLog = (try? c.decodeIfPresent(ShardLog.self, forKey: .shardLog)) ?? ShardLog()
@@ -366,6 +370,7 @@ struct SaveFile: Codable, Sendable {
         if !runaway.isEmpty { try c.encode(runaway, forKey: .runaway) }
         try c.encodeIfPresent(character, forKey: .character)
         try c.encodeIfPresent(characterName, forKey: .characterName)
+        try c.encodeIfPresent(breed, forKey: .breed)
         try c.encodeIfPresent(birthTz, forKey: .birthTz)
         if !tips.isEmpty { try c.encode(tips, forKey: .tips) }
         if !shardLog.isEmpty { try c.encode(shardLog, forKey: .shardLog) }

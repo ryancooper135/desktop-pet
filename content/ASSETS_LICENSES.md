@@ -23,6 +23,22 @@ CC-BY — обязательно указать автора в «Настрой
 
 Звуковые эффекты не сторонние: их синтезирует само приложение (`app/Shared/SoundRecipes.swift`).
 
+## 3D-модели (волна 58)
+
+| Файл в `app/Resources/Pets/` | Модель | Автор | Источник | Лицензия |
+|---|---|---|---|---|
+| `shiba.usdz` | «Shiba Inu» | Quaternius | https://poly.pizza/m/y4wdQpg767 | CC0 1.0 |
+| `husky.usdz` | «Husky» | Quaternius | https://poly.pizza/m/wcWiuEqwzq | CC0 1.0 |
+| `bowl.usdz` | «Dog bowl» | Poly by Google | https://poly.pizza/m/a3frygyTZwp | CC-BY 3.0 |
+| `ball.usdz` | «Tennis ball» | Poly by Google | https://poly.pizza/m/0aPpwgcBbk1 | CC-BY 3.0 |
+
+- CC-BY 3.0 (миска, мячик): автор указан в настройках, раздел «Об игре» — «Миска «Dog bowl» и мячик
+  «Tennis ball» — Poly by Google (CC-BY 3.0)». Изменения: размер под комнату, миска матовая графитовая
+  (оригинал чистый чёрный), формат glb → usdz (`tools/assets/props_usdz.py`). Исходники — `tools/assets/source/props/`.
+- Шиба и Хаски: позы, новые клипы и окрас стиля A — наши (`tools/assets/build_clips.py`, `poses.json`,
+  `style_a*.json`); исходники glb — `tools/assets/source/`. CC0 атрибуции не требует, но автор назван там же.
+- Проверяет `PetBreedTests.testAssetCreditsListed`.
+
 ## Виджет, островок и контрол «что сейчас» (волна 51)
 
 Сторонних файлов **нет**. Пёс в позах занятия — свой `PixelDog`/3D из кода (бег, сон, тазик с пеной уже были),

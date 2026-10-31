@@ -135,13 +135,19 @@ enum CharacterPack {
         ("yawn", "не зевает"),
         ("bark", "на «Голос» не лает, только подпрыгивает"),
         ("pant", "не дышит с высунутым языком после игры"),
+        // волна 58: трюки под команды (волна 57)
+        ("paw", "не даёт лапу"),
+        ("high_five", "не даёт пять"),
+        ("spin", "не кружится"),
+        ("play_dead_out", "не встаёт после «Притворись»"),
+        ("crawl", "не ползает"),
     ]
 
     /// Чем заменить недостающий цикл позы: радость и грусть стоят в обычной стойке, бег — шагом.
     static let fallbacks: [String: String] = ["idle_2": "idle", "idle_headlow": "idle", "gallop": "walk"]
 
     /// Циклы среди наших клипов (как loop в shiba.clips.json): для них loop из конфига не обязателен.
-    static let loops: Set<String> = ["idle", "idle_2", "idle_headlow", "walk", "gallop", "sit", "lie", "sleep"]
+    static let loops: Set<String> = ["idle", "idle_2", "idle_headlow", "walk", "gallop", "sit", "lie", "sleep", "crawl"]
 
     static var allClips: [String] { required.map(\.clip) + optional.map(\.clip) }
 

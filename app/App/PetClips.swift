@@ -1,10 +1,10 @@
-// Контракт имён клипов Шибы (shiba.clips.json из tools/assets). Без RealityKit: читают сцена, тесты и проверка ассетов.
+// Контракт имён клипов пса из коробки (shiba.clips.json и husky.clips.json из tools/assets — имена одни). Без RealityKit: читают сцена, тесты и проверка ассетов.
 // По одному имени в строке литерала — tests-frames парсит этот файл регуляркой.
 
 import Foundation
 
 enum PetClipNames {
-    /// Клипы, которые есть в текущем shiba.clips.json (21 шт.). Сцена на них опирается.
+    /// Клипы, которые обязаны быть у каждой породы (39 шт., волна 58). Сцена на них опирается.
     static let required: [String] = [
         "idle",
         "idle_2",
@@ -45,6 +45,13 @@ enum PetClipNames {
         // волна 13 (mouth.py): лай на «Голос» и язык наружу после игры и прогулки
         "bark",
         "pant",
+        // волна 58 (build_clips.py, обе породы): трюки — лапу и «дай пять» сидя, кружок, встать после
+        // «умри» (death), ползком лёжа
+        "paw",
+        "high_five",
+        "spin",
+        "play_dead_out",
+        "crawl",
     ]
 }
 

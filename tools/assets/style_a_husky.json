@@ -1,0 +1,14 @@
+{
+ "_doc": "Стиль A «Nintendogs» для Хаски (волна 58): та же пастель и плоский цвет, что у Шибы (style_a.json), окрас серо-голубой с белым. Материалы — после normalize_breed.py (имена Шибы).",
+ "materials": {
+  "Main":       {"color": "#8E99AA", "what": "серо-голубая спина, маска, хвост (в исходнике почти чёрные)"},
+  "Main_Light": {"color": "#FFF6EC", "what": "белые морда, грудь, лапы (в исходнике серые)"},
+  "Black":      {"color": "#3E3A40", "what": "нос и полость рта"},
+  "Eyes_White": {"color": "#2E2A33", "what": "ободок глаза: тёмный, как у Шибы"},
+  "Eyes_Pupil": {"color": "#6FA3CF", "what": "радужка: голубая, как у хаски (сделана normalize_breed.py)"},
+  "Eyes_Black": {"color": "#1E1A22", "what": "зрачок"},
+  "Tongue":     {"color": "#E98C93", "what": "язык (добавлен в mouth.py)"}
+ },
+ "params": {"metallic": 0.0, "roughness": 1.0, "specular": 0.0},
+ "eyes_closed": {"Eyes_White": "Main", "Eyes_Pupil": "Main", "Eyes_Black": "Main"}
+}

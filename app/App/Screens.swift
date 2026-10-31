@@ -482,6 +482,9 @@ struct SettingsScreen: View {
     /// 20:00–23:55 и 00:00–02:00 с шагом 5 минут.
     static let bedOptions: [Int] = Array(stride(from: 20 * 60, to: 24 * 60, by: 5)) + Array(stride(from: 0, through: 2 * 60, by: 5))
 
+    /// Авторы 3D (волна 58). Проверяет PetBreedTests.testAssetCreditsListed: каждый CC-BY из ASSETS_LICENSES.md назван здесь.
+    static let modelCredits = "Шиба и Хаски — Quaternius (CC0). Миска «Dog bowl» и мячик «Tennis ball» — Poly by Google (CC-BY 3.0)."
+
     /// Раздел «Для разработки» (каталог превью): только в отладочной сборке и не на скриншотах UI-тестов.
     /// PET_DEVTOOLS=1 — показать и под UI-тестом: так YardDemoUITests доходит до «Двор 3D».
     /// На iPhone (ipa собирается как Release) раздел открывают семь касаний по версии — devUnlockKey.
@@ -607,7 +610,7 @@ struct SettingsScreen: View {
                         CharacterPacksScreen()
                     } label: {
                         LabeledContent {
-                            Text(model.characterEntry?.name ?? "Шиба")
+                            Text(model.characterEntry?.name ?? model.breed.title)
                         } label: {
                             Label("Свой персонаж", systemImage: "figure.walk.circle")
                         }
@@ -637,6 +640,18 @@ struct SettingsScreen: View {
                 }
                 .foregroundStyle(PetPalette.ink)
                 .listRowBackground(PetPalette.card)
+
+                // Волна 58: авторы 3D-моделей. CC-BY требует подписи в приложении (content/ASSETS_LICENSES.md).
+                Section {
+                    Text(Self.modelCredits)
+                        .petFont(12)
+                        .foregroundStyle(PetPalette.soft)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier("settings.credits")
+                } header: {
+                    Text("Об игре")
+                }
 
                 if Self.showDevTools || devUnlocked {
                     Section("Для разработки") {

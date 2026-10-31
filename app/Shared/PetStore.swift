@@ -186,6 +186,7 @@ final class PetStore: @unchecked Sendable {
             // Свой персонаж (CharacterStore) — выбор хозяина: новый щенок в том же облике.
             fresh.character = old.character
             fresh.characterName = old.characterName
+            fresh.breed = old.breed
             // Подсказки жестов (волна 18) — знание хозяина: второй раз учить гладить не надо.
             fresh.tips = old.tips
             // Вкусы (Tastes) — нет: они от petId старого пса, у нового свои любимые находки и еда.

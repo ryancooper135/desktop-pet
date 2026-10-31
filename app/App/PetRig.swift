@@ -400,14 +400,14 @@ final class PetRig {
     /// Живые глаза (волна 50, EyeStyle): ободок, карая радужка, зрачок — на Шибе из usdz (подмножества 3…5).
     /// Звать при загрузке модели, после pinEyes; свои персонажи (character.json) — не трогаем, у них свои глаза.
     /// Окрас (PetRoom.applyCoat) перекрашивает только шерсть 0 и 1 — глаза остаются.
-    static func styleEyes(_ body: Entity) {
+    static func styleEyes(_ body: Entity, iris: UInt32 = EyeStyle.iris) {
         var queue: [Entity] = [body]
         while !queue.isEmpty {
             let e = queue.removeFirst()
             queue += Array(e.children)
             guard let m = e as? ModelEntity, var model = m.model,
                   PetRoom.shibaMaterials.contains(model.materials.count), eyesByShape(m) else { continue }
-            for (i, hex) in [(3, EyeStyle.rim), (4, EyeStyle.iris), (5, EyeStyle.pupil)] {
+            for (i, hex) in [(3, EyeStyle.rim), (4, iris), (5, EyeStyle.pupil)] {
                 guard var p = model.materials[i] as? PhysicallyBasedMaterial else { continue }
                 p.baseColor = .init(tint: PetRoom.color(hex), texture: nil)
                 model.materials[i] = p
