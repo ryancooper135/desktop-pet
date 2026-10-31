@@ -367,8 +367,10 @@ final class RunnerWorld {
             let dz = c.z - d
             let k = Self.pop(dz)
             guard k > 0 else { continue }
-            let e = bones.take()
-            e.position = SIMD3(Float(c.lane - 1) * Self.laneW, 0.24, -Float(dz) * s)
+            let e: Entity = bones.take()
+            let bx: Float = Float(c.lane - 1) * Self.laneW
+            let bz: Float = -Float(dz) * s
+            e.position = SIMD3<Float>(bx, 0.24, bz)
             e.orientation = spin
             e.scale = SIMD3(repeating: k)
         }
@@ -387,10 +389,12 @@ final class RunnerWorld {
                 let h = Self.hash(i &* 2 &+ (side > 0 ? 1 : 0))
                 guard let kind = Self.prop(biome, h), let pool = props[kind] else { continue }
                 let e = pool.take()
-                let jitter = Float(h % 7) * 0.03
+                let jitter: Float = Float(h % 7) * 0.03
                 let off: Float = kind.hasPrefix("house") ? 0.85 : 0.5
-                e.position = SIMD3(Float(side) * (1.5 * Self.laneW + off + jitter), 0, -Float(dz) * s)
-                let size = 0.85 + Float(h % 5) * 0.075
+                let px: Float = Float(side) * (1.5 * Self.laneW + off + jitter)
+                let pz: Float = -Float(dz) * s
+                e.position = SIMD3<Float>(px, 0, pz)
+                let size: Float = 0.85 + Float(h % 5) * 0.075
                 e.scale = SIMD3(repeating: k * size)
             }
         }
@@ -466,7 +470,8 @@ final class RunnerWorld {
         for side: Float in [-0.5, 0.5] {
             let line = ModelEntity(mesh: lineMesh, materials: [lineMat])
             line.components.set(OpacityComponent(opacity: 0.55))
-            line.position = SIMD3(side * Self.laneW, 0.003, -Float(Self.drawAhead) * Self.scale / 2 + 1)
+            let lz: Float = 1 - Float(Self.drawAhead) * Self.scale / 2
+            line.position = SIMD3<Float>(side * Self.laneW, 0.003, lz)
             PetRoom.noShadow(line)
             root.addChild(line)
         }
