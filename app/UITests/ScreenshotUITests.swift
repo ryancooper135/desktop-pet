@@ -1135,9 +1135,27 @@ extension XCTestCase {
     }
 
     func waitHittable(_ e: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        waitGlassPass()
         if e.exists && e.isHittable { return true }
         let ready = NSPredicate(format: "exists == true AND hittable == true")
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: ready, object: e)], timeout: timeout) == .completed
+    }
+
+    /// Главный экран в UI-тестах через GlassSettle.delay после сборки сцены пересоздаёт стеклянные кнопки
+    /// (glass=0 → 1). Кнопка, пойманная в этот миг, — уходящая копия: isHittable не false, а падение теста
+    /// («Activation point invalid» у act.walk, tab.wardrobe, open.games — 41231757123, 41232401166, 41232490134).
+    /// Сцена на экране, а прохода ещё не было — дождаться его. Не главный экран или проход был — сразу дальше.
+    func waitGlassPass(timeout: TimeInterval = 5) {
+        let app = XCUIApplication()
+        guard app.state == .runningForeground else { return }
+        let stage = app.descendants(matching: .any)["pet.stage"].firstMatch
+        guard stage.exists, let v = stage.value as? String, v.contains("glass="),
+              v.range(of: "glass=[1-9]", options: .regularExpression) == nil else { return }
+        let settled = NSPredicate(format: "value MATCHES %@", ".*glass=[1-9][0-9]*$")
+        if XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: settled, object: stage)],
+                            timeout: timeout) == .completed {
+            settle(0.4)
+        }
     }
 
     /// Нажать, когда кнопка готова. Не стала нажимаемой, но есть (SwiftUI иногда не отдаёт hittable у стекла) —
