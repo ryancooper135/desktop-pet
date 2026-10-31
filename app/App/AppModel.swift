@@ -7,6 +7,8 @@
 import CoreGraphics
 import Foundation
 import Observation
+import struct SwiftUI.Transaction
+import func SwiftUI.withTransaction
 @preconcurrency import PetCore
 
 struct Toast: Identifiable, Equatable, Sendable {
