@@ -1,4 +1,4 @@
-// Общее для мини-игр («Лови мячик», «Блок Дуо»): единый реестр MiniGame (волна 55), дневной потолок монет на всех
+// Общее для мини-игр («Лови мячик», «Блок Дуо», «Раннер» — волна 55b): единый реестр MiniGame (волна 55), дневной потолок монет на всех
 // (волна 13) и правило «кто занят» (волна 32).
 // Волна 32: играть можно всегда. Раньше спящий, моющийся, гуляющий или уставший пёс закрывал игры серой кнопкой;
 // теперь раунд запускается, но идёт «просто так»: без монет, без «Поиграть» в ядре (шкалы, монеты ухода, привычки),
@@ -16,12 +16,15 @@ import Foundation
 enum MiniGame: String, Codable, CaseIterable, Hashable, Sendable {
     case ball = "catch"
     case blockduo
+    /// Волна 55b: бег по двору, району и парку (Runner.swift).
+    case runner
 
     /// Короткое имя для плашки.
     var title: String {
         switch self {
         case .ball: return "Мячик"
         case .blockduo: return "Блок Дуо"
+        case .runner: return "Раннер"
         }
     }
 
@@ -30,6 +33,7 @@ enum MiniGame: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .ball: return CatchConfig.shared.name
         case .blockduo: return BlockDuoConfig.shared.name
+        case .runner: return RunnerConfig.shared.name
         }
     }
 
@@ -38,6 +42,7 @@ enum MiniGame: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .ball: return "tennisball.fill"
         case .blockduo: return "square.grid.3x3.fill"
+        case .runner: return "figure.run"
         }
     }
 
@@ -46,24 +51,28 @@ enum MiniGame: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .ball: return \.catchBest
         case .blockduo: return \.blockduoBest
+        case .runner: return \.runnerBest
         }
     }
     var dayKey: WritableKeyPath<SaveFile, Int> {
         switch self {
         case .ball: return \.catchDay
         case .blockduo: return \.blockduoDay
+        case .runner: return \.runnerDay
         }
     }
     var coinsKey: WritableKeyPath<SaveFile, Int> {
         switch self {
         case .ball: return \.catchCoins
         case .blockduo: return \.blockduoCoins
+        case .runner: return \.runnerCoins
         }
     }
     var gamesKey: WritableKeyPath<SaveFile, Int> {
         switch self {
         case .ball: return \.catchGames
         case .blockduo: return \.blockduoGames
+        case .runner: return \.runnerGames
         }
     }
 

@@ -49,6 +49,7 @@ private func allDone() -> SaveFile {
     }
     f.catchBest = 3
     f.blockduoBest = 4
+    f.runnerBest = 5
     f.challenge.count = 10
     f.cards.album = (0..<10).map { card(20_000 + $0) }
     return f

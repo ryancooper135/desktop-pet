@@ -11,8 +11,8 @@ enum StagePause {
     static let settle: TimeInterval = 0.8
 
     /// Закрыта ли комната целиком.
-    static func covered(catchGame: Bool, blockDuo: Bool, away: Bool) -> Bool {
-        catchGame || blockDuo || away
+    static func covered(catchGame: Bool, blockDuo: Bool, runner: Bool = false, away: Bool) -> Bool {
+        catchGame || blockDuo || runner || away
     }
 
     /// Через сколько секунд сцена принимает состояние covered. Гасим не сразу (въезд обложки), включаем сразу:

@@ -87,6 +87,11 @@ struct SaveFile: Codable, Sendable {
     var blockduoDay = 0
     var blockduoCoins = 0
     var blockduoGames = 0
+    /// «Раннер» (волна 55b, Runner.swift): рекорд, сутки счётчиков, монеты и партии за сутки. Нули не пишутся.
+    var runnerBest = 0
+    var runnerDay = 0
+    var runnerCoins = 0
+    var runnerGames = 0
     /// «Щенок против зомби» (волна 13, убран в волне 55): поля только для совместимости со старыми сейвами —
     /// читаются и пишутся как были, но ни одна игра их больше не трогает. Нули в файл не пишутся.
     var zombieBest = 0
@@ -217,6 +222,7 @@ struct SaveFile: Codable, Sendable {
         case cards, shots
         case catchBest, catchDay, catchCoins, catchGames
         case blockduoBest, blockduoDay, blockduoCoins, blockduoGames
+        case runnerBest, runnerDay, runnerCoins, runnerGames
         case zombieBest, zombieDay, zombieCoins, zombieGames
         case roomEvening
         case worn
@@ -284,6 +290,10 @@ struct SaveFile: Codable, Sendable {
         blockduoDay = (try? c.decodeIfPresent(Int.self, forKey: .blockduoDay)) ?? 0
         blockduoCoins = (try? c.decodeIfPresent(Int.self, forKey: .blockduoCoins)) ?? 0
         blockduoGames = (try? c.decodeIfPresent(Int.self, forKey: .blockduoGames)) ?? 0
+        runnerBest = (try? c.decodeIfPresent(Int.self, forKey: .runnerBest)) ?? 0
+        runnerDay = (try? c.decodeIfPresent(Int.self, forKey: .runnerDay)) ?? 0
+        runnerCoins = (try? c.decodeIfPresent(Int.self, forKey: .runnerCoins)) ?? 0
+        runnerGames = (try? c.decodeIfPresent(Int.self, forKey: .runnerGames)) ?? 0
         zombieBest = (try? c.decodeIfPresent(Int.self, forKey: .zombieBest)) ?? 0
         zombieDay = (try? c.decodeIfPresent(Int.self, forKey: .zombieDay)) ?? 0
         zombieCoins = (try? c.decodeIfPresent(Int.self, forKey: .zombieCoins)) ?? 0
@@ -353,6 +363,10 @@ struct SaveFile: Codable, Sendable {
         if blockduoDay != 0 { try c.encode(blockduoDay, forKey: .blockduoDay) }
         if blockduoCoins != 0 { try c.encode(blockduoCoins, forKey: .blockduoCoins) }
         if blockduoGames != 0 { try c.encode(blockduoGames, forKey: .blockduoGames) }
+        if runnerBest != 0 { try c.encode(runnerBest, forKey: .runnerBest) }
+        if runnerDay != 0 { try c.encode(runnerDay, forKey: .runnerDay) }
+        if runnerCoins != 0 { try c.encode(runnerCoins, forKey: .runnerCoins) }
+        if runnerGames != 0 { try c.encode(runnerGames, forKey: .runnerGames) }
         if zombieBest != 0 { try c.encode(zombieBest, forKey: .zombieBest) }
         if zombieDay != 0 { try c.encode(zombieDay, forKey: .zombieDay) }
         if zombieCoins != 0 { try c.encode(zombieCoins, forKey: .zombieCoins) }

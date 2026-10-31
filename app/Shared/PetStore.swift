@@ -151,6 +151,10 @@ final class PetStore: @unchecked Sendable {
             fresh.blockduoDay = old.blockduoDay
             fresh.blockduoCoins = old.blockduoCoins
             fresh.blockduoGames = old.blockduoGames
+            fresh.runnerBest = old.runnerBest
+            fresh.runnerDay = old.runnerDay
+            fresh.runnerCoins = old.runnerCoins
+            fresh.runnerGames = old.runnerGames
             fresh.zombieBest = old.zombieBest
             fresh.zombieDay = old.zombieDay
             fresh.zombieCoins = old.zombieCoins
