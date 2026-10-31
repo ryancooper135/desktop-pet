@@ -289,7 +289,6 @@ struct HomeScreen: View {
             .padding(.top, 2)
             .allowsHitTesting(false)
         }
-        .accessibilityHidden(model.sheetOver)
         .animation(.snappy, value: model.toast)
         .animation(.snappy, value: rescue)
         .animation(.snappy, value: snap.wantIcon)
