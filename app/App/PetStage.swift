@@ -61,6 +61,8 @@ struct PetStage: View {
         let interior = model?.interior ?? .standard
         // Свой персонаж: разбор папки уже готов (CharacterStore.Entry — Sendable), модель грузим здесь.
         let character = model?.characterEntry
+        // Порода из коробки (волна 58): Шиба или Хаски; свой персонаж — поверх неё, не загрузился — порода.
+        let breed = model?.breed ?? .standard
         // В сейве свой персонаж, а папки пака нет (удалили через «Файлы», не переустановили после переноса):
         // раньше молча стоял Шиба, а выбор в сейве оставался — список паков не отмечал никого, новый щенок
         // наследовал пустой id. Снимаем выбор тем же путём, что и при сломанном паке.
@@ -81,7 +83,7 @@ struct PetStage: View {
             content.camera = .virtual
             PetModel.registerOnce()
             RoomLighting.registerOnce()
-            let (pet, failed) = await PetModel.load(character: character)
+            let (pet, failed) = await PetModel.load(character: character, breed: breed)
             if let failed { app?.characterFailed(failed) } else if missing { app?.characterFailed("папки пака больше нет") }
             pet.name = PetModel.petName
             PetRoom.matte(pet)
@@ -100,6 +102,7 @@ struct PetStage: View {
             stand.addChild(blob)
             stand.addChild(pet)
             content.add(stand)
+            await PetProps.load()   // миска и мячик из usdz (волна 58), один раз за запуск
             let room = PetRoom.room()
             RoomDecor.apply(home, to: room)
             RoomDecor.applyShelf(shelf, to: room)
@@ -165,7 +168,7 @@ struct PetStage: View {
             PetModel.idleScene = idle
         }
         // Сменили персонажа или переставили его папку — сцена собирается заново (make, а не update).
-        .id("\(character?.id ?? "shiba")#\(model?.characterRev ?? 0)")
+        .id("\(character?.id ?? breed.rawValue)#\(model?.characterRev ?? 0)")
         .overlay { RoomVignette(schedule: schedule, dark: dark) }
         .background(PetPalette.bg)
         // Гасим, когда обложка доехала; включаем сразу, как только её закрывают.
@@ -223,41 +226,52 @@ enum PetModel {
     /// У Шибы и без color — nil, пучки рыжие. Ставит load.
     static var furColor: UInt32?
 
+    /// Порода из коробки (волна 58, SaveFile.breed): её модель грузят двор и фургон (YardDogLive). Ставит AppModel.
+    static var breed: PetBreed = .standard
+
     /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head». Сначала точно,
     /// потом без разницы «Ear1.L» / «Ear1_L» / регистр (волна 50, BoneName: уши Шибы раньше не находились).
     static func boneIndex(_ names: [String], _ leaf: String) -> Int? {
         BoneName.index(names, boneAlias[leaf] ?? leaf)
     }
 
-    /// Как поставить модель: у Шибы — константы, у своего персонажа — из character.json.
+    /// Как поставить модель: у породы из коробки — её константы (PetBreed), у своего персонажа — из character.json.
     @MainActor private struct Look {
         var height: Float = PetModel.height
         var lift: Float = 0
         var yaw: Float = 0
-        var deathShift: Float = PetModel.shibaDeathShiftX
+        var deathShift: Float
         var bones: [String: String] = [:]
         var color: UInt32? = nil
-        var table: ClipTable? = ClipTable.shiba
+        var table: ClipTable?
         /// Свой персонаж: хореография берёт размеры тела из его рамки (ChoreoPath.body).
         var custom = false
+        var breed: PetBreed
+
+        init(breed: PetBreed) {
+            self.breed = breed
+            deathShift = breed.deathShiftX
+            table = ClipTable.of(breed)
+        }
     }
 
-    /// Свой персонаж, если он есть и загрузился, иначе Шиба. failed — почему не свой (для тоста).
-    static func load(character: CharacterStore.Entry?) async -> (pet: Entity, failed: String?) {
-        guard let ch = character else { return (await load(), nil) }
+    /// Свой персонаж, если он есть и загрузился, иначе порода из коробки. failed — почему не свой (для тоста).
+    static func load(character: CharacterStore.Entry?, breed: PetBreed = .standard) async -> (pet: Entity, failed: String?) {
+        func fallback() async -> Entity { await PetModel.load(breed: breed) }
+        guard let ch = character else { return (await fallback(), nil) }
         guard ch.ok, let c = ch.config, let url = ch.modelURL else {
-            return (await load(), ch.check.errors.first ?? "пак не прошёл проверку")
+            return (await fallback(), ch.check.errors.first ?? "пак не прошёл проверку")
         }
         let model: Entity
         do {
             model = try await Entity(contentsOf: url)
         } catch {
-            return (await load(), "\(url.lastPathComponent) не открылся (\(error.localizedDescription))")
+            return (await fallback(), "\(url.lastPathComponent) не открылся (\(error.localizedDescription))")
         }
         // Клипы — куски одного таймлайна: без анимации в файле пёс стоял бы статуей во всех позах.
-        guard !model.availableAnimations.isEmpty else { return (await load(), "в модели нет анимации") }
-        guard model.visualBounds(relativeTo: nil).extents.y > 0 else { return (await load(), "модель пустая") }
-        var look = Look()
+        guard !model.availableAnimations.isEmpty else { return (await fallback(), "в модели нет анимации") }
+        guard model.visualBounds(relativeTo: nil).extents.y > 0 else { return (await fallback(), "модель пустая") }
+        var look = Look(breed: breed)
         look.custom = true
         look.height = Float(CharacterPack.height(c, base: Double(height)))
         look.lift = Float(c.lift ?? 0)
@@ -270,12 +284,12 @@ enum PetModel {
     }
 
     /// Корень с JuiceComponent → petJuice → модель, приведённая к росту height и поставленная на пол.
-    static func load() async -> Entity {
+    static func load(breed: PetBreed = .standard) async -> Entity {
         var model: Entity?
-        if Bundle.main.url(forResource: "shiba", withExtension: "usdz") != nil {
-            model = try? await Entity(named: "shiba", in: Bundle.main)
+        if Bundle.main.url(forResource: breed.resource, withExtension: "usdz") != nil {
+            model = try? await Entity(named: breed.resource, in: Bundle.main)
         }
-        return assemble(model, look: Look())
+        return assemble(model, look: Look(breed: breed))
     }
 
     private static func assemble(_ model: Entity?, look: Look) -> Entity {
@@ -284,14 +298,14 @@ enum PetModel {
         ClipTable.shared = look.table
         deathShiftX = look.deathShift
         boneAlias = look.bones
-        furColor = look.color
+        furColor = look.color ?? (look.custom ? nil : look.breed.fur)
         let body = model ?? StubDog.make()
         body.name = bodyName
         if let rgb = look.color { PetRoom.recolorFur(body, rgb) }
         // Глаза держатся головы, а не ушей (волна 32, EyePin) — до PetRig и prepareCoat.
         if model != nil { PetRig.pinEyes(body) }
         // Живые глаза (волна 50, EyeStyle): у Шибы ободок, карая радужка, зрачок. Свой персонаж — его цвета.
-        if model != nil, !look.custom { PetRig.styleEyes(body) }
+        if model != nil, !look.custom { PetRig.styleEyes(body, iris: look.breed.iris) }
         let bounds = body.visualBounds(relativeTo: nil)
         if model != nil, bounds.extents.y > 0 {
             let k = look.height / bounds.extents.y
@@ -309,7 +323,7 @@ enum PetModel {
             ChoreoPath.body = CharacterPack.body(height: Double(look.height), base: Double(height),
                                                  length: Double(e.z), width: Double(e.x), lift: Double(look.lift))
         } else {
-            ChoreoPath.body = .shiba
+            ChoreoPath.body = look.custom ? .shiba : look.breed.body
         }
         let pivot = Entity()
         pivot.name = pivotName
@@ -630,8 +644,9 @@ enum PetModel {
     /// Клип death валит собаку на бок, и центр уезжает вбок почти на полроста: замер скина по исходнику
     /// (tools/assets/source/shiba.glb) — середина рамки с 0 до +1.36 ед. по X модели при росте 3.09.
     /// Без поправки мёртвый лежит у края экрана головой на мяче. Сдвигаем модель обратно, пока он лежит.
-    static let shibaDeathShiftX: Float = -1.36
-    /// Сдвиг текущей модели: у своего персонажа — deathShift из character.json (нет — 0). Ставит load.
+    static let shibaDeathShiftX: Float = PetBreed.shiba.deathShiftX
+    /// Сдвиг текущей модели: у породы — PetBreed.deathShiftX, у своего персонажа — deathShift из character.json
+    /// (нет — 0). Ставит load.
     static var deathShiftX: Float = shibaDeathShiftX
 
     static func deathShift(_ pet: Entity, _ st: inout ClipState, animated: Bool) {
@@ -859,11 +874,23 @@ struct ClipTable: Decodable, Sendable {
     var fps: Double
     var clips: [String: Clip]
 
-    static let shiba: ClipTable? = {
-        guard let url = Bundle.main.url(forResource: "shiba.clips", withExtension: "json"),
+    static let shiba: ClipTable? = bundled(.shiba)
+    /// Хаски (волна 58): те же имена клипов, свои границы на своём таймлайне.
+    static let husky: ClipTable? = bundled(.husky)
+
+    /// Таблица породы из коробки.
+    static func of(_ breed: PetBreed) -> ClipTable? {
+        switch breed {
+        case .shiba: return shiba
+        case .husky: return husky
+        }
+    }
+
+    private static func bundled(_ breed: PetBreed) -> ClipTable? {
+        guard let url = Bundle.main.url(forResource: breed.clipsResource, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
         return (try? JSONDecoder().decode(ClipTable.self, from: data))?.addingEatParts()
-    }()
+    }
 
     /// Таблица модели в сцене: Шиба или свой персонаж. Пишет только PetModel.load на главном потоке,
     /// до первого клипа новой модели; читают проигрыватель и режиссёр там же.

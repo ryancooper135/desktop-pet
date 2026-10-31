@@ -1,4 +1,4 @@
-// Экран «Свой персонаж» (волна 12): установленные паки, какой в комнате, «Вернуть Шибу», удаление и
+// Экран «Свой персонаж» (волна 12): установленные паки, какой в комнате, порода из коробки (Шиба/Хаски, волна 58), удаление и
 // «Добавить из «Файлов»» (fileImporter: папка целиком или character.json + модель). Пак с ошибками в списке
 // виден с причинами красным, поставить его нельзя; чего не хватит без необязательных клипов — серым.
 // Логика — CharacterPack и CharacterStore (Shared), копирование и выбор — AppModel. Открывается из настроек
@@ -18,8 +18,10 @@ struct CharacterPacksScreen: View {
     var body: some View {
         Form {
             Section {
-                ShibaRow(active: model.character == nil) { model.setCharacter(nil) }
-                    .listRowBackground(PetPalette.card)
+                ForEach(PetBreed.allCases, id: \.self) { b in
+                    BreedRow(breed: b, active: model.character == nil && model.breed == b) { model.setBreed(b) }
+                        .listRowBackground(PetPalette.card)
+                }
                 ForEach(model.characterPacks) { e in
                     PackRow(entry: e, active: e.id == model.character) { model.setCharacter(e.id) }
                         .listRowBackground(PetPalette.card)
@@ -99,8 +101,9 @@ struct CharacterPacksScreen: View {
     ]
 }
 
-/// Шиба из коробки: всегда первая, её не удалить.
-private struct ShibaRow: View {
+/// Пёс из коробки (волна 58: Шиба или Хаски) — иконка-лапка, порода, одна строка про окрас, галочка или «Взять».
+private struct BreedRow: View {
+    let breed: PetBreed
     let active: Bool
     let use: () -> Void
 
@@ -113,10 +116,10 @@ private struct ShibaRow: View {
                 .background(Circle().fill(active ? PetPalette.accent : PetPalette.accent.opacity(0.14)))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Шиба")
+                Text(breed.title)
                     .petFont(16, .bold)
                     .foregroundStyle(PetPalette.ink)
-                Text("Из коробки")
+                Text(breed.note)
                     .petFont(12)
                     .foregroundStyle(PetPalette.soft)
             }
@@ -127,10 +130,10 @@ private struct ShibaRow: View {
                     .foregroundStyle(PetPalette.accent)
                     .accessibilityLabel(Text("Сейчас в комнате"))
             } else {
-                Button("Вернуть Шибу", action: use)
+                Button(breed == .standard ? "Вернуть Шибу" : "Взять \(breed.title.lowercased())", action: use)
                     .petFont(14, .semibold)
                     .buttonStyle(.borderless)
-                    .accessibilityIdentifier("characters.shiba")
+                    .accessibilityIdentifier("characters.\(breed.rawValue)")
             }
         }
         .accessibilityElement(children: .contain)

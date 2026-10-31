@@ -104,6 +104,8 @@ final class AppModel {
     private(set) var characterEntry: CharacterStore.Entry? = nil
     /// Растёт на каждую установку активного пака заново: id тот же, файлы новые — сцена грузит модель снова.
     private(set) var characterRev = 0
+    /// Порода пса из коробки (волна 58, SaveFile.breed): сцена комнаты и двора грузит её модель.
+    private(set) var breed: PetBreed = .standard
     /// Установленные паки для экрана «Свой персонаж». Читаем диск только при открытии экрана и после правок.
     private(set) var characterPacks: [CharacterStore.Entry] = []
     /// Экран «Свой персонаж» внутри настроек (pet://characters).
@@ -202,6 +204,7 @@ final class AppModel {
             shelf = ItemCatalog.shelf(f)
             toy = ItemCatalog.toy(f)
             interior = Interior.shown(f)
+            noteBreed(f.breed)
             noteCharacter(f.character)
             knownTastes = Set(f.tastes.opened.keys)
             tripHerald.sync(f)
@@ -304,6 +307,7 @@ final class AppModel {
             if ty != toy { toy = ty }
             let look = Interior.shown(f)
             if look != interior { interior = look }
+            if PetBreed(save: f.breed) != breed { noteBreed(f.breed) }
             if f.character != character { noteCharacter(f.character) }
             let card = f.pet.alive ? Postcards.active(f, now: now).first(where: { !$0.isSaved }) : nil
             if card != pendingCard { pendingCard = card }
@@ -823,6 +827,12 @@ final class AppModel {
 
     // MARK: свой персонаж (волна 12)
 
+    private func noteBreed(_ saved: String?) {
+        breed = PetBreed(save: saved)
+        // Двор и фургон грузят модель сами (YardDogLive): им порода — отсюда.
+        PetModel.breed = breed
+    }
+
     private func noteCharacter(_ id: String?) {
         character = id
         characterEntry = id.flatMap { CharacterStore.standard.entry($0) }
@@ -867,7 +877,25 @@ final class AppModel {
             refresh()
             Task { await AppActions.shared.afterChange() }
             Feel.select()
-            show(entry.map { "В комнате — \($0.name)" } ?? "Снова Шиба", emoji: "🐾")
+            show(entry.map { "В комнате — \($0.name)" } ?? "Снова \(breed.title)", emoji: "🐾")
+        } catch {
+            refuse(RefuseText.text("store"))
+        }
+    }
+
+    /// Порода из коробки (волна 58): ставит её и снимает своего персонажа — в комнате пёс этой породы.
+    func setBreed(_ b: PetBreed) {
+        guard b != breed || character != nil else { return }
+        do {
+            try PetStore.shared.mutate { (f: inout SaveFile) -> Void in
+                f.breed = b.saved
+                f.character = nil
+                f.characterName = nil
+            }
+            refresh()
+            Task { await AppActions.shared.afterChange() }
+            Feel.select()
+            show("В комнате — \(b.title)", emoji: "🐾")
         } catch {
             refuse(RefuseText.text("store"))
         }
@@ -929,7 +957,7 @@ final class AppModel {
         if let failed {
             refuse((failed as? CharacterPackError)?.message ?? "Не удалился: \(failed.localizedDescription)")
         } else if wasActive {
-            show("Удалён. Снова Шиба", emoji: "🐾")
+            show("Удалён. Снова \(breed.title)", emoji: "🐾")
         }
     }
 

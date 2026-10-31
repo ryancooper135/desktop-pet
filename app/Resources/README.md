@@ -2,11 +2,14 @@
 
 Ресурсы приложения (таргет Pet). Всё, кроме `*.md`, попадает в бандл.
 
-- `shiba.usdz` — модель Шибы для главного экрана. Ищется как `Bundle.main.url(forResource: "shiba", withExtension: "usdz")`.
+- `Pets/shiba.usdz`, `Pets/husky.usdz` — модели пса (Quaternius, CC0), порода выбирается в «Персонажах» (`PetBreed`, волна 58).
+  Ищутся как `Bundle.main.url(forResource: PetBreed.resource, withExtension: "usdz")`; старые сейвы — Шиба.
   - Нет файла — на сцене заглушка из коробок (App/PetStage.swift, `StubDog`).
   - Масштаб и позиция подгоняются сами: рост 0.42 по `visualBounds`, ноги на полу, центр по x и z.
-  - Лежит в `Pets/` (кладёт `gh workflow run assets.yml -f commit=true`); в бандле папки сплющиваются.
-  - `shiba.clips.json` — границы 21 клипа на одной анимации «Clips». По нему PetStage режет анимацию: поза → клип (`PetStage.clip(for:)`). Нет таблицы — вся анимация по кругу.
-  - Морда смотрит на +z (к камере).
+  - Собирает `gh workflow run assets.yml -f commit=true` (матрица shiba/husky) или локально Blender 5.2 + `tools/assets/build_clips.py`; в бандле папки сплющиваются.
+  - `<порода>.clips.json` — границы 39 клипов на одной анимации «Clips» (24 fps, у обеих пород одни имена). По нему PetStage режет анимацию: поза → клип (`PetStage.clip(for:)`). Нет таблицы — вся анимация по кругу.
+  - Морда смотрит на +z (к камере). Бюджет — ≤ 10 000 треугольников и ~2 МБ на породу (тест `PetBreedTests`).
+- `Pets/bowl.usdz`, `Pets/ball.usdz` — миска «Dog bowl» и мячик «Tennis ball» (Poly by Google, CC-BY 3.0; автор назван в «Об игре»).
+  Собирает `python -P tools/assets/props_usdz.py` из `tools/assets/source/props`; грузит `App/PetProps.swift`, нет файла — прежние примитивы. Бюджет ≤ 2000 треугольников и ≤ 300 КБ.
 - `economy.json` и `lines.json` сюда не копировать: project.yml берёт их из `../config` и `../content/ru`.
 - `Music/music_home.m4a`, `Music/music_play.m4a` — тихие лупы музыки (волна 49, MusicTheme/SoundKit), ищутся как `Bundle.main.url(forResource: "music_home", withExtension: "m4a")`. Лицензии — `content/ASSETS_LICENSES.md`.

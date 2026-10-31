@@ -1,0 +1,401 @@
+{
+ "fps": 24,
+ "animation": "Clips",
+ "duration": 64.458333,
+ "note": "start/end - seconds on the single timeline; trim in RealityKit",
+ "clips": {
+  "idle": {
+   "start": 0.0,
+   "end": 3.333333,
+   "frames": [
+    0,
+    80
+   ],
+   "loop": true,
+   "source": "Idle"
+  },
+  "idle_2": {
+   "start": 3.416667,
+   "end": 6.75,
+   "frames": [
+    82,
+    162
+   ],
+   "loop": true,
+   "source": "Idle_2"
+  },
+  "idle_headlow": {
+   "start": 6.833333,
+   "end": 10.833333,
+   "frames": [
+    164,
+    260
+   ],
+   "loop": true,
+   "source": "Idle_2_HeadLow"
+  },
+  "walk": {
+   "start": 10.916667,
+   "end": 12.0,
+   "frames": [
+    262,
+    288
+   ],
+   "loop": true,
+   "source": "Walk"
+  },
+  "gallop": {
+   "start": 12.083333,
+   "end": 12.666667,
+   "frames": [
+    290,
+    304
+   ],
+   "loop": true,
+   "source": "Gallop"
+  },
+  "gallop_jump": {
+   "start": 12.75,
+   "end": 13.666667,
+   "frames": [
+    306,
+    328
+   ],
+   "loop": false,
+   "source": "Gallop_Jump"
+  },
+  "jump_to_idle": {
+   "start": 13.75,
+   "end": 15.083333,
+   "frames": [
+    330,
+    362
+   ],
+   "loop": false,
+   "source": "Jump_ToIdle"
+  },
+  "eat": {
+   "start": 15.166667,
+   "end": 17.833333,
+   "frames": [
+    364,
+    428
+   ],
+   "loop": true,
+   "source": "AnimalArmature|Eating"
+  },
+  "attack": {
+   "start": 17.916667,
+   "end": 19.083333,
+   "frames": [
+    430,
+    458
+   ],
+   "loop": false,
+   "source": "Attack"
+  },
+  "hit_left": {
+   "start": 19.166667,
+   "end": 19.833333,
+   "frames": [
+    460,
+    476
+   ],
+   "loop": false,
+   "source": "Idle_HitReact_Left"
+  },
+  "hit_right": {
+   "start": 19.916667,
+   "end": 20.583333,
+   "frames": [
+    478,
+    494
+   ],
+   "loop": false,
+   "source": "Idle_HitReact_Right"
+  },
+  "death": {
+   "start": 20.666667,
+   "end": 21.708333,
+   "frames": [
+    496,
+    521
+   ],
+   "loop": false,
+   "source": "Death"
+  },
+  "sit_in": {
+   "start": 21.791667,
+   "end": 22.541667,
+   "frames": [
+    523,
+    541
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "sit": {
+   "start": 22.625,
+   "end": 25.625,
+   "frames": [
+    543,
+    615
+   ],
+   "loop": true,
+   "source": "procedural"
+  },
+  "sit_out": {
+   "start": 25.708333,
+   "end": 26.291667,
+   "frames": [
+    617,
+    631
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "lie_in": {
+   "start": 26.375,
+   "end": 27.458333,
+   "frames": [
+    633,
+    659
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "lie": {
+   "start": 27.541667,
+   "end": 30.541667,
+   "frames": [
+    661,
+    733
+   ],
+   "loop": true,
+   "source": "procedural"
+  },
+  "lie_out": {
+   "start": 30.625,
+   "end": 31.541667,
+   "frames": [
+    735,
+    757
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "sleep_in": {
+   "start": 31.625,
+   "end": 33.208333,
+   "frames": [
+    759,
+    797
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "sleep": {
+   "start": 33.291667,
+   "end": 37.291667,
+   "frames": [
+    799,
+    895
+   ],
+   "loop": true,
+   "source": "procedural"
+  },
+  "sleep_out": {
+   "start": 37.375,
+   "end": 38.583333,
+   "frames": [
+    897,
+    926
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "idle_wag": {
+   "start": 38.666667,
+   "end": 40.666667,
+   "frames": [
+    928,
+    976
+   ],
+   "loop": true,
+   "source": "overlay"
+  },
+  "happy_wag": {
+   "start": 40.75,
+   "end": 42.25,
+   "frames": [
+    978,
+    1014
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "head_tilt": {
+   "start": 42.333333,
+   "end": 43.541667,
+   "frames": [
+    1016,
+    1045
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "shake": {
+   "start": 43.625,
+   "end": 44.541667,
+   "frames": [
+    1047,
+    1069
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "hop": {
+   "start": 44.625,
+   "end": 45.125,
+   "frames": [
+    1071,
+    1083
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "play_bow": {
+   "start": 45.208333,
+   "end": 46.625,
+   "frames": [
+    1085,
+    1119
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "ear_flick": {
+   "start": 46.708333,
+   "end": 47.125,
+   "frames": [
+    1121,
+    1131
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "sniff": {
+   "start": 47.208333,
+   "end": 48.708333,
+   "frames": [
+    1133,
+    1169
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "look_l": {
+   "start": 48.791667,
+   "end": 50.375,
+   "frames": [
+    1171,
+    1209
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "look_r": {
+   "start": 50.458333,
+   "end": 52.041667,
+   "frames": [
+    1211,
+    1249
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "yawn": {
+   "start": 52.125,
+   "end": 53.916667,
+   "frames": [
+    1251,
+    1294
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "bark": {
+   "start": 54.0,
+   "end": 54.916667,
+   "frames": [
+    1296,
+    1318
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "pant": {
+   "start": 55.0,
+   "end": 58.0,
+   "frames": [
+    1320,
+    1392
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "paw": {
+   "start": 58.083333,
+   "end": 59.666667,
+   "frames": [
+    1394,
+    1432
+   ],
+   "loop": false,
+   "source": "overlay",
+   "over": "sit"
+  },
+  "high_five": {
+   "start": 59.75,
+   "end": 60.958333,
+   "frames": [
+    1434,
+    1463
+   ],
+   "loop": false,
+   "source": "overlay",
+   "over": "sit"
+  },
+  "spin": {
+   "start": 61.041667,
+   "end": 62.291667,
+   "frames": [
+    1465,
+    1495
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "play_dead_out": {
+   "start": 62.375,
+   "end": 63.375,
+   "frames": [
+    1497,
+    1521
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "crawl": {
+   "start": 63.458333,
+   "end": 64.458333,
+   "frames": [
+    1523,
+    1547
+   ],
+   "loop": true,
+   "source": "overlay",
+   "over": "lie"
+  }
+ }
+}

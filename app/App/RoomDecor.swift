@@ -771,7 +771,8 @@ extension RoomDecor {
         toyBall.components.remove(RoomTintBase.self)
         guard let id = want, let toy else {
             toyBall.components.remove(RoomToyShown.self)
-            toyBall.model?.materials = [PetRoom.matteMaterial(RoomColors.ball)]
+            // Волна 58: свой мячик комнаты — теннисный из модели (PetProps), без неё — жёлтый как раньше.
+            toyBall.model?.materials = PetProps.ballMaterials()
             return true
         }
         toyBall.model?.materials = [material(toy.color, 1)]

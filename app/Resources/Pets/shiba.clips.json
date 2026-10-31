@@ -1,7 +1,7 @@
 {
  "fps": 24,
  "animation": "Clips",
- "duration": 58.166667,
+ "duration": 64.625,
  "note": "start/end - seconds on the single timeline; trim in RealityKit",
  "clips": {
   "idle": {
@@ -343,6 +343,59 @@
    ],
    "loop": false,
    "source": "overlay"
+  },
+  "paw": {
+   "start": 58.25,
+   "end": 59.833333,
+   "frames": [
+    1398,
+    1436
+   ],
+   "loop": false,
+   "source": "overlay",
+   "over": "sit"
+  },
+  "high_five": {
+   "start": 59.916667,
+   "end": 61.125,
+   "frames": [
+    1438,
+    1467
+   ],
+   "loop": false,
+   "source": "overlay",
+   "over": "sit"
+  },
+  "spin": {
+   "start": 61.208333,
+   "end": 62.458333,
+   "frames": [
+    1469,
+    1499
+   ],
+   "loop": false,
+   "source": "overlay"
+  },
+  "play_dead_out": {
+   "start": 62.541667,
+   "end": 63.541667,
+   "frames": [
+    1501,
+    1525
+   ],
+   "loop": false,
+   "source": "procedural"
+  },
+  "crawl": {
+   "start": 63.625,
+   "end": 64.625,
+   "frames": [
+    1527,
+    1551
+   ],
+   "loop": true,
+   "source": "overlay",
+   "over": "lie"
   }
  }
 }

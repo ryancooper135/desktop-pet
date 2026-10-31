@@ -1,4 +1,5 @@
-# 3D-ассеты питомца: GLB Quaternius → позы/склейка клипов (numpy) → Blender (фон) → shiba.usdz.
+# 3D-ассеты питомца: GLB Quaternius → позы/склейка клипов (numpy) → Blender (фон) → <порода>.usdz.
+# Породы (волна 58): shiba и husky — один пайплайн, у каждой свой стиль A (husky.glb уже после normalize_breed.py).
 # Только Linux (бесплатные минуты), без Mac. Подробно — RESEARCH/10-3d-pipeline.md.
 #   gh workflow run assets.yml                 # только артефакт
 #   gh workflow run assets.yml -f commit=true  # ещё и закоммитить в app/Resources/Pets/
@@ -10,7 +11,7 @@ on:
         description: "Версия Blender (официальный tar с download.blender.org)"
         default: "5.2.2"
       commit:
-        description: "Положить shiba.usdz + clips.json в app/Resources/Pets/ коммитом"
+        description: "Положить <порода>.usdz + .clips.json (shiba, husky) в app/Resources/Pets/ коммитом"
         type: boolean
         default: false
   push:
@@ -24,9 +25,19 @@ jobs:
   usdz:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - breed: shiba
+            style: tools/assets/style_a.json
+          - breed: husky
+            style: tools/assets/style_a_husky.json
     env:
       BLENDER_VERSION: ${{ inputs.blender || '5.2.2' }}
       OUT: build/assets
+      B: ${{ matrix.breed }}
+      STYLE: ${{ matrix.style }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,19 +49,19 @@ jobs:
         run: pip install --disable-pip-version-check numpy usd-core
 
       - name: Самопроверка математики клипов (до Blender)
-        run: python tools/assets/build_clips.py tools/assets/source/shiba.glb --selftest
+        run: python tools/assets/build_clips.py "tools/assets/source/$B.glb" --selftest
 
       - name: Клипы и позы (sit/lie/sleep, оверлеи) → один таймлайн
         id: build
         run: |
           mkdir -p "$OUT"
-          python tools/assets/build_clips.py tools/assets/source/shiba.glb \
-            --poses tools/assets/poses.json --style tools/assets/style_a.json \
-            --out-glb "$OUT/shiba_clips.glb" --out-json "$OUT/clips.json"
+          python tools/assets/build_clips.py "tools/assets/source/$B.glb" \
+            --poses tools/assets/poses.json --style "$STYLE" \
+            --out-glb "$OUT/${B}_clips.glb" --out-json "$OUT/clips.json"
 
       - name: Проверка клипов (швы циклов, пол, все клипы на месте)
         run: |
-          python tools/assets/build_clips.py "$OUT/shiba_clips.glb" --check "$OUT/clips.json" \
+          python tools/assets/build_clips.py "$OUT/${B}_clips.glb" --check "$OUT/clips.json" \
             --poses tools/assets/poses.json --summary "$GITHUB_STEP_SUMMARY" --report "$OUT/clips_check.json"
 
       - name: Контактные листы (8 кадров, сбоку и 3/4, PNG без GPU)
@@ -59,7 +70,7 @@ jobs:
         run: |
           SHEETS=build/contact-sheets; mkdir -p "$SHEETS"
           sheet() {
-            python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
+            python tools/assets/preview.py "$OUT/${B}_clips.glb" --clips "$OUT/clips.json" \
               --frames 8 --size 160 --pitch 0 --view side:90 --view 3q:35 "$@"
           }
           sheet --only sit_in --only sit_out --only lie_in --only lie_out --only sleep_in --only sleep_out \
@@ -68,14 +79,15 @@ jobs:
             --out "$SHEETS/new_1.png"
           sheet --only ear_flick --only sniff --only look_l --only look_r --only yawn --out "$SHEETS/new_2.png"
           sheet --only bark --only pant --out "$SHEETS/new_3.png"
+          sheet --only paw --only high_five --only spin --only play_dead_out --only crawl --out "$SHEETS/tricks.png"
           # рот крупно: камера за костью Jaw, спереди-сбоку и снизу (видно щель и язык)
-          python tools/assets/preview.py "$OUT/shiba_clips.glb" --clips "$OUT/clips.json"             --frames 8 --size 160 --pitch -12 --view 3q:30 --view side:90 --focus Jaw --radius 0.5             --only eat --only happy_wag --only yawn --only bark --only pant --out "$SHEETS/mouth.png"
+          python tools/assets/preview.py "$OUT/${B}_clips.glb" --clips "$OUT/clips.json"             --frames 8 --size 160 --pitch -12 --view 3q:30 --view side:90 --focus Jaw --radius 0.5             --only eat --only happy_wag --only yawn --only bark --only pant --out "$SHEETS/mouth.png"
           ls -l "$SHEETS"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: contact-sheets
+          name: contact-sheets-${{ matrix.breed }}
           path: build/contact-sheets/
           if-no-files-found: warn
           retention-days: 14
@@ -105,12 +117,12 @@ jobs:
           mkdir -p ~/blender && tar -xJf "$TAR" -C ~/blender --strip-components=1
           ~/blender/blender --version | head -1
 
-      - name: Blender → shiba.usdz
+      - name: Blender → ${{ matrix.breed }}.usdz
         run: |
           ~/blender/blender -b --factory-startup --python-exit-code 1 \
             --python tools/assets/blender_export.py -- \
-            --glb "$OUT/shiba_clips.glb" --clips "$OUT/clips.json" \
-            --style tools/assets/style_a.json --out "$OUT/shiba.usdz"
+            --glb "$OUT/${B}_clips.glb" --clips "$OUT/clips.json" \
+            --style "$STYLE" --out "$OUT/$B.usdz"
           ls -l "$OUT"
 
       - name: Проверка USDZ (usd-core, ARKit-правила)
@@ -123,10 +135,10 @@ jobs:
             curl -fsSL "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/$T/pxr/usd/usdUtils/complianceChecker.py"               -o "$RUNNER_TEMP/usdcc/complianceChecker.py" && { echo "complianceChecker.py из $T (usd-core $VER)"; break; }
           done || echo "::warning::complianceChecker.py не скачался"
           export PYTHONPATH="$RUNNER_TEMP/usdcc${PYTHONPATH:+:$PYTHONPATH}"
-          python tools/assets/check_usdz.py "$OUT/shiba.usdz" --clips "$OUT/clips.json" \
+          python tools/assets/check_usdz.py "$OUT/$B.usdz" --clips "$OUT/clips.json" \
             --report "$OUT/usdz_report.json" --strict
           {
-            echo "### shiba.usdz"
+            echo "### $B.usdz"
             echo '```json'
             python -c "import json;r=json.load(open('$OUT/usdz_report.json'));print(json.dumps({k:r[k] for k in ('upAxis','metersPerUnit','startTimeCode','endTimeCode','timeCodesPerSecond','world_size_m','triangles','skeletons','animations','usd_loop_seams_deg','problems','warnings') if k in r},indent=1))"
             echo '```'
@@ -135,7 +147,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()   # и при падении проверки — чтобы файл можно было разобрать
         with:
-          name: shiba-usdz
+          name: ${{ matrix.breed }}-usdz
           path: build/assets/
           retention-days: 30
 
@@ -150,16 +162,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: shiba-usdz
+          pattern: "*-usdz"
           path: build/assets
       - name: Коммит в app/Resources/Pets
         run: |
           mkdir -p app/Resources/Pets
-          cp build/assets/shiba.usdz app/Resources/Pets/shiba.usdz
-          cp build/assets/clips.json app/Resources/Pets/shiba.clips.json
+          for B in shiba husky; do
+            cp "build/assets/$B-usdz/$B.usdz" "app/Resources/Pets/$B.usdz"
+            cp "build/assets/$B-usdz/clips.json" "app/Resources/Pets/$B.clips.json"
+          done
           git add app/Resources/Pets
           if git diff --cached --quiet; then echo "без изменений"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "assets: shiba.usdz ($(git rev-parse --short HEAD))"
+          git commit -m "assets: shiba.usdz + husky.usdz ($(git rev-parse --short HEAD))"
           git push
