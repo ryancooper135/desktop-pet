@@ -323,7 +323,7 @@ enum PetRoom {
         let top = baseShelfY
         let z = wallZ + depth / 2
         for (prop, x) in [(PetProps.plant, Float(-0.43)), (PetProps.books, -0.335), (PetProps.bear, -0.245)] {
-            guard let prop else { continue }
+            guard let prop, Env.value("PET_DIAG") != "noshelf" else { continue }
             let e = ModelEntity(mesh: prop.mesh, materials: prop.materials)
             e.position = [x, top, z]
             g.addChild(e)

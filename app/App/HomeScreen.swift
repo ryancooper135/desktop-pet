@@ -276,6 +276,7 @@ struct HomeScreen: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+            .opacity(Env.value("PET_DIAG") == "nohud" ? 0 : 1)
 
             // Волна 53: тост сверху, у Dynamic Island — чёрная капсула поверх шапки на 2,5 с; касаний не ловит.
             VStack {

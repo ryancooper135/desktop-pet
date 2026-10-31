@@ -34,6 +34,9 @@ final class AccessibilityUITests: XCTestCase {
         Screen(name: "capsule", env: ["PET_SEED": "items", "PET_OPEN": "capsule"], marker: "capsule.screen"),
         Screen(name: "house", env: ["PET_OPEN": "house"], marker: "house.screen"),
         Screen(name: "tricks", env: ["PET_OPEN": "tricks"], marker: "tricks.screen"),
+        Screen(name: "needs-noshelf", env: ["PET_OPEN": "needs", "PET_DIAG": "noshelf"], marker: "needs.sheet"),
+        Screen(name: "needs-nohud", env: ["PET_OPEN": "needs", "PET_DIAG": "nohud"], marker: "needs.sheet"),
+        Screen(name: "needs-both", env: ["PET_OPEN": "needs", "PET_DIAG": "noshelf"], marker: "needs.sheet"),
         Screen(name: "album", env: ["PET_SEED": "memories", "PET_OPEN": "album"], marker: "album.sheet"),
         Screen(name: "blockduo", env: ["PET_SEED": "blockduo", "PET_OPEN": "blockduo"], marker: "blockduo.screen",
                fixed: true),
@@ -108,6 +111,19 @@ final class AccessibilityUITests: XCTestCase {
     @MainActor
     func testAccessibilityAudit2Sheets() throws {
         try audit(["needs", "tricks", "album"])
+    }
+
+    @MainActor
+    func testDiagNeeds() throws {
+        let app = ScreenshotUITests.makeApp()
+        app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
+        app.launchEnvironment["PET_OPEN"] = "needs"
+        app.launch()
+        _ = app.descendants(matching: .any)["needs.sheet"].firstMatch.waitForExistence(timeout: 20)
+        settle(1.5)
+        report("diag-tree", [app.debugDescription])
+        app.terminate()
+        try audit(["needs-noshelf", "needs-nohud"])
     }
 
     /// Кухня и лавка.

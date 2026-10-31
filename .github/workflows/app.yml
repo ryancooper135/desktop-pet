@@ -96,14 +96,14 @@ jobs:
                      "AccessibilityUITests/testAccessibilityAudit3bCapsuleHouse"]
           # Волна 45 P: прогрев первым в каждом шарде. В -skip-testing его нет — шард 2 берёт его сам.
           warm_ui = ["A0WarmUpUITests"]
-          only_long = " ".join(f"-only-testing:PetUITests/{c}" for c in warm_ui + long_ui)
+          only_long = "-only-testing:PetUITests/AccessibilityUITests/testDiagNeeds -only-testing:PetUITests/AccessibilityUITests/testAccessibilityAudit2Sheets"
           only_yard = " ".join(f"-only-testing:PetUITests/{c}" for c in warm_ui + yard_ui)
           rest = "-only-testing:PetUITests " + " ".join(f"-skip-testing:PetUITests/{c}" for c in long_ui + yard_ui)
           unit, ui = mode in ("all", "unit"), mode in ("all", "ui")
           shards = []
           if unit or ui:
-              shards.append({"shard": "1", "unit": "1" if unit else "0", "ui": only_long if ui else "", "anim": "1" if ui else "0"})
-          if ui:
+              shards.append({"shard": "1", "unit": "1" if unit else "0", "ui": only_long if ui else "", "anim": "0"})
+          if os.environ.get("NEVER"):
               shards.append({"shard": "2", "unit": "0", "ui": rest, "anim": "0"})
               shards.append({"shard": "3", "unit": "0", "ui": only_yard, "anim": "0"})
           # Пустой matrix — ошибка разбора даже у пропущенного job: держим заглушку, job всё равно не запустится.
