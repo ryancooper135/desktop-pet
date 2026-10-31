@@ -209,6 +209,14 @@ final class AwayReportTests: XCTestCase {
         f.asks = DogAsksLog()
         let now = noon + awH
         f.pet.needs[.food] = 5
+        // Расписание просьб детерминировано по petId, а fresh даёт случайный UUID — у ~каждого N-го щенка
+        // в этот час выпадала просьба «покорми» и подсказка уходила в «ask» (плавало в CI волны 57).
+        // Берём первый постоянный petId без просьбы в этот час; проверка ниже по-прежнему это подтверждает.
+        if let id = (0..<64).map({ "away-hint-\($0)" }).first(where: { id in
+            var g = f
+            g.petId = id
+            return DogAsks.shown(g, now: now) == nil
+        }) { f.petId = id }
         let st = PetStatusLogic.of(f, now: now)
         XCTAssertEqual(st.kind, .need, "статус: \(st.kind)")
         XCTAssertEqual(st.act, .feed)

@@ -55,3 +55,20 @@ CC-BY — обязательно указать автора в «Настрой
 - pawello2222/WidgetExamples — MIT: https://github.com/pawello2222/WidgetExamples — образец кода Live
   Activity и таймеров, код не брали.
 - «Pixel Dogs» (Benvictus, itch.io) — есть сон, но лицензия неясна, отброшен.
+
+## «Команды» — дрессировка (волна 57)
+
+Сторонних файлов **нет**. Иконки 8 команд и значки причин «недоступно» — системные SF Symbols
+(`dog.fill`, `pawprint.fill`, `bed.double.fill`, `speaker.wave.2.fill`, `arrow.trianglehead.2.clockwise.rotate.90`,
+`hand.raised.fill`, `powersleep`, `tortoise.fill`; причины — `moon.zzz.fill`, `bubbles.and.sparkles.fill`,
+`figure.walk` и др.), как рекомендовала волна 52. Анимации — клипы волны 58 (`sit*`, `paw`, `lie*`, `bark`,
+`spin`, `high_five`, `death` + `play_dead_out`, `crawl`), новых клипов не делали. Макеты `design/wave57/` —
+свои SVG-иконки в `icons57.js` (только для макетов, в приложение не идут). Ничего не скачано.
+
+Смотрели готовое (не взято, на будущее):
+
+- Phosphor Icons — MIT: https://phosphoricons.com (https://github.com/phosphor-icons/core) — есть `dog`,
+  `paw-print`, `hand-palm`, `arrows-clockwise`; SF Symbols закрывают все 8 команд, лишний шрифт не нужен.
+- Tabler Icons — MIT: https://tabler.io/icons — `paw`, `dog`, `hand-stop`, `rotate-clockwise`; тот же довод.
+- «Dog Training Icons» на Flaticon / Noun Project — лицензия с обязательной атрибуцией на каждом экране или
+  платная, стиль чужой; отброшены.

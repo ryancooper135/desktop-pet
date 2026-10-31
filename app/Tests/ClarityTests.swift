@@ -93,10 +93,10 @@ final class ClarityTests: XCTestCase {
     }
 
     func testCoatLineSaysWhereToBrush() {
-        XCTAssertTrue(Onboarding.coatLine(.matted).hasSuffix("расчеши в «Трюках»"))
-        XCTAssertTrue(Onboarding.coatLine(.shaggy).contains("Трюках"))
+        XCTAssertTrue(Onboarding.coatLine(.matted).hasSuffix("расчеши в «Командах»"))
+        XCTAssertTrue(Onboarding.coatLine(.shaggy).contains("Командах"))
         XCTAssertEqual(Onboarding.coatLine(.normal), "Шерсть: обычный")
-        XCTAssertFalse(Onboarding.coatLine(.sleek).contains("Трюках"))
+        XCTAssertFalse(Onboarding.coatLine(.sleek).contains("Командах"))
         XCTAssertTrue(Onboarding.coatLine(.matted).hasPrefix("Шерсть: колтуны"))
     }
 

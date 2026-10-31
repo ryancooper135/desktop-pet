@@ -31,19 +31,13 @@ enum IntentBridge {
         return await run(a, source: source)
     }
 
-    /// Привычка (Habits): в приложении — пёс радуется и тост, вне его — запись в стор и виджеты.
+    /// Волна 57: команда голосом («Шиба, сидеть»). Интент открывает приложение; пёс выполняет, когда комната
+    /// уже на экране (пауза на запуск/переход), исход — как с листа «Команды» (Tricks.attempt).
     @MainActor
-    static func habit(_ h: Habit, times: Int = 1, source: ActionSource) async -> HabitOutcome {
+    static func trick(_ t: Trick) async {
         #if APP_TARGET
-        return await AppActions.shared.habit(h, times: times, source: source)
-        #else
-        let now = Clock.now()
-        guard let out = try? PetStore.shared.mutate({ Habits.checkIn(h, times: times, in: &$0, now: now) }) else {
-            return Habits.failed(h)
-        }
-        WidgetCenter.shared.reloadAllTimelines()
-        ControlCenter.shared.reloadAllControls()
-        return out
+        try? await Task.sleep(for: .milliseconds(Tricks.siriDelayMs))
+        AppModel.shared.doTrick(t)
         #endif
     }
 
@@ -271,95 +265,33 @@ struct StatusIntent: AppIntent {
     }
 }
 
-// MARK: - Привычки (волна 11)
-// Готовые действия для «Команд» → «Автоматизация»: по приходу домой, по будильнику, перед сном, по NFC.
-// Не открывают приложение и отвечают фразой пса (Siri скажет её вслух). Монеты и потолки — Habits.checkIn.
-// LiveActivityIntent — как у кормёжки: система выполняет в процессе приложения, пёс на экране успевает обрадоваться.
+// MARK: - Команды голосом (волна 57)
+// Вместо пяти привычек (волна 11) — две команды псу. Открывают приложение: трюк надо видеть.
 
-/// «Я дома»: пёс встречает. Бонус раз в день.
-struct HabitHomeIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Я дома"
-    static let description = IntentDescription("Шиба встречает тебя у двери. Монеты — раз в день.")
-
-    @Parameter(title: "Откуда", default: "shortcut")
-    var source: String
+/// «Шиба, сидеть».
+struct SitIntent: AppIntent {
+    static let title: LocalizedStringResource = "Шиба, сидеть"
+    static let description = IntentDescription("Шиба садится по команде.")
+    static let openAppWhenRun: Bool = true
 
     init() {}
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let out = await IntentBridge.habit(.home, source: ActionSource(rawValue: source) ?? .shortcut)
-        return .result(dialog: "\(Habits.reply(out))")
+    func perform() async throws -> some IntentResult {
+        await IntentBridge.trick(.sit)
+        return .result()
     }
 }
 
-/// «Я проснулся»: утреннее приветствие. Бонус раз в день.
-struct HabitWakeIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Я проснулся"
-    static let description = IntentDescription("Шиба желает доброго утра. Монеты — раз в день.")
-
-    @Parameter(title: "Откуда", default: "shortcut")
-    var source: String
+/// «Шиба, дай лапу».
+struct PawIntent: AppIntent {
+    static let title: LocalizedStringResource = "Шиба, дай лапу"
+    static let description = IntentDescription("Шиба даёт лапу по команде.")
+    static let openAppWhenRun: Bool = true
 
     init() {}
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let out = await IntentBridge.habit(.wake, source: ActionSource(rawValue: source) ?? .shortcut)
-        return .result(dialog: "\(Habits.reply(out))")
-    }
-}
-
-/// «Ложусь спать»: вечернее приветствие. Бонус раз в день.
-struct HabitSleepIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Ложусь спать"
-    static let description = IntentDescription("Шиба желает спокойной ночи. Монеты — раз в день.")
-
-    @Parameter(title: "Откуда", default: "shortcut")
-    var source: String
-
-    init() {}
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let out = await IntentBridge.habit(.sleep, source: ActionSource(rawValue: source) ?? .shortcut)
-        return .result(dialog: "\(Habits.reply(out))")
-    }
-}
-
-/// «Выпил воды»: пара монет за стакан, до per_day стаканов в сутки.
-struct HabitWaterIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Выпил воды"
-    static let description = IntentDescription("Пара монет за стакан, несколько раз в день.")
-
-    @Parameter(title: "Стаканов", default: 1)
-    var glasses: Int
-
-    @Parameter(title: "Откуда", default: "shortcut")
-    var source: String
-
-    init() {}
-
-    static var parameterSummary: some ParameterSummary {
-        Summary("Выпил \(\.$glasses) стак. воды")
-    }
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let n = min(max(1, glasses), 8)
-        let out = await IntentBridge.habit(.water, times: n, source: ActionSource(rawValue: source) ?? .shortcut)
-        return .result(dialog: "\(Habits.reply(out))")
-    }
-}
-
-/// «Сделал зарядку»: монеты раз в день.
-struct HabitWorkoutIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Сделал зарядку"
-    static let description = IntentDescription("Шиба радуется вместе с тобой. Монеты — раз в день.")
-
-    @Parameter(title: "Откуда", default: "shortcut")
-    var source: String
-
-    init() {}
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let out = await IntentBridge.habit(.workout, source: ActionSource(rawValue: source) ?? .shortcut)
-        return .result(dialog: "\(Habits.reply(out))")
+    func perform() async throws -> some IntentResult {
+        await IntentBridge.trick(.paw)
+        return .result()
     }
 }

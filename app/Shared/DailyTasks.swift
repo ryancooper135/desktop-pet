@@ -167,9 +167,10 @@ enum DailyTasks {
     static let pool: [(id: String, kind: String)] = [
         ("feed", "act.feed"), ("pet", "act.pet"), ("play", "act.play"), ("brush", Brush.actKind),
         ("walk", "act.walk"), ("trip", "place.go"), ("collect", "yard.collect"), ("cook", Cooking.reactKind),
+        ("tricks", Tricks.showKind),
     ]
     static let defaultNeed: [String: Int] = [
-        "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1,
+        "feed": 2, "pet": 3, "play": 2, "brush": 1, "walk": 1, "trip": 1, "collect": 1, "cook": 1, "tricks": 3,
     ]
     /// Записи журнала: опыт за задание (DogLevel, правило task.done), все задания дня, замена.
     static let doneKind = "task.done"
@@ -189,12 +190,14 @@ enum DailyTasks {
         max(cfg.count, DogLevel.maxValue(thirdId, level: l) ?? 0)
     }
 
-    /// Дело доступно сейчас: места открыты уровнем, во дворе есть станция, у дома есть «Кухня шефа».
+    /// Дело доступно сейчас: места открыты уровнем, во дворе есть станция, у дома есть «Кухня шефа»,
+    /// пёс знает хоть одну команду (волна 57: «Покажи трюки» засчитывает Tricks.showKind).
     static func available(_ id: String, _ f: SaveFile, level l: Int) -> Bool {
         switch id {
         case "trip": return !Places.unlocked(dogLevel: l).isEmpty
         case "collect": return !f.yard.stations.isEmpty
         case "cook": return Cooking.canCook(f.pet)
+        case "tricks": return Tricks.learnedCount(f) >= 1
         default: return true
         }
     }
@@ -354,6 +357,7 @@ enum DailyTaskText {
         case "trip": return "🗺️"
         case "collect": return "🏡"
         case "cook": return "🍳"
+        case "tricks": return "🐾"
         default: return "⭐"
         }
     }
@@ -370,6 +374,7 @@ enum DailyTaskText {
         case "trip": base = "Сходить в место на карте"
         case "collect": base = "Собрать копилку во дворе"
         case "cook": base = "Приготовить блюдо"
+        case "tricks": base = "Показать трюки"
         default: base = t.id
         }
         guard t.need > 1 else { return base }

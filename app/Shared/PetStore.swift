@@ -163,7 +163,7 @@ final class PetStore: @unchecked Sendable {
             fresh.shelf = old.shelf
             fresh.toy = old.toy
             fresh.shop = old.shop
-            // Привычки — хозяина: отметки «Команд» и дневной счётчик остаются.
+            // Привычки — хозяина: старые отметки (до волны 57) и дневной счётчик остаются.
             fresh.habits = old.habits
             // Кухня шефа — вместе с домом: дневной лимит блюд и бонус не обнуляются новым щенком.
             fresh.cooking = old.cooking

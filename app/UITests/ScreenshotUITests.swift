@@ -11,7 +11,7 @@
 //                   тёмная тема, автомат, вкусы в альбоме, открытка дня, дом, трюки. Состояние задаёт окружение запуска
 //                   (PET_SEED, PET_AWAY_H, PET_OPEN, PET_SCHEME).
 //   ui-5N-room-*    дом в комнате: все линии на максимуме, уровни 1–2 вперемешку, максимум в тёмной теме
-//   ui-50/54/55     трюки: лист, ряд с лапой, тост после «Сидеть»
+//   ui-50/54/55     команды: лист, ряд с лапой, тост после «Сидеть»
 //   ui-56           покупка лежанки в «Доме» видна в комнате — HouseUITests
 //   ui-57/58        мини-игра «Лови мячик»: раунд в разгаре, итог с наградой (PET_CATCH, сид 7)
 //   ui-59/60        расчесать: полоса на 50% с колтунами на спине, дочесали (отряхнулся, тост)
@@ -24,7 +24,7 @@
 //   ui-67           предметы: коллекция с иконками и кнопками по роли; комната с кубком на полке и теннисным мячиком
 //   ui-68           лавка дня: три карточки за монеты, потом одна куплена
 //   ui-71/72        шерсть текстурой крупным планом (PET_CAMERA=close): лохматая с клочками на спине, она же расчёсанная — гладкая
-//   ui-75           привычки для «Команд»: утро и вода отмечены сегодня, зарядка вчера; -howto — шаги автоматизации
+//   ui-75           «Команды» ночью (тёмная тема): пёс спит, иконки серые с луной
 //   ui-76-brush-N   дочесали: серия из 4 кадров через 0,5 с — встряхнулся, подпрыгнул, виляет; новая фраза в тосте
 //   ui-77/78        кухня шефа (PET_SEED=kitchen): лист «Кухня» — рецепты и еда со скидкой (старая цена зачёркнута);
 //                   после «Приготовить» Шиба ест рагу и говорит фразу; «Угостить» морковкой за 3 вместо 4
@@ -272,7 +272,8 @@ final class ScreenshotUITests: XCTestCase {
                    marker: Self.mainMarker, settleFor: 2.5)
     }
 
-    /// Лист «Трюки» (светлая тема, полдень — иначе ночью трюки серые): «Сидеть» выучен, «Лежать» 3 из 5, дальше замки.
+    /// Лист «Команды» (светлая тема, полдень — иначе ночью команды серые): пёс 5-го уровня, «Сидеть», «Лапу», «Лежать»
+    /// выучены, «Голос» 2 из 4, «Кружись» 1 из 4, дальше замки с уровнем.
     /// ui-54/55 — после команды «Сидеть» (PET_TRICK_ROLL=0 — всегда выходит): лист уехал, тост, ряд кнопок с лапой.
     @MainActor
     func testStates50Tricks() throws {
@@ -314,16 +315,13 @@ final class ScreenshotUITests: XCTestCase {
         try brushShot("ui-60-brush-done", strokes: 7, expect: "Готово", settleFor: 2.2)
     }
 
-    /// Привычки (PET_SEED=habits): лист по pet://habits, отметки «Сегодня ✓», «Сегодня 3 из 8», «Было 1 раз».
+    /// «Команды» вместо «Привычек» (волна 57): тот же сид tricks ночью в тёмной теме — пёс спит, все иконки серые
+    /// с луной (tricks.gate), лист всё равно открывается.
     @MainActor
-    func testStates75Habits() throws {
-        try shootOptional("ui-75-habits", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
-                                                "PET_OPEN": "habits"],
-                          marker: "habits.screen")
-        // Низ листа: шаги «Автоматизации» и кнопка «Открыть «Команды»».
-        try shootOptional("ui-75-habits-howto", env: ["PET_SEED": "habits", "PET_NOW": Self.noon, "PET_SCHEME": "light",
-                                                      "PET_OPEN": "habits"],
-                          marker: "habits.openShortcuts", lazyIn: "habits.screen")
+    func testStates75TricksAsleep() throws {
+        try shootOptional("ui-75-tricks-asleep", env: ["PET_SEED": "tricks", "PET_NOW": Self.today(2, 0),
+                                                       "PET_SCHEME": "dark", "PET_OPEN": "tricks"],
+                          marker: "tricks.gate")
     }
 
     /// Конец расчёсывания (волна 11): тот же сеанс, что ui-60, но снимок раньше — посреди встряхивания и прыжка.
@@ -707,7 +705,7 @@ final class ScreenshotUITests: XCTestCase {
     func testStates92Hints() throws {
         let app = try shootOptional("ui-92-settings-hints",
                                     env: ["PET_NOW": Self.noon, "PET_SCHEME": "light", "PET_OPEN": "settings"],
-                                    marker: "settings.intro", lazyIn: "settings.habits", keepRunning: true)
+                                    marker: "settings.intro", lazyIn: "settings.siri", keepRunning: true)
         let row = app.descendants(matching: .any)["settings.intro"]
         if inView(row, app) {
             if tap(row, expecting: app.buttons["intro.next"], name: "ui-92-settings-intro-reopen") {

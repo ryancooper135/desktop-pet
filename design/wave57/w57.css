@@ -1,0 +1,42 @@
+/* Волна 57: «Команды» — общий стиль макетов. Палитра приложения (PetPalette, стиль A волны 51): тёплая бумага. */
+:root { --ink:#4a3b33; --soft:#8a7a70; --bg:#f3ece6; --card:#fffaf5; --accent:#f08a5d; --green:#74bf78; --yellow:#f2bf4a;
+  --red:#e5534b; --stage:#f6efe6; --nap:#7b6fd6; --bath:#6f9fd8; --walk:#9b7fd8; --gold:#f2bf4a; }
+.phone { background: var(--stage); color: var(--ink); }
+.room { position:absolute; left:0; right:0; top:0; height:470px; background: linear-gradient(#f6efe6, #efe3d4); }
+.room .floor { position:absolute; left:0; right:0; bottom:0; height:150px; background: #e8d7c2; }
+.room .dogwrap { position:absolute; left:50%; bottom:58px; transform: translateX(-50%); }
+.hud { position:absolute; top:58px; left:18px; right:18px; display:flex; justify-content:space-between; z-index:6; }
+.pill { height:38px; border-radius:19px; background:rgba(255,250,245,.85); display:flex; align-items:center; gap:7px; padding:0 13px;
+  font:700 16px 'Onest',sans-serif; box-shadow:0 2px 8px rgba(74,59,51,.08); }
+.coin { width:18px; height:18px; border-radius:50%; background: radial-gradient(circle at 35% 30%, #FFE69A, #F2BF4A); box-shadow: inset 0 0 0 2px #E8A21C; display:inline-block; }
+.sheet { position:absolute; left:0; right:0; bottom:0; background: var(--card); border-radius:34px 34px 0 0; box-shadow:0 -6px 24px rgba(74,59,51,.10); z-index:10; }
+.grab { width:40px; height:5px; border-radius:3px; background:#d9cfc7; margin:9px auto 0; }
+.shead { display:flex; align-items:center; justify-content:space-between; padding:10px 20px 4px; }
+.shead h2 { font-size:24px; font-weight:800; letter-spacing:-.3px; }
+.x { width:34px; height:34px; border-radius:50%; background:#f1e8e0; display:grid; place-items:center; color:var(--soft); font-size:16px; font-weight:700; }
+.chip { display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 11px; border-radius:15px; background:#f6eee6; font-weight:700; font-size:15px; }
+.chip svg { width:17px; height:17px; }
+svg.i { fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; display:block; }
+svg.f { fill:currentColor; stroke:none; display:block; }
+
+/* Команда: кружок + кольцо прогресса + значок */
+.cmd { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.cmd .disc { position:relative; width:var(--d,74px); height:var(--d,74px); border-radius:50%; background:#fdf1e8; color:var(--accent); display:grid; place-items:center; }
+.cmd .disc svg.i { width:calc(var(--d,74px)*.44); height:calc(var(--d,74px)*.44); stroke-width:2.1; }
+.cmd .ring { position:absolute; inset:-5px; width:calc(100% + 10px); height:calc(100% + 10px); transform:rotate(-90deg); }
+.cmd .lbl { font-size:14px; font-weight:700; white-space:nowrap; }
+.cmd .badge { position:absolute; right:-6px; top:-6px; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:var(--card);
+  box-shadow:0 2px 6px rgba(74,59,51,.18); }
+.cmd .badge svg { width:18px; height:18px; }
+.cmd .lvl { position:absolute; right:-8px; bottom:-4px; min-width:30px; height:24px; padding:0 6px; border-radius:12px; background:var(--ink); color:#fff;
+  font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:2px; }
+.cmd.learned .disc { background: var(--accent); color:#fff; }
+.cmd.locked .disc, .cmd.grey .disc { background:#efe8e2; color:#b9aca3; }
+.cmd.locked .lbl, .cmd.grey .lbl { color:#b0a39a; }
+.cmd.press .disc { transform: scale(.93); box-shadow: 0 0 0 8px rgba(240,138,93,.18); }
+.reward { position:absolute; display:flex; align-items:center; gap:6px; background:rgba(74,59,51,.86); color:#fff; border-radius:16px; padding:7px 12px;
+  font-weight:700; font-size:16px; z-index:30; white-space:nowrap; }
+.note { position:absolute; font: 600 13px 'Onest', sans-serif; color:#fff; background: rgba(28,27,41,.78); padding:5px 10px; border-radius:10px; z-index:70; }
+.brush { margin:14px 20px 0; height:62px; border-radius:20px; background:#f6eee6; display:flex; align-items:center; gap:12px; padding:0 14px; font-weight:700; font-size:16px; }
+.brush .dot { width:38px; height:38px; border-radius:50%; background:#fff; display:grid; place-items:center; color:var(--accent); }
+.brush .dot svg { width:20px; height:20px; }

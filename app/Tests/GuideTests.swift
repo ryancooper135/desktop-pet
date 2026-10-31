@@ -136,13 +136,12 @@ final class GuideTests: XCTestCase {
         XCTAssertEqual(Guides.joinRu(["а", "б", "в"]), "а, б и в")
     }
 
-    /// Склонение по числу одно на всё приложение (EconText.plural): слова в Memories, Cooking, Habits,
+    /// Склонение по числу одно на всё приложение (EconText.plural): слова в Memories, Cooking
     /// и Postcards отвечают так же на любых числах, и на отрицательных тоже.
     func testPluralHelpersAgreeWithEconText() {
         for n in -130...230 {
             XCTAssertEqual(Memories.dayWord(n), EconText.plural(n, "день", "дня", "дней"), "Memories \(n)")
             XCTAssertEqual(Cooking.dishes(n), EconText.plural(n, "блюдо", "блюда", "блюд"), "Cooking \(n)")
-            XCTAssertEqual(Habits.times(n), EconText.plural(n, "раз", "раза", "раз"), "Habits \(n)")
             XCTAssertEqual(Postcards.daysWord(n), EconText.plural(n, "день", "дня", "дней"), "Postcards \(n)")
         }
         XCTAssertEqual([1, 2, 5, 11, 12, 21, 22, 25, 101, 111, 112, -1, -2, -11].map { EconText.plural($0, "a", "b", "c") },

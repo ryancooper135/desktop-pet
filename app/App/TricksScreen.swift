@@ -1,9 +1,10 @@
-// Лист «Трюки» (волна 8): шесть команд в духе Nintendogs — «Сидеть», «Лежать», «Поклон», «Прыжок», «Отряхнись», «Голос».
-// Карточка в строку: значок слева, справа команда, точки засчитанных удач (из 5), «Выучен» или замок «Сначала «…»».
-// Нажал команду — лист уезжает, пёс пробует в комнате (AppModel.doTrick → сцена: клипы трюка или «Не понял…»).
-// Логика — Tricks (Shared), тут только вид. Открывается круглой кнопкой с лапой в ряду над панелью и по pet://tricks.
-// Решения (Вадим может поменять): сетка в два столбца из низких карточек — все шесть влезают в лист на пол-экрана;
-// когда трюки нельзя (спит, гуляет…), лист всё равно открывается — с плашкой-причиной и серыми карточками.
+// Лист «Команды» (волна 57, вариант A из design/wave57): сетка 4×2 круглых иконок — «Сидеть», «Лапу», «Лежать»,
+// «Голос», «Кружись», «Дай пять», «Притворись», «Ползи». Кольцо вокруг иконки — засчитанные удачи (3–5 до выучки),
+// звёздочка — выучено, замок с цифрой — откроется с уровня пса. Без текста-простыни: иконка, кружок, значок.
+// Нажал — лист уезжает, пёс пробует в комнате (AppModel.doTrick → сцена: клипы команды или «Не понял…»).
+// Нельзя сейчас (спит, моется, гуляет) — лист всё равно открывается: иконки серые со значком причины.
+// Голодный или грустный — значок миски/сердца: слушается хуже (Tricks.distracted).
+// Логика — Tricks (Shared), тут только вид. Открывается круглой кнопкой с лапой над панелью и по pet://tricks.
 
 import SwiftUI
 @preconcurrency import PetCore
@@ -12,21 +13,20 @@ struct TricksScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var type
 
-    private static let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 2 : 4)
+    }
 
     var body: some View {
         let rows = model.file.map { Tricks.rows($0) } ?? []
         let gate = model.file.map { Tricks.gate($0, at: model.snap.t) } ?? Tricks.loadingReason
+        let distracted = gate == nil ? model.file.flatMap { Tricks.distracted($0, at: model.snap.t) } : nil
         ScrollView {
-            VStack(spacing: 14) {
-                header(learned: rows.filter(\.learned).count, total: rows.count)
-                if let gate {
-                    GateBanner(reason: gate)
-                }
-                // Крупный шрифт (accessibility-размеры): одна колонка, иначе «Отряхнись» не влезает в полкарточки.
-                LazyVGrid(columns: type.isAccessibilitySize ? [GridItem(.flexible())] : Self.columns, spacing: 12) {
+            VStack(spacing: 18) {
+                header(learned: rows.filter(\.learned).count, total: rows.count, gate: gate, distracted: distracted)
+                LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(rows) { r in
-                        TrickCard(row: r, enabled: gate == nil && !r.locked && !r.young) {
+                        TrickDisc(row: r, gate: gate, distracted: distracted) {
                             Feel.tap(.button)
                             model.doTrick(r.trick)
                         }
@@ -43,139 +43,183 @@ struct TricksScreen: View {
         .accessibilityIdentifier("tricks.screen")
     }
 
-    private func header(learned: Int, total: Int) -> some View {
-        VStack(spacing: 4) {
-            HStack {
-                Spacer()
-                SheetCloseButton(id: "tricks.close")
-            }
-            Text("Трюки")
+    private func header(learned: Int, total: Int, gate: String?, distracted: Need?) -> some View {
+        HStack(spacing: 8) {
+            Text("Команды")
                 .petFont(22, .bold)
                 .foregroundStyle(PetPalette.ink)
                 .accessibilityAddTraits(.isHeader)
-            Text("Выучено \(learned) из \(total) · повторяй, и запомнит")
-                .petFont(13, .medium)
-                .foregroundStyle(PetPalette.soft)
-                .multilineTextAlignment(.center)
+            Spacer(minLength: 4)
+            if let gate, let symbol = Tricks.gateSymbol(gate) {
+                Chip(symbol: symbol, tint: PetPalette.soft, text: nil)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(Tricks.reasonText(gate)))
+                    .accessibilityIdentifier("tricks.gate")
+            } else if let distracted {
+                Chip(symbol: TrickDisc.distractedSymbol(distracted), tint: PetPalette.accent, text: nil)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(TrickDisc.distractedText(distracted)))
+                    .accessibilityIdentifier("tricks.distracted")
+            }
+            Chip(symbol: "star.fill", tint: PetPalette.yellow, text: "\(learned)")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Выучено \(learned) из \(total)"))
                 .accessibilityIdentifier("tricks.count")
+            SheetCloseButton(id: "tricks.close")
         }
     }
 }
 
-/// Плашка «почему сейчас нельзя» над карточками.
-private struct GateBanner: View {
-    let reason: String
-
-    private var icon: String {
-        switch reason {
-        case "asleep": return "moon.zzz.fill"
-        case "away": return "figure.walk"
-        case "bathing": return "bubbles.and.sparkles.fill"
-        default: return "exclamationmark.circle.fill"
-        }
-    }
+/// Плашка в шапке: значок и, если есть, число.
+private struct Chip: View {
+    let symbol: String
+    let tint: Color
+    let text: String?
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .accessibilityHidden(true)
-            Text(Tricks.reasonText(reason))
-                .axLines(2)
-                .multilineTextAlignment(.leading)
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .foregroundStyle(tint)
+            if let text {
+                Text(text)
+                    .foregroundStyle(PetPalette.ink)
+            }
         }
-        .petFont(14, .semibold)
-        .foregroundStyle(PetPalette.ink)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(PetPalette.soft.opacity(0.14)))
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("tricks.gate")
+        .petFont(15, .bold)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 32)
+        .background(Capsule().fill(PetPalette.card))
     }
 }
 
-/// Карточка одной команды. Вся карточка — кнопка; закрытая или «нельзя сейчас» — серая и не нажимается.
-struct TrickCard: View {
+/// Одна команда: круглая иконка с кольцом прогресса и значком в углу, под ней — слово.
+/// Нельзя (замок, щенку рано, спит…) — серая и не нажимается; тап по серой — «не-а» (deniedTap).
+struct TrickDisc: View {
     let row: TrickRow
-    let enabled: Bool
+    let gate: String?
+    let distracted: Need?
     let action: () -> Void
 
+    static let size: CGFloat = 64
+    static let ring: CGFloat = 4
+
+    static func distractedSymbol(_ n: Need) -> String { n == .food ? "fork.knife" : "heart.slash.fill" }
+    static func distractedText(_ n: Need) -> String {
+        n == .food ? "Голодный — слушается хуже" : "Грустит — слушается хуже"
+    }
+
+    private var enabled: Bool { gate == nil && !row.locked && !row.young }
+    private var grey: Bool { !enabled }
+
+    /// Что сказать VoiceOver: выучена, сколько из скольких или почему нельзя.
     private var status: String {
-        if row.learned { return "Выучен" }
-        // Волна 34 I: щенку рано — не замок, а «подрастёт».
+        if let gate { return Tricks.reasonText(gate) }
         if row.young { return Tricks.growText }
-        if row.locked, let p = row.trick.previous { return "Сначала «\(p.title)»" }
-        return "\(row.progress) из \(Tricks.needed)"
+        if row.locked { return Tricks.reasonText(Tricks.lockedReason, for: row.trick) }
+        if row.learned { return "Выучена" }
+        return "\(row.progress) из \(row.needed)"
     }
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: row.young ? "hourglass" : row.locked ? "lock.fill" : row.trick.symbol)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(row.locked || row.young ? PetPalette.soft : PetPalette.accent)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill((row.locked || row.young ? PetPalette.soft : PetPalette.accent).opacity(0.16)))
-                    if row.learned {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(PetPalette.green)
-                            .background(Circle().fill(PetPalette.card))
-                            .offset(x: 5, y: -4)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(row.trick.title)
-                        .petFont(16, .bold)
-                        .foregroundStyle(PetPalette.ink)
-                        .axLines(1)
-                        .minimumScaleFactor(0.8)
-                    LevelPips(level: row.progress, top: Tricks.needed)
-                    Text(status)
-                        .petFont(12, .medium)
-                        .foregroundStyle(row.learned ? PetPalette.green : PetPalette.soft)
-                        .axLines(1)
-                        .minimumScaleFactor(0.7)
-                }
-                Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                disc
+                Text(row.trick.short)
+                    .petFont(12, .bold)
+                    .foregroundStyle(grey ? PetPalette.soft : PetPalette.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 18).fill(PetPalette.card))
-            .contentShape(RoundedRectangle(cornerRadius: 18))
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(SquishStyle())
         .disabled(!enabled)
         .deniedTap(when: !enabled)
-        .opacity(enabled ? 1 : 0.55)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(row.trick.title))
-        .accessibilityValue(Text(row.locked && !row.young ? Tricks.reasonText(Tricks.lockedReason, for: row.trick) : status))
+        .accessibilityValue(Text(status))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("trick.\(row.trick.rawValue)")
     }
+
+    private var disc: some View {
+        let tint = grey ? PetPalette.soft : PetPalette.accent
+        return ZStack {
+            Circle()
+                .stroke(PetPalette.soft.opacity(0.18), lineWidth: Self.ring)
+            if !row.locked, !row.young {
+                Circle()
+                    .trim(from: 0, to: row.fraction)
+                    .stroke(row.learned ? PetPalette.yellow : tint,
+                            style: StrokeStyle(lineWidth: Self.ring, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.4), value: row.fraction)
+            }
+            Circle()
+                .fill(row.learned && !grey ? PetPalette.accent.opacity(0.18) : PetPalette.card)
+                .padding(Self.ring + 3)
+            Image(systemName: row.trick.symbol)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(tint)
+        }
+        .frame(width: Self.size + 2 * Self.ring, height: Self.size + 2 * Self.ring)
+        .opacity(grey ? 0.6 : 1)
+        .overlay(alignment: .topTrailing) { badge.offset(x: 4, y: -2) }
+    }
+
+    /// Значок в углу: причина «нельзя» важнее всего, потом замок/«подрастёт», потом звезда или «рассеян».
+    @ViewBuilder private var badge: some View {
+        if let gate, let symbol = Tricks.gateSymbol(gate) {
+            Badge(symbol: symbol, tint: PetPalette.soft)
+        } else if row.young {
+            Badge(symbol: "hourglass", tint: PetPalette.soft)
+        } else if row.locked {
+            Badge(symbol: "lock.fill", tint: PetPalette.soft, number: row.trick.level)
+        } else if row.learned {
+            Badge(symbol: "star.fill", tint: PetPalette.yellow)
+        } else if let distracted {
+            Badge(symbol: Self.distractedSymbol(distracted), tint: PetPalette.accent)
+        }
+    }
 }
 
-/// Кнопка «Трюки» в ряду над панелью, рядом с «Домом»: только значок. Когда трюки нельзя — серая,
-/// но нажимается: тост с причиной, кнопка качается (как «Гулять»). Id — open.tricks.
+/// Маленький круглый значок (или капсула с цифрой уровня) поверх иконки команды.
+private struct Badge: View {
+    let symbol: String
+    let tint: Color
+    var number: Int?
+
+    var body: some View {
+        HStack(spacing: 1) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+            if let number {
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+            }
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, number == nil ? 0 : 5)
+        .frame(minWidth: 22, minHeight: 22)
+        .background(Capsule().fill(PetPalette.card).shadow(color: .black.opacity(0.12), radius: 2, y: 1))
+        .accessibilityHidden(true)
+    }
+}
+
+/// Кнопка «Команды» в ряду над панелью, рядом с «Домом»: только значок. Лист открывается всегда (волна 57):
+/// когда нельзя (спит, гуляет…), там серые иконки со значком причины; сама кнопка тогда бледнее. Id — open.tricks.
 struct TricksButton: View {
     @Environment(AppModel.self) private var model
     /// Tricks.gate на момент снимка; nil — можно.
     let gate: String?
     @State private var taps = 0
-    @State private var refusals = 0
 
     var body: some View {
         Button {
             taps += 1
-            if let gate {
-                refusals += 1
-                model.refuse(Tricks.reasonText(gate))
-            } else {
-                model.showTricks = true
-            }
+            model.showTricks = true
         } label: {
             Image(systemName: "pawprint.fill")
                 .font(.system(size: 18, weight: .semibold))
@@ -187,10 +231,9 @@ struct TricksButton: View {
         .buttonStyle(SquishStyle())
         .opacity(gate == nil ? 1 : 0.55)
         .glassEffect(.regular.interactive(), in: Circle())
-        .modifier(RefuseShake(trigger: refusals))
-        .accessibilityLabel(Text("Трюки"))
+        .accessibilityLabel(Text("Команды"))
         .accessibilityValue(Text(gate.map { Tricks.reasonText($0) } ?? ""))
-        .accessibilityHint(Text("Команды и чему научился"))
+        .accessibilityHint(Text("Научить пса командам"))
         .accessibilityIdentifier("open.tricks")
     }
 }

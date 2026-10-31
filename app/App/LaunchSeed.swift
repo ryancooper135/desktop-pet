@@ -157,19 +157,21 @@ enum LaunchSeed {
                 f.seen = f.pet
                 f.lastSeenT = now
             case "tricks":
+                // «Команды» (волна 57, вариант A): взрослый пёс 5-го уровня, «Сидеть», «Лапу», «Лежать» выучены,
+                // «Голос» 2 из 4, «Кружись» 1 из 4, остальные под замком уровня.
                 PetRunner.catchUp(&f, now: now)
                 for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
-                var sit = TrickLog.Entry()
-                sit.n = Tricks.needed
-                sit.t = now - 3600
-                sit.tries = 9
-                sit.learned = now - 3600
-                f.tricks[.sit] = sit
-                var lie = TrickLog.Entry()
-                lie.n = 3
-                lie.t = now - 3600
-                lie.tries = 6
-                f.tricks[.lie] = lie
+                f.growth.points = GrowthConfig.shared.adult + 5
+                f.level.xp = max(f.level.xp, DogLevel.xpTo(5))
+                for (t, n) in [(Trick.sit, Trick.sit.needed), (.paw, Trick.paw.needed), (.lie, Trick.lie.needed),
+                               (.speak, 2), (.spin, 1)] {
+                    var e = TrickLog.Entry()
+                    e.n = n
+                    e.t = now - 3600
+                    e.tries = n + 3
+                    if n >= t.needed { e.learned = now - 3600 }
+                    f.tricks[t] = e
+                }
                 f.seen = f.pet
                 f.lastSeenT = now
             case "brush":
@@ -197,15 +199,6 @@ enum LaunchSeed {
                     f.log(Brush.actKind, t: now - 2 * 3600, source: .app, ok: true)
                     _ = Brush.finish(&f, now: now)
                 }
-            case "habits":
-                // Экран «Привычки»: утро и три стакана воды отмечены сегодня, зарядка была вчера, остальное — ни разу.
-                PetRunner.catchUp(&f, now: now)
-                for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
-                Habits.checkIn(.workout, in: &f, now: now - 86400)
-                Habits.checkIn(.wake, in: &f, now: now - 600)
-                Habits.checkIn(.water, times: 3, in: &f, now: now - 300)
-                f.seen = f.pet
-                f.lastSeenT = now
             case "wear":
                 // Надетое на собаке (PetWear) и кнопки «Надеть/Снять» в коллекции. Миска — не надевается.
                 PetRunner.catchUp(&f, now: now)
@@ -514,7 +507,7 @@ enum LaunchSeed {
         // Трюки.
         for (trick, ago) in [(Trick.sit, 25.0), (.lie, 12)] {
             var e = TrickLog.Entry()
-            e.n = Tricks.needed
+            e.n = trick.needed
             e.t = now - ago * day
             e.tries = 8
             e.learned = now - ago * day

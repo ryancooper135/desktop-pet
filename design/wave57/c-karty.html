@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>C · Карточки</title>
+<link rel="stylesheet" href="../wave53/fonts.css"><link rel="stylesheet" href="../wave53/base.css"><link rel="stylesheet" href="w57.css">
+<style>
+.sheet { height:800px; }
+.cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px 18px 0; }
+.card { height:150px; border-radius:26px; background:#f8efe7; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+.card .cmd .lbl { font-size:16px; }
+.card.hot { background:#fde3d4; }
+.mini { position:absolute; left:14px; top:12px; display:flex; gap:3px; }
+.mini i { width:9px; height:9px; border-radius:50%; background:#e7d7ca; display:block; } .mini i.on { background:var(--accent); }
+.sad { position:absolute; right:12px; top:10px; width:30px; height:30px; border-radius:50%; background:#fff; display:grid; place-items:center; color:#f0913a; box-shadow:0 2px 6px rgba(74,59,51,.15); }
+.sad svg { width:18px; height:18px; }
+.mood { display:flex; align-items:center; gap:8px; margin:6px 20px 0; height:46px; border-radius:16px; background:#fdeedd; padding:0 14px; font-weight:700; font-size:15px; color:#b06a2a; }
+.mood svg { width:22px; height:22px; }
+</style></head>
+<body>
+<script src="icons57.js"></script>
+<div class="head">
+  <h1><small>C</small>Большие карточки</h1>
+  <div class="idea">Шторка почти на весь экран, 2×4 крупные карточки с точками прогресса. Крупно и понятно, легко попасть пальцем. Минус: пёс закрыт — после тапа шторка всегда уезжает.</div>
+  <div class="meta"><span>SF Symbols</span><span>Точки вместо кольца</span></div>
+</div>
+<div class="phones">
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room"><div class="floor"></div><div class="dogwrap" style="bottom:640px"><span data-dog="sit" data-w="120"></span></div></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="shead"><h2>Команды</h2><div class="x">✕</div></div>
+    <div class="cards">
+      <div class="card"><div data-cmd="sit" data-st="learned" data-d="70" data-l="Сидеть"></div></div>
+      <div class="card"><div data-cmd="paw" data-st="learned" data-d="70" data-l="Лапу"></div></div>
+      <div class="card"><div data-cmd="lie" data-st="learned" data-d="70" data-l="Лежать"></div></div>
+      <div class="card hot"><div class="mini"><i class="on"></i><i class="on"></i><i></i><i></i></div><div data-cmd="speak" data-d="70" data-l="Голос"></div></div>
+      <div class="card"><div class="mini"><i class="on"></i><i></i><i></i><i></i></div><div data-cmd="spin" data-d="70" data-l="Кружись"></div></div>
+      <div class="card"><div data-cmd="five" data-st="lock7" data-d="70" data-l="Дай пять"></div></div>
+      <div class="card"><div data-cmd="dead" data-st="lock9" data-d="70" data-l="Притворись"></div></div>
+      <div class="card"><div data-cmd="crawl" data-st="lock12" data-d="70" data-l="Ползи"></div></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Прогресс — точки 2 из 4</div>
+</div>
+<div>
+<div class="phone">
+  <div class="island"></div>
+  <div class="room"><div class="floor"></div><div class="dogwrap" style="bottom:640px"><span data-dog="bowl" data-w="120"></span></div></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="shead"><h2>Команды</h2><div class="x">✕</div></div>
+    <div class="mood"><svg class="i"><use href="#bowl"/></svg>Голодный — слушается хуже</div>
+    <div class="cards">
+      <div class="card"><div data-cmd="sit" data-st="learned" data-d="70" data-l="Сидеть"></div></div>
+      <div class="card"><div data-cmd="paw" data-st="learned" data-d="70" data-l="Лапу"></div></div>
+      <div class="card"><div data-cmd="lie" data-st="learned" data-d="70" data-l="Лежать"></div></div>
+      <div class="card"><div class="sad"><svg class="i"><use href="#bowl"/></svg></div><div class="mini"><i class="on"></i><i class="on"></i><i></i><i></i></div><div data-cmd="speak" data-d="70" data-l="Голос"></div></div>
+      <div class="card"><div class="sad"><svg class="i"><use href="#bowl"/></svg></div><div class="mini"><i class="on"></i><i></i><i></i><i></i></div><div data-cmd="spin" data-d="70" data-l="Кружись"></div></div>
+      <div class="card"><div data-cmd="five" data-st="lock7" data-d="70" data-l="Дай пять"></div></div>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+<div class="cap">Голодный: плашка и значок миски на карточках</div>
+</div>
+</div>
+<script src="../wave51/dog.js"></script>
+<script>cmds();</script>
+</body></html>

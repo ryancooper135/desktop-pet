@@ -103,7 +103,7 @@ final class ReactBeatTests: XCTestCase {
     // MARK: присед и прыжок
 
     func testNoSpringHopOverSkeletonClips() {
-        let kinds = ["play", Habits.reactKind, BlockDuo.reactKind, "tap.playful", "trick.sit", "trick.speak",
+        let kinds = ["play", "levelup", BlockDuo.reactKind, "tap.playful", "trick.sit", "trick.speak",
                      "pet", "feed", "item", Brush.journalKind, Cooking.reactKind, "wake", "bath", "tap", "tickle"]
         for k in kinds {
             let a = ReactBeat.accent(kind: k, ok: true, skeleton: true)

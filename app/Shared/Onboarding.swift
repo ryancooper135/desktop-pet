@@ -73,12 +73,12 @@ enum Onboarding {
         ]
     }
 
-    /// Значки ряда «Альбом · Автомат · Дом · Трюки · Игры · Гулять» — те же имена SF Symbols, что в WalkViews.
+    /// Значки ряда «Альбом · Автомат · Дом · Команды · Игры · Гулять» — те же имена SF Symbols, что в WalkViews.
     static let rowLegend: [IntroRow] = [
         IntroRow("album", icon: "books.vertical.fill", "Альбом", "Находки с прогулок, открытки, характер."),
         IntroRow("capsule", icon: "gift.fill", "Автомат", "Капсулы с вещами и Лавка дня."),
         IntroRow("house", icon: "house.fill", "Дом", "Улучшения за монеты и кухня."),
-        IntroRow("tricks", icon: "pawprint.fill", "Трюки", "Команды и расчёска."),
+        IntroRow("tricks", icon: "pawprint.fill", "Команды", "Сидеть, лапу и другие. И расчёска."),
         IntroRow("games", icon: "gamecontroller.fill", "Мини-игры", "Две игры, за них монеты."),
         IntroRow("walk", icon: "figure.walk", "Гулять", "Уходит на 1–3 часа и приносит находку."),
     ]
@@ -92,13 +92,13 @@ enum Onboarding {
     /// Волна 22: в первой сессии шкалы не пугают «колтунами» и не шлют расчёсывать.
     static let coatGraceS: Double = 3600
 
-    /// Строчка шерсти в шкалах: «Шерсть: колтуны — расчеши в «Трюках»». Хорошая шерсть — без совета.
+    /// Строчка шерсти в шкалах: «Шерсть: колтуны — расчеши в «Командах»». Хорошая шерсть — без совета.
     /// ageS — сколько живёт питомец (now − createdT); щенку младше coatGraceS — «щенячий пух» без совета.
     static func coatLine(_ stage: CoatStage, ageS: Double = .infinity) -> String {
         if ageS < coatGraceS, stage == .matted || stage == .shaggy { return "Шерсть: щенячий пух, ещё торчит" }
         let base = "Шерсть: \(stage.title.lowercased())"
         switch stage {
-        case .matted, .shaggy: return base + " — расчеши в «Трюках»"
+        case .matted, .shaggy: return base + " — расчеши в «Командах»"
         case .normal, .sleek: return base
         }
     }

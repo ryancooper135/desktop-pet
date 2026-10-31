@@ -455,6 +455,11 @@ private struct AwayFlow: Layout {
 // MARK: - Настройки
 
 struct SettingsScreen: View {
+    /// Как приложение зовут на экране и в Siri (CFBundleDisplayName): «Питомец».
+    static var appName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Питомец"
+    }
+
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var bed: Int = 23 * 60
@@ -592,16 +597,13 @@ struct SettingsScreen: View {
                     Text(NotifPref.footer(on: notifications, permission: notifPermission ?? .allowed))
                 }
 
+                // Волна 57: вместо «Привычек» — команды голосом (SitIntent/PawIntent, ShortcutsProvider).
                 Section {
-                    NavigationLink {
-                        HabitsScreen()
-                    } label: {
-                        Label("Привычки и «Команды»", systemImage: "checklist")
-                    }
-                    .listRowBackground(PetPalette.card)
-                    .accessibilityIdentifier("settings.habits")
+                    Label("«\(Self.appName), сидеть»", systemImage: "mic.fill")
+                        .listRowBackground(PetPalette.card)
+                        .accessibilityIdentifier("settings.siri")
                 } footer: {
-                    Text("«\(HabitsScreen.appName), я дома», «я выпил воды» — Siri и автоматизации отмечают твой день, \(name) отвечает и даёт монеты.")
+                    Text("И «\(Self.appName), дай лапу» — Siri откроет приложение, \(name) выполнит команду.")
                 }
 
                 // Свой персонаж (волна 12): папка из «Файлов» вместо Шибы в комнате.

@@ -68,14 +68,14 @@ final class AnimationUITests: XCTestCase {
         attachSheet(frames, name: "anim-walk")
     }
 
-    /// Трюк «Сидеть» из листа «Трюки» (сид tricks: уже выучен; PET_TRICK_ROLL=0 — всегда выходит): лист уезжает,
+    /// Команда «Сидеть» из листа «Команды» (сид tricks: уже выучена; PET_TRICK_ROLL=0 — всегда выходит): лист уезжает,
     /// Шиба садится, сидит и встаёт, прыжок пружиной и тост «Сидит!».
     @MainActor
     func testTrickSitFrames() throws { try recordTrick("trick.sit", roll: "0", name: "anim-trick-sit", count: 24, step: 0.3) }
 
-    /// Промах (PET_TRICK_ROLL=0.99): склонил голову, понюхал, «Не понял…».
+    /// Промах (PET_TRICK_ROLL=0.99) на «Голосе» (2 из 4): склонил голову, понюхал, «Не понял…».
     @MainActor
-    func testTrickMissFrames() throws { try recordTrick("trick.lie", roll: "0.99", name: "anim-trick-miss") }
+    func testTrickMissFrames() throws { try recordTrick("trick.speak", roll: "0.99", name: "anim-trick-miss") }
 
     @MainActor
     func recordTrick(_ identifier: String, roll: String, name: String,
@@ -90,7 +90,7 @@ final class AnimationUITests: XCTestCase {
         let crop = stage.frame
         let button = app.descendants(matching: .any)[identifier]
         guard tap(open, expecting: button, name: name) else {
-            throw XCTSkip("нет кнопки \(identifier) в листе «Трюки»")
+            throw XCTSkip("нет кнопки \(identifier) в листе «Команды»")
         }
         // Лист доехал — потом команда (нажимаема кнопка и в движении, поэтому ещё и пауза на выезд).
         settle(0.6)

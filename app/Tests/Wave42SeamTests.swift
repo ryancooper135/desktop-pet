@@ -75,7 +75,7 @@ final class Wave42SeamTests: XCTestCase {
         for n in [Need.food, .clean, .energy, .fun, .love, .walk] { f.pet.needs[n] = 80 }
         var t = sT0
         var learned: TrickOutcome?
-        for _ in 0..<Tricks.needed {
+        for _ in 0..<Trick.sit.needed {
             let o = Tricks.attempt(.sit, in: &f, now: t, roll: 0)
             if o.learnedNow { learned = o; break }
             t += Tricks.gap
