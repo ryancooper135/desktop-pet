@@ -50,7 +50,7 @@ RealityKit, живёт в Shared и тестируется на Linux; App — �
 | Главный экран | HomeScreen (сцена + слои, жесты, StatusScrim), ActionBar (панель действий, ActButton, ActBadge), HomeLayers (палец ласки, TouchBox, NameCard), HomeBanners (CalmTimerView, спасение, Banner, ToastView), HomeChips (кошелёк, «Открытка дня», «Вкус открыт!»), HintViews («что нужно сейчас», обучение жестам), WalkViews (ряд «Альбом · Автомат · Дом · Трюки · Игры · Гулять», записка, альбом), PopView |
 | 3D-сцена | PetStage (RealityView, камера, загрузка Шибы), PetRoom (комната стиля A, материалы, веки), RoomDecor (вещи дома), RoomLighting (свет по времени), PetChoreo (компоненты и хореография по часам), ChoreoPath (чистые траектории), PetRig (шея, голова, челюсть, веки), PetStance (позы и клипы), PetClips (имена клипов), PetJuice (дыхание, пружины), PetWear (надетое в 3D), PostcardCamera (снимок сцены) |
 | Экраны и листы | Screens (шкалы, отчёт, настройки, ошибка, каталог превью), HouseScreen, KitchenSheet, CapsuleScreen, ShopSheet, TricksScreen, BrushViews, CharacterViews, CharacterPacksScreen, CharacterAvatar, HabitsScreen, RulesScreen, IntroScreen, WidgetGuideSheet, GuideCenter, PostcardViews |
-| Мини-игры | CatchGameScreen, BlockDuoScreen, ZombieRunScreen (логика каждой — в Shared: CatchGame, BlockDuo, ZombieRun + RetroRaster/ZombieArt) |
+| Мини-игры | CatchGameScreen, BlockDuoScreen, RunnerScreen + RunnerScene (RealityKit-мир раннера) (логика каждой — в Shared: CatchGame, BlockDuo, Runner; реестр — MiniGames) |
 | Система | NotificationScheduler, LiveActivityController, StepsSync (CMPedometer), SoundKit (AVAudioEngine), FeelKit (отклик на касание: `Feel` — вибрация и звук в одной точке, волна 29; RESEARCH/15-feedback.md), ShortcutsProvider, StrokeTracker (разбор касаний) |
 
 ## Shared: что где
@@ -63,7 +63,7 @@ RealityKit, живёт в Shared и тестируется на Linux; App — �
 | Питомец | Tastes, Traits, Memories, Tricks, Habits, OwnerSleep, Coat, CoatFur, Brush, Wear, WearMesh, TapWiggle, RoomLight, Postcards, PostcardPhotos |
 | Тексты | Lines, LineRotation, NotificationPlanner |
 | Звук и отклик | Synth, SoundRecipes, Feel (FeelGate: виды, кулдауны, тишина в фоне) |
-| Мини-игры | CatchGame, BlockDuo, ZombieRun, ZombieArt, RetroRaster |
+| Мини-игры | MiniGames (реестр), CatchGame, BlockDuo, Runner |
 | Свои персонажи | CharacterPack, CharacterStore |
 | Интенты и остров | Intents, PetAttributes (не в Linux-сборке: App Intents и ActivityKit), DeepLink |
 | Views (общие вьюшки) | Components, PetPalette, PetFaceView, ItemIcon, WidgetViews, AccessoryViews, IslandViews, PreviewCatalog |
