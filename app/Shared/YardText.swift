@@ -157,13 +157,41 @@ enum YardText {
     }
 
     /// Подтверждение: что останется, что начнётся заново, какая слава будет.
-    static func moveConfirm(moves: Int, _ cfg: YardConfig = .shared) -> [String] {
+    /// name — кто в комнате (SaveFile.petName): у Хаски «Останется: Хаски…» (волна 63).
+    static func moveConfirm(moves: Int, name: String = PetNames.shiba, _ cfg: YardConfig = .shared) -> [String] {
         let keep = cfg.moveKeepCoins
         return [
-            "Останется: Шиба, его уровень и рост, вещи, дом, ✂️, альбом, \(keep) 🪙",
+            PetNames.adapt("Останется: Шиба, его уровень и рост, вещи, дом, ✂️, альбом, \(keep) 🪙", name: name),
             "Начнётся заново: плиты, станции, копилка, монеты сверх \(keep)",
             "Слава двора \(times(Yard.glory(moves: moves + 1, cfg))) к доходу станций навсегда",
         ]
+    }
+
+    /// VoiceOver двора (волна 63): где пёс. Раньше строки были вписаны в YardScreen с «Шибой» — Хаски звали Шибой.
+    /// mode .absent — пусто; station — имя станции визита, acting — уже у неё (фаза .act).
+    static func dogLabel(mode: YardDogMode, station: String?, acting: Bool, name: String) -> String {
+        let line: String
+        switch mode {
+        case .absent: return ""
+        case .asleep: line = ". Шиба спит"
+        case .awake:
+            if let station {
+                line = acting ? ". Шиба у станции «\(station)»" : ". Шиба бегает к станции «\(station)»"
+            } else {
+                line = ". Шиба отдыхает во дворе"
+            }
+        }
+        return PetNames.adapt(line, name: name)
+    }
+
+    /// VoiceOver фургона при переезде.
+    static func vanLabel(name: String) -> String {
+        PetNames.adapt("Фургон у дома, коробки едут в кузов, Шиба сидит в кабине", name: name)
+    }
+
+    /// VoiceOver точки пса на карте мест.
+    static func mapDogLabel(name: String) -> String {
+        PetNames.adapt("Шиба в пути", name: name)
     }
 
     /// Тост после переезда.

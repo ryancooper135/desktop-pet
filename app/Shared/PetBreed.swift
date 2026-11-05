@@ -30,6 +30,20 @@ enum PetBreed: String, CaseIterable, Sendable {
         }
     }
 
+    /// Винительный: «Вернул Шибу» / «Вернул Хаски».
+    var accusative: String {
+        switch self {
+        case .shiba: return "Шибу"
+        case .husky: return "Хаски"
+        }
+    }
+
+    /// Тост, когда свой персонаж не загрузился и в комнату вернулась эта порода (волна 63: было «Вернул Шибу»
+    /// и при выбранном Хаски).
+    func characterFailed(_ name: String, reason: String) -> String {
+        "\(name) не загрузился: \(reason). Вернул \(accusative)."
+    }
+
     /// Строка под названием в списке.
     var note: String {
         switch self {

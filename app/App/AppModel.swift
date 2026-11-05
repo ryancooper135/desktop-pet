@@ -187,6 +187,9 @@ final class AppModel {
     /// Волна 43 K: последняя показанная выполненная просьба пса и когда показан её тост.
     @ObservationIgnored private var askToastT: Double? = nil
     @ObservationIgnored private var askShownAt: Double = -100
+    /// Волна 63: задание дня / просьба, выполненные под игрой (тост не виден) — покажем после её закрытия.
+    @ObservationIgnored private var taskHeldT: Double? = nil
+    @ObservationIgnored private var askHeldT: Double? = nil
     /// Волна 40 E: награда ✂️, ещё не показанная тостом, — свежие достижения и обычная выплата. Ждёт, пока тост видно:
     /// нет отчёта «Пока тебя не было», листа (кроме двора — у него свой тост), сцены уровня и чужого тоста.
     @ObservationIgnored private var pendingAward: PendingAward? = nil
@@ -541,7 +544,9 @@ final class AppModel {
             guard let self, !Task.isCancelled else { return }
             if r.played { self.react(Runner.reactKind); Feel.success(.yip) }
             if r.free == nil { self.speak(Runner.shibaLine(r)) }
-            if toast, let text = Runner.toastText(r) { self.show(text, emoji: "🏃") }
+            // Волна 63: задание дня / просьба, закрытые забегом, ждали закрытия обложки — их тост важнее монет забега.
+            self.refresh()
+            if toast, !self.taskToastFresh, let text = Runner.toastText(r) { self.show(text, emoji: "🏃") }
         }
     }
 
@@ -555,7 +560,8 @@ final class AppModel {
             }
             // Волна 32: «просто так» (спал, гулял, мылся…) — пёс не играл с нами, фразы в комнате нет.
             if r.free == nil { self.speak(BlockDuo.shibaLine(r)) }
-            if toast, let text = BlockDuo.toastText(r) {
+            self.refresh()
+            if toast, !self.taskToastFresh, let text = BlockDuo.toastText(r) {
                 self.show(text, emoji: "🧩")
             }
         }
@@ -647,8 +653,16 @@ final class AppModel {
 
     /// Волна 42 J: «Задание дня: Покормить 2 раза · +20 🪙», за последнее — «Все задания дня! … · +1 ✂️».
     /// Один раз на выполнение, только свежее (до 10 с): из refresh — и после действия, и после похода/двора/виджета.
+    /// Волна 63: открыта мини-игра — fullScreenCover над главным, тост главного под ней не виден.
+    private var gameCovered: Bool { showCatch || showBlockDuo || showRunner }
+
     private func noteTasks(_ f: SaveFile, now: Double) {
-        guard DailyTasks.enabled, let w = f.tasks.last, w.t != taskToastT, abs(now - w.t) < 10 else { return }
+        guard DailyTasks.enabled, let w = f.tasks.last else { return }
+        switch HeldToastStep.of(winT: w.t, shownT: taskToastT, heldT: taskHeldT, now: now, covered: gameCovered) {
+        case .skip: return
+        case .hold: taskHeldT = w.t; return
+        case .show: taskHeldT = nil
+        }
         taskToastT = w.t
         taskShownAt = ProcessInfo.processInfo.systemUptime
         show(DailyTaskText.toast(w, f), emoji: w.shards > 0 ? "✂️" : DailyTaskText.emoji(w.task))
@@ -659,7 +673,12 @@ final class AppModel {
     /// Волна 43 K: «Просьба выполнена! Покормить · +10 🪙» — один раз, только свежее (до 10 с). Если то же действие
     /// закрыло и задание дня, его тост важнее: просьбу отмечаем показанной без своего тоста (монеты всё равно пришли).
     private func noteAsks(_ f: SaveFile, now: Double) {
-        guard DogAsks.enabled, let w = f.asks.last, w.t != askToastT, abs(now - w.t) < 10 else { return }
+        guard DogAsks.enabled, let w = f.asks.last else { return }
+        switch HeldToastStep.of(winT: w.t, shownT: askToastT, heldT: askHeldT, now: now, covered: gameCovered) {
+        case .skip: return
+        case .hold: askHeldT = w.t; return
+        case .show: askHeldT = nil
+        }
         askToastT = w.t
         if ProcessInfo.processInfo.systemUptime - taskShownAt < 1.5 { return }
         askShownAt = ProcessInfo.processInfo.systemUptime
@@ -1001,7 +1020,7 @@ final class AppModel {
         }
         refresh()
         Task { await AppActions.shared.afterChange() }
-        show("\(name) не загрузился: \(reason). Вернул Шибу.", ok: false)
+        show(breed.characterFailed(name, reason: reason), ok: false)
     }
 
     /// Новый щенок: после смерти или при испорченном сторе. Старый файл уходит в state.broken-<t>.json.
@@ -1271,16 +1290,16 @@ final class AppModel {
             lastDelta = ["love": love]
             popDelta(lastDelta)
         }
-        if out.learnedNow {
-            heartBurst()
-            let text = "Выучил «\(t.title)»!"
-            if out.coins > 0 {
-                show("\(text) +\(EconText.coins(out.coins))", emoji: "🪙")
-            } else {
-                show(text)
+        if out.learnedNow { heartBurst() }
+        // Волна 63: тост задания дня «Покажи трюки» / просьбы этого показа не стираем (Tricks.doneToast).
+        guard let note = Tricks.doneToast(t, out, taskFresh: taskToastFresh) else { return }
+        if note.wait {
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(2.6))
+                self?.show(note.text, emoji: note.emoji)
             }
         } else {
-            show(t.done)
+            show(note.text, emoji: note.emoji)
         }
     }
 

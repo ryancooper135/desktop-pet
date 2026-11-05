@@ -388,7 +388,8 @@ enum AwayBuilder {
 
     static func deathText(_ cause: String?, name: String) -> String {
         // Свой персонаж (волна 14): род имени не знаем — фразы без «был» и «дождался».
-        if !PetNames.isShiba(name) {
+        // Порода из коробки (волна 63) — мужского рода, фразы Шибы с её названием.
+        if !PetNames.isShiba(name), !PetNames.isBreedTitle(name) {
             switch cause {
             case "starve": return "Слишком долго без еды."
             case "dirty": return "Слишком долго без мытья."

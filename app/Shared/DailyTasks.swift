@@ -344,6 +344,21 @@ enum DailyTasks {
 
 // MARK: - Тексты
 
+/// Тост выполненного задания дня или просьбы пса (волна 63): показать, отложить или уже не нужен.
+enum HeldToastStep: Equatable, Sendable {
+    case skip, hold, show
+
+    /// Раннер, «Блок Дуо» и мячик — fullScreenCover поверх главного, а тост живёт на главном: задание «Поиграть»,
+    /// закрытое забегом, показывало тост под игрой, и он пропадал (или, после 10 с на карточке итога, не выходил
+    /// вовсе). Теперь под игрой (covered) тост откладывается (hold: heldT = winT) и выходит после закрытия,
+    /// даже если прошло больше 10 с. shownT — уже показанный, heldT — отложенный.
+    static func of(winT: Double, shownT: Double?, heldT: Double?, now: Double, covered: Bool) -> HeldToastStep {
+        guard winT != shownT else { return .skip }
+        guard abs(now - winT) < 10 || winT == heldT else { return .skip }
+        return covered ? .hold : .show
+    }
+}
+
 enum DailyTaskText {
     static let title = "Задания дня"
 

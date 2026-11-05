@@ -69,7 +69,7 @@ struct YardScreen: View {
         .animation(.snappy, value: confirmMove)
         .overlay {
             if let trip {
-                YardMoveView(from: trip.from, to: trip.to,
+                YardMoveView(from: trip.from, to: trip.to, name: model.snap.name,
                              night: model.roomSchedule.phaseNow(dark: colorScheme == .dark) >= 1.5)
                     .overlay(alignment: .topTrailing) {
                         Button("Готово") { closeTrip() }
@@ -251,22 +251,14 @@ struct YardScreen: View {
         .accessibilityIdentifier("yard.screen.scene")
     }
 
-    /// VoiceOver: ярус, станции с доходом (таблички в сцене не читаются), где Шиба.
+    /// VoiceOver: ярус, станции с доходом (таблички в сцене не читаются), где пёс (по имени, волна 63).
     private func sceneLabel(tier: Int, rates: [YardTickRate], dog: YardDogPose?, mode: YardDogMode) -> String {
         let cfg = YardConfig.shared
         let head = "Двор, ярус «\(YardText.tierName(tier))»"
         let st = rates.compactMap { r in cfg.station(r.id).map { "\($0.name) \(YardText.perHour(r.rate))" } }
         var out = st.isEmpty ? head + ". Станций пока нет" : head + ". Станции: " + st.joined(separator: ", ")
-        switch mode {
-        case .absent: break
-        case .asleep: out += ". Шиба спит"
-        case .awake:
-            if let id = dog?.station, let name = cfg.station(id)?.name {
-                out += dog?.phase == .act ? ". Шиба у станции «\(name)»" : ". Шиба бегает к станции «\(name)»"
-            } else {
-                out += ". Шиба отдыхает во дворе"
-            }
-        }
+        let station = dog?.station.flatMap { cfg.station($0)?.name }
+        out += YardText.dogLabel(mode: mode, station: station, acting: dog?.phase == .act, name: model.snap.name)
         return out
     }
 
@@ -712,7 +704,7 @@ struct YardScreen: View {
 
     /// Подтверждение переезда: что останется, что начнётся заново, какая слава. «Переехать» / «Остаться».
     @ViewBuilder private func moveConfirm(_ f: SaveFile) -> some View {
-        let lines = YardText.moveConfirm(moves: f.yard.moves)
+        let lines = YardText.moveConfirm(moves: f.yard.moves, name: f.petName)
         ZStack {
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
