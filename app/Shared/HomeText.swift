@@ -45,6 +45,8 @@ enum HomeText {
     /// Свой персонаж (волна 14) — его имя в именительном и слова без рода: «Мурка отдыхает», а не «спокоен».
     static func poseText(_ pose: Pose, name: String = PetNames.shiba) -> String {
         if PetNames.isShiba(name) { return shibaPoseText(pose) }
+        // Порода из коробки (волна 63): «Хаски спокоен» — фразы Шибы, род известен.
+        if PetNames.isBreedTitle(name) { return PetNames.adapt(shibaPoseText(pose), name: name) }
         switch pose {
         case .happy: return "\(name) радуется"
         case .idle: return "\(name) отдыхает"

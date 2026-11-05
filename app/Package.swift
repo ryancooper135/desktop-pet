@@ -209,6 +209,7 @@ let package = Package(
                 "YardTextTests.swift",
         "AwayReportTests.swift",
                 "Wave62SeamTests.swift",
+                "Wave63SeamTests.swift",
                 "YardDogTests.swift",
                 "YardMoveTests.swift",
                 "YardPaceTests.swift",

@@ -166,10 +166,12 @@ struct SaveFile: Codable, Sendable {
     var bornDay: Int { DayKey.of(createdT, tzOffsetMin: birthTz ?? Clock.tzOffsetMin(at: createdT)) }
 
     /// Как зовут того, кто в комнате: имя своего персонажа, если он выбран, иначе name («Шиба»).
+    /// Волна 63: порода из коробки не Шиба — её название («Хаски»): шапка, остров, виджет и тексты звали Хаски Шибой.
     var petName: String {
-        guard character != nil,
-              let n = characterName.map(PetNames.clean), !n.isEmpty else { return name }
-        return n
+        if character != nil, let n = characterName.map(PetNames.clean), !n.isEmpty { return n }
+        let b = PetBreed(save: breed)
+        if b != .standard, PetNames.isShiba(name) { return b.title }
+        return name
     }
 
     init(petId: String, deviceId: String, createdT: Double, owner: Owner, pet: PetState) {

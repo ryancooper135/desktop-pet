@@ -63,12 +63,20 @@ enum PetNames {
     private static let namePlaceholder = "\u{E000}"
     private static let gonePlaceholder = "\u{E001}"
 
+    /// Название породы из коробки, кроме Шибы («Хаски», волна 63): не склоняется и мужского рода — встаёт
+    /// на место любой формы («ход Хаски», «Хаски устал»), «питомец» ему не нужен.
+    static func isBreedTitle(_ name: String) -> Bool {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return PetBreed.allCases.contains { $0 != .standard && $0.title == n }
+    }
+
     /// Реплика под Шибу → под этого питомца. Применять один раз, там где текст собирается.
     static func adapt(_ text: String, name: String) -> String {
         guard !isShiba(name), text.contains("Шиб") else { return text }
         var s = text
         for p in phrases { s = s.replacingOccurrences(of: p.from, with: p.to) }
-        let masculine = hasMasculine(s)
+        let breed = isBreedTitle(name)
+        let masculine = !breed && hasMasculine(s)
         var out = ""
         var word = ""
         var sentenceStart = true
@@ -77,6 +85,8 @@ enum PetNames {
             var w = word
             if w == shiba {
                 w = masculine ? "питомец" : namePlaceholder
+            } else if forms[w] != nil, breed {
+                w = namePlaceholder
             } else if let f = forms[w] {
                 w = f
             }

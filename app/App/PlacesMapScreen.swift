@@ -24,7 +24,7 @@ struct PlacesMapScreen: View {
                         let trip = Places.walking(f, now: now)
                         VStack(alignment: .leading, spacing: 12) {
                             if let trip { tripLine(trip, f, now: now) }
-                            PaperMap(cards: cards, trip: trip, now: now) { id in picked = PickedPlace(id: id) }
+                            PaperMap(cards: cards, trip: trip, now: now, name: model.snap.name) { id in picked = PickedPlace(id: id) }
                         }
                     }
                     plainWalk(f)
@@ -210,6 +210,7 @@ struct PaperMap: View {
     let cards: [PlaceCard]
     let trip: ActiveTrip?
     let now: Double
+    var name: String = PetNames.shiba
     let onTap: (String) -> Void
 
     private static let paper = Color(hex: 0xfff6d8)
@@ -230,7 +231,7 @@ struct PaperMap: View {
                 if let trip, let i = cards.firstIndex(where: { $0.id == trip.place }) {
                     let to = MapSpots.spot(trip.place, index: i, count: cards.count)
                     let t = Places.trail(trip, now: now)
-                    DogDot()
+                    DogDot(name: name)
                         .position(px(MapSpots.along(to, index: i, t: t), size))
                         .animation(.linear(duration: 1), value: t)
                 }
@@ -369,6 +370,9 @@ struct PlacePin: View {
 
 /// Пёс на тропе.
 struct DogDot: View {
+    /// Кто в походе — для VoiceOver (SaveFile.petName, волна 63).
+    var name: String = PetNames.shiba
+
     var body: some View {
         Image(systemName: "pawprint.fill")
             .font(.system(size: 13, weight: .bold))
@@ -378,7 +382,7 @@ struct DogDot: View {
             .overlay(Circle().stroke(.white, lineWidth: 2))
             .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Шиба в пути"))
+            .accessibilityLabel(Text(YardText.mapDogLabel(name: name)))
             .accessibilityIdentifier("map.dog")
     }
 }

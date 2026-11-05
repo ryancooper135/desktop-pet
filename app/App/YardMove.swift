@@ -229,6 +229,8 @@ enum YardMoveStage {
 struct YardMoveView: View {
     let from: YardDistrict
     let to: YardDistrict
+    /// Кто в кабине — для VoiceOver (SaveFile.petName, волна 63).
+    var name: String = PetNames.shiba
     var night: Bool = false
     /// Погода для превью (чипы «Двор 3D»); nil — какая сейчас там, куда едем.
     var weather: WeatherKind? = nil
@@ -275,7 +277,7 @@ struct YardMoveView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 380)
             .accessibilityElement()
-            .accessibilityLabel("Фургон у дома, коробки едут в кузов, Шиба сидит в кабине")
+            .accessibilityLabel(YardText.vanLabel(name: name))
             // UI-тест (волна 41 H): фургон уже нарисован — «frame=ready» вместо паузы перед снимком.
             .modifier(YardFrameProbe(probe: "yard.move", key: key))
             .accessibilityIdentifier("yard.move.scene")

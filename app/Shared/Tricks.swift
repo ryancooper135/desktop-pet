@@ -269,6 +269,27 @@ enum Tricks {
     /// Стор ещё не прочитан (model.file == nil): не «не получилось сохранить», а подождать.
     static let loadingReason = "loading"
     static let failText = "Не понял…"
+
+    /// Тост удачной команды (волна 63). Тот же показ мог закрыть задание дня «Покажи трюки» или просьбу пса —
+    /// их тост из refresh уже на экране (taskFresh), и «Сидит!» через 0,35 с его стирал: задание мелькало.
+    /// Теперь «Сидит!» в этом случае молчит (клип и сердечки и так видны), а «Выучил…» — раз на трюк — ждёт
+    /// тост задания (wait) и выходит следом.
+    struct DoneToast: Equatable, Sendable {
+        var text: String
+        var emoji: String?
+        var wait: Bool
+    }
+
+    static func doneToast(_ t: Trick, _ out: TrickOutcome, taskFresh: Bool) -> DoneToast? {
+        guard out.ok else { return nil }
+        if out.learnedNow {
+            let text = "Выучил «\(t.title)»!"
+            return out.coins > 0
+                ? DoneToast(text: "\(text) +\(EconText.coins(out.coins))", emoji: "🪙", wait: taskFresh)
+                : DoneToast(text: text, emoji: nil, wait: taskFresh)
+        }
+        return taskFresh ? nil : DoneToast(text: t.done, emoji: nil, wait: false)
+    }
     /// Клипы промаха: склонил голову, понюхал — «а что надо-то?».
     static let failClips = ["head_tilt", "sniff"]
 
