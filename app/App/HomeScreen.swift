@@ -357,6 +357,12 @@ struct HomeScreen: View {
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $model.showMap) { PlacesMapScreen().environment(model).presentationDetents([.large]) }
+        // Волна 62: «Задания дня» с карточки главного (HomeQuestCard) — флаг в модели, как у остальных листов.
+        .sheet(isPresented: $model.showQuest) {
+            TasksSheet()
+                .environment(model)
+                .presentationDetents([.medium, .large])
+        }
         .fullScreenCover(isPresented: $model.showCatch) {
             // На весь экран: лист тянулся бы вниз вместе с миской.
             CatchGameScreen()

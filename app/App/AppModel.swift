@@ -53,6 +53,9 @@ final class AppModel {
     var showKitchen = false
     /// Лист «Уровень» (волна 34 I, HomeChips.LevelChip → LevelSheet).
     var showLevel = false
+    /// Волна 62: лист «Задания дня» с карточки главного (HomeQuestCard, волна 53). Был @State карточки — openRoutes,
+    /// anyCover и сцена уровня его не видели: ссылка виджета, подсказки и «Пока тебя не было» роняли свой лист.
+    var showQuest = false
     /// Вид роста для сцены (PetStage → PetRig); nil — как взрослый (UI-тесты без сида level*). Пишет noteLevel.
     var growthLook: GrowthLook? = nil
     /// Что из уровня и роста уже показали (AppModel+Level).
@@ -1134,6 +1137,7 @@ final class AppModel {
             (showCharacters, "characters"), (postcard != nil, "postcard"), (showMap, "map"),
             // Волна 35 N: лист уровня тоже лист — без него pet://map поверх «Уровня» терял карту, флаг оставался true.
             (showLevel, "level"),
+            (showQuest, "quest"),
         ]
         for (on, name) in flags where on { out.insert(name) }
         return out
@@ -1187,6 +1191,13 @@ final class AppModel {
         }
     }
 
+    /// Волна 62: голосовая команда поверх открытого экрана (IntentBridge.trick) — сначала всё закрыть, и отчёт
+    /// «Пока тебя не было» тоже: хозяин сам позвал пса, трюк должно быть видно (отложенная реплика скажется после).
+    func closeForVoice() {
+        closeAllSheets()
+        away = nil
+    }
+
     /// pet://home: закрыть все листы и обложки комнаты.
     private func closeAllSheets() {
         routeTask?.cancel()
@@ -1206,6 +1217,7 @@ final class AppModel {
         showCharacters = false
         showMap = false
         showLevel = false
+        showQuest = false
         postcard = nil
     }
 
@@ -1608,7 +1620,7 @@ final class AppModel {
     var anyCover: Bool {
         brush != nil || postcard != nil || away != nil || showYard
             || showNeeds || showSettings || showAlbum || showCapsule || showShop || showHouse || showTricks || showCatch
-            || showBlockDuo || showRunner || showKitchen || showMap || showLevel
+            || showBlockDuo || showRunner || showKitchen || showMap || showLevel || showQuest
     }
 
     /// Сцена на виду и пёс в настроении: ничего не закрывает комнату, не спит, не гуляет.

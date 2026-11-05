@@ -119,8 +119,9 @@ enum YardDogLive {
                 model = try? await Entity(named: breed.resource, in: Bundle.main)
             }
             let body = model ?? StubDog.make()
-            // Глаза держатся головы (как в комнате). Свой персонаж в комнате — кости под его именами, тогда не трогаем.
-            if model != nil, PetModel.boneAlias.isEmpty { PetRig.pinEyes(body) }
+            // Глаза держатся головы (как в комнате). Волна 62: модель — породы из коробки, кости у неё свои, даже когда
+            // в комнате свой персонаж (раньше тогда глаза не пришивались и во дворе, фургоне и раннере ехали с ушами).
+            if model != nil { PetRig.pinEyes(body, alias: breed.boneAlias) }
             // Живые глаза (волна 50) — как в комнате.
             if model != nil { PetRig.styleEyes(body, iris: breed.iris) }
             let b = body.visualBounds(relativeTo: nil)

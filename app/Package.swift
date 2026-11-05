@@ -208,6 +208,7 @@ let package = Package(
                 "YardTests.swift",
                 "YardTextTests.swift",
         "AwayReportTests.swift",
+                "Wave62SeamTests.swift",
                 "YardDogTests.swift",
                 "YardMoveTests.swift",
                 "YardPaceTests.swift",

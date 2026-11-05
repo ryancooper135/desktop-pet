@@ -727,6 +727,29 @@ final class ScreenshotUITests: XCTestCase {
         app.terminate()
     }
 
+    /// Волна 62: ссылка pet://needs (тап по виджету), пока открыт лист «Задания дня» с карточки главного.
+    /// Было: лист карточки жил в её @State — приложение о нём не знало, шкалы молча не открывались, а флаг
+    /// showNeeds оставался true (кнопка шкал потом мёртвая). Теперь лист заданий закрывается, открываются шкалы.
+    @MainActor
+    func testStates96DeepLinkOverQuest() throws {
+        let app = Self.makeApp()
+        for (k, v) in ["PET_OPEN": "quest", "PET_THEN": "needs", "PET_NOW": Self.noon, "PET_SCHEME": "light"] {
+            app.launchEnvironment[k] = v
+        }
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
+        acceptSystemAlerts()
+        let tasks = app.descendants(matching: .any)["tasks.close"].firstMatch
+        XCTAssertTrue(tasks.waitForExistence(timeout: 10), "ui-96q: лист «Задания дня» не открылся")
+        snap("ui-96q-quest-before")
+        let needs = app.descendants(matching: .any)["needs.sheet"].firstMatch
+        let found = needs.waitForExistence(timeout: 15)
+        settle(1)
+        snap("ui-96q-quest-needs")
+        XCTAssertTrue(found, "ui-96q: pet://needs поверх «Заданий дня» не открыл шкалы")
+        app.terminate()
+    }
+
     // MARK: - Волна 20: согласованность подсказок (ui-93)
 
     /// Уже голодный и хочет гулять: плашка «Покормить», таймер беды «Совсем оголодает», тост замка с числами.

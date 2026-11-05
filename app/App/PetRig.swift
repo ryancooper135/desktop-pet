@@ -419,7 +419,9 @@ final class PetRig {
     /// Глаза держатся головы (волна 32, EyePin): у вершин глаз и шерсти рядом вес ушей отходит Head — глаз больше
     /// не уезжает вверх под шерсть, когда клип или тап двигает уши. Звать при загрузке модели (PetModel.assemble),
     /// до rig и prepareCoat: веки (lidMesh) и развёртка шерсти берут уже новые веса. Не вышло — модель как была.
-    static func pinEyes(_ body: Entity) {
+    /// alias — псевдонимы костей этой модели; nil — комнатные (PetModel.boneAlias). Двор и раннер передают свои (волна 62).
+    static func pinEyes(_ body: Entity, alias: [String: String]? = nil) {
+        let alias = alias ?? PetModel.boneAlias
         var queue: [Entity] = [body]
         while !queue.isEmpty {
             let e = queue.removeFirst()
@@ -433,11 +435,11 @@ final class PetRig {
             } ?? false
             // Волна 50: и по форме — окрас или своя раскраска глаз не должны оставлять глаз на ушах.
             guard byColor || eyesByShape(m) else { continue }
-            pinEyes(m)
+            pinEyes(m, alias: alias)
         }
     }
 
-    private static func pinEyes(_ m: ModelEntity) {
+    private static func pinEyes(_ m: ModelEntity, alias: [String: String]) {
         guard var model = m.model else { return }
         let mesh = model.mesh
         let contents = mesh.contents
@@ -450,7 +452,7 @@ final class PetRig {
         }
         // Кто тянет глаз с головы — EyePin.movingBones: уши под любым именем и прочее под головой, кроме лица.
         func bones(_ names: [String]) -> (moving: Set<Int>, head: Int)? {
-            guard let head = PetModel.boneIndex(names, "Head"),
+            guard let head = BoneName.index(names, "Head", alias: alias),
                   let moving = EyePin.movingBones(names, head: head) else { return nil }
             return (moving, head)
         }

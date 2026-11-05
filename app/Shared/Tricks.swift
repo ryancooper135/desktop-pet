@@ -242,6 +242,19 @@ enum Tricks {
     static let showDaily = 5
     /// Команда голосом (SitIntent/PawIntent): пауза, пока приложение откроется и комнату станет видно, мс.
     static let siriDelayMs = 900
+    /// Волна 62: голосовая команда, а поверх комнаты открыт другой экран (раннер, двор, игра, лист) — пёс сделал бы
+    /// трюк за ним, невидимо. Тогда сначала закрыть всё (как pet://home) и подождать, пока уедет; лист «Команды»
+    /// doTrick закрывает сам. open — AppModel.openRoutes; away — сверху «Пока тебя не было» (давно не заходил:
+    /// команда голосом открывает приложение, и отчёт встаёт поверх комнаты раньше трюка).
+    static func voiceClosesFirst(open: Set<String>, away: Bool = false) -> Bool {
+        away || !open.subtracting(["tricks"]).isEmpty
+    }
+
+    /// Пауза перед трюком после закрытия чужих экранов, мс (0 — закрывать нечего).
+    static func voiceCloseDelayMs(open: Set<String>, away: Bool = false) -> Int {
+        voiceClosesFirst(open: open, away: away) ? Int(DeepLink.closeDelay * 1000) : 0
+    }
+
     /// Запись журнала засчитанной удачи — задание дня «Покажи трюки».
     static let showKind = "trick.show"
     /// Запись журнала выучки (DogLevel: опыт, «Воспоминания»).

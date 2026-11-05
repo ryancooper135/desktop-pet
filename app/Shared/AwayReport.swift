@@ -309,13 +309,22 @@ enum AwayBuilder {
             return AwayReport.Hint(kind: "need", icon: act.icon, tone: tone(a.kind), label: "Сейчас",
                                    title: st.title, button: act.title, reward: careReward(f, a, now: now), action: a)
         }
+        // Волна 62: задание дня — только если ядро сейчас примет действие. Пёс гуляет, в походе, дремлет, спит ночью
+        // или моется — «Поиграть» и «Гулять» отсюда давали тост отказа; такое задание пропускаем.
         let board = DailyTasks.board(f, now: now)
-        if let t = board.items.first(where: { !$0.done && askAction($0.id) != nil }), let a = askAction(t.id) {
+        if let t = board.items.first(where: { t in !t.done && askAction(t.id).map { accepts(f, $0, now: now) } == true }),
+           let a = askAction(t.id) {
             return AwayReport.Hint(kind: "task", icon: icon(t.id), tone: tone(t.id), label: "Задание дня",
                                    title: "\(DailyTaskText.name(t)) · \(DailyTaskText.progress(t))",
                                    button: taskButton(t.id), reward: DailyTaskText.reward(t), action: a)
         }
         return nil
+    }
+
+    /// Примет ли ядро действие сейчас — те же правила и владелец, что у PetRunner.apply, на копии стейта.
+    static func accepts(_ f: SaveFile, _ a: PetAction, now: Double) -> Bool {
+        var s = PetRunner.peek(f, at: now)
+        return PetEngine.act(&s, ItemPerks.rules(f), f.owner, a.core).ok
     }
 
     /// Монеты за уход этим действием сегодня: по economy.json, но не выше остатка дневного потолка.

@@ -232,7 +232,7 @@ enum PetModel {
     /// Индекс кости leaf (или её псевдонима у своего персонажа) в путях вида «Body/…/Neck3/Head». Сначала точно,
     /// потом без разницы «Ear1.L» / «Ear1_L» / регистр (волна 50, BoneName: уши Шибы раньше не находились).
     static func boneIndex(_ names: [String], _ leaf: String) -> Int? {
-        BoneName.index(names, boneAlias[leaf] ?? leaf)
+        BoneName.index(names, leaf, alias: boneAlias)
     }
 
     /// Как поставить модель: у породы из коробки — её константы (PetBreed), у своего персонажа — из character.json.
