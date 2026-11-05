@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Волна 60 · на выбор</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --ink:#1C1B29; --mute:#6B6880; --vio:#6C5CE7; --line:#E6E1DA; --ok:#22C59A; }
+body { background: #F4F1EC; color: var(--ink); font: 17px/1.45 'Onest', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 70px; }
+h1 { font-size: 42px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; }
+.lead { font-size: 19px; color: #4a4650; margin-top: 10px; max-width: 860px; }
+h2 { font-size: 30px; font-weight: 800; margin: 54px 0 6px; letter-spacing: -.3px; }
+h2 small { font-size: 15px; font-weight: 600; color: var(--mute); margin-left: 10px; letter-spacing: 0; }
+.sub { color: #4a4650; margin-bottom: 18px; }
+a { color: var(--vio); }
+.card { background: #fff; border-radius: 22px; padding: 6px 4px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; }
+th, td { text-align: left; padding: 12px 16px; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: var(--mute); font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 700; }
+tr.pick td { background: rgba(108,92,231,.06); }
+.n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--vio); color: #fff; font-weight: 700; font-size: 14px; }
+.n.o { background: #E7E3F7; color: var(--vio); }
+.tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #F1EEE9; white-space: nowrap; }
+.tag.s { background: #DDF6EE; color: #138462; } .tag.m { background: #FFF0E0; color: #B4630F; } .tag.l { background: #FFE3EA; color: #C02C55; }
+.no { margin-top: 14px; color: #4a4650; font-size: 16px; }
+.reco { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+.reco div { background: #fff; border-radius: 20px; padding: 16px 18px; }
+.reco b { display: block; font-size: 18px; margin: 6px 0 4px; }
+.reco span { color: #4a4650; font-size: 15px; }
+.sheet { display: block; width: 100%; border-radius: 22px; background: #fff; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.trio a { display: block; background: #fff; border-radius: 20px; overflow: hidden; text-decoration: none; color: var(--ink); }
+.trio img { display: block; width: 100%; }
+.trio p { padding: 10px 16px 14px; font-size: 15px; color: #4a4650; }
+.trio p b { color: var(--ink); font-size: 17px; display: block; }
+.q { background: #fff; border-radius: 22px; padding: 18px 22px 18px 44px; }
+.q li { margin: 6px 0; }
+.foot { margin-top: 40px; color: var(--mute); font-size: 14px; }
+@media (max-width: 760px) { .reco, .trio { grid-template-columns: 1fr; } h1 { font-size: 32px; } }
+</style></head>
+<body><div class="wrap">
+
+<h1>Волна 60 · на выбор Вадиму</h1>
+<p class="lead">Две задачи без кода: что взять из «Аватарии» для общения с друзьями и какой быть второй бесконечной игре. Выбрать по одному пункту в каждой — или сказать «не то».</p>
+
+<h2>1 · Вместе с друзьями <small>принципы «Аватарии», не копия</small></h2>
+<p class="sub">Всё асинхронно, круг — 2–3 друга, без чата и свободного текста. Сервер, где нужен, — облачный воркер на аккаунте «Блок Дуо». Полная версия с источниками — <a href="research.md">research.md</a>.</p>
+<div class="card"><table>
+  <tr><th></th><th>Механика</th><th>Как выглядит у нас</th><th>Сервер</th><th>Размер</th><th>Риск</th></tr>
+  <tr class="pick"><td><span class="n">1</span></td><td><b>Открытка из дома</b></td><td>кнопка «Поделиться» у открытки дня и в Шкафу — картинка пса и комнаты в любой мессенджер</td><td>нет</td><td><span class="tag s">S</span></td><td>почти нет</td></tr>
+  <tr class="pick"><td><span class="n">2</span></td><td><b>Друзья по коду + гостинец</b></td><td>друг добавляется кодом/QR; раз в день значок-подарок без текста, прилетает в островок</td><td>воркер</td><td><span class="tag m">M</span></td><td>спам → лимит 1/день</td></tr>
+  <tr class="pick"><td><span class="n">3</span></td><td><b>Пёс в гостях</b></td><td>Шиба уходит к другу на 1–3 ч, у друга в комнате второй пёс, погладить — обоим +любовь</td><td>воркер</td><td><span class="tag m">M</span></td><td>FPS с двумя псами</td></tr>
+  <tr><td><span class="n o">4</span></td><td><b>Рекорды друзей</b></td><td>на карточке игры «Лиса — 1 240 ★», только среди друзей</td><td>воркер</td><td><span class="tag s">S</span></td><td>мягкий анти-чит</td></tr>
+  <tr><td><span class="n o">5</span></td><td><b>Дружба псов</b></td><td>кольцо дружбы растёт от гостинцев и визитов, на 3/5/10 — парная вещь</td><td>воркер</td><td><span class="tag m">M</span></td><td>не давить серией</td></tr>
+  <tr><td><span class="n o">6</span></td><td><b>Помочь другу</b></td><td>полить растение в комнате друга → его двор +5 % на сутки</td><td>воркер</td><td><span class="tag l">M–L</span></td><td>просмотр чужой комнаты</td></tr>
+  <tr><td><span class="n o">7</span></td><td><b>День рождения пса</b></td><td>друзьям приглашение, кто зашёл — общий значок и колпак</td><td>воркер</td><td><span class="tag m">M</span></td><td>редкое событие</td></tr>
+</table></div>
+<p class="no"><b>Не берём:</b> чат, свадьбы и поцелуи, глобальные рейтинги и голосования, обмен вещами, покупки за деньги. В облаке только имя пса, внешность и игровые числа.</p>
+<div class="reco">
+  <div><span class="n">1</span><b>Открытка из дома</b><span>за одну волну, без сервера; сразу «показать своего пса»</span></div>
+  <div><span class="n">2</span><b>Друзья + гостинец</b><span>фундамент: коды, инбокс, лимиты — без модерации</span></div>
+  <div><span class="n">3</span><b>Пёс в гостях</b><span>самое «питомцевое»; запасной вариант — Рекорды друзей</span></div>
+</div>
+
+<h2>2 · Вторая бесконечная игра <small>стиль B «Стекло»</small></h2>
+<p class="sub">У каждой идеи своё одно движение пальцем — не как раннер со свайпами. Макеты: <a href="games.html">games.html</a> (<a href="games.html?g=a">A</a> · <a href="games.html?g=b">B</a> · <a href="games.html?g=c">C</a>).</p>
+<img class="sheet" src="png/sheet.png" alt="Три идеи второй игры">
+<div class="trio">
+  <a href="png/game-a.png"><img src="png/game-a.png" alt="A Змей"><p><b>A · Змей — рекомендую</b>держать / отпустить. Самый спокойный и самый непохожий на раннер, управление проще некуда.</p></a>
+  <a href="png/game-b.png"><img src="png/game-b.png" alt="B Облака"><p><b>B · Облака</b>тап слева / справа. Ритм и выбор пути вверх; азартнее, но ближе к «прыгалкам».</p></a>
+  <a href="png/game-c.png"><img src="png/game-c.png" alt="C Пузырь"><p><b>C · Пузырь</b>вести пальцем. Уютная связка с купанием, но нужен красивый прозрачный пузырь в 3D.</p></a>
+</div>
+
+<h2>Вопросы</h2>
+<ol class="q">
+  <li>Друзья: начинаем с «Открытки» (без сервера), а воркер для кодов — следующей волной?</li>
+  <li>Свой домен под воркер или пробуем workers.dev у друзей в РФ?</li>
+  <li>Вторая игра: A «Змей», B, C — или смесь (например, змей + пузырь как бонус)?</li>
+</ol>
+<p class="foot">Волна 60 · 31.10.2026 · только дизайн и исследование, кода приложения нет.</p>
+</div></body></html>

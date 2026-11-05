@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Волна 60 · вторая игра</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Волна 55 п. 4 — три идеи второй бесконечной игры, стиль B «Стекло» (как design/wave53/b-steklo.html).
+   Без параметра — общий лист (1440×1330); ?g=a|b|c — одна игра с описанием (960×1240). */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --ink:#1C1B29; --mute:#6B6880; --vio:#6C5CE7; --food:#FF9446; --love:#FF5E86; --play:#22C59A; --wash:#3EA7FF; }
+html, body { width: 1440px; height: 1330px; overflow: hidden; }
+body { background: #F4F1EC; color: var(--ink); font-family: 'Onest', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+body.one, body.one html { width: 960px; height: 1240px; }
+
+.top { height: 196px; padding: 34px 40px 0; }
+.top h1 { font-size: 48px; font-weight: 800; letter-spacing: -.6px; line-height: 1.05; }
+.top p { font-size: 23px; color: #4a4650; margin-top: 12px; line-height: 1.3; max-width: 1300px; }
+.games { display: flex; gap: 50px; padding: 0 40px; }
+
+.game .ghead, .game .info { display: none; }
+.cap { width: 420px; margin-top: 16px; text-align: center; }
+.cap b { display: block; font-size: 26px; font-weight: 800; }
+.cap span { display: block; font-size: 18px; color: #4a4650; margin-top: 4px; line-height: 1.3; }
+.cap .ctl { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; height: 34px; padding: 0 14px; border-radius: 17px;
+  background: #fff; font-size: 16px; font-weight: 600; color: var(--vio); }
+.cap .ctl svg { width: 20px; height: 20px; }
+
+/* ===== одна игра ===== */
+body.one .top { display: none; }
+body.one .games { padding: 0; display: block; }
+body.one .game { display: grid; grid-template-columns: 420px 424px; grid-template-rows: 248px 912px; column-gap: 36px; padding: 0 40px; }
+body.one .game .ghead { display: block; grid-column: 1 / 3; padding-top: 30px; }
+body.one .game .cap { display: none; }
+body.one .game .info { display: flex; flex-direction: column; gap: 14px; }
+.ghead h1 { font-size: 46px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; }
+.ghead h1 small { font-size: 46px; opacity: .35; margin-right: 10px; }
+.ghead .idea { font-size: 23px; line-height: 1.32; margin-top: 10px; color: #3d3a40; max-width: 880px; }
+.box { background: #fff; border-radius: 26px; padding: 18px 22px; }
+.box h4 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--mute); }
+.box h4 svg { width: 20px; height: 20px; color: var(--vio); }
+.box p { font-size: 18px; line-height: 1.34; margin-top: 8px; color: #2f2c33; }
+.steps { display: flex; gap: 8px; margin-top: 12px; }
+.steps div { flex: 1; border-radius: 16px; padding: 10px 10px 11px; background: rgba(108,92,231,var(--a)); }
+.steps b { display: block; font-size: 14px; font-weight: 700; color: var(--vio); }
+.steps span { display: block; font-size: 15px; line-height: 1.25; margin-top: 3px; color: #2f2c33; }
+
+/* ===== телефон ===== */
+.phone { width: 420px; height: 912px; border-radius: 58px; position: relative; overflow: hidden;
+  box-shadow: 0 0 0 5px #1b1b1f, 0 0 0 7px #8d8b92, 0 22px 40px rgba(0,0,0,.18); }
+.island { position: absolute; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px; border-radius: 20px; background: #000; z-index: 50; }
+.sbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 34px 0 46px; font: 600 17px 'Onest', sans-serif; z-index: 40; }
+.sbar svg { display: block; fill: currentColor; }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 140px; margin-left: -70px; height: 5px; border-radius: 3px; background: #111; z-index: 50; }
+.glass { background: rgba(255,255,255,.46); backdrop-filter: blur(22px) saturate(1.6); -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.75); box-shadow: 0 8px 26px rgba(70,60,140,.12), inset 0 1px 0 rgba(255,255,255,.9); }
+svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.coin { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFE69A, #F4B42F); box-shadow: inset 0 0 0 2px #E8A21C; display: inline-block; flex: none; }
+.blob { position: absolute; border-radius: 50%; filter: blur(30px); opacity: .7; }
+
+.hud { position: absolute; top: 62px; left: 14px; right: 14px; display: flex; gap: 8px; align-items: center; z-index: 20; }
+.capx { height: 44px; border-radius: 22px; display: flex; align-items: center; gap: 8px; padding: 0 16px; font-weight: 700; font-size: 19px; }
+.capx small { font-size: 13px; color: var(--mute); font-weight: 600; }
+.round { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
+.round svg { width: 18px; height: 18px; }
+.ml { margin-left: auto; }
+.best { position: absolute; top: 114px; left: 50%; transform: translateX(-50%); height: 28px; border-radius: 14px; padding: 0 12px;
+  display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--mute); z-index: 20; }
+.best svg { width: 14px; height: 14px; color: var(--vio); }
+.hint { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); height: 52px; border-radius: 26px; padding: 0 20px 0 8px;
+  display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; white-space: nowrap; z-index: 20; }
+.hint .f { width: 38px; height: 38px; border-radius: 50%; background: var(--vio); color: #fff; display: grid; place-items: center; }
+.hint .f svg { width: 22px; height: 22px; }
+.pop { position: absolute; font-size: 15px; font-weight: 700; padding: 4px 10px; border-radius: 12px; z-index: 15; display: flex; align-items: center; gap: 5px; }
+
+.pet { position: absolute; color: rgba(214,130,72,.95); z-index: 8; }
+.pet svg { display: block; fill: currentColor; }
+.pet .tag { position: absolute; left: 50%; transform: translateX(-50%); bottom: -8px; font: 600 11px 'Onest', sans-serif;
+  padding: 2px 8px; border-radius: 10px; background: rgba(0,0,0,.45); color: #fff; white-space: nowrap; letter-spacing: .3px; }
+
+/* ===== A: змей ===== */
+.A { background: linear-gradient(180deg, #A9D3FF 0%, #CFE2FF 34%, #E6DCFF 64%, #FFE2D4 100%); }
+.cl { position: absolute; background: #fff; border-radius: 60px; opacity: .85; }
+.cl:before, .cl:after { content: ''; position: absolute; background: #fff; border-radius: 50%; }
+.cl:before { width: 55%; height: 170%; left: 14%; bottom: 20%; }
+.cl:after { width: 40%; height: 130%; right: 12%; bottom: 25%; }
+.roofs { position: absolute; left: 0; right: 0; bottom: 0; height: 190px; z-index: 3; }
+.bird { position: absolute; width: 46px; height: 38px; z-index: 9; }
+.wind { position: absolute; z-index: 7; }
+
+/* ===== B: облака ===== */
+.B2 { background: linear-gradient(180deg, #3D3A84 0%, #6E64CF 22%, #A9A0F0 42%, #CFE2FF 66%, #FFE2D4 100%); }
+.star { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; }
+.puff { position: absolute; height: 46px; border-radius: 26px; background: linear-gradient(#fff, #EEF0FF); z-index: 6;
+  box-shadow: 0 10px 20px rgba(70,60,140,.16), inset 0 -6px 10px rgba(108,92,231,.10); }
+.puff:before, .puff:after { content: ''; position: absolute; border-radius: 50%; background: inherit; }
+.puff:before { width: 52%; height: 120%; left: 12%; top: -55%; background: #fff; }
+.puff:after { width: 38%; height: 95%; right: 14%; top: -38%; background: #fff; }
+.puff.melt { opacity: .72; transform: scale(.86); }
+.puff.storm { background: linear-gradient(#9AA0BD, #7C82A3); }
+.puff.storm:before, .puff.storm:after { background: #9AA0BD; }
+.sun { position: absolute; width: 30px; height: 30px; z-index: 7; }
+.drip { position: absolute; width: 8px; height: 11px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: rgba(62,167,255,.55); z-index: 6; }
+.half { position: absolute; bottom: 30px; width: 186px; height: 70px; border-radius: 35px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 17px; font-weight: 600; z-index: 20; }
+.half svg { width: 22px; height: 22px; }
+.jump { position: absolute; z-index: 7; }
+
+/* ===== C: пузырь ===== */
+.C { background: linear-gradient(180deg, #BFD9FF 0%, #DCD8FF 40%, #F3DFF0 70%, #DDF4EA 100%); }
+.bubble { position: absolute; border-radius: 50%; z-index: 9;
+  background: radial-gradient(circle at 50% 55%, rgba(255,255,255,0) 58%, rgba(255,255,255,.35) 72%, rgba(255,255,255,.75) 100%);
+  box-shadow: inset 0 0 0 3px rgba(255,255,255,.7), 0 10px 30px rgba(108,92,231,.18); }
+.bubble:before { content: ''; position: absolute; inset: -2px; border-radius: 50%; padding: 5px;
+  background: conic-gradient(from 200deg, #8FD3FF, #C8A8FF, #FFB3D1, #FFE0A3, #A8F0D4, #8FD3FF);
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 68%); mask: radial-gradient(circle, transparent 66%, #000 68%); opacity: .75; }
+.bubble:after { content: ''; position: absolute; left: 22%; top: 12%; width: 30%; height: 18%; border-radius: 50%;
+  border-top: 5px solid rgba(255,255,255,.95); transform: rotate(-28deg); }
+.branch { position: absolute; z-index: 6; }
+.burr { position: absolute; width: 44px; height: 44px; z-index: 7; }
+.bee { position: absolute; width: 44px; height: 34px; z-index: 7; }
+.dropc { position: absolute; width: 22px; height: 28px; z-index: 7; }
+.yard { position: absolute; left: 0; right: 0; bottom: 0; height: 170px; z-index: 3; }
+.shield { display: flex; gap: 4px; }
+.shield i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #A8D8FF); box-shadow: inset 0 0 0 1.5px #6BB8FF; display: block; }
+.shield i.off { background: rgba(0,0,0,.08); box-shadow: none; }
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="hand" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11M12 10V4.5a1.5 1.5 0 0 1 3 0V11M15 10.5V6.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7 6 6 0 0 1-5-2.7L3.6 14.6a1.5 1.5 0 0 1 2.3-1.9L9 15.5V11"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="chl" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="chr" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="wind" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></symbol>
+  <symbol id="tap" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></symbol>
+  <symbol id="drag" viewBox="0 0 24 24"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></symbol>
+  <symbol id="gauge" viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></symbol>
+  <symbol id="leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-14 14-14 0 9-6 14-14 14z"/><path d="M5 19 13 11"/></symbol>
+  <symbol id="diff" viewBox="0 0 24 24"><path d="M4 19h16M6 16l4-4 3 3 5-7"/></symbol>
+  <symbol id="dog" viewBox="0 0 300 240">
+    <path d="M232 112c34-6 46-40 26-58-16-14-40-4-38 14 1 12 16 14 18 6" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round"/>
+    <ellipse cx="160" cy="138" rx="86" ry="48"/><circle cx="80" cy="92" r="46"/><ellipse cx="34" cy="108" rx="36" ry="19"/>
+    <path d="M50 66 60 18 92 54Z M88 52 116 16 122 66Z"/>
+    <rect x="92" y="150" width="24" height="70" rx="11"/><rect x="124" y="156" width="24" height="64" rx="11"/><rect x="186" y="156" width="24" height="64" rx="11"/><rect x="214" y="150" width="24" height="70" rx="11"/>
+  </symbol>
+  <symbol id="sbar" viewBox="0 0 50 12">
+    <rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/>
+    <rect x="24.5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="26.5" y="2.5" width="16" height="7" rx="2"/><rect x="47.5" y="4" width="2" height="4" rx="1" opacity=".4"/>
+  </symbol>
+</svg>
+
+<div class="top">
+  <h1>Вторая бесконечная игра · три идеи</h1>
+  <p>Первая — раннер по 3 полосам (свайпы, бег вперёд). Вторая должна ощущаться иначе: у каждой идеи своё одно движение пальцем — держать, тапать или вести. Пёс — заглушка, на его месте 3D-Шиба.</p>
+</div>
+
+<div class="games">
+
+<!-- ============ A — Змей ============ -->
+<div class="game" data-g="a">
+  <div class="ghead"><h1><small>A</small>Змей</h1>
+    <div class="idea">Шиба летит на воздушном змее над крышами района: держишь палец — змей набирает высоту, отпускаешь — плавно планирует вниз.</div></div>
+  <div class="phone A">
+    <div class="blob" style="left:-80px;top:120px;width:260px;height:200px;background:#C9E4FF"></div>
+    <div class="blob" style="right:-80px;top:520px;width:240px;height:240px;background:#FFD1C0"></div>
+    <div class="island"></div>
+    <div class="sbar"><span>9:41</span><svg width="50" height="12"><use href="#sbar"/></svg></div>
+    <div class="cl" style="left:250px;top:200px;width:120px;height:30px"></div>
+    <div class="cl" style="left:-20px;top:300px;width:90px;height:24px;opacity:.7"></div>
+    <div class="cl" style="left:300px;top:520px;width:140px;height:34px;opacity:.75"></div>
+    <div class="cl" style="left:40px;top:610px;width:100px;height:26px;opacity:.6"></div>
+
+    <div class="hud">
+      <div class="round glass"><svg class="i"><use href="#pause"/></svg></div>
+      <div class="capx glass">1 240 <small>м</small></div>
+      <div class="capx glass ml"><span class="coin"></span>34</div>
+    </div>
+    <div class="best glass"><svg class="i"><use href="#star"/></svg>рекорд 2 980 м</div>
+
+    <!-- ленты ветра с монетами -->
+    <svg class="wind" style="left:180px;top:230px" width="240" height="200" viewBox="0 0 240 200">
+      <path d="M0 150 C60 150 70 60 130 60 S210 120 240 110" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".55"/>
+      <path d="M0 150 C60 150 70 60 130 60 S210 120 240 110" fill="none" stroke="#6C5CE7" stroke-width="2.5" stroke-dasharray="2 10" stroke-linecap="round" opacity=".5"/>
+    </svg>
+    <div class="coin" style="position:absolute;left:236px;top:322px;width:22px;height:22px;z-index:7"></div>
+    <div class="coin" style="position:absolute;left:270px;top:292px;width:22px;height:22px;z-index:7"></div>
+    <div class="coin" style="position:absolute;left:306px;top:284px;width:22px;height:22px;z-index:7"></div>
+    <div class="coin" style="position:absolute;left:344px;top:300px;width:22px;height:22px;z-index:7"></div>
+    <div class="coin" style="position:absolute;left:382px;top:326px;width:22px;height:22px;z-index:7"></div>
+
+    <!-- птицы -->
+    <svg class="bird" style="left:318px;top:418px" viewBox="0 0 46 38"><ellipse cx="22" cy="22" rx="16" ry="13" fill="#8C9AC4"/><path d="M14 18c-6-8-12-6-12-6 4 6 8 10 12 10z" fill="#A8B5DB"/><circle cx="14" cy="18" r="2.3" fill="#1C1B29"/><path d="M6 22l-5 2 5 2z" fill="#FF9446"/></svg>
+    <svg class="bird" style="left:360px;top:470px;transform:scale(.8)" viewBox="0 0 46 38"><ellipse cx="22" cy="22" rx="16" ry="13" fill="#8C9AC4"/><path d="M14 18c-6-8-12-6-12-6 4 6 8 10 12 10z" fill="#A8B5DB"/><circle cx="14" cy="18" r="2.3" fill="#1C1B29"/><path d="M6 22l-5 2 5 2z" fill="#FF9446"/></svg>
+
+    <!-- змей + нитка + пёс -->
+    <svg style="position:absolute;left:60px;top:250px;z-index:8" width="220" height="330" viewBox="0 0 220 330">
+      <path d="M120 112 C110 170 92 210 84 262" fill="none" stroke="#5B5873" stroke-width="2"/>
+      <path d="M120 112 C140 150 132 180 150 206 S150 250 168 268" fill="none" stroke="#6C5CE7" stroke-width="2.5"/>
+      <path d="M140 180l-10 -6 2 12z M152 222l-11 -3 5 11z M162 256l-11 0 7 9z" fill="#FF5E86"/>
+      <g transform="rotate(-18 120 60)">
+        <path d="M120 4 L170 60 L120 116 L70 60 Z" fill="#FF9446"/>
+        <path d="M120 4 L170 60 L120 60 Z" fill="#FFB070"/>
+        <path d="M120 60 L120 116 L70 60 Z" fill="#FF5E86"/>
+        <path d="M120 4 L120 116 M70 60 L170 60" stroke="#fff" stroke-width="3" opacity=".8"/>
+      </g>
+    </svg>
+    <div class="pet" style="left:62px;top:500px;width:150px;height:120px;transform:rotate(-8deg)"><svg width="150" height="120"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+    <div class="pop glass" style="left:206px;top:458px;color:var(--vio)"><svg class="i" style="width:16px;height:16px"><use href="#wind"/></svg>ветерок ×2</div>
+
+    <!-- крыши района -->
+    <svg class="roofs" viewBox="0 0 420 190" preserveAspectRatio="none">
+      <path d="M0 110 L40 80 L80 110 L80 190 L0 190Z" fill="#C9BDF2"/>
+      <path d="M70 120 h90 v70 h-90z" fill="#D8CEF7"/><path d="M60 122 L115 86 L170 122Z" fill="#B3A5EC"/>
+      <path d="M160 96 h70 v94 h-70z" fill="#C2B5F0"/><path d="M150 98 L195 66 L240 98Z" fill="#A595E6"/>
+      <path d="M230 128 h100 v62 h-100z" fill="#DCD3F8"/><path d="M222 130 L280 94 L338 130Z" fill="#B9ABEE"/>
+      <path d="M320 104 h100 v86 h-100z" fill="#CABEF3"/><path d="M312 106 L370 70 L428 106Z" fill="#A99AE8"/>
+      <g fill="#FFE7B0" opacity=".9"><rect x="90" y="140" width="14" height="16" rx="3"/><rect x="124" y="140" width="14" height="16" rx="3"/><rect x="178" y="118" width="12" height="14" rx="3"/><rect x="204" y="118" width="12" height="14" rx="3"/><rect x="258" y="148" width="14" height="16" rx="3"/><rect x="292" y="148" width="14" height="16" rx="3"/><rect x="344" y="128" width="14" height="16" rx="3"/><rect x="380" y="128" width="14" height="16" rx="3"/></g>
+      <path d="M190 66 v-16" stroke="#8A7BD8" stroke-width="3"/><path d="M190 50 l14 5 -14 5z" fill="#FF5E86"/>
+    </svg>
+
+    <div class="hint glass"><div class="f"><svg class="i"><use href="#hand"/></svg></div>Держи — вверх · отпусти — вниз</div>
+    <div class="homebar"></div>
+  </div>
+  <div class="cap"><b>A · Змей</b><span>Летишь на воздушном змее над крышами района</span><div class="ctl"><svg class="i"><use href="#hand"/></svg>держать / отпустить</div></div>
+  <div class="info">
+    <div class="box"><h4><svg class="i"><use href="#hand"/></svg>Управление</h4><p>Одно касание: держишь — змей тянет вверх, отпускаешь — планирует. Ни свайпов, ни полос.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#wind"/></svg>Не как раннер</h4><p>Вид сбоку, плавные дуги вместо рывков. Ощущение ветра и полёта, спокойный темп.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#leaf"/></svg>Лёгкая</h4><p>3–4 слоя фона-картинок, пёс в одной позе, птицы и ленты из пула ~20 штук. Высота — простая формула, без физдвижка.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#diff"/></svg>Сложность</h4>
+      <div class="steps"><div style="--a:.08"><b>0–30 с</b><span>только ленты с монетами</span></div><div style="--a:.15"><b>30–90 с</b><span>птицы по одной, ветер быстрее</span></div><div style="--a:.24"><b>90+ с</b><span>стайки и порывы вниз</span></div></div></div>
+  </div>
+</div>
+
+<!-- ============ B — Облака ============ -->
+<div class="game" data-g="b">
+  <div class="ghead"><h1><small>B</small>Облака</h1>
+    <div class="idea">Шиба прыгает вверх с облака на облако, а облако под лапами тает — успей выбрать следующее, слева или справа.</div></div>
+  <div class="phone B2" style="color:#fff">
+    <div class="star" style="left:60px;top:150px"></div><div class="star" style="left:180px;top:120px;width:3px;height:3px"></div>
+    <div class="star" style="left:300px;top:170px"></div><div class="star" style="left:360px;top:110px;width:3px;height:3px"></div>
+    <div class="star" style="left:110px;top:220px;width:3px;height:3px"></div><div class="star" style="left:250px;top:240px;width:2px;height:2px"></div>
+    <div class="blob" style="right:-80px;top:560px;width:260px;height:240px;background:#FFD1C0"></div>
+    <div class="island"></div>
+    <div class="sbar"><span>9:41</span><svg width="50" height="12"><use href="#sbar"/></svg></div>
+
+    <div class="hud" style="color:var(--ink)">
+      <div class="round glass"><svg class="i"><use href="#pause"/></svg></div>
+      <div class="capx glass"><svg class="i" style="width:18px;height:18px"><use href="#up"/></svg>86</div>
+      <div class="capx glass ml"><span class="coin"></span>21</div>
+    </div>
+    <div class="best glass"><svg class="i"><use href="#star"/></svg>рекорд 140</div>
+
+    <!-- облака снизу вверх, зигзагом -->
+    <div class="puff melt" style="left:52px;top:700px;width:150px"></div>
+    <div class="drip" style="left:96px;top:752px"></div><div class="drip" style="left:140px;top:764px;transform:scale(.8)"></div><div class="drip" style="left:170px;top:748px;transform:scale(.7)"></div>
+    <div class="puff" style="left:228px;top:592px;width:140px"></div>
+    <div class="puff" style="left:60px;top:486px;width:130px"></div>
+    <div class="puff storm" style="left:236px;top:388px;width:130px"></div>
+    <svg style="position:absolute;left:290px;top:430px;z-index:7" width="26" height="40" viewBox="0 0 26 40"><path d="M15 0 L3 22 H12 L8 40 L23 15 H14 Z" fill="#FFD46B"/></svg>
+    <div class="puff" style="left:70px;top:296px;width:120px"></div>
+    <div class="puff" style="left:250px;top:214px;width:110px;opacity:.9"></div>
+
+    <!-- солнышки-монеты -->
+    <svg class="sun" style="left:282px;top:548px" viewBox="0 0 30 30"><g stroke="#F4B42F" stroke-width="2.4" stroke-linecap="round"><path d="M15 1v4M15 25v4M1 15h4M25 15h4M5 5l3 3M22 22l3 3M5 25l3-3M22 8l3-3"/></g><circle cx="15" cy="15" r="7.5" fill="#FFD46B" stroke="#E8A21C" stroke-width="2"/></svg>
+    <svg class="sun" style="left:110px;top:252px" viewBox="0 0 30 30"><g stroke="#F4B42F" stroke-width="2.4" stroke-linecap="round"><path d="M15 1v4M15 25v4M1 15h4M25 15h4M5 5l3 3M22 22l3 3M5 25l3-3M22 8l3-3"/></g><circle cx="15" cy="15" r="7.5" fill="#FFD46B" stroke="#E8A21C" stroke-width="2"/></svg>
+
+    <!-- дуга прыжка -->
+    <svg class="jump" style="left:150px;top:540px" width="150" height="150" viewBox="0 0 150 150"><path d="M10 140 C30 30 110 10 140 50" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="3 9" stroke-linecap="round" opacity=".9"/></svg>
+    <div class="pet" style="left:68px;top:614px;width:116px;height:93px"><svg width="116" height="93"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+    <div class="pop glass" style="left:42px;top:780px;color:var(--wash)"><svg class="i" style="width:16px;height:16px"><use href="#gauge"/></svg>тает</div>
+
+    <div class="half glass" style="left:14px;color:var(--ink)"><svg class="i"><use href="#chl"/></svg>тап</div>
+    <div class="half glass" style="right:14px;color:var(--ink)">тап<svg class="i"><use href="#chr"/></svg></div>
+    <div class="homebar" style="background:#1C1B29"></div>
+  </div>
+  <div class="cap"><b>B · Облака</b><span>Прыжки вверх по тающим облакам, всё выше к звёздам</span><div class="ctl"><svg class="i"><use href="#tap"/></svg>тап слева / справа</div></div>
+  <div class="info">
+    <div class="box"><h4><svg class="i"><use href="#tap"/></svg>Управление</h4><p>Тап по левой или правой половине — прыжок на облако выше с той стороны. Только тапы.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#up"/></svg>Не как раннер</h4><p>Вертикаль и ритм. Не уворот в последний момент, а выбор пути — есть полсекунды подумать.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#leaf"/></svg>Лёгкая</h4><p>Экран почти стоит, 6–8 облаков в пуле, прыжок — одна дуга. Фон — градиент, темнеет к звёздам.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#diff"/></svg>Сложность</h4>
+      <div class="steps"><div style="--a:.08"><b>0–30 с</b><span>облака стоят, тают медленно</span></div><div style="--a:.15"><b>30–90 с</b><span>грозовые — на них нельзя</span></div><div style="--a:.24"><b>90+ с</b><span>облака плывут, тают быстрее</span></div></div></div>
+  </div>
+</div>
+
+<!-- ============ C — Пузырь ============ -->
+<div class="game" data-g="c">
+  <div class="ghead"><h1><small>C</small>Пузырь</h1>
+    <div class="idea">После купания Шиба улетел в мыльном пузыре: ведёшь пальцем — пузырь мягко плывёт следом, обходя ветки, колючки и пчёл.</div></div>
+  <div class="phone C">
+    <div class="blob" style="left:-70px;top:180px;width:240px;height:240px;background:#C9E4FF"></div>
+    <div class="blob" style="right:-80px;top:460px;width:260px;height:240px;background:#FFD6E6"></div>
+    <div class="island"></div>
+    <div class="sbar"><span>9:41</span><svg width="50" height="12"><use href="#sbar"/></svg></div>
+
+    <div class="hud">
+      <div class="round glass"><svg class="i"><use href="#pause"/></svg></div>
+      <div class="capx glass"><svg class="i" style="width:18px;height:18px"><use href="#up"/></svg>412 <small>м</small></div>
+      <div class="capx glass ml"><div class="shield"><i></i><i></i><i class="off"></i></div><span style="opacity:.25">|</span><span class="coin"></span>18</div>
+    </div>
+    <div class="best glass"><svg class="i"><use href="#star"/></svg>рекорд 655 м</div>
+
+    <!-- ветки -->
+    <svg class="branch" style="left:-10px;top:178px" width="220" height="90" viewBox="0 0 220 90"><path d="M0 50 C60 44 120 30 200 40" fill="none" stroke="#9C86C9" stroke-width="12" stroke-linecap="round"/><g fill="#7ED6AE"><ellipse cx="80" cy="30" rx="20" ry="11" transform="rotate(-25 80 30)"/><ellipse cx="140" cy="58" rx="20" ry="11" transform="rotate(20 140 58)"/><ellipse cx="190" cy="26" rx="18" ry="10" transform="rotate(-30 190 26)"/></g></svg>
+    <svg class="branch" style="right:-10px;top:330px" width="200" height="90" viewBox="0 0 200 90"><path d="M200 46 C150 40 90 52 20 42" fill="none" stroke="#9C86C9" stroke-width="12" stroke-linecap="round"/><g fill="#5FCB9B"><ellipse cx="120" cy="26" rx="20" ry="11" transform="rotate(25 120 26)"/><ellipse cx="60" cy="62" rx="18" ry="10" transform="rotate(-20 60 62)"/><ellipse cx="30" cy="24" rx="16" ry="9" transform="rotate(30 30 24)"/></g></svg>
+
+    <!-- колючка, пчела, капли -->
+    <svg class="burr" style="left:322px;top:240px" viewBox="0 0 44 44"><g stroke="#8E6CCF" stroke-width="3" stroke-linecap="round"><path d="M22 2v8M22 34v8M2 22h8M34 22h8M8 8l6 6M30 30l6 6M8 36l6-6M30 14l6-6"/></g><circle cx="22" cy="22" r="11" fill="#B79BEA"/><circle cx="18" cy="20" r="1.8" fill="#1C1B29"/><circle cx="26" cy="20" r="1.8" fill="#1C1B29"/></svg>
+    <svg class="bee" style="left:56px;top:440px" viewBox="0 0 44 34"><ellipse cx="16" cy="10" rx="9" ry="7" fill="#fff" opacity=".85"/><ellipse cx="28" cy="9" rx="8" ry="6" fill="#fff" opacity=".85"/><ellipse cx="22" cy="21" rx="15" ry="11" fill="#FFD46B"/><path d="M17 11v20M25 11v20" stroke="#1C1B29" stroke-width="3.5"/><circle cx="9" cy="19" r="1.8" fill="#1C1B29"/></svg>
+    <svg class="dropc" style="left:262px;top:268px" viewBox="0 0 22 28"><path d="M11 1 C11 1 2 12 2 18 a9 9 0 0 0 18 0 C20 12 11 1 11 1z" fill="#8CCBFF" stroke="#3EA7FF" stroke-width="2"/><circle cx="8" cy="17" r="2.5" fill="#fff"/></svg>
+    <svg class="dropc" style="left:204px;top:222px" viewBox="0 0 22 28"><path d="M11 1 C11 1 2 12 2 18 a9 9 0 0 0 18 0 C20 12 11 1 11 1z" fill="#8CCBFF" stroke="#3EA7FF" stroke-width="2"/><circle cx="8" cy="17" r="2.5" fill="#fff"/></svg>
+    <svg class="dropc" style="left:160px;top:136px;transform:scale(.85)" viewBox="0 0 22 28"><path d="M11 1 C11 1 2 12 2 18 a9 9 0 0 0 18 0 C20 12 11 1 11 1z" fill="#8CCBFF" stroke="#3EA7FF" stroke-width="2"/><circle cx="8" cy="17" r="2.5" fill="#fff"/></svg>
+
+    <!-- пузырь с псом -->
+    <div class="bubble" style="left:160px;top:440px;width:170px;height:170px"></div>
+    <div class="pet" style="left:186px;top:490px;width:118px;height:94px"><svg width="118" height="94"><use href="#dog"/></svg><span class="tag">3D-пёс</span></div>
+    <!-- маленькие пузырьки следом -->
+    <div class="bubble" style="left:206px;top:640px;width:26px;height:26px"></div>
+    <div class="bubble" style="left:236px;top:676px;width:16px;height:16px"></div>
+    <div class="bubble" style="left:218px;top:706px;width:10px;height:10px"></div>
+
+    <!-- палец и след -->
+    <svg style="position:absolute;left:220px;top:600px;z-index:10" width="190" height="140" viewBox="0 0 190 140"><path d="M20 30 C70 70 110 80 150 100" fill="none" stroke="#6C5CE7" stroke-width="3" stroke-dasharray="3 9" stroke-linecap="round" opacity=".6"/><circle cx="150" cy="100" r="22" fill="rgba(108,92,231,.18)"/><circle cx="150" cy="100" r="11" fill="rgba(108,92,231,.55)"/></svg>
+    <div class="pop glass" style="left:300px;top:552px;color:var(--wash)"><span class="coin" style="width:14px;height:14px"></span>+1</div>
+
+    <!-- двор уходит вниз -->
+    <svg class="yard" viewBox="0 0 420 170" preserveAspectRatio="none">
+      <ellipse cx="70" cy="150" rx="110" ry="70" fill="#A8E3C6"/><ellipse cx="350" cy="160" rx="120" ry="76" fill="#9BDDBB"/>
+      <g fill="#F6E7D8" stroke="#DCC6B0" stroke-width="2"><path d="M0 130 h420 v12 H0z"/><g><path d="M20 110 l10 -12 10 12 v60 h-20z"/><path d="M70 110 l10 -12 10 12 v60 h-20z"/><path d="M120 110 l10 -12 10 12 v60 h-20z"/><path d="M170 110 l10 -12 10 12 v60 h-20z"/><path d="M220 110 l10 -12 10 12 v60 h-20z"/><path d="M270 110 l10 -12 10 12 v60 h-20z"/><path d="M320 110 l10 -12 10 12 v60 h-20z"/><path d="M370 110 l10 -12 10 12 v60 h-20z"/></g></g>
+    </svg>
+
+    <div class="hint glass"><div class="f"><svg class="i"><use href="#drag"/></svg></div>Веди пальцем — пузырь следом</div>
+    <div class="homebar"></div>
+  </div>
+  <div class="cap"><b>C · Пузырь</b><span>Всплываешь в мыльном пузыре над двором</span><div class="ctl"><svg class="i"><use href="#drag"/></svg>вести пальцем</div></div>
+  <div class="info">
+    <div class="box"><h4><svg class="i"><use href="#drag"/></svg>Управление</h4><p>Ведёшь пальцем где угодно по экрану — пузырь плывёт следом с мягкой инерцией. Без тапов и свайпов.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#up"/></svg>Не как раннер</h4><p>Невесомость и медленный «чилл». Связь с домом: пена из ванны. Три слоя пены — первое касание не лопает.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#leaf"/></svg>Лёгкая</h4><p>Одна сфера с прозрачным материалом, 3 простых меша препятствий, пул ~15. Фон — небо и уходящий вниз двор.</p></div>
+    <div class="box"><h4><svg class="i"><use href="#diff"/></svg>Сложность</h4>
+      <div class="steps"><div style="--a:.08"><b>0–30 с</b><span>редкие ветки, много капель</span></div><div style="--a:.15"><b>30–90 с</b><span>колючки, проходы уже</span></div><div style="--a:.24"><b>90+ с</b><span>пчёлы летают, подъём быстрее</span></div></div></div>
+  </div>
+</div>
+
+</div>
+<script>
+  const g = new URLSearchParams(location.search).get('g');
+  if (g) {
+    document.body.classList.add('one');
+    document.documentElement.style.width = '960px'; document.documentElement.style.height = '1240px';
+    document.body.style.width = '960px'; document.body.style.height = '1240px';
+    document.querySelectorAll('.game').forEach(e => { if (e.dataset.g !== g) e.remove(); });
+  }
+</script>
+</body></html>
