@@ -25,6 +25,13 @@ enum BoneName {
         return names.firstIndex { normalized(Self.leaf($0)) == want }
     }
 
+    /// Индекс кости leaf с псевдонимами своего персонажа (CharacterPack.boneAliases): alias[leaf] или само имя.
+    /// Волна 62: псевдонимы — от модели, которую ищем. У моделей из коробки (двор, фургон, раннер) — пусто,
+    /// даже когда в комнате свой персонаж: его «Head» → «head_x» в Шибе не найдётся.
+    static func index(_ names: [String], _ leaf: String, alias: [String: String]) -> Int? {
+        index(names, alias[leaf] ?? leaf)
+    }
+
     /// Все кости в поддереве кости root (по путям), без неё самой.
     static func descendants(_ names: [String], of root: Int) -> Set<Int> {
         guard names.indices.contains(root) else { return [] }

@@ -37,6 +37,12 @@ enum IntentBridge {
     static func trick(_ t: Trick) async {
         #if APP_TARGET
         try? await Task.sleep(for: .milliseconds(Tricks.siriDelayMs))
+        // Волна 62: поверх комнаты раннер, двор, лист или «Пока тебя не было» — сначала закрыть, иначе трюк за ним не видно.
+        let wait = Tricks.voiceCloseDelayMs(open: AppModel.shared.openRoutes, away: AppModel.shared.away != nil)
+        if wait > 0 {
+            AppModel.shared.closeForVoice()
+            try? await Task.sleep(for: .milliseconds(wait))
+        }
         AppModel.shared.doTrick(t)
         #endif
     }

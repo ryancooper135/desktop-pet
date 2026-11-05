@@ -76,9 +76,15 @@ struct RootView: View {
         .preferredColorScheme(UITestHooks.scheme)
         .task {
             // UI-тест просит сразу открыть шкалы или настройки — для скриншота без жестов.
-            guard let url = UITestHooks.openURL else { return }
-            try? await Task.sleep(for: .milliseconds(600))
-            model.open(url)
+            if UITestHooks.opensQuest {
+                // Волна 62: лист «Задания дня» с карточки главного — ссылки у него нет, флаг напрямую.
+                try? await Task.sleep(for: .milliseconds(600))
+                model.showQuest = true
+            } else {
+                guard let url = UITestHooks.openURL else { return }
+                try? await Task.sleep(for: .milliseconds(600))
+                model.open(url)
+            }
             // Вторая ссылка поверх первого листа (как тап по виджету при открытом листе), ui-96-deeplink.
             guard let then = UITestHooks.thenURL else { return }
             try? await Task.sleep(for: .seconds(4))
@@ -103,6 +109,9 @@ enum UITestHooks {
         guard Env.isUITest, let v = Env.value("PET_OPEN"), ["needs", "settings", "album", "capsule", "shop", "house", "tricks", "catch", "blockduo", "runner", "brush", "kitchen", "characters", "yard"].contains(v) else { return nil }
         return URL(string: "pet://\(v)")
     }
+
+    /// PET_OPEN=quest — лист «Задания дня» с карточки главного (HomeQuestCard), волна 62.
+    static var opensQuest: Bool { Env.isUITest && Env.value("PET_OPEN") == "quest" }
 
     /// PET_SHEET_FULL=1 — лист шкал на весь экран (detent .large): аудиту доступности не мешает дом над листом.
     static var sheetFull: Bool { Env.isUITest && Env.value("PET_SHEET_FULL") == "1" }

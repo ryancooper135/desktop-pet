@@ -8,16 +8,16 @@ import UIKit
 // MARK: - Задание дня
 
 /// Карточка под шапкой: кольцо выполненных, «ЗАДАНИЕ ДНЯ · 1/3», что сделать и награда чёрной плашкой «🪙 +45».
-/// Тап — лист «Задания дня» (TasksSheet). Данные — HomeLook.quest(model.taskBoard).
+/// Тап — лист «Задания дня» (TasksSheet, model.showQuest). Данные — HomeLook.quest(model.taskBoard).
 struct HomeQuestCard: View {
     @Environment(AppModel.self) private var model
     let quest: HomeLook.Quest
-    @State private var open = false
 
     var body: some View {
         Button {
             Feel.tap(.button)
-            open = true
+            // Волна 62: лист — у HomeScreen, рядом с остальными (карточка может пропасть, а флаг остаться).
+            model.showQuest = true
         } label: {
             HStack(spacing: 12) {
                 RingGauge(value: quest.fraction, color: quest.allDone ? PetPalette.play : PetPalette.vio, size: 44, line: 4) {
@@ -64,11 +64,6 @@ struct HomeQuestCard: View {
         .accessibilityHint(Text("Открыть задания дня"))
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("home.quest")
-        .sheet(isPresented: $open) {
-            TasksSheet()
-                .environment(model)
-                .presentationDetents([.medium, .large])
-        }
     }
 }
 

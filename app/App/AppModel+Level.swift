@@ -122,7 +122,7 @@ extension AppModel {
     var levelSceneBlocked: Bool {
         away != nil || showCatch || showBlockDuo || showRunner || showTricks || showCapsule || showShop || showHouse
             || showSettings || showAlbum || showNeeds || showKitchen || showLevel || postcard != nil
-            || showYard || showMap
+            || showYard || showMap || showQuest
             || snap.pose == .away
     }
 
