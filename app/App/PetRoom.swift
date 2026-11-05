@@ -357,7 +357,7 @@ enum PetRoom {
             l.name = spec.name
             l.light.color = uiColor(spec.color)
             l.light.intensity = spec.intensity
-            if spec.shadow {
+            if spec.shadow && !PerfKnob.noShadow {
                 l.shadow = DirectionalLightComponent.Shadow(maximumDistance: 4, depthBias: 2)
             }
             l.look(at: .zero, from: spec.from, relativeTo: nil)

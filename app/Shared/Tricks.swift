@@ -297,14 +297,17 @@ enum Tricks {
 
     /// Почему команды сейчас нельзя (общая причина для всех). nil — можно.
     /// Порядок как у ядра: нет пса → гуляет → моется → спит → плохо.
-    static func gate(_ f: SaveFile, at t: Double) -> String? {
+    /// Волна 64: правила — ItemPerks.rules(f), тот же источник, что у PetRunner.peek/apply (было Catalog.rules).
+    /// rules — для теста и для MiniGames.busy, чтобы не собирать правила дважды.
+    static func gate(_ f: SaveFile, at t: Double, rules: Rules? = nil) -> String? {
+        let r = rules ?? ItemPerks.rules(f)
         let s = PetRunner.peek(f, at: t)
         let o = PetRunner.owner(f, at: t)
         if !s.alive { return "dead" }
         if s.outing != nil { return "away" }
         if s.bathUntil != nil { return "bathing" }
-        if s.napUntil != nil || PetEngine.petNight(t, Catalog.rules, o) { return "asleep" }
-        if Presenter.isCritical(level: PetEngine.level(s, Catalog.rules), alive: s.alive) { return "unwell" }
+        if s.napUntil != nil || PetEngine.petNight(t, r, o) { return "asleep" }
+        if Presenter.isCritical(level: PetEngine.level(s, r), alive: s.alive) { return "unwell" }
         return nil
     }
 

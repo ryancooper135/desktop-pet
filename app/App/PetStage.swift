@@ -35,6 +35,11 @@ struct PetStage: View {
     @State private var stageOff = false
 
     var body: some View {
+        // Волна 64: замер без RealityView (PerfKnob.noStage) — только оболочка главной.
+        if PerfKnob.noStage { PetPalette.bg } else { stage }
+    }
+
+    private var stage: some View {
         // В @Sendable-замыкание RealityView передаём только Sendable-значения, не self.
         let pose = self.pose
         let reduceMotion = self.reduceMotion
@@ -74,7 +79,7 @@ struct PetStage: View {
         let growth = model?.growthLook
         let covered = StagePause.covered(catchGame: model?.showCatch ?? false, blockDuo: model?.showBlockDuo ?? false,
                                          runner: model?.showRunner ?? false, away: model?.away != nil)
-        let off = self.stageOff
+        let off = self.stageOff || PerfKnob.stageOff
         // Дела простоя (волна 44 M): под обложкой и с Reduce Motion пёс сам никуда не ходит.
         let idle = covered || off || reduceMotion ? nil : model?.idleScene
         // Сезонный акцент у окна (волна 40 F): бесплатный, по дате; под тестами — осень.
@@ -130,6 +135,7 @@ struct PetStage: View {
             PetRig.say(say, to: pet)
             BrushFx.prime(puff: brushPuff)
             BrushFx.apply(left: brushLeft, total: brushTotal, puff: brushPuff, reduceMotion: reduceMotion, to: pet)
+            if PerfKnob.probe { PerfProbe.countScene(Array(content.entities)) }
             app?.stageBuilt()
         } update: { content in
             // Под обложкой комната выключена целиком (с пятном-тенью и светом); закрыли — сразу снова.

@@ -88,18 +88,15 @@ struct BlockDuoScreen: View {
     }
 
     /// Плашка «просто так» на карточке «Играть» (волна 32): пёс занят или монеты на сегодня кончились. Играть можно всегда.
-    private var note: String? {
-        model.file.flatMap { MiniGames.note($0, at: model.snap.t, left: coinsLeft) }
-    }
+    /// Волна 64: плашка, «просто так» и монеты — на текущее время (MiniGames.start), а не по model.snap.t.
+    private var gameStart: MiniGames.Start { MiniGames.start(model.file, .blockduo, now: Clock.now()) }
+
+    private var note: String? { gameStart.note }
 
     /// Занят ли пёс прямо сейчас — тогда партия «просто так».
-    private var busyNow: String? {
-        model.file.flatMap { MiniGames.busy($0, at: model.snap.t) }
-    }
+    private var busyNow: String? { gameStart.busy }
 
-    private var coinsLeft: Int {
-        model.file.map { BlockDuo.coinsLeft($0, now: model.snap.t) } ?? 0
-    }
+    private var coinsLeft: Int { gameStart.left }
 
     // MARK: верх
 

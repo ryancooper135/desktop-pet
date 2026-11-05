@@ -30,11 +30,13 @@ struct HomeScreen: View {
     var body: some View {
         @Bindable var model = model
         let snap = model.snap
+        let _ = PerfProbe.bumpHome()
         let rescue = snap.level >= 3 && snap.alive
         ZStack {
             PetPalette.bg.ignoresSafeArea()
             // Волна 50: проба глаз для UI-тестов (EyeProbe) — под сценой, не видна и не ловит касания.
-            if Env.isUITest { EyeProbeLabel() }
+            if Env.isUITest && !PerfKnob.noProbe { EyeProbeLabel() }
+            if PerfKnob.probe || PerfKnob.fps30 { PerfProbeLabel() }
 
             GeometryReader { geo in
                 PetStage(pose: snap.pose,

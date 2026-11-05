@@ -709,7 +709,7 @@ final class PetRig {
         }
         pet.components.set(face)
         guard let rig = rig(for: pet) else { return }
-        if Env.isUITest { EyeProbe.frame(touched: face.time < face.touchUntil, shut: shut, blinked: blinked) }
+        if Env.isUITest && !PerfKnob.noProbe { EyeProbe.frame(touched: face.time < face.touchUntil, shut: shut, blinked: blinked) }
         rig.look(face.angle, wiggle: wiggle)
         rig.talk(max(face.jaw, 0))
         rig.setEyes(closed: shut)
