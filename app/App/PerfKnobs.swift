@@ -26,6 +26,17 @@ enum PerfKnob {
     static let fps30 = all.contains("fps30")
     /// Подпись perf.probe: кадры в секунду, тела главной, классы вида сцены.
     static let probe = all.contains("probe")
+    /// ARView.renderOptions: без размытия движения, глубины резкости, зерна камеры, AR-окклюзии и AR-света.
+    static let renderLite = all.contains("ro")
+    /// Плюс к ro: без HDR.
+    static let noHDR = all.contains("nohdr")
+    /// Плюс к ro: без «теней на земле» AR.
+    static let noGrounding = all.contains("nogs")
+    /// Масштаб слоя сцены 2 вместо 3 (меньше пикселей).
+    static let scale2 = all.contains("scale2")
+    /// Найти CADisplayLink сцены (Mirror по ARView) и попросить 30 к/с.
+    static let link30 = all.contains("dl30")
+    static var touchesView: Bool { renderLite || noHDR || noGrounding || scale2 || link30 || fps30 }
 }
 
 /// Счётчики пробы. Пишутся только при PerfKnob.probe.
@@ -57,7 +68,7 @@ enum PerfProbe {
 
     /// Запуск один раз: через 3 с — разбор вида (и попытка 30 к/с), через 8 и 18 с — частота кадров.
     static func start() {
-        guard (PerfKnob.probe || PerfKnob.fps30), !started else { return }
+        guard (PerfKnob.probe || PerfKnob.touchesView), !started else { return }
         started = true
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(3))
@@ -115,10 +126,58 @@ enum PerfProbe {
                 + String(format: " scale=%.1f", v.contentScaleFactor)
             if !sels.isEmpty { line += " sel=" + sels.prefix(24).joined(separator: ",") }
             if PerfKnob.fps30 { line += " set30=" + setFrameRate(v, sels) }
+            if let ar = v as? ARView { line += " " + tune(ar) }
+            if PerfKnob.scale2, v.contentScaleFactor > 2 { v.contentScaleFactor = 2; line += " scale→2" }
             out.append(line)
         }
         if found.isEmpty { out.append("view: хост сцены не найден") }
         return out.joined(separator: " | ")
+    }
+
+    /// Ручки вида ARView: renderOptions и поиск CADisplayLink по Mirror.
+    private static func tune(_ ar: ARView) -> String {
+        var o = ar.renderOptions
+        let before = o.rawValue
+        if PerfKnob.renderLite || PerfKnob.noHDR || PerfKnob.noGrounding {
+            o.formUnion([.disableMotionBlur, .disableDepthOfField, .disableCameraGrain, .disablePersonOcclusion,
+                         .disableAREnvironmentLighting])
+        }
+        if PerfKnob.noHDR { o.insert(.disableHDR) }
+        if PerfKnob.noGrounding { o.insert(.disableGroundingShadows) }
+        if o != ar.renderOptions { ar.renderOptions = o }
+        var line = "ro=\(before)→\(ar.renderOptions.rawValue) mode=\(ar.cameraMode == .nonAR ? "nonAR" : "ar")"
+        var links: [String] = []
+        var seen = Set<ObjectIdentifier>()
+        var budget = 4000
+        func walk(_ value: Any, _ path: String, _ depth: Int) {
+            guard budget > 0, depth < 7 else { return }
+            budget -= 1
+            if let l = value as? CADisplayLink {
+                let r = l.preferredFrameRateRange
+                var note = path + String(format: "(%.0f/%.0f/%.0f,%@)", r.minimum, r.maximum, r.preferred,
+                                         l.isPaused ? "p" : "r")
+                if PerfKnob.link30 {
+                    l.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 30, preferred: 30)
+                    note += "→30"
+                }
+                links.append(note)
+                return
+            }
+            let m = Mirror(reflecting: value)
+            if m.displayStyle == .class {
+                let id = ObjectIdentifier(value as AnyObject)
+                guard seen.insert(id).inserted else { return }
+            }
+            var mm: Mirror? = m
+            while let cur = mm {
+                for c in cur.children { walk(c.value, path + "." + (c.label ?? "?"), depth + 1) }
+                mm = cur.superclassMirror
+            }
+        }
+        walk(ar, "ar", 0)
+        line += " links=" + (links.isEmpty ? "нет" : links.prefix(4).joined(separator: ","))
+        line += " walked=\(4000 - budget)"
+        return line
     }
 
     /// Попытка 30 к/с: сеттеры с «FrameRate»/«FramesPerSecond» и одним числовым аргументом.

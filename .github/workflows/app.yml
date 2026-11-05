@@ -427,6 +427,8 @@ jobs:
       PERF_ONLY: ${{ inputs.perf_only }}
       CONFIG: ${{ inputs.config || 'Debug' }}
       TEST_RUNNER_PET_PERF_LONG: "1"
+      # Волна 64: PerfDiagUITests кладут сюда кадр каждой ручки (артефакт Pet-perf).
+      TEST_RUNNER_PET_SHOT_DIR: ${{ github.workspace }}/app/out/perf
     steps:
       - uses: actions/checkout@v4
         with:
@@ -511,7 +513,9 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: Pet-perf
-          path: app/out/perf/perf-*.json
+          path: |
+            app/out/perf/perf-*.json
+            app/out/perf/*.png
           if-no-files-found: ignore
           retention-days: 14
 

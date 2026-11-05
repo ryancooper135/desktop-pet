@@ -36,7 +36,7 @@ struct HomeScreen: View {
             PetPalette.bg.ignoresSafeArea()
             // Волна 50: проба глаз для UI-тестов (EyeProbe) — под сценой, не видна и не ловит касания.
             if Env.isUITest && !PerfKnob.noProbe { EyeProbeLabel() }
-            if PerfKnob.probe || PerfKnob.fps30 { PerfProbeLabel() }
+            if PerfKnob.probe || PerfKnob.touchesView { PerfProbeLabel() }
 
             GeometryReader { geo in
                 PetStage(pose: snap.pose,

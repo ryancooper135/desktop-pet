@@ -34,6 +34,13 @@ final class PerfDiagUITests: XCTestCase {
         let probe = app.descendants(matching: .any)["perf.probe"].firstMatch
         let text = probe.waitForExistence(timeout: 3) ? probe.label : "подписи нет"
         print("PROBE \(knobs.isEmpty ? "base" : knobs): \(text)")
+        // Кадр для глаз: ручки не должны менять картинку (артефакт Pet-perf, если CI задал папку).
+        if let dir = ProcessInfo.processInfo.environment["PET_SHOT_DIR"], !dir.isEmpty {
+            let name = (knobs.isEmpty ? "base" : knobs.replacingOccurrences(of: ",", with: "+"))
+                + "-" + String(UUID().uuidString.prefix(4)) + ".png"
+            try? XCUIScreen.main.screenshot().pngRepresentation
+                .write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+        }
         app.terminate()
     }
 
@@ -53,4 +60,14 @@ final class PerfDiagUITests: XCTestCase {
     @MainActor func testDiag7Freeze() throws { try idle("noprobe,nosys,freeze") }
     /// Попытка 30 к/с через свойства вида RealityKit.
     @MainActor func testDiag8Fps30() throws { try idle("noprobe,fps30") }
+    /// ARView.renderOptions: без размытия движения, глубины резкости, зерна, AR-окклюзии и AR-света.
+    @MainActor func testDiag9RenderLite() throws { try idle("noprobe,ro") }
+    /// То же и без HDR.
+    @MainActor func testDiagANoHDR() throws { try idle("noprobe,ro,nohdr") }
+    /// То же и без AR-теней на земле.
+    @MainActor func testDiagBNoGrounding() throws { try idle("noprobe,ro,nogs") }
+    /// Слой сцены в масштабе 2 вместо 3.
+    @MainActor func testDiagCScale2() throws { try idle("noprobe,scale2") }
+    /// CADisplayLink сцены (если найдётся) на 30 к/с.
+    @MainActor func testDiagDLink30() throws { try idle("noprobe,dl30") }
 }
