@@ -34,6 +34,7 @@ struct WeatherFallSystem: System {
     init(scene: RealityKit.Scene) {}
 
     @MainActor func update(context: SceneUpdateContext) {
+        if PerfKnob.noSystems { return }
         let dt = min(Double(context.deltaTime), 0.1)
         for root in context.entities(matching: query, updatingSystemWhen: .rendering) {
             guard var c = root.components[WeatherClock.self], !c.still, dt > 0 else { continue }

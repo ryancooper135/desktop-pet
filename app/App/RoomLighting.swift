@@ -60,6 +60,7 @@ struct RoomLightSystem: System {
     init(scene: RealityKit.Scene) {}
 
     @MainActor func update(context: SceneUpdateContext) {
+        if PerfKnob.noSystems { return }
         let dt = min(Double(context.deltaTime), 0.1)
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
             guard var s = e.components[RoomLightState.self] else { continue }

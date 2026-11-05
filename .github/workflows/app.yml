@@ -427,6 +427,8 @@ jobs:
       PERF_ONLY: ${{ inputs.perf_only }}
       CONFIG: ${{ inputs.config || 'Debug' }}
       TEST_RUNNER_PET_PERF_LONG: "1"
+      # Волна 64: PerfDiagUITests кладут сюда кадр каждой ручки (артефакт Pet-perf).
+      TEST_RUNNER_PET_SHOT_DIR: ${{ github.workspace }}/app/out/perf
     steps:
       - uses: actions/checkout@v4
         with:
@@ -490,7 +492,7 @@ jobs:
               "-only-testing:PetUITests/$PERF_ONLY" \
               -parallel-testing-enabled NO \
               -test-timeouts-enabled YES -default-test-execution-time-allowance 300 \
-              2>&1 | grep -E "^Test Case|error:") || true
+              2>&1 | grep -E "^Test Case|error:|PROBE") || true
             # Упавший тест — причина из xcresult (сам xcresult в артефакт не идёт: он большой).
             xcrun xcresulttool get test-results summary --path "$OUT/$side-$r.xcresult" \
               | python3 -c 'import json,sys; [print("раунд '"$r $side"': упал", f.get("testIdentifierString"), "—", f.get("failureText")) for f in json.load(sys.stdin).get("testFailures", [])]' \
@@ -511,7 +513,9 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: Pet-perf
-          path: app/out/perf/perf-*.json
+          path: |
+            app/out/perf/perf-*.json
+            app/out/perf/*.png
           if-no-files-found: ignore
           retention-days: 14
 

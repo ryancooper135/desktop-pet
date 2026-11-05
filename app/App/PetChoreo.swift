@@ -725,6 +725,7 @@ struct PetActSystem: System {
     init(scene: RealityKit.Scene) {}
 
     @MainActor func update(context: SceneUpdateContext) {
+        if PerfKnob.noSystems { return }
         let dt = min(context.deltaTime, 0.1)
         guard dt > 0 else { return }
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {

@@ -78,6 +78,15 @@ enum MiniGame: String, Codable, CaseIterable, Hashable, Sendable {
 
     /// Личный рекорд этой игры в сейве.
     func record(_ f: SaveFile) -> Int { f[keyPath: bestKey] }
+
+    /// Сколько монет ещё дадут сегодня за эту игру (свой потолок и общий на все игры).
+    func coinsLeft(_ f: SaveFile, now: Double) -> Int {
+        switch self {
+        case .ball: return CatchGame.coinsLeft(f, now: now)
+        case .blockduo: return BlockDuo.coinsLeft(f, now: now)
+        case .runner: return Runner.coinsLeft(f, now: now)
+        }
+    }
 }
 
 enum MiniGames {
@@ -105,11 +114,35 @@ enum MiniGames {
     /// Занят ли пёс для мини-игр — одно правило на все игры. Порядок как у трюков (Tricks.gate): нет пса → гуляет →
     /// моется → спит (дрёма или ночь) → плохо, потом отказ ядра на play («tired» — нет сил). nil — свободен,
     /// раунд настоящий. Иначе — причина, и раунд идёт «просто так».
-    static func busy(_ f: SaveFile, at t: Double) -> String? {
-        if let r = Tricks.gate(f, at: t) { return r }
+    /// Волна 64: правила ядра — ItemPerks.rules(f), как у PetRunner.apply, который потом и проводит «Поиграть»
+    /// (раньше тут стоял голый Catalog.rules, и польза вещей/стадия роста в ответ «занят ли» не входили).
+    /// rules — для теста: подставить свои правила и убедиться, что решение идёт по ним.
+    static func busy(_ f: SaveFile, at t: Double, rules: Rules? = nil) -> String? {
+        let r = rules ?? ItemPerks.rules(f)
+        if let reason = Tricks.gate(f, at: t, rules: r) { return reason }
         var s = PetRunner.peek(f, at: t)
-        let res = PetEngine.act(&s, Catalog.rules, PetRunner.owner(f, at: t), .play)
+        let res = PetEngine.act(&s, r, PetRunner.owner(f, at: t), .play)
         return res.ok ? nil : (res.reason ?? "unavailable")
+    }
+
+    /// Что карточка «Играть» и кнопка старта знают об игре в момент now (волна 64). Экраны мини-игр раньше брали
+    /// model.snap.t — снимок, который мог отстать на минуты (ночь уже началась, дрёма кончилась, сутки сменились,
+    /// а плашка и раунд «просто так» решались по старому времени). Теперь — текущее время, как у остальных
+    /// решений ядра (PetRunner.apply, Challenges.play на финише).
+    struct Start: Equatable, Sendable {
+        /// Причина «просто так» (busy); nil — раунд настоящий.
+        let busy: String?
+        /// Плашка на карточке (note): busy или capReason.
+        let note: String?
+        /// Сколько монет ещё дадут сегодня за эту игру.
+        let left: Int
+    }
+
+    static func start(_ f: SaveFile?, _ game: MiniGame, now: Double) -> Start {
+        guard let f else { return Start(busy: nil, note: nil, left: 0) }
+        let left = game.coinsLeft(f, now: now)
+        let b = busy(f, at: now)
+        return Start(busy: b, note: b ?? (left <= 0 ? capReason : nil), left: left)
     }
 
     /// Что сказать на карточке «Играть»: причина «просто так» (busy) или capReason, когда монет сегодня больше нет

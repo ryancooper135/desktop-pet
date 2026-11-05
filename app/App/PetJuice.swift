@@ -117,6 +117,14 @@ struct JuiceSystem: System {
     init(scene: RealityKit.Scene) {}
 
     @MainActor func update(context: SceneUpdateContext) {
+        if PerfKnob.probe { PerfProbe.frames += 1 }
+        if PerfKnob.noSystems {
+            // Замер (волна 64): с freeze ещё и клипы скелета стоят — кадр без анимации вовсе.
+            if PerfKnob.freeze {
+                for e in context.entities(matching: query, updatingSystemWhen: .rendering) { e.stopAllAnimations(recursive: true) }
+            }
+            return
+        }
         let dt = min(Float(context.deltaTime), 0.1)
         guard dt > 0 else { return }
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
@@ -173,6 +181,7 @@ struct IdleDirectorSystem: System {
     init(scene: RealityKit.Scene) {}
 
     @MainActor func update(context: SceneUpdateContext) {
+        if PerfKnob.noSystems { return }
         let dt = min(context.deltaTime, 0.25)
         guard dt > 0 else { return }
         for e in context.entities(matching: query, updatingSystemWhen: .rendering) {
