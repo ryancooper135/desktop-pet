@@ -10,6 +10,7 @@
 //   testPerfIdleMinutes волна 56 «лёгкость»: 3 минуты покоя на главном (3 итерации по 60 с): CPU за минуту (доля CPU =
 //                       CPU Time / Clock — прокси батареи; батарею на симуляторе честно не померить), память и её рост.
 //                       Только в режиме perf (job perf ставит TEST_RUNNER_PET_PERF_LONG=1): в обычном шарде 3 — skip.
+//                       Волна 64: без проб UI-тестов (PET_PERF_KNOB=noprobe) — меряем то, что крутится на телефоне.
 //                       RESEARCH/56-lightness.md.
 
 import XCTest
@@ -33,16 +34,19 @@ final class PerfUITests: XCTestCase {
 
     /// Тот же день и тема на каждом запуске: числа сравнимы между прогонами.
     @MainActor
-    private func perfApp() -> XCUIApplication {
+    /// phone: true — как на телефоне, без проб UI-тестов (EyeProbeLabel раз в 0,2 с и EyeProbe на каждый кадр есть
+    /// только под -uiTesting; волна 64). Ветки без PerfKnob (main до волны 64) переменную просто не читают.
+    private func perfApp(phone: Bool = false) -> XCUIApplication {
         let app = ScreenshotUITests.makeApp()
         app.launchEnvironment["PET_NOW"] = ScreenshotUITests.noon
         app.launchEnvironment["PET_SCHEME"] = "light"
+        if phone { app.launchEnvironment["PET_PERF_KNOB"] = "noprobe" }
         return app
     }
 
     @MainActor
-    private func launchHome() -> XCUIApplication {
-        let app = perfApp()
+    private func launchHome(phone: Bool = false) -> XCUIApplication {
+        let app = perfApp(phone: phone)
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "приложение не запустилось")
         acceptSystemAlerts()
@@ -122,7 +126,7 @@ final class PerfUITests: XCTestCase {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["PET_PERF_LONG"] == "1",
                           "долгий покой меряется только в режиме perf (TEST_RUNNER_PET_PERF_LONG=1)")
         executionTimeAllowance = 600
-        let app = launchHome()
+        let app = launchHome(phone: true)
         let metrics: [XCTMetric] = [XCTClockMetric(), XCTMemoryMetric(application: app), XCTCPUMetric(application: app)]
         measure(metrics: metrics, options: Self.options(3)) {
             settle(60)
