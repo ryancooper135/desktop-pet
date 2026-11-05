@@ -154,8 +154,8 @@ enum PerfProbe {
             budget -= 1
             if let l = value as? CADisplayLink {
                 let r = l.preferredFrameRateRange
-                var note = path + String(format: "(%.0f/%.0f/%.0f,%@)", r.minimum, r.maximum, r.preferred,
-                                         l.isPaused ? "p" : "r")
+                var note = path + "(\(Int(r.minimum))/\(Int(r.maximum))/\(Int(r.preferred ?? 0)),"
+                    + (l.isPaused ? "p)" : "r)")
                 if PerfKnob.link30 {
                     l.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 30, preferred: 30)
                     note += "→30"
